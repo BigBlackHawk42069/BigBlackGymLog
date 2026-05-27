@@ -6,7 +6,9 @@
       "Bash(Sort-Object Name)",
       "Bash(Select-Object Name)",
       "Bash(node --check \"C:/Users/Ulyss/Documents/Desktop/Big Black Development/Big Black Gym Log/BBGL Repo/Big-Black-Gym-Log/BBGL Test Branch/Big-Black-Gym-Log-Test.js\")",
-      "PowerShell(& \"C:\\\\Users\\\\Ulyss\\\\Documents\\\\Desktop\\\\Big Black Development\\\\Big Black Gym Log\\\\BBGL Repo\\\\Big-Black-Gym-Log\\\\BBGL Test Branch\\\\build.ps1\")"
+      "PowerShell(& \"C:\\\\Users\\\\Ulyss\\\\Documents\\\\Desktop\\\\Big Black Development\\\\Big Black Gym Log\\\\BBGL Repo\\\\Big-Black-Gym-Log\\\\BBGL Test Branch\\\\build.ps1\")",
+      "Bash(Get-ChildItem -Filter \"*.js\")",
+      "Bash(grep \"\\\\.js$\")"
     ]
   }
 }
