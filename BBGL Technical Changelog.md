@@ -3,17 +3,25 @@
 Version 0.9.60 - Pending
 
 ### New Features:
-- **BB Best Gym**: Added an optional feature (on by default) that always points you to the highest-rated gym for the stat you're training. Pressing a train button while a better gym is available opens Torn's gym change for that gym so you can confirm or cancel it — it never trains or switches without you. Once it has offered a swap for a stat, it stays out of the way for that stat until the page reloads, so you can keep training your current gym freely. Toggle it from the floating switch at the top of the gym page (beside the City and Tutorial buttons) or from the settings menu, with a sub-option to include or exclude specialist gyms.
+- **BB Best Gym**: Added an optional feature (on by default) that automatically switches to the best gym for the specific stat you're training, preventing accidental training at suboptimal gyms. Pressing a train button while a better gym is available opens Torn's gym change for that gym so you can confirm or cancel it — it never trains or switches without you. Once it has offered a swap for a stat, it stays out of the way for that stat until the page reloads, so you can keep training your current gym freely. Toggle it from the floating switch at the top of the gym page (beside the City and Tutorial buttons) or from the settings menu, with an optional sub-setting to exclude specialist gyms.
+- **Diamond Days**: Added a brand new achievement tier for reaching 2000E+ training days, complete with new jewel visuals, weekly bar progress segments, hover animations for stickers and jewels, and enhanced bonuses for reaching this training goal. Diamond days award more points toward weekly progress, allowing standard and premium rewards to be achieved more easily. Points from all tiers contribute to an arbitrary leveling system in development to enhance long-term motivation and progression.
+- **Achievements Page Overhaul** (in progress): Removed the expended energy category from the achievements page to include other more interesting statistics — including happy jump gains records and Diamond Day tracking, providing better insight into training patterns and special achievements.
+- **Feature Guide** (in progress): Added a new feature guide offering transparency and support for the many features this script provides, making the extensive functionality more accessible to new and existing users.
 
 ### Bug Fixes:
 - **Gold Week Sticker Award**: Fixed an issue where some gold weeks were not properly awarding 2 stickers instead of 1.
+- **Sidebar Notification State**: Fixed an issue where the sidebar icon for the Gym Log would sometimes light up green when other pages received notifications, causing false positives.
+- **TornPDA Update Flag**: Fixed an issue that prevented the update notification flag from appearing immediately after updating and refreshing on TornPDA.
 
 ### Improvements:
-- **Happy Jump Awards**: Adjusted happy jump awards to more equally match the reward progress that occurs through regular training — making a full week 3 happy jumps and a gold week 4 happy jumps.
+- **Weekly Progress Bar Overhaul**: Completely overhauled the weekly progress bar system visually and functionally. The system now translates training into "points" (200 green / 300 gold / 500 diamond per day) for the future leveling system, making room for new diamond-tier bar segments. Gold and green fills are now anchored left and right for clearer visual hierarchy.
+- **Happy Jump Requirements**: Increased the required happy jumps needed to complete weekly rewards to better balance effort against consistent training. 3 happy jumps per week now fill the bar (up from 2), with a 4th jump elevating it to diamond status. This re-aligns short-burst training with standard daily training effort.
 - **Achievements Copy/Paste Output**: Reworked the copy/paste output on the achievements page for both individual stats and full category copies. Category headers are now spaced and framed with em-dashes, multi-line stats are separated by blank lines while single-line stats stay grouped, and row labels are aligned with the on-screen UI for cleaner sharing on Discord and forums.
 - **Expanded Date Tracking on Achievements**: Added date tracking to more achievements — the Best Training Streak, Best Green Streak, and Best Gold Streak rows now display their date ranges under the stat in expanded panel and page mode, matching the date styling used elsewhere on the achievements page.
 - **Tap-and-Hold Parity with Desktop Hover**: Extended the mobile tap-and-hold interaction to fully imitate desktop "hover" behavior across the script, so tooltips, scrubbing, and other hover-driven affordances behave identically on touch devices — no functionality is lost between the two platforms.
-- **Config Page Reorganization**: Regrouped the settings menu into clearer, purpose-named sections — Big Black Features, Log Format, API Access, Data Management, and Information — for quicker navigation.
+- **Settings Configuration Reorganization**: Regrouped the settings menu into clearer, purpose-named sections — Big Black Features, Log Format, API Access, Data Management, and Information — for quicker navigation. Made the DEMO MODE button dynamic to function as an EXIT DEMO button while demo mode is active, enhancing navigation clarity and reducing user confusion.
+- **Sidebar Branding Update**: Changed the SVG icon for the Gym Log from a flexing arm to a Crown, improving visual branding consistency across the application.
+- **General UI Refinements**: Various minor improvements across the interface for enhanced usability and visual polish.
 
 --------------------------------------------------
 
