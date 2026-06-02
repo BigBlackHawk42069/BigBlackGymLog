@@ -1,0 +1,319 @@
+    /**
+     *  [SECTION VIII] THE GAINS (Sticker Engine)
+     *  ========================================================================
+     *  You may not get laid, but you'll have
+     *  the sticker to prove it.
+     */
+
+    function loadStickerData() {
+        DataController.getStickerMap();
+        const unlocked = runtime.demoMode ? 1 : (DataController._cache.unlockedCount || 1);
+        const it = [];
+        for (let i = 1; i <= 50; i++) {
+            const c = CUSTOM_STICKERS.find(s => s.id === i);
+            if (c) it.push({
+                type: 'image',
+                ...c,
+                unlocked: i <= unlocked
+            });
+            else it.push(null);
+        }
+        runtime.stickerData = it;
+    }
+
+    function renderStickers() {
+        Perf.start('renderStickers');
+        if (!runtime.stickerData.length) loadStickerData();
+        if (runtime.currentStickerPage === -1) {
+            renderSponsorshipPage();
+            Perf.end('renderStickers');
+            return;
+        }
+        const sg = document.getElementById('bbgl-sponsor-grid');
+        if (sg) sg.style.display = 'none';
+        if (dom.stickerGrid) dom.stickerGrid.style.display = '';
+        const dc = dom.stickerPagination,
+            te = dom.stickerTitle;
+        if (te) te.innerText = PAGE_TITLES[runtime.currentStickerPage] || "";
+        const tp = Math.ceil(runtime.stickerData.length / 10),
+            pb = dom.stickerPrev,
+            nb = dom.stickerNext,
+            sb = dom.stickerSponsor;
+        if (pb) {
+            if (runtime.currentStickerPage <= 0) pb.classList.add('disabled');
+            else pb.classList.remove('disabled');
+        }
+        if (sb) {
+            if (runtime.currentStickerPage === 0) sb.classList.remove('disabled');
+            else sb.classList.add('disabled');
+        }
+        if (nb) {
+            if (runtime.currentStickerPage >= tp - 1) nb.classList.add('disabled');
+            else nb.classList.remove('disabled');
+        }
+        if (dc) {
+            dc.innerHTML = '';
+            const sd = document.createElement('div');
+            sd.className = 'pg-dot';
+            sd.onclick = () => {
+                runtime.currentStickerPage = -1;
+                viewState.currentStickerPage = -1;
+                saveViewState();
+                renderStickers();
+            };
+            dc.appendChild(sd);
+            for (let i = 0; i < tp; i++) {
+                const d = document.createElement('div');
+                d.className = `pg-dot ${i === runtime.currentStickerPage ? 'active' : ''}`;
+                d.onclick = () => {
+                    runtime.currentStickerPage = i;
+                    renderStickers();
+                };
+                dc.appendChild(d);
+            }
+        }
+        const start = runtime.currentStickerPage * 10,
+            pi = runtime.stickerData.slice(start, start + 10);
+        if (runtime.stickerSlots.length === 0) {
+            Perf.end('renderStickers');
+            return;
+        }
+        let comingSoonDiv = document.getElementById('bbgl-coming-soon');
+        if (runtime.currentStickerPage >= 2) {
+            for (let i = 0; i < 10; i++) runtime.stickerSlots[i].style.display = 'none';
+            if (!comingSoonDiv) {
+                const g = document.getElementById('bbgl-sticker-container') || dom.stickerContainer;
+                if (g) {
+                    const cs = document.createElement('div');
+                    cs.id = 'bbgl-coming-soon';
+                    cs.className = 'bbgl-coming-soon';
+                    cs.innerHTML = 'Cumming<br>Soon...';
+                    g.appendChild(cs);
+                }
+            } else comingSoonDiv.style.display = 'block';
+        } else {
+            if (comingSoonDiv) comingSoonDiv.style.display = 'none';
+            for (let i = 0; i < 10; i++) {
+                const sl = runtime.stickerSlots[i],
+                    img = sl.querySelector('.sticker-img'),
+                    it = pi[i];
+                sl.style.display = '';
+                if (it) {
+                    sl.className = 'sticker-slot active-slot';
+                    if (it.unlocked) {
+                        sl.classList.add('has-item');
+                        sl.classList.remove('locked');
+                        sl.setAttribute('data-tooltip', `${it.name}`);
+                        sl.onclick = () => openItemViewer(it);
+                    } else {
+                        sl.classList.add('has-item', 'locked');
+                        sl.setAttribute('data-tooltip', TOOLTIPS.LOCKED);
+                        sl.onclick = null;
+                    }
+                    if (img.src !== it.url) img.src = it.url;
+                } else {
+                    sl.className = 'sticker-slot';
+                    sl.onclick = null;
+                }
+            }
+        }
+        Perf.end('renderStickers');
+    }
+
+    function animateViewer(ts) {
+        if (document.hidden || runtime.currentOpenedItemId === null || viewState.subView !== 'stickers' && viewState.subView !== 'viewer' && runtime.currentOpenedItemId === null) {
+            if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
+            runtime.viewerLoopId = null;
+            return;
+        }
+        if (!runtime.lastFrameTime) runtime.lastFrameTime = ts;
+        const el = ts - runtime.lastFrameTime;
+        if (el > 17) {
+            runtime.lastFrameTime = ts - (el % 17);
+            const ped = dom.viPedestal,
+                obj = dom.viObj;
+            if (ped && obj) {
+                runtime.viewerRotation += runtime.viewerSpeed;
+                ped.style.transform = `rotateY(${runtime.viewerRotation}deg) translateZ(0)`;
+                if (obj.classList.contains('is-image')) {
+                    const rad = (runtime.viewerRotation * Math.PI) / 180,
+                        br = (0.7 + (Math.sin(rad) * 0.3)).toFixed(2),
+                        isF = Math.cos(rad) > -0.2 ? 1 : 0;
+                    obj.style.setProperty('--sheen-pos', (runtime.viewerRotation * 2.5) + '% 0%');
+                    obj.style.setProperty('--back-brightness', br);
+                    obj.style.setProperty('--sheen-opacity', isF);
+                }
+            }
+        }
+        runtime.viewerLoopId = requestAnimationFrame(animateViewer);
+    }
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden && runtime.currentOpenedItemId !== null) {
+            if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
+            animateViewer();
+        }
+    });
+
+    function openItemViewer(it, sv = true) {
+        if (runtime.currentOpenedItemId === it.id) return;
+        if (sv) {
+            viewState.activeItemId = it.id;
+            saveViewState();
+        }
+        TooltipController.hide();
+        const v = dom.itemViewer,
+            bp = dom.bottomPanel,
+            nm = dom.viName,
+            ob = dom.viObj,
+            lf = ob.querySelector('.layer-front'),
+            lb = ob.querySelector('.layer-back'),
+            st = document.querySelector('.viewer-stage');
+        runtime.currentOpenedItemId = it.id;
+        bp.style.setProperty('display', 'none', 'important');
+        v.classList.add('active');
+        v.style.setProperty('display', 'flex', 'important');
+        let ped = dom.viPedestal;
+        if (!ped) {
+            ped = document.createElement('div');
+            ped.id = 'vi-pedestal-wrapper';
+            ped.className = 'viewer-pedestal';
+            st.appendChild(ped);
+            ped.appendChild(ob);
+            dom.viPedestal = ped;
+        }
+        nm.innerText = it.name;
+        if (it.type === 'image') {
+            ob.classList.add('is-image');
+            ob.style.setProperty('--bg-mask', `url('${it.url}')`);
+            if (lf) lf.style.backgroundImage = `url('${it.url}')`;
+            if (lb) {
+                lb.style.webkitMaskImage = `url('${it.url}')`;
+                lb.style.maskImage = `url('${it.url}')`;
+            }
+        }
+        runtime.viewerRotation = 0;
+        runtime.viewerSpeed = 0.3;
+        if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
+        requestAnimationFrame(animateViewer);
+        const spdUp = () => {
+                runtime.viewerSpeed = 3;
+            },
+            spdDn = () => {
+                runtime.viewerSpeed = 0.3;
+            };
+        st.onmousedown = spdUp;
+        st.ontouchstart = spdUp;
+        st.onmouseup = spdDn;
+        st.onmouseleave = spdDn;
+        st.ontouchend = spdDn;
+        st.ontouchcancel = spdDn;
+    }
+
+    function closeItemViewer(sv = true) {
+        if (sv) {
+            viewState.activeItemId = null;
+            saveViewState();
+        }
+        runtime.currentOpenedItemId = null;
+        if (runtime.viewerLoopId) {
+            cancelAnimationFrame(runtime.viewerLoopId);
+            runtime.viewerLoopId = null;
+        }
+        const v = dom.itemViewer,
+            bp = dom.bottomPanel;
+        if (v) {
+            v.classList.remove('active');
+            v.style.setProperty('display', 'none', 'important');
+        }
+        if (bp) {
+            bp.style.removeProperty('display');
+            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
+        }
+    }
+
+    function setupStickerGrid() {
+        const g = dom.stickerGrid;
+        if (!g) return;
+        runtime.stickerSlots = [];
+        g.innerHTML = '';
+        for (let i = 0; i < 10; i++) {
+            const s = document.createElement('div'),
+                m = document.createElement('img');
+            s.className = 'sticker-slot';
+            m.className = 'sticker-img';
+            s.appendChild(m);
+            g.appendChild(s);
+            runtime.stickerSlots.push(s);
+        }
+        const container = dom.stickerContainer;
+        if (container && !document.getElementById('bbgl-sponsor-grid')) {
+            const sg = document.createElement('div');
+            sg.id = 'bbgl-sponsor-grid';
+            sg.style.display = 'none';
+            const pts = getSponsorBurstPoints();
+            for (let i = 0; i < 3; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'sticker-slot sticker-slot-sponsor active-slot locked';
+                const labelText = i === 0 ? 'Corleone Faction<br>Sticker Here ;)' : 'Your Faction<br>Sticker Here';
+                slot.innerHTML = `<svg class="sponsor-sticker-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><polygon points="${pts}" fill="#ffffff"/></svg><span class="sponsor-sticker-label">${labelText}</span>`;
+                sg.appendChild(slot);
+            }
+            const pag = dom.stickerPagination;
+            if (pag && pag.parentElement === container) container.insertBefore(sg, pag);
+            else container.appendChild(sg);
+        }
+        renderStickers();
+    }
+    let _sponsorBurstPoints = null;
+
+    function getSponsorBurstPoints() {
+        if (_sponsorBurstPoints) return _sponsorBurstPoints;
+        const pts = [];
+        for (let i = 0; i < 20; i++) {
+            const angle = (i * 18 - 90) * Math.PI / 180;
+            const r = (i % 2 === 0) ? 48 : 36;
+            const x = (50 + r * Math.cos(angle)).toFixed(2);
+            const y = (50 + r * Math.sin(angle)).toFixed(2);
+            pts.push(`${x},${y}`);
+        }
+        _sponsorBurstPoints = pts.join(' ');
+        return _sponsorBurstPoints;
+    }
+
+    function renderSponsorshipPage() {
+        if (dom.stickerTitle) dom.stickerTitle.innerText = "Sponsorship";
+        if (dom.stickerGrid) dom.stickerGrid.style.display = 'none';
+        const comingSoon = document.getElementById('bbgl-coming-soon');
+        if (comingSoon) comingSoon.style.display = 'none';
+        const sg = document.getElementById('bbgl-sponsor-grid');
+        if (sg) sg.style.display = 'grid';
+        if (dom.stickerPrev) dom.stickerPrev.classList.add('disabled');
+        if (dom.stickerSponsor) dom.stickerSponsor.classList.add('disabled');
+        if (dom.stickerNext) dom.stickerNext.classList.remove('disabled');
+        const dc = dom.stickerPagination;
+        if (dc) {
+            dc.innerHTML = '';
+            const tp = Math.ceil(runtime.stickerData.length / 10);
+            const sd = document.createElement('div');
+            sd.className = 'pg-dot pg-dot-sponsor active';
+            sd.onclick = () => {
+                runtime.currentStickerPage = -1;
+                viewState.currentStickerPage = -1;
+                saveViewState();
+                renderStickers();
+            };
+            dc.appendChild(sd);
+            for (let i = 0; i < tp; i++) {
+                const d = document.createElement('div');
+                d.className = 'pg-dot';
+                d.onclick = () => {
+                    runtime.currentStickerPage = i;
+                    viewState.currentStickerPage = i;
+                    saveViewState();
+                    renderStickers();
+                };
+                dc.appendChild(d);
+            }
+        }
+    }
+
