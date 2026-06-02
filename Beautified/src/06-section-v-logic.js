@@ -905,7 +905,8 @@
             meta: {
                 baselineBreakdown: {
                     ...ZERO_BREAKDOWN
-                }
+                },
+                deepScan: defaultDeepScan()
             },
             history: [],
             today: initializeDayObject(Formatter.dateLogical(), {

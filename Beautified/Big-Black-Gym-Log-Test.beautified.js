@@ -141,6 +141,17 @@
             5303: 'dexterity'
         }
     };
+    // Deep Log Sync: a resumable backward scan that walks the activity log to the beginning of
+    // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data
+    // reads at 50,000 rows/day per category (the activity log is one category, shared across
+    // every log type and every script the user runs); ROW_CAP leaves headroom for that, and the
+    // cooldown is set slightly over 24h so the rolling-24h window is guaranteed clear on resume.
+    const DEEP_SCAN = {
+        ROW_CAP: 30000,
+        COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
+        THROTTLE_MS: 700,
+        LOG_IDS: '5300,5301,5302,5303'
+    };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
     // BestGym treats a whole group as one rank and only moves to a strictly higher group.
@@ -2130,6 +2141,30 @@
         }
     };
 
+    // Deep Log Sync progress lives here. `targets` is a registry keyed by scan category so
+    // booster/xanax catch-up can be added later without reworking the state model; for now the
+    // only entry is `gym`. Budget/cooldown are global because every log type shares Torn's one
+    // activity-log daily pool.
+    function defaultDeepScan() {
+        return {
+            targets: {},      // { gym: { frontierCursor: <unixTs>, complete: false } }
+            cooldownUntil: 0, // ms; button locked until this time
+            lastResult: null, // 'complete' | 'partial'
+            acknowledged: true // false holds the "Scan Complete!" state until the user clicks OK
+        };
+    }
+
+    function normalizeDeepScan(ds) {
+        const d = defaultDeepScan();
+        if (ds && typeof ds === 'object') {
+            if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
+            if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
+            if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
+            if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
+        }
+        return d;
+    }
+
     function sanitizeStorageRecord(s) {
         if (!s || typeof s !== 'object') return {
             meta: {
@@ -2143,6 +2178,7 @@
         if (!s.meta.baselineBreakdown) s.meta.baselineBreakdown = {
             ...ZERO_BREAKDOWN
         };
+        s.meta.deepScan = normalizeDeepScan(s.meta.deepScan);
         if (!s.series || !Array.isArray(s.series)) s.series = [];
 
         const k = ['str', 'def', 'spd', 'dex'];
@@ -2395,6 +2431,224 @@
             universalFetch('FULL_SYNC');
             sessionStorage.removeItem(KEYS.SESSION);
         }
+    }
+
+    // DEEP LOG SYNC
+    // =========================================================================
+    // Walks the activity log backward in time to rebuild deep history. Normal sync only ever
+    // sees the most recent ~100 rows per log type; this pages further back (cursor = one second
+    // before the oldest row actually returned, so windows never drop entries) until it either
+    // reaches the beginning of the account or hits the daily row budget. It does NOT lift the
+    // origin floor (meta.logStartDate) — it lowers it to the oldest *fully complete* day, leaving
+    // any partial frontier day stored-but-hidden for the next day's resume. Each shown day is
+    // therefore always 100% populated, exactly like the genesis anchor/buffer guarantee.
+
+    // Picks meta.logStartDate so the oldest complete day is shown and any partial day is hidden.
+    // getTimeline() shows days >= dateLogical((logStartDate + 86400) * 1000).
+    function deepScanFloorTs(oldestEntryTs, frontierComplete) {
+        const oldestDay = Formatter.dateLogical(oldestEntryTs * 1000);
+        const dayStartSec = Math.floor(Formatter.parse(oldestDay).getTime() / 1000);
+        // Complete -> oldestDay is whole, show it (floor one day earlier).
+        // Partial  -> oldestDay was cut by the budget, hide it and show the day above.
+        return frontierComplete ? dayStartSec - 86400 : dayStartSec;
+    }
+
+    // Merges scanned rows into the canonical series, lowers the origin floor to the oldest
+    // complete day, recomputes the baseline, and persists everything (including scan progress).
+    async function finalizeDeepScan(ds, collected, frontierComplete) {
+        let stored = await DBManager.getStorage();
+        if (!stored) stored = {
+            meta: {
+                baselineBreakdown: {
+                    ...ZERO_BREAKDOWN
+                }
+            },
+            series: []
+        };
+        if (!Array.isArray(stored.series)) stored.series = [];
+
+        if (collected.length > 0) {
+            const seen = new Set(stored.series.map(e => `${e.ts}_${e.stat}_${e.after}`));
+            collected.forEach(l => {
+                const after = r2(l.after);
+                const key = `${l.ts}_${l.stat}_${after}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    stored.series.push({
+                        ts: l.ts,
+                        stat: l.stat,
+                        gain: r2(l.gain),
+                        cost: l.cost,
+                        after
+                    });
+                }
+            });
+            stored.series.sort((a, b) => a.ts - b.ts);
+
+            // Baseline = stat totals just before the very first log we now hold.
+            const baseline = {
+                ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
+            };
+            STAT_KEYS.forEach(k => {
+                const first = stored.series.find(e => e.stat === k);
+                if (first) baseline[k] = r2(first.after - first.gain);
+            });
+            stored.meta.baselineBreakdown = baseline;
+
+            // Lower (never raise) the origin floor to the oldest complete day.
+            const oldestTs = stored.series[0].ts;
+            let floorTs = deepScanFloorTs(oldestTs, frontierComplete);
+            if (typeof stored.meta.logStartDate === 'number') floorTs = Math.min(floorTs, stored.meta.logStartDate);
+            stored.meta.logStartDate = floorTs;
+        }
+
+        stored.meta.deepScan = ds;
+        await DBManager.setStorage(stored);
+
+        const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
+        _historyCache = {
+            meta: stored.meta,
+            history: rebuilt.history,
+            today: rebuilt.today
+        };
+        sessionStorage.removeItem(KEYS.SESSION_CACHE);
+        DataController.invalidate();
+    }
+
+    async function deepLogSync(btn) {
+        if (runtime.demoMode) return;
+        if (!userConfig.apiKey || userConfig.apiKey.length < 16) {
+            alert('API Key is missing or too short.');
+            return;
+        }
+
+        if (runtime.deepScanning) return;
+
+        const s = getActiveHistory();
+        if (!s.meta.deepScan) s.meta.deepScan = defaultDeepScan();
+        const ds = s.meta.deepScan;
+        const now = Date.now();
+
+        // Clicking a finished scan just acknowledges it (clears the "Scan Complete!" state).
+        if (ds.lastResult === 'complete' && ds.acknowledged === false) {
+            ds.acknowledged = true;
+            await finalizeDeepScan(ds, [], true);
+            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+            return;
+        }
+        // Locked while cooling down.
+        if (ds.cooldownUntil && now < ds.cooldownUntil) {
+            renderDeepScanButton();
+            return;
+        }
+
+        // Seed the gym target's cursor at the current origin floor; everything above it is
+        // already populated by normal sync, so we walk below it.
+        if (!ds.targets.gym) {
+            ds.targets.gym = {
+                frontierCursor: (typeof s.meta.logStartDate === 'number' && s.meta.logStartDate > 0) ? s.meta.logStartDate : Math.floor(now / 1000),
+                complete: false
+            };
+        }
+
+        runtime.deepScanning = true;
+        if (btn) {
+            if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
+            btn.style.pointerEvents = 'none';
+            btn.style.opacity = '0.85';
+            btn.innerText = 'Scanning... 0';
+        }
+
+        // Furthest-behind targets first (a freshly added category starts near 'now' and catches
+        // up before older targets resume descending). Today there is only `gym`.
+        const order = Object.keys(ds.targets)
+            .filter(k => !ds.targets[k].complete)
+            .sort((a, b) => ds.targets[b].frontierCursor - ds.targets[a].frontierCursor);
+
+        let rowsFetched = 0;
+        let stoppedEarly = false;
+        const collected = [];
+
+        try {
+            scan: for (const key of order) {
+                const target = ds.targets[key];
+                let cursor = target.frontierCursor;
+                while (rowsFetched < DEEP_SCAN.ROW_CAP) {
+                    const url = `https://api.torn.com/user/?selections=log&log=${DEEP_SCAN.LOG_IDS}&key=${userConfig.apiKey}&to=${Math.floor(cursor)}`;
+                    incrementApiCount(1);
+                    let data;
+                    try {
+                        const resp = await fetch(url);
+                        if (!resp.ok) throw new Error(resp.status);
+                        data = await resp.json();
+                    } catch (netErr) {
+                        // Failsafe: a network hiccup keeps all progress and drops into cooldown.
+                        Log.warn('Deep scan network error', netErr);
+                        stoppedEarly = true;
+                        break scan;
+                    }
+                    if (data.error) {
+                        // Failsafe: error 14 = daily 50k pool exhausted (possibly by other
+                        // scripts); error 5 = rate limit. Stop cleanly, keep progress, cool down.
+                        if (data.error.code === 14 || data.error.code === 5) {
+                            stoppedEarly = true;
+                            break scan;
+                        }
+                        throw new Error(data.error.error);
+                    }
+
+                    const rowKeys = data.log ? Object.keys(data.log) : [];
+                    if (rowKeys.length === 0) {
+                        target.complete = true; // reached the beginning for this target
+                        break;
+                    }
+
+                    collected.push(...normalizeApiLogs(data.log));
+                    rowsFetched += rowKeys.length;
+
+                    let oldestTs = cursor;
+                    for (const k of rowKeys) {
+                        const t = data.log[k].timestamp;
+                        if (t < oldestTs) oldestTs = t;
+                    }
+                    cursor = oldestTs - 1;
+                    target.frontierCursor = cursor;
+
+                    if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
+
+                    if (rowsFetched >= DEEP_SCAN.ROW_CAP) {
+                        stoppedEarly = true;
+                        break scan;
+                    }
+                    await new Promise(r => setTimeout(r, DEEP_SCAN.THROTTLE_MS));
+                }
+            }
+        } catch (e) {
+            // Any unexpected failure is also treated as a partial stop so progress is preserved.
+            Log.error('Deep sync failed', e);
+            stoppedEarly = true;
+        }
+
+        const allComplete = Object.keys(ds.targets).every(k => ds.targets[k].complete);
+        const frontierComplete = allComplete && !stoppedEarly;
+        if (frontierComplete) {
+            ds.lastResult = 'complete';
+            ds.acknowledged = false;
+            ds.cooldownUntil = 0;
+        } else {
+            ds.lastResult = 'partial';
+            ds.cooldownUntil = Date.now() + DEEP_SCAN.COOLDOWN_MS;
+        }
+
+        try {
+            await finalizeDeepScan(ds, collected, frontierComplete);
+        } catch (e) {
+            Log.error('Deep scan save failed', e);
+        } finally {
+            runtime.deepScanning = false;
+        }
+        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+        renderDeepScanButton();
     }
 
     /**
@@ -3304,7 +3558,8 @@
             meta: {
                 baselineBreakdown: {
                     ...ZERO_BREAKDOWN
-                }
+                },
+                deepScan: defaultDeepScan()
             },
             history: [],
             today: initializeDayObject(Formatter.dateLogical(), {
@@ -6578,7 +6833,7 @@
     }
 
     function buildSettingsDataSection() {
-        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
+        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('deep-sync-btn', 'DEEP LOG SYNC', 'purple', 'margin: 0 10px 0 10px; width: calc(100% - 20px); display: block; border-radius: 0; border-bottom: none;') + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
         return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inner}</div>`);
     }
 
@@ -9289,6 +9544,64 @@
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
+    let _deepScanCountdownId = null;
+
+    function formatCountdown(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        const h = Math.floor(total / 3600),
+            m = Math.floor((total % 3600) / 60),
+            s = total % 60;
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+
+    // Reflects deep-scan state onto the button. Idle -> "DEEP LOG SYNC". A finished scan holds
+    // "Scan Complete!" until clicked (acknowledged). A budget-capped scan shows
+    // "Scan Partially Completed" with a "?" info icon (live countdown tooltip) and is inert until
+    // the cooldown expires, after which it reverts to idle and a click resumes where it left off.
+    function renderDeepScanButton() {
+        const btn = document.getElementById('deep-sync-btn');
+        if (!btn) return;
+        if (_deepScanCountdownId) {
+            clearInterval(_deepScanCountdownId);
+            _deepScanCountdownId = null;
+        }
+        if (runtime.demoMode || runtime.deepScanning) return;
+
+        const s = getActiveHistory();
+        const ds = s.meta && s.meta.deepScan;
+
+        // Reset to a clean baseline before applying the active state.
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+        btn.style.color = '';
+        btn.removeAttribute('data-tooltip');
+        delete btn.dataset.originalText;
+
+        if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
+            btn.textContent = 'Scan Complete!';
+            btn.style.color = '#43a047';
+            return;
+        }
+
+        if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
+            btn.style.opacity = '0.6';
+            const render = () => {
+                const remaining = ds.cooldownUntil - Date.now();
+                if (remaining <= 0) {
+                    renderDeepScanButton();
+                    return;
+                }
+                btn.innerHTML = `Scan Partially Completed<span class="bbgl-deep-info" data-tooltip="Your logs are too large to finish in one day (Torn's daily limit). Come back in ${formatCountdown(remaining)} to resume where it left off." style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid currentColor;font-size:10px;line-height:1;cursor:help;vertical-align:middle;">?</span>`;
+            };
+            render();
+            _deepScanCountdownId = setInterval(render, 1000);
+            return;
+        }
+
+        btn.textContent = 'DEEP LOG SYNC';
+    }
+
     function setupEventListeners(root) {
         cacheDOM(root);
         const get = (id) => root.querySelector('#' + id);
@@ -9630,6 +9943,12 @@
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
+        const dsb = get('deep-sync-btn');
+        if (dsb) dsb.onclick = function() {
+            this.blur();
+            deepLogSync(this);
+        };
+        renderDeepScanButton();
         const clb = get('clear-btn');
         if (clb) clb.onclick = function() {
             this.blur();
@@ -9908,6 +10227,7 @@
                 const stored = await DBManager.getStorage();
                 DataController.syncCache(stored);
                 GraphController.applyDefaultsIfNeeded();
+                renderDeepScanButton();
                 if (stored && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
@@ -9919,7 +10239,10 @@
         window.addEventListener('resize', () => {
             _topCeilingCache = null;
         });
-        window.addEventListener('bbgl:dataUpdated', () => renderPanelContent());
+        window.addEventListener('bbgl:dataUpdated', () => {
+            renderPanelContent();
+            renderDeepScanButton();
+        });
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch() {
             if (_domRaf) return;

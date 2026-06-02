@@ -76,6 +76,17 @@
             5303: 'dexterity'
         }
     };
+    // Deep Log Sync: a resumable backward scan that walks the activity log to the beginning of
+    // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data
+    // reads at 50,000 rows/day per category (the activity log is one category, shared across
+    // every log type and every script the user runs); ROW_CAP leaves headroom for that, and the
+    // cooldown is set slightly over 24h so the rolling-24h window is guaranteed clear on resume.
+    const DEEP_SCAN = {
+        ROW_CAP: 30000,
+        COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
+        THROTTLE_MS: 700,
+        LOG_IDS: '5300,5301,5302,5303'
+    };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
     // BestGym treats a whole group as one rank and only moves to a strictly higher group.

@@ -904,6 +904,64 @@
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
+    let _deepScanCountdownId = null;
+
+    function formatCountdown(ms) {
+        const total = Math.max(0, Math.ceil(ms / 1000));
+        const h = Math.floor(total / 3600),
+            m = Math.floor((total % 3600) / 60),
+            s = total % 60;
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(h)}:${pad(m)}:${pad(s)}`;
+    }
+
+    // Reflects deep-scan state onto the button. Idle -> "DEEP LOG SYNC". A finished scan holds
+    // "Scan Complete!" until clicked (acknowledged). A budget-capped scan shows
+    // "Scan Partially Completed" with a "?" info icon (live countdown tooltip) and is inert until
+    // the cooldown expires, after which it reverts to idle and a click resumes where it left off.
+    function renderDeepScanButton() {
+        const btn = document.getElementById('deep-sync-btn');
+        if (!btn) return;
+        if (_deepScanCountdownId) {
+            clearInterval(_deepScanCountdownId);
+            _deepScanCountdownId = null;
+        }
+        if (runtime.demoMode || runtime.deepScanning) return;
+
+        const s = getActiveHistory();
+        const ds = s.meta && s.meta.deepScan;
+
+        // Reset to a clean baseline before applying the active state.
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+        btn.style.color = '';
+        btn.removeAttribute('data-tooltip');
+        delete btn.dataset.originalText;
+
+        if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
+            btn.textContent = 'Scan Complete!';
+            btn.style.color = '#43a047';
+            return;
+        }
+
+        if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
+            btn.style.opacity = '0.6';
+            const render = () => {
+                const remaining = ds.cooldownUntil - Date.now();
+                if (remaining <= 0) {
+                    renderDeepScanButton();
+                    return;
+                }
+                btn.innerHTML = `Scan Partially Completed<span class="bbgl-deep-info" data-tooltip="Your logs are too large to finish in one day (Torn's daily limit). Come back in ${formatCountdown(remaining)} to resume where it left off." style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid currentColor;font-size:10px;line-height:1;cursor:help;vertical-align:middle;">?</span>`;
+            };
+            render();
+            _deepScanCountdownId = setInterval(render, 1000);
+            return;
+        }
+
+        btn.textContent = 'DEEP LOG SYNC';
+    }
+
     function setupEventListeners(root) {
         cacheDOM(root);
         const get = (id) => root.querySelector('#' + id);
@@ -1245,6 +1303,12 @@
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
+        const dsb = get('deep-sync-btn');
+        if (dsb) dsb.onclick = function() {
+            this.blur();
+            deepLogSync(this);
+        };
+        renderDeepScanButton();
         const clb = get('clear-btn');
         if (clb) clb.onclick = function() {
             this.blur();
@@ -1523,6 +1587,7 @@
                 const stored = await DBManager.getStorage();
                 DataController.syncCache(stored);
                 GraphController.applyDefaultsIfNeeded();
+                renderDeepScanButton();
                 if (stored && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
@@ -1534,7 +1599,10 @@
         window.addEventListener('resize', () => {
             _topCeilingCache = null;
         });
-        window.addEventListener('bbgl:dataUpdated', () => renderPanelContent());
+        window.addEventListener('bbgl:dataUpdated', () => {
+            renderPanelContent();
+            renderDeepScanButton();
+        });
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch() {
             if (_domRaf) return;
