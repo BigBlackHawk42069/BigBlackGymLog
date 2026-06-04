@@ -8,8 +8,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/main/Big-Black-Gym-Log-Test.js
-// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/main/Big-Black-Gym-Log-Test.js
+// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/DeepScan/main/Big-Black-Gym-Log-Test.js
+// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/DeepScan/main/Big-Black-Gym-Log-Test.js
 // ==/UserScript==
 
 (function() {
@@ -112,7 +112,7 @@
         CHANGELOG_VER: 'bbgl_changelog_seen_ver',
         CHANGELOG_NOTIF: 'bbgl_changelog_notif'
     };
-    const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/main/UserDocs/';
+    const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/DeepScan/UserDocs/';
     const CONSTANTS = {
         MONTHS: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
         MONTHS_SHORT: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
