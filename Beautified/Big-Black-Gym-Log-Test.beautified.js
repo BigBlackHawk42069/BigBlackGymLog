@@ -112,6 +112,8 @@
         CHANGELOG_VER: 'bbgl_changelog_seen_ver',
         CHANGELOG_NOTIF: 'bbgl_changelog_notif'
     };
+    // [TEMP — delete before full release]
+    const REQUIRED_CONFIG_VERSION = 1;
     const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/DeepScan/UserDocs/';
     const CONSTANTS = {
         MONTHS: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -342,7 +344,8 @@
         demoEnteredFrom: null,
         devMode: false,
         _achCache: null,
-        _achPage: 0
+        _achPage: 0,
+        wasVersionWiped: false
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
@@ -393,7 +396,8 @@
         bestGymSpecialist: true,
         bestGymUnpurchased: true,
         drugTracker: 'xanax', // ledger primary-drug counter: 'xanax' (2290) or 'lsd' (2230)
-        privacyAgreed: ''
+        privacyAgreed: '',
+        configVersion: 0
     };
     const ALLOWED_CONFIG_KEYS = Object.keys(userConfig);
     const r2 = (v) => Math.round(v * 100) / 100;
@@ -6062,6 +6066,30 @@
             alert("History cleared.");
         }
     }
+    // [TEMP — delete before full release]
+    async function factoryReset() {
+        await DBManager.clearStorage();
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('bbgl_')) localStorage.removeItem(k);
+        }
+        sessionStorage.removeItem(KEYS.SESSION);
+        sessionStorage.removeItem(KEYS.SESSION_CACHE);
+        DataController.invalidate();
+        _historyCache = null;
+        calendarState.selectedData = null;
+        calendarState.selectedLabel = null;
+        viewState.activeViewLabel = null;
+        runtime.apiCallTotal = 0;
+        runtime.stickerSlots = [];
+        runtime.currentStats = null;
+        runtime._achPage = 0;
+        const _fresh = { apiKey: '', dayStartMode: 'utc', weekStartMode: 'mon', animations: true, buttonLocation: 'both', ratesEnabled: true, bestGym: true, bestGymSpecialist: true, bestGymUnpurchased: true, drugTracker: 'xanax', privacyAgreed: '', configVersion: REQUIRED_CONFIG_VERSION };
+        ALLOWED_CONFIG_KEYS.forEach(k => { userConfig[k] = _fresh[k] !== undefined ? _fresh[k] : userConfig[k]; });
+        saveConfig();
+        localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
+        runtime.wasVersionWiped = true;
+    }
     async function devFactoryReset() {
         if (confirm("⚠️ DEV FACTORY RESET ⚠️\n\nThis will completely wipe ALL data, settings, API keys, and cache. The script will emulate a completely fresh install.\n\nProceed?")) {
             await DBManager.clearStorage();
@@ -7604,6 +7632,9 @@
                 this.blur();
                 userConfig.privacyAgreed = new Date().toISOString();
                 saveConfig();
+                if (!runtime.wasVersionWiped) {
+                    localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                }
                 closePrivacyModal();
                 refreshInitLock();
                 const wv = dom.welcomeView;
@@ -10179,7 +10210,7 @@
                     const cb = wv.querySelector('#init-create-api-btn');
                     if (cb) cb.onclick = function() {
                         this.blur();
-                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=BBGymLog&user=battlestats,log', '_blank');
+                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
@@ -10859,7 +10890,7 @@
         const crb = get('create-api-btn');
         if (crb) crb.onclick = function() {
             this.blur();
-            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=BBGymLog&user=battlestats,log', '_blank');
+            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
         };
         const rb = get('refresh-log-btn');
         if (rb) rb.onclick = function() {
@@ -11160,6 +11191,10 @@
             }
         }
         if (!runtime.demoMode) {
+            // [TEMP — delete before full release]
+            if (userConfig.configVersion < REQUIRED_CONFIG_VERSION) {
+                await factoryReset();
+            }
             // Self-heal the install date: if privacyAgreed is missing or unparseable (e.g. corrupted
             // by an older export/import round-trip), stamp it to now. This only governs when reward
             // (sticker/XP) gating begins — it never touches log data.

@@ -636,7 +636,7 @@
                     const cb = wv.querySelector('#init-create-api-btn');
                     if (cb) cb.onclick = function() {
                         this.blur();
-                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=BBGymLog&user=battlestats,log', '_blank');
+                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
@@ -1316,7 +1316,7 @@
         const crb = get('create-api-btn');
         if (crb) crb.onclick = function() {
             this.blur();
-            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&title=BBGymLog&user=battlestats,log', '_blank');
+            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
         };
         const rb = get('refresh-log-btn');
         if (rb) rb.onclick = function() {
@@ -1617,6 +1617,10 @@
             }
         }
         if (!runtime.demoMode) {
+            // [TEMP — delete before full release]
+            if (userConfig.configVersion < REQUIRED_CONFIG_VERSION) {
+                await factoryReset();
+            }
             // Self-heal the install date: if privacyAgreed is missing or unparseable (e.g. corrupted
             // by an older export/import round-trip), stamp it to now. This only governs when reward
             // (sticker/XP) gating begins — it never touches log data.

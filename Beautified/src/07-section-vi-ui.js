@@ -1412,6 +1412,9 @@
                 this.blur();
                 userConfig.privacyAgreed = new Date().toISOString();
                 saveConfig();
+                if (!runtime.wasVersionWiped) {
+                    localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                }
                 closePrivacyModal();
                 refreshInitLock();
                 const wv = dom.welcomeView;

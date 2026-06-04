@@ -46,6 +46,8 @@
         CHANGELOG_VER: 'bbgl_changelog_seen_ver',
         CHANGELOG_NOTIF: 'bbgl_changelog_notif'
     };
+    // [TEMP — delete before full release]
+    const REQUIRED_CONFIG_VERSION = 1;
     const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/DeepScan/UserDocs/';
     const CONSTANTS = {
         MONTHS: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
@@ -276,7 +278,8 @@
         demoEnteredFrom: null,
         devMode: false,
         _achCache: null,
-        _achPage: 0
+        _achPage: 0,
+        wasVersionWiped: false
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
@@ -327,7 +330,8 @@
         bestGymSpecialist: true,
         bestGymUnpurchased: true,
         drugTracker: 'xanax', // ledger primary-drug counter: 'xanax' (2290) or 'lsd' (2230)
-        privacyAgreed: ''
+        privacyAgreed: '',
+        configVersion: 0
     };
     const ALLOWED_CONFIG_KEYS = Object.keys(userConfig);
     const r2 = (v) => Math.round(v * 100) / 100;

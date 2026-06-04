@@ -3062,6 +3062,30 @@
             alert("History cleared.");
         }
     }
+    // [TEMP — delete before full release]
+    async function factoryReset() {
+        await DBManager.clearStorage();
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('bbgl_')) localStorage.removeItem(k);
+        }
+        sessionStorage.removeItem(KEYS.SESSION);
+        sessionStorage.removeItem(KEYS.SESSION_CACHE);
+        DataController.invalidate();
+        _historyCache = null;
+        calendarState.selectedData = null;
+        calendarState.selectedLabel = null;
+        viewState.activeViewLabel = null;
+        runtime.apiCallTotal = 0;
+        runtime.stickerSlots = [];
+        runtime.currentStats = null;
+        runtime._achPage = 0;
+        const _fresh = { apiKey: '', dayStartMode: 'utc', weekStartMode: 'mon', animations: true, buttonLocation: 'both', ratesEnabled: true, bestGym: true, bestGymSpecialist: true, bestGymUnpurchased: true, drugTracker: 'xanax', privacyAgreed: '', configVersion: REQUIRED_CONFIG_VERSION };
+        ALLOWED_CONFIG_KEYS.forEach(k => { userConfig[k] = _fresh[k] !== undefined ? _fresh[k] : userConfig[k]; });
+        saveConfig();
+        localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
+        runtime.wasVersionWiped = true;
+    }
     async function devFactoryReset() {
         if (confirm("⚠️ DEV FACTORY RESET ⚠️\n\nThis will completely wipe ALL data, settings, API keys, and cache. The script will emulate a completely fresh install.\n\nProceed?")) {
             await DBManager.clearStorage();
