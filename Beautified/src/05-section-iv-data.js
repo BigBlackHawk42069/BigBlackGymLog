@@ -394,7 +394,7 @@
             success: false,
             demo: true
         };
-        // While a Big Black Log Backfill is running, every other API call is suppressed so the deep
+        // While a Big Black Backfill is running, every other API call is suppressed so the deep
         // backward scan owns the shared daily row pool and can't trip a rate-limit / pool-exhausted
         // error. The next heartbeat's bounded reconcile re-covers any live rows missed in this window.
         if (runtime.backfilling) return {

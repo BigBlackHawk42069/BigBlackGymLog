@@ -1222,12 +1222,23 @@
         syncSiblingSelect('init-week-start', 'set-week-start', val);
     }
     const docCache = {};
-    async function fetchDoc(name) {
-        if (docCache[name]) return docCache[name];
-        const res = await fetch(BASE_DOCS_URL + name + '.html');
-        if (!res.ok) throw new Error(`Doc fetch failed: ${res.status}`);
-        docCache[name] = await res.text();
-        return docCache[name];
+    function fetchDoc(name) {
+        if (docCache[name]) return Promise.resolve(docCache[name]);
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: BASE_DOCS_URL + name + '.html',
+                onload(res) {
+                    if (res.status >= 200 && res.status < 300) {
+                        docCache[name] = res.responseText;
+                        resolve(res.responseText);
+                    } else {
+                        reject(new Error(`Doc fetch failed: ${res.status}`));
+                    }
+                },
+                onerror() { reject(new Error('Doc fetch network error')); }
+            });
+        });
     }
     const DOC_LOADING_HTML = `<div style="padding:20px; text-align:center; color:#888;">Loading...</div>`;
     const DOC_ERROR_HTML   = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
@@ -1516,7 +1527,7 @@
 
     function buildSettingsFeaturesSection() {
         const bestGymGroup = buildToggle('set-bestgym-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM}">BB Best Gym</span>`, 'bbgl-bestgym-lead') + buildToggle('set-bestgym-spec-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_SPEC}">Specialty Gyms</span>`, 'bbgl-subgroup-row') + buildToggle('set-bestgym-unpurch-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_UNPURCHASED}">Unpurchased Gyms</span>`, 'bbgl-subgroup-row bbgl-subgroup-row-last');
-        const backfillBtn = buildButton('backfill-btn', '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
+        const backfillBtn = buildButton('backfill-btn', '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
         return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`) + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${backfillBtn}</div>`);
     }
 

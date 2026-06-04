@@ -986,7 +986,7 @@
             return;
         }
 
-        btn.innerHTML = '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>';
+        btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>';
         btn.onclick = function() {
             this.blur();
             openBackfillModal();

@@ -5,7 +5,8 @@
 // @description  A high-fidelity, gamified stat tracker built to integrate seamlessly with Torn's native UI.
 // @author       BigBlackHawk [3550896]
 // @match        https://www.torn.com/*
-// @grant        none
+// @grant        GM_xmlhttpRequest
+// @connect      raw.githubusercontent.com
 // @run-at       document-start
 // @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/main/Big-Black-Gym-Log-Test.js
 // @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/main/Big-Black-Gym-Log-Test.js
