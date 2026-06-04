@@ -64,10 +64,10 @@
         POINTS_GOLD: 300,
         POINTS_DIAMOND: 500,
         POINTS_HJ_GREEN: 500,
-        POINTS_HJ_GOLD: 600,
-        POINTS_HJ_DIAMOND: 750,
+        POINTS_HJ_GOLD: 500,
+        POINTS_HJ_DIAMOND: 500,
         GOLD_WEEK_JUMPS: 3,
-        DIAMOND_JUMP_E: 1750,
+        DIAMOND_WEEK_JUMPS: 4,
         HJ_WINDOW_SECONDS: 300,
         STAT_MAP: {
             5300: 'strength',
@@ -76,16 +76,66 @@
             5303: 'dexterity'
         }
     };
-    // Deep Log Sync: a resumable backward scan that walks the activity log to the beginning of
+    // Item-use activity-log codes we track alongside gym training. Single source of truth for the
+    // log id -> display label/group/metric mapping. `group` (energy|stat|happy) buckets each code for
+    // the grouped export totals and the happy-jump page. The per-item metric flag says what extra
+    // datum to capture beyond a plain count:
+    //   energy:true -> data.energy_increased (energy cans)
+    //   happy:true  -> data.happy_increased  (happy items)
+    //   stat:true   -> data.<stat>_increased (stat enhancers; stat auto-detected)
+    // Quantity-only codes carry no flag. ITEM_LOGS is derived so the API normalizer, the request
+    // groups, the export totals, and the ledger counters all agree.
+    const ITEM_LOG_META = {
+        8981: { label: 'Green Egg Used', group: 'energy', short: 'Egg' },
+        2290: { label: 'Xanax Taken', group: 'energy', short: 'Xans' },
+        2230: { label: 'LSD Taken', group: 'energy', short: 'LSD' },
+        2040: { label: 'Energy Can Used', group: 'energy', energy: true, short: 'Cans' },
+        2190: { label: 'Hotel Coupon Used', group: 'energy', short: 'FHC' },
+        4900: { label: 'Points Refill Used', group: 'energy', short: 'Refill' },
+        2120: { label: 'Parachute Used', group: 'stat', stat: true },
+        2130: { label: 'Skateboard Used', group: 'stat', stat: true },
+        2140: { label: 'Boxing Gloves Used', group: 'stat', stat: true },
+        2150: { label: 'Dumbbells Used', group: 'stat', stat: true },
+        2020: { label: 'Candy Used', group: 'happy', happy: true },
+        2180: { label: 'Erotic DVD Used', group: 'happy', happy: true },
+        2210: { label: 'Ecstasy Taken', group: 'happy', happy: true },
+        8983: { label: 'Yellow Egg Used', group: 'happy', happy: true }
+    };
+    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items' };
+    const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
+    const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
+    // Gym training log ids, one per stat.
+    const TRAIN_LOGS = [5300, 5301, 5302, 5303];
+    // Per-group code lists for the live request architecture. battlestats is always fetched on its
+    // own call (it can't share a request with `log`), and any one `log=` call may carry at most 10
+    // log types — so items are split across the train-click call (energy) and the heartbeat /
+    // reconciliation calls (stat + happy). Backfill ignores these and paginates one type at a time.
+    const ENERGY_LOGS = itemLogsByGroup('energy'); // 6
+    const STAT_LOGS = itemLogsByGroup('stat');     // 4
+    const HAPPY_LOGS = itemLogsByGroup('happy');   // 4
+    const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(','); // reconcile call (10)
+    const STAT_HAPPY_PARAM = [...STAT_LOGS, ...HAPPY_LOGS].join(',');     // reconcile call (8)
+    const ENERGY_PARAM = ENERGY_LOGS.join(',');                          // train-click rider (6)
+    const XANAX_LOG = 2290,
+        ECAN_LOG = 2040;
+    // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
+    // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
+    // makes the overlap harmless.
+    const SYNC_FROM_BUFFER = 3 * 3600;
+    // Backfill Logs: a resumable backward scan that walks the activity log to the beginning of
     // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data
     // reads at 50,000 rows/day per category (the activity log is one category, shared across
-    // every log type and every script the user runs); ROW_CAP leaves headroom for that, and the
-    // cooldown is set slightly over 24h so the rolling-24h window is guaranteed clear on resume.
-    const DEEP_SCAN = {
-        ROW_CAP: 30000,
+    // every log type and every script the user runs). SOFT_CAP leaves comfortable headroom for
+    // that; once crossed, the scan keeps paging only to finish the current day across every
+    // frontier (so the budget spent yields a fully complete, visible day rather than a hidden
+    // partial one), bounded by HARD_CAP as an absolute failsafe against a pathologically dense
+    // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
+    // clear on resume.
+    const BACKFILL = {
+        SOFT_CAP: 35000,   // stop *starting* new days once crossed
+        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
         COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
-        THROTTLE_MS: 700,
-        LOG_IDS: '5300,5301,5302,5303'
+        THROTTLE_MS: 700
     };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
@@ -206,6 +256,7 @@
         isClosing: false,
         isViewAnimating: false,
         isSyncing: false,
+        backfilling: false,
         apiCallTotal: 0,
         resizeObserver: null,
         stickerSlots: [],
@@ -274,6 +325,7 @@
         bestGym: true,
         bestGymSpecialist: true,
         bestGymUnpurchased: true,
+        drugTracker: 'xanax', // ledger primary-drug counter: 'xanax' (2290) or 'lsd' (2230)
         privacyAgreed: ''
     };
     const ALLOWED_CONFIG_KEYS = Object.keys(userConfig);

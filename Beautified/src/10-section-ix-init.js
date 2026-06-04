@@ -336,6 +336,12 @@
             document.title = "Gym Log | TORN";
             document.body.classList.add('bbgl-page-mode-active');
             renderPageMode();
+            if (localStorage.getItem(KEYS.CHANGELOG_NOTIF) === '1') {
+                localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+                syncChangelogNotif(false);
+                setTimeout(() => openChangelogModal(), 400);
+            }
         } else {
             document.body.classList.remove('bbgl-page-mode-active');
             const cw = document.querySelector('.content-wrapper'),
@@ -904,7 +910,7 @@
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
-    let _deepScanCountdownId = null;
+    let _backfillCountdownId = null;
 
     function formatCountdown(ms) {
         const total = Math.max(0, Math.ceil(ms / 1000));
@@ -915,21 +921,24 @@
         return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
 
-    // Reflects deep-scan state onto the button. Idle -> "DEEP LOG SYNC". A finished scan holds
-    // "Scan Complete!" until clicked (acknowledged). A budget-capped scan shows
-    // "Scan Partially Completed" with a "?" info icon (live countdown tooltip) and is inert until
-    // the cooldown expires, after which it reverts to idle and a click resumes where it left off.
-    function renderDeepScanButton() {
-        const btn = document.getElementById('deep-sync-btn');
+    // Reflects backfill state onto the button and wires its per-state click behavior:
+    //  - idle: responsive label; clicking opens the disclaimer/config modal.
+    //  - complete (unacknowledged): "Scan Complete!" in green with a clickable checkmark the user
+    //    taps to retire the confirmation (the data is already live). The button body itself is inert.
+    //  - partial + cooling down: "Partial Scan Complete! Resume?", dimmed and inert, with a live
+    //    countdown tooltip on the whole button (hover/tap to see how long until resume).
+    //  - partial + cooldown elapsed: same label, full opacity, clicking resumes immediately (no modal).
+    function renderBackfillButton() {
+        const btn = document.getElementById('backfill-btn');
         if (!btn) return;
-        if (_deepScanCountdownId) {
-            clearInterval(_deepScanCountdownId);
-            _deepScanCountdownId = null;
+        if (_backfillCountdownId) {
+            clearInterval(_backfillCountdownId);
+            _backfillCountdownId = null;
         }
-        if (runtime.demoMode || runtime.deepScanning) return;
+        if (runtime.demoMode || runtime.backfilling) return;
 
         const s = getActiveHistory();
-        const ds = s.meta && s.meta.deepScan;
+        const ds = s.meta && s.meta.backfill;
 
         // Reset to a clean baseline before applying the active state.
         btn.style.pointerEvents = 'auto';
@@ -937,29 +946,50 @@
         btn.style.color = '';
         btn.removeAttribute('data-tooltip');
         delete btn.dataset.originalText;
+        btn.onclick = null;
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
-            btn.textContent = 'Scan Complete!';
             btn.style.color = '#43a047';
+            btn.innerHTML = `Scan Complete!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
+            const ack = btn.querySelector('#bbgl-backfill-ack');
+            if (ack) ack.onclick = (e) => {
+                e.stopPropagation();
+                acknowledgeBackfill();
+            };
             return;
         }
 
         if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
             btn.style.opacity = '0.6';
+            btn.textContent = 'Partial Scan Complete! Resume?';
             const render = () => {
                 const remaining = ds.cooldownUntil - Date.now();
                 if (remaining <= 0) {
-                    renderDeepScanButton();
+                    renderBackfillButton();
                     return;
                 }
-                btn.innerHTML = `Scan Partially Completed<span class="bbgl-deep-info" data-tooltip="Your logs are too large to finish in one day (Torn's daily limit). Come back in ${formatCountdown(remaining)} to resume where it left off." style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid currentColor;font-size:10px;line-height:1;cursor:help;vertical-align:middle;">?</span>`;
+                btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(remaining)));
             };
             render();
-            _deepScanCountdownId = setInterval(render, 1000);
+            _backfillCountdownId = setInterval(render, 1000);
             return;
         }
 
-        btn.textContent = 'DEEP LOG SYNC';
+        if (ds && ds.lastResult === 'partial') {
+            // Cooldown elapsed: stay in the resume state until the log is fully backfilled.
+            btn.textContent = 'Partial Scan Complete! Resume?';
+            btn.onclick = function() {
+                this.blur();
+                backfillLogs(this);
+            };
+            return;
+        }
+
+        btn.innerHTML = '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>';
+        btn.onclick = function() {
+            this.blur();
+            openBackfillModal();
+        };
     }
 
     function setupEventListeners(root) {
@@ -991,17 +1021,8 @@
             runtime.stickerData = [];
             _historyCache = null;
             DataController.invalidate();
-            DBManager.getStorage().then(stored => {
-                if (stored) {
-                    if (!stored.meta) stored.meta = {};
-                    const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
-                    _historyCache = {
-                        meta: stored.meta,
-                        history: rebuilt.history,
-                        today: rebuilt.today
-                    };
-                    sessionStorage.setItem(KEYS.SESSION_CACHE, serializeForSession(_historyCache));
-                }
+            DBManager.loadHistory().then(loaded => {
+                DataController.hydrate(loaded);
                 if (userConfig.apiKey) {
                     checkStaleness();
                     startBackgroundSync();
@@ -1065,32 +1086,14 @@
             e.stopPropagation();
             const cs = runtime.currentStats;
             if (!cs) return;
-            const {
-                sl,
-                s
-            } = cs;
-            let ds = '';
-            if (sl._dailyList && sl._dailyList.length > 1) ds = `${Formatter.dateFull(sl._dailyList[0].date)} - ${Formatter.dateFull(sl._dailyList[sl._dailyList.length - 1].date)}`;
-            else ds = Formatter.dateFull(sl.date);
-            const fM = (v) => (Math.abs(v) >= 1e9) ? Formatter.abbr(v, 4) : Formatter.number(v);
-            const statEmoji = {
-                str: "\uD83D\uDCAA",
-                def: "\uD83D\uDEE1\uFE0F",
-                spd: "\uD83C\uDFAF",
-                dex: "\uD83E\uDD3A"
-            };
-            const statNames = {
-                str: "Strength",
-                def: "Defense",
-                spd: "Speed",
-                dex: "Dexterity"
-            };
-            const statLines = ["str", "def", "spd", "dex"].filter(k => s[k].gain > 0 || s[k].cost > 0).map(k => `${statEmoji[k]}${statNames[k]}: +${fM(s[k].gain)} (${fM(s[k].start)} \u2192 ${fM(s[k].end)})`);
-            const eTxt = s.total.cost > 0 ? `\u26A1${Formatter.number(s.total.cost)} E` : "\uD83D\uDECC I was a lazy POS.";
-            let txt = [`\uD83D\uDC51BBGymLog`, `${ds} |${eTxt}`, ...statLines].join("\n");
+            const { sl, s } = cs;
+            const txt = buildSessionText(sl, s, ['str', 'def', 'spd', 'dex']);
             navigator.clipboard.writeText(txt).then(() => {
-                const oH = cpb.innerHTML,
-                    oC = cpb.style.color;
+                // Flash all four stat columns on the ledger.
+                const cols = dom.ledgerView ? Array.from(dom.ledgerView.querySelectorAll('.stat-column')) : [];
+                if (cols.length) flashCopied(cols);
+                // Also animate the copy button itself.
+                const oH = cpb.innerHTML, oC = cpb.style.color;
                 cpb.innerHTML = ICONS.CHECK;
                 cpb.style.color = '#69f0ae';
                 cpb.style.opacity = '1';
@@ -1101,6 +1104,24 @@
                 }, 1000);
             });
         };
+
+        // Delegated click on the ledger view: clicking a stat label copies that stat's data.
+        if (dom.ledgerView) {
+            dom.ledgerView.addEventListener('click', (e) => {
+                const label = e.target.closest('.bbgl-copy-label');
+                if (!label) return;
+                const col = label.closest('.stat-column');
+                if (!col) return;
+                const k = col.getAttribute('data-copy-stat');
+                if (!k) return;
+                const cs = runtime.currentStats;
+                if (!cs) return;
+                const { sl, s } = cs;
+                if (!s[k]) return;
+                const txt = buildSessionText(sl, s, [k]);
+                navigator.clipboard.writeText(txt).then(() => flashCopied(col));
+            });
+        }
         const gt = get('bbgl-graph-toggle');
         if (gt) gt.onclick = toggleGraphView;
         const act = get('bbgl-achievements-toggle');
@@ -1174,6 +1195,19 @@
                     GraphController.restoreUi();
                     GraphController.draw();
                 } else {
+                    const sd = calendarState.selectedData;
+                    renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical());
+                }
+            };
+        }
+        const dtk = get('set-drug-tracker');
+        if (dtk) {
+            dtk.value = userConfig.drugTracker || 'xanax';
+            dtk.onchange = () => {
+                userConfig.drugTracker = dtk.value;
+                saveConfig();
+                const tp = dom.topPanel;
+                if (!tp || !tp.classList.contains('viewing-graph')) {
                     const sd = calendarState.selectedData;
                     renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical());
                 }
@@ -1303,12 +1337,9 @@
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
-        const dsb = get('deep-sync-btn');
-        if (dsb) dsb.onclick = function() {
-            this.blur();
-            deepLogSync(this);
-        };
-        renderDeepScanButton();
+        // The backfill button's click behavior is state-dependent (open modal / resume / acknowledge),
+        // so renderBackfillButton owns wiring its onclick for the current state.
+        renderBackfillButton();
         const clb = get('clear-btn');
         if (clb) clb.onclick = function() {
             this.blur();
@@ -1426,6 +1457,11 @@
                 passive: true
             });
             achContainer.addEventListener('click', (e) => {
+                const colHeader = e.target.closest('.bbgl-ach-col-copy');
+                if (colHeader) {
+                    handleAchCopy(colHeader);
+                    return;
+                }
                 const statCell = e.target.closest('.bbgl-ach-stat-cell');
                 if (statCell) {
                     handleAchCopy(statCell);
@@ -1436,7 +1472,7 @@
                     handleAchCopy(group);
                     return;
                 }
-                const row = e.target.closest('.bbgl-ach-section-title, .bbgl-ach-row');
+                const row = e.target.closest('.bbgl-ach-section-title, .bbgl-ach-subsection-title, .bbgl-ach-row');
                 if (row) handleAchCopy(row);
             });
         }
@@ -1582,13 +1618,23 @@
             }
         }
         if (!runtime.demoMode) {
+            // Self-heal the install date: if privacyAgreed is missing or unparseable (e.g. corrupted
+            // by an older export/import round-trip), stamp it to now. This only governs when reward
+            // (sticker/XP) gating begins — it never touches log data.
+            if (!userConfig.privacyAgreed || isNaN(Date.parse(userConfig.privacyAgreed))) {
+                userConfig.privacyAgreed = new Date().toISOString();
+                saveConfig();
+            }
             try {
                 await DBManager.initDB();
-                const stored = await DBManager.getStorage();
-                DataController.syncCache(stored);
+                // Fast boot: load pre-built day objects directly (no series flatten, no
+                // _rebuildFromSeries, no session serialization) so every page navigation stays
+                // light regardless of how large the backfilled history is.
+                const loaded = await DBManager.loadHistory();
+                DataController.hydrate(loaded);
                 GraphController.applyDefaultsIfNeeded();
-                renderDeepScanButton();
-                if (stored && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
+                renderBackfillButton();
+                if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
             }
@@ -1601,7 +1647,7 @@
         });
         window.addEventListener('bbgl:dataUpdated', () => {
             renderPanelContent();
-            renderDeepScanButton();
+            renderBackfillButton();
         });
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch() {

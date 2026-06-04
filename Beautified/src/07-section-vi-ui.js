@@ -150,17 +150,17 @@
             img.src = url;
             if (sl.meta.tier === 2) {
                 sh.className = 'jewel-shine';
-                sh.style.maskImage = `url('${url}')`;
-                sh.style.webkitMaskImage = `url('${url}')`;
+                sh.style.maskImage = `url("${url}")`;
+                sh.style.webkitMaskImage = `url("${url}")`;
                 wrap.appendChild(img);
                 wrap.appendChild(sh);
             } else {
                 sh.className = 'jewel-shine';
-                sh.style.maskImage = `url('${url}')`;
-                sh.style.webkitMaskImage = `url('${url}')`;
+                sh.style.maskImage = `url("${url}")`;
+                sh.style.webkitMaskImage = `url("${url}")`;
                 const so = document.createElement('div');
                 so.className = 'jewel-shine-over';
-                so.style.setProperty('--jewel-mask', `url('${url}')`);
+                so.style.setProperty('--jewel-mask', `url("${url}")`);
                 wrap.appendChild(sh);
                 wrap.appendChild(img);
                 wrap.appendChild(so);
@@ -185,8 +185,8 @@
                 si.className = 'cell-sticker-deco';
                 sw.appendChild(si);
                 ss.className = 'sticker-shine';
-                ss.style.webkitMaskImage = `url('${item.url}')`;
-                ss.style.maskImage = `url('${item.url}')`;
+                ss.style.webkitMaskImage = `url("${item.url}")`;
+                ss.style.maskImage = `url("${item.url}")`;
                 let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                 if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                 else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
@@ -239,7 +239,6 @@
         if (sl._dailyList.length === 0) return;
         const {
             hjDaySet,
-            dHjDaySet,
             hjWeek
         } = DataController.getHappyJumpData();
         const _wk = getWeekKey(sl._dailyList[0].date);
@@ -247,7 +246,7 @@
             totGreen,
             totGold,
             totDiamond
-        } = computeWeekCompletion(sl._dailyList, hjDaySet, hjWeek[_wk] || 0, dHjDaySet);
+        } = computeWeekCompletion(sl._dailyList, hjDaySet, hjWeek[_wk] || 0);
         const anchor = document.createElement('div');
         anchor.className = 'bbgl-weekly-anchor';
         const tr = document.createElement('div');
@@ -266,40 +265,58 @@
             openHistory(sl, sl.label);
         };
         tr.setAttribute('data-tooltip-html', generateRichTooltip(sl));
-        let pctGreen = Math.min(100, totGreen / 10);
-        let pctGold = Math.min(100, totGold / 10);
         let pctDiamond = Math.min(100, totDiamond / 10);
-        if (goal) {
-            const visTot = pctGreen + pctGold + pctDiamond;
-            if (visTot < 100) {
-                const deficit = 100 - visTot;
-                if (pctDiamond > 0) pctDiamond += deficit;
-                else if (pctGold > 0) pctGold += deficit;
-                else pctGreen += deficit;
-            }
+        let pctGold = Math.min(100 - pctDiamond, totGold / 10);
+        let pctGreen = Math.min(100 - pctDiamond - pctGold, totGreen / 10);
+        
+        let sum = pctGreen + pctGold + pctDiamond;
+        if (goal && sum < 100) {
+            const deficit = 100 - sum;
+            if (pctDiamond > 0) pctDiamond += deficit;
+            else if (pctGold > 0) pctGold += deficit;
+            else pctGreen += deficit;
         }
-        const dLeft = 50 - pctDiamond / 2;
-        const dRight = 50 + pctDiamond / 2;
-        const greenWidth = Math.min(100, pctGreen > dLeft ? pctGreen + pctDiamond : pctGreen);
-        const goldWidth = Math.min(100, pctGold > dLeft ? pctGold + pctDiamond : pctGold);
+
+        let dLeft = 50 - pctDiamond / 2;
+        let dRight = 50 + pctDiamond / 2;
+        let goLeft = 100 - pctGold;
+
+        if (dRight > goLeft) {
+            dRight = goLeft;
+            dLeft = dRight - pctDiamond;
+        }
+
+        if (dLeft < 0) {
+            dLeft = 0;
+            dRight = pctDiamond;
+            goLeft = dRight;
+            pctGold = 100 - goLeft;
+        }
+
+        let firstOccupiedLeft = (pctDiamond > 0) ? dLeft : goLeft;
+        if (pctGreen > firstOccupiedLeft) pctGreen = firstOccupiedLeft;
+        
         let actualDLeft = dLeft;
-        let actualDRight = dRight;
-        if (100 - goldWidth < dLeft) {
-            actualDLeft = 100 - goldWidth;
-            actualDRight = actualDLeft + pctDiamond;
-        } else if (greenWidth > dRight) {
-            actualDRight = greenWidth;
-            actualDLeft = actualDRight - pctDiamond;
+        let gRight = pctGreen;
+        
+        let greenTouchesNext = false;
+        let goldTouchesPrev = false;
+        if (pctDiamond > 0) {
+            if (Math.abs(gRight - dLeft) < 0.01) greenTouchesNext = true;
+            if (Math.abs(dRight - goLeft) < 0.01) goldTouchesPrev = true;
+        } else {
+            if (Math.abs(gRight - goLeft) < 0.01) {
+                greenTouchesNext = true;
+                goldTouchesPrev = true;
+            }
         }
         if (pctGreen > 0) {
             const d = document.createElement('div');
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-green`;
             d.style.position = 'absolute';
             d.style.left = '0';
-            d.style.zIndex = '1';
-            const meetsGoldOrDiamond = (pctGold > 0 && greenWidth >= 100 - goldWidth) || (pctDiamond > 0 && greenWidth >= actualDLeft);
-            d.style.width = meetsGoldOrDiamond ? `calc(${greenWidth}% + 15px)` : `${greenWidth}%`;
-            if (greenWidth < 100) {
+            d.style.width = `${pctGreen}%`;
+            if (!greenTouchesNext) {
                 d.style.borderTopRightRadius = '10px';
                 d.style.borderBottomRightRadius = '10px';
             }
@@ -310,10 +327,8 @@
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-gold`;
             d.style.position = 'absolute';
             d.style.right = '0';
-            d.style.zIndex = '2';
-            const meetsDiamond = pctDiamond > 0 && (100 - goldWidth) <= actualDRight;
-            d.style.width = meetsDiamond ? `calc(${goldWidth}% + 15px)` : `${goldWidth}%`;
-            if (goldWidth < 100) {
+            d.style.width = `${pctGold}%`;
+            if (!goldTouchesPrev) {
                 d.style.borderTopLeftRadius = '10px';
                 d.style.borderBottomLeftRadius = '10px';
             }
@@ -323,30 +338,27 @@
             const d = document.createElement('div');
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-diamond`;
             d.style.position = 'absolute';
-            if (100 - goldWidth < dLeft) {
-                d.style.left = (100 - goldWidth) + '%';
-                d.style.transform = 'none';
-            } else if (greenWidth > dRight) {
-                d.style.right = (100 - greenWidth) + '%';
-                d.style.transform = 'none';
-            } else {
-                d.style.left = '50%';
-                d.style.transform = 'translateX(-50%)';
-            }
-            d.style.zIndex = '3';
-            d.style.width = pctDiamond + '%';
-            if (pctDiamond < 100) {
+            d.style.left = `${actualDLeft}%`;
+            d.style.width = `${pctDiamond}%`;
+            if (!greenTouchesNext) {
                 d.style.borderTopLeftRadius = '10px';
                 d.style.borderBottomLeftRadius = '10px';
+            }
+            if (!goldTouchesPrev) {
                 d.style.borderTopRightRadius = '10px';
                 d.style.borderBottomRightRadius = '10px';
             }
             tr.appendChild(d);
         }
-        const lb = document.createElement('div');
-        lb.className = 'bbgl-track-label';
-        lb.innerHTML = `${tot}/${GAME.WEEKLY_GOAL}`;
-        tr.appendChild(lb);
+        // The numeric X/1000 points readout is suppressed for pre-install weeks, but displays
+        // for the install week onward.
+        const installWk = runtime.demoMode ? null : getInstallWeekKey();
+        if (!installWk || _wk >= installWk) {
+            const tl = document.createElement('div');
+            tl.className = 'bbgl-track-label';
+            tl.textContent = `${tot}/${GAME.WEEKLY_GOAL}`;
+            tr.appendChild(tl);
+        }
         anchor.appendChild(tr);
         cont.appendChild(anchor);
         if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) openHistory(sl, sl.label);
@@ -391,6 +403,64 @@
             sl,
             s
         };
+        // Ledger energy-item counters. Two fixed counters (primary drug per config + Refill) always
+        // show when the bar is visible; the avg parens and the dynamic per-item counters are
+        // .view-exp / .bbgl-ic-dyn (expanded/page only). Each reads sl.items, which _hydrate
+        // aggregates over the slice's period — so an item only appears in the buckets it was used in.
+        if (dom.itemCounters) {
+            const items = sl.items || {};
+            const isDay = sl.resolution === 'DAY';
+            const cnt = code => items[code] || 0;
+            const shortOf = code => (ITEM_LOG_META[code] && ITEM_LOG_META[code].short) || `#${code}`;
+            const drugCode = userConfig.drugTracker === 'lsd' ? 2230 : XANAX_LOG;
+            const secondaryCode = userConfig.drugTracker === 'lsd' ? XANAX_LOG : 2230;
+            const parts = [];
+
+            // 1. Primary drug (always). Avg/day parens are week+ only, and expanded/page only; daily
+            // view shows just the count (a single-day avg changes daily and is confusing).
+            let drugSub = '';
+            if (!isDay) {
+                const days = DataController.periodCalendarDays(sl);
+                const drugAvg = days > 0 ? cnt(drugCode) / days : 0;
+                drugSub = sl.resolution === 'ALL' ? '' : `<span class="bbgl-ic-sub view-exp">(${drugAvg.toFixed(2)})</span>`;
+            }
+            const nameOf = (c) => {
+                if (c === 2290) return 'Xanax';
+                if (c === 2230) return 'LSD';
+                if (c === 2040) return 'Cans';
+                if (c === 2190) return 'FHC';
+                if (c === 8981) return 'Eggs';
+                return shortOf(c);
+            };
+            const isAll = sl.resolution === 'ALL';
+            const drugTip = `<div style="text-align:center">${nameOf(drugCode)} Taken` + ((!isDay && !isAll) ? `<br><span class="tt-sub">(Avg/Day)</span>` : ``) + `</div>`;
+            parts.push(`<span class="bbgl-ic" data-tooltip-html='${drugTip}'>${shortOf(drugCode)}: ${cnt(drugCode)}${drugSub}</span>`);
+
+            // 2. Dynamic energy counters (expanded/page only via .bbgl-ic-dyn), only when used.
+            // Order: Cans → FHC → secondary drug → Egg (most common to least common).
+            [ECAN_LOG, 2190, secondaryCode, 8981].forEach(code => {
+                const c = cnt(code);
+                if (c <= 0) return;
+                const sub = (code === ECAN_LOG && sl.resolution !== 'ALL') ? `<span class="bbgl-ic-sub">(+${Math.round(sl.ecanEnergy || 0)})</span>` : '';
+                let dynTip = '';
+                if (code === ECAN_LOG) {
+                    dynTip = `<div style="text-align:center">Cans Used` + (!isAll ? `<br><span class="tt-sub">(Energy Gained)</span>` : ``) + `</div>`;
+                } else {
+                    dynTip = `<div style="text-align:center">${nameOf(code)} Used</div>`;
+                }
+                parts.push(`<span class="bbgl-ic bbgl-ic-dyn" data-tooltip-html='${dynTip}'>${shortOf(code)}: ${c}${sub}</span>`);
+            });
+
+            // 3. Refill (always, last): daily = used-today check; week+ = used/calendar-days ratio.
+            const refills = cnt(4900);
+            const refillVal = isDay ?
+                (refills > 0 ? `<span class="bbgl-ic-yes">✓</span>` : `<span class="bbgl-ic-no">✗</span>`) :
+                `${refills}/${DataController.periodCalendarDays(sl)}`;
+            const refillTip = `<div style="text-align:center">Refills Used` + (!isDay ? `<br><span class="tt-sub">(Refills/Days)</span>` : ``) + `</div>`;
+            parts.push(`<span class="bbgl-ic" data-tooltip-html='${refillTip}'>Refill: ${refillVal}</span>`);
+
+            dom.itemCounters.innerHTML = parts.join('');
+        }
         const todayStr = Formatter.dateLogical();
         const slLastDate = sl._dailyList && sl._dailyList.length > 0 ? sl._dailyList[sl._dailyList.length - 1].date : sl.date;
         const isCurrentPeriod = sl.resolution === 'ALL' || slLastDate >= todayStr;
@@ -419,7 +489,7 @@
                         del = r2 - r1,
                         sg = del >= 0 ? '+' : '',
                         pct = r1 > 0 ? ((r2 - r1) / r1) * 100 : 0;
-                    th = `<div style="display:flex;flex-direction:column;align-items:center;line-height:1.1"><span>${sg}${Math.round(del)}</span><span class="view-exp rate-pct" style="font-size:0.8em;opacity:0.7">(${sg}${Math.round(pct)}%)</span></div>`;
+                    th = `<div class="rates-group" style="display:flex;flex-direction:column;align-items:center;line-height:1.1"><span>${sg}${Formatter.achGain(del)}</span><span class="view-exp rate-pct" style="font-size:0.8em;opacity:0.7;margin-top:2px;margin-bottom:-2px;">(${sg}${Formatter.ratePct(pct)}%)</span></div>`;
                     rt = mkTip(r1, r2, pct, sg);
                 }
                 rh = userConfig.ratesEnabled ? th : '';
@@ -439,7 +509,7 @@
                     rt = `Growth Rate (Gains / 150E)`;
                 }
             }
-            return `<div class="stat-column"><div class="col-header cell-stack"><div class="l-top c-label ${cl}"><span class="view-std">${lc}</span><span class="view-exp">${ft}</span></div><div class="l-bot" data-tooltip="${isP ? `Energy Used on ${ft}` : `Energy Used`}">${Formatter.dual(d.cost)} E</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-gain"><div class="l-top" data-tooltip="${ft} Gained">+${Formatter.dual(d.gain)}</div><div class="l-bot" data-tooltip="${rt}">${rh}</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-total"><div class="l-top" data-tooltip="${isCurrentPeriod ? 'Current' : 'Ending'} ${ft}">${Formatter.dual(d.end)}</div><div class="l-bot" data-tooltip="Starting ${ft}">${Formatter.dual(d.start)}</div></div></div>`;
+            return `<div class="stat-column" data-copy-stat="${k}"><div class="col-header cell-stack"><div class="l-top c-label ${cl} bbgl-copy-label" data-tooltip="Click to copy ${ft} data" style="cursor:pointer"><span class="view-std">${lc}</span><span class="view-exp">${ft}</span></div><div class="l-bot" data-tooltip="${isP ? `Energy Used on ${ft}` : `Energy Used`}">${Formatter.dual(d.cost)} E</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-gain"><div class="l-top" data-tooltip="${ft} Gained">+${Formatter.dual(d.gain)}</div><div class="l-bot" data-tooltip="${rt}">${rh}</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-total"><div class="l-top" data-tooltip="${isCurrentPeriod ? 'Current' : 'Ending'} ${ft}">${Formatter.dual(d.end)}</div><div class="l-bot" data-tooltip="Starting ${ft}">${Formatter.dual(d.start)}</div></div></div>`;
         };
         c.innerHTML = ` ${col('STR', 'str', 't-str')} ${col('DEF', 'def', 't-def')} ${col('SPD', 'spd', 't-spd')} ${col('DEX', 'dex', 't-dex')} `;
     }
@@ -945,7 +1015,7 @@
         const r = document.createElement('div');
         r.className = cfg.row;
         const l = document.createElement('a');
-        l.href = '#gymlog';
+        l.href = '/calendar.php#gymlog';
         l.className = cfg.link;
         l.innerHTML = `<span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${GYM_LOG_ICON}</span></span>${mob ? '<span>Gym Log</span>' : '<span class="linkName___FoKha">Gym Log</span>'}`;
         const _isNewInstall = !localStorage.getItem('bbgl_initialized') && !localStorage.getItem(KEYS.SB_NOTIF);
@@ -960,15 +1030,15 @@
                 if (_liveIsNewInstall) localStorage.setItem(KEYS.SB_NOTIF, '1');
                 if (_liveHasChangelogNotif) syncChangelogNotif(false);
             }
-            if (hadNotif && _liveHasChangelogNotif) {
-                localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
-                localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+            if (window.location.pathname !== '/calendar.php' || window.location.hash !== '#gymlog') {
+                window.location.href = '/calendar.php#gymlog';
+            } else {
+                if (hadNotif && _liveHasChangelogNotif) {
+                    localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                    localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+                    setTimeout(() => openChangelogModal(), 400);
+                }
             }
-            if (window.location.hash !== '#gymlog') {
-                history.pushState(null, null, '#gymlog');
-                checkViewRouting();
-            }
-            if (hadNotif && _liveHasChangelogNotif) setTimeout(() => openChangelogModal(), 400);
         });
         r.appendChild(l);
         c.appendChild(r);
@@ -1067,6 +1137,7 @@
     const TOOLTIPS = {
         ANIM: "<b>Toggle UI transitions and cosmetic effects</b><br><i>Disable to prioritize performance on slower devices.</i>",
         RATES: "<b>Display growth rate and efficiency metrics</b><br><i>Turn off for a minimalist view focused strictly on totals.</i>",
+        DRUG_TRACKER: "<b>Choose the primary training drug that appears on the ledger.</b><br><i>People on SSL path may want to track LSD instead of Xanax usage.</i>",
         LOC: "<b>Choose where the Gym Log icon appears in your Torn UI</b><br><i>Select Sidebar if the Footer Tab is hidden or if you are using Chat 2.0.</i>",
         DAY_START: "<b>Anchor logs to UTC or your system clock</b><br><i>Syncs your ongoing training sessions with your real-world schedule.</i>",
         WEEK_START: "<b>Change your preferred starting day for the week</b><br><i>Adjusts the calendar layout and weekly performance metrics.</i>",
@@ -1088,6 +1159,8 @@
         DEMO_EXIT: "Exit Demo Mode",
         DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>",
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
+        BACKFILL_AGREE_GATE: "Read and agree to start the backfill",
+        BACKFILL_RESUME_COOLDOWN: (t) => `Daily limit reached. Wait ${t} before resuming the Backfill.`,
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 
@@ -1199,7 +1272,7 @@
     }
 
     function buildFeatureGuideModalHTML() {
-        const guideSection = buildSection('Feature Guide', `<div class="bbgl-modal-scrollbox" style="max-height:calc(68vh - 80px); min-height:250px;"></div>`, 'margin-bottom:8px;');
+        const guideSection = buildSection('Feature Guide', `<div class="bbgl-modal-scrollbox" style="max-height:calc(68vh - 80px); min-height:250px;"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;');
         return `<div class="bbgl-modal-overlay" id="bbgl-feature-guide-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-feature-guide-close" title="Close">${ICONS.CLOSE}</div>${guideSection}</div></div>`;
     }
 
@@ -1216,6 +1289,58 @@
         modal.querySelector('#bbgl-feature-guide-close').onclick = () => closeFeatureGuideModal();
         modal.onclick = (e) => {
             if (e.target === modal) closeFeatureGuideModal();
+        };
+    }
+
+    const BACKFILL_TEXT = {
+        DISCLOSURE: `<strong>What the Backfill Does</strong><p>The Big Black Log Backfill walks your Torn activity log <strong>backward in time</strong>, one window at a time, rebuilding your full training history from today all the way to the very beginning of your account. It only ever reads gym training and the specific item logs this script tracks &mdash; nothing else.</p><strong>Torn's Cloud Limit</strong><p>Torn caps activity-log reads at <strong>50,000 rows per day</strong>, and that pool is <strong>shared</strong> across every script you run against the same key. The backfill stops itself well before that ceiling to leave room for normal use.</p><strong>How Fast It Calls</strong><p>The Torn API allows roughly <strong>100 calls per minute</strong>. To stay safely under that, the backfill deliberately paces itself (about one call every 0.7s, ~85/min). This is by design &mdash; it trades speed for safety.</p><strong>Large Logs May Take Several Days</strong><p>If your history is very large, a single run will hit the daily row limit before reaching the beginning. That is normal. The scan saves its progress, cools down for ~24 hours, and you simply <strong>resume it the next day</strong>, repeating until the whole log is backfilled.</p><strong>It Runs in the Background</strong><p>Once started, the scan runs in the background &mdash; you can keep using the panel and the rest of Torn and check back on its progress whenever you like. While a backfill is running, this script's other API calls are <strong>automatically paused</strong> so the scan owns the daily pool and no rate-limit errors occur. They resume on their own once the scan finishes.</p><strong>Partial Scans Are Still Complete</strong><p>If a run only reaches part of the way back, the data it did retrieve is <strong>100% complete for that span</strong>. Backfilled days are only shown once fully populated, so you never see a half-filled day &mdash; just a smaller, fully accurate window that grows each time you resume.</p>`
+    };
+
+    function buildBackfillModalHTML() {
+        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I have read and agree</label></div>`,
+            infoSection = buildSection('API Information', `<div class="bbgl-modal-scrollbox">${BACKFILL_TEXT.DISCLOSURE}${agreeRow}</div>`, 'margin-bottom:5px;'),
+            configSection = buildSection('Backfill Configuration', `<div class="bbgl-modal-scrollbox"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;'),
+            footer = `<div style="display:flex; justify-content:flex-end; margin:0 10px 4px 10px;"><span class="bbgl-agree-wrap" style="flex:0 0 auto; display:inline-flex;" data-tooltip="${TOOLTIPS.BACKFILL_AGREE_GATE}">${buildButton('bbgl-backfill-start-btn', 'Start', 'green', 'margin:0; min-width:96px;')}</span></div>`;
+        return `<div class="bbgl-modal-overlay" id="bbgl-backfill-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-backfill-close" title="Close">${ICONS.CLOSE}</div>${infoSection}${configSection}${footer}</div></div>`;
+    }
+
+    function closeBackfillModal() {
+        const m = document.getElementById('bbgl-backfill-modal');
+        if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+
+    function openBackfillModal() {
+        if (runtime.demoMode) return;
+        closeBackfillModal();
+        document.body.insertAdjacentHTML('beforeend', buildBackfillModalHTML());
+        const modal = document.getElementById('bbgl-backfill-modal');
+        if (!modal) return;
+        modal.querySelector('#bbgl-backfill-close').onclick = () => closeBackfillModal();
+        modal.onclick = (e) => {
+            if (e.target === modal) closeBackfillModal();
+        };
+        const startBtn = modal.querySelector('#bbgl-backfill-start-btn'),
+            startWrap = modal.querySelector('.bbgl-agree-wrap'),
+            agree = modal.querySelector('#bbgl-backfill-agree');
+        startBtn.classList.add('bbgl-btn-disabled');
+        const refreshStartState = () => {
+            if (agree.checked) {
+                startBtn.classList.remove('bbgl-btn-disabled');
+                if (startWrap) startWrap.removeAttribute('data-tooltip');
+            } else {
+                startBtn.classList.add('bbgl-btn-disabled');
+                if (startWrap) startWrap.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_AGREE_GATE);
+            }
+        };
+        agree.onchange = refreshStartState;
+        refreshStartState();
+        // Agreement is intentionally not persisted: starting the scan creates its own timers, which
+        // are the record. The disclaimer is shown fresh on every manual start.
+        startBtn.onclick = function() {
+            if (startBtn.classList.contains('bbgl-btn-disabled')) return;
+            this.blur();
+            closeBackfillModal();
+            backfillLogs(document.getElementById('backfill-btn'));
         };
     }
 
@@ -1321,14 +1446,14 @@
     }
 
     function buildWelcomeIntroSection() {
-        const body = `<div class="bbgl-author-block"><strong>By <a href="https://www.torn.com/profiles.php?XID=3550896" target="_blank" style="color:#69f0ae; text-decoration:none; border-bottom:1px dotted rgba(105,240,174,0.4); transition:border-color .2s;" onmouseover="this.style.borderBottomColor='#69f0ae'" onmouseout="this.style.borderBottomColor='rgba(105,240,174,0.4)'">BigBlackHawk</a></strong>When it comes to your stats, size matters! So stop guessing and start measuring. Prove to everyone you&rsquo;re a grower and not just a show-er.<br><br>Big Black Gym Log brings high-fidelity graphs and detailed logs to your training routine. Earn fun incentives, track your gains with high precision, and experience a tracking suite built to integrate seamlessly with Torn&rsquo;s native UI.</div><div class="bbgl-author-block" style="margin-top:0;">Please read the privacy disclosure or import an existing log below before continuing.</div>${buildButton('init-privacy-btn', 'PRIVACY DISCLOSURE', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;')}`;
+        const body = `<div class="bbgl-author-block"><strong>By <a class="bbgl-author-link" href="https://www.torn.com/profiles.php?XID=3550896" target="_blank">BigBlackHawk</a></strong>When it comes to your stats, size matters! So stop guessing and start measuring. Prove to everyone you&rsquo;re a grower and not just a show-er.<br><br>Big Black Gym Log brings high-fidelity graphs and detailed logs to your training routine. Earn fun incentives, track your gains with high precision, and experience a tracking suite built to integrate seamlessly with Torn&rsquo;s native UI.</div><div class="bbgl-author-block" style="margin-top:0;">Please read the privacy disclosure or import an existing log below before continuing.</div>${buildButton('init-privacy-btn', 'PRIVACY DISCLOSURE', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;')}`;
         return `<div class="bbgl-prefs-tab-title" style="border-radius:5px 5px 0 0; margin-top:0;">Welcome to Big Black Gym Log</div><div class="bbgl-settings-body" style="margin-bottom:5px;">${body}</div>`;
     }
 
     function buildWelcomeInitSection() {
         const inputHTML = buildApiEntryField('init', 'margin:8px 10px;');
         const createBtn = buildButton('init-create-api-btn', 'CREATE API KEY', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;');
-        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="init-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
+        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
         const startBtn = buildButton('init-start-btn', 'START TRACKING', 'green', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
         const body = `<div id="init-section-masked-body" class="bbgl-mask-host" data-mask-text="Please agree to the privacy disclosure first.">${inputHTML}${createBtn}${rows}${startBtn}</div>`;
         return buildSection('Initialization Settings', body, 'margin-bottom:5px;');
@@ -1349,7 +1474,8 @@
 
     function buildSettingsFeaturesSection() {
         const bestGymGroup = buildToggle('set-bestgym-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM}">BB Best Gym</span>`, 'bbgl-bestgym-lead') + buildToggle('set-bestgym-spec-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_SPEC}">Specialty Gyms</span>`, 'bbgl-subgroup-row') + buildToggle('set-bestgym-unpurch-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_UNPURCHASED}">Unpurchased Gyms</span>`, 'bbgl-subgroup-row bbgl-subgroup-row-last');
-        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + `<div class="bbgl-btn-grid" style="margin: 8px 10px; width: calc(100% - 20px);">` + buildButton('feature-guide-btn', 'FEATURE GUIDE', '', 'border-bottom-left-radius: 5px!important;') + buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', 'border-bottom-right-radius: 5px!important;') + `</div>`);
+        const backfillBtn = buildButton('backfill-btn', '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
+        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`) + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${backfillBtn}</div>`);
     }
 
     function buildSettingsLogFormatSection() {
@@ -1364,13 +1490,15 @@
     }
 
     function buildSettingsDataSection() {
-        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('deep-sync-btn', 'DEEP LOG SYNC', 'purple', 'margin: 0 10px 0 10px; width: calc(100% - 20px); display: block; border-radius: 0; border-bottom: none;') + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
+        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 0 10px; width: calc(100% - 20px); display: block; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
         return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inner}</div>`);
     }
 
     function buildSettingsInfoSection() {
-        const stack = `<div style="margin: 8px 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-top-left-radius: 0; border-top-right-radius: 0; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
-        return buildSection('Information', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>`);
+        const guideBtn = buildButton('feature-guide-btn', 'FEATURE GUIDE', '', 'margin: 8px 10px 0 10px; width: calc(100% - 20px); display: block; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;');
+        const stack = `<div style="margin: 0 10px 0 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-radius: 0; border-bottom: none; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
+        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
+        return buildSection('Information', guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>${demoBtn}`);
     }
 
     function getSettingsHTML() {
@@ -1381,7 +1509,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
     }
 
     /**

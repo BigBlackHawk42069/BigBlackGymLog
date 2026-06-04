@@ -86,9 +86,8 @@
                     sr[s] = DataController.getHistoricalRate(_prevDateStr, s);
                 });
             } else {
-                const _or = (h.meta && h.meta.originRates) || {};
                 st.forEach(s => {
-                    sr[s] = _or[s] || 0;
+                    sr[s] = DataController.getOriginRate(s);
                 });
             }
             sr.total = st.reduce((a, b) => a + (sr[b] || 0), 0);
@@ -105,7 +104,7 @@
                     for (let j = ser.length - 1; j >= 0; j--) {
                         const e = ser[j];
                         if (e.stat === s && e.cost > 0) {
-                            ur[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                            ur[s] = e.rate;
                             break;
                         }
                     }
@@ -133,7 +132,7 @@
                         for (let i = ser.length - 1; i >= 0; i--) {
                             const e = ser[i];
                             if (e.stat === s && e.cost > 0 && (e.ts * 1000) <= cutoffMs) {
-                                rates[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                rates[s] = e.rate;
                                 break;
                             }
                         }
@@ -154,7 +153,7 @@
                 if (raw && raw.series) st.forEach(s => {
                     if (sr[s] === 0) {
                         const fLog = raw.series.find(l => l.stat === s);
-                        if (fLog && fLog.cost > 0) sr[s] = (fLog.gain / fLog.cost) * 150;
+                        if (fLog && fLog.cost > 0) sr[s] = fLog.rate;
                     }
                 });
                 const ser = (raw && raw.series) ? raw.series : [];
@@ -427,7 +426,7 @@
                         for (let j = allSer.length - 1; j >= 0; j--) {
                             const e = allSer[j];
                             if (e.stat === s && e.cost > 0) {
-                                r[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                r[s] = e.rate;
                                 break;
                             }
                         }
@@ -483,7 +482,7 @@
                                 for (let j = allSer.length - 1; j >= 0; j--) {
                                     const e = allSer[j];
                                     if (e.stat === s && e.cost > 0) {
-                                        liveRates[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                        liveRates[s] = e.rate;
                                         break;
                                     }
                                 }

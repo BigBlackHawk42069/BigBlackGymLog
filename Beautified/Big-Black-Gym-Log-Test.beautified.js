@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         Big Black Gym Log Teste
 // @namespace    http://tampermonkey.net/
-// @version      0.9.53
+// @version      0.9.57
 // @description  A high-fidelity, gamified stat tracker built to integrate seamlessly with Torn's native UI.
 // @author       BigBlackHawk [3550896]
 // @match        https://www.torn.com/*
@@ -27,7 +27,7 @@
      *  so that you don't have to.
      */
 
-    const SCRIPT_VERSION = '0.9.53';
+    const SCRIPT_VERSION = '0.9.57';
     const Log = {
         _bootShown: false,
         _badge: ['%c BBGL %c', 'background:#6a1b9a;color:#fff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;', 'color:#999;'],
@@ -129,10 +129,10 @@
         POINTS_GOLD: 300,
         POINTS_DIAMOND: 500,
         POINTS_HJ_GREEN: 500,
-        POINTS_HJ_GOLD: 600,
-        POINTS_HJ_DIAMOND: 750,
+        POINTS_HJ_GOLD: 500,
+        POINTS_HJ_DIAMOND: 500,
         GOLD_WEEK_JUMPS: 3,
-        DIAMOND_JUMP_E: 1750,
+        DIAMOND_WEEK_JUMPS: 4,
         HJ_WINDOW_SECONDS: 300,
         STAT_MAP: {
             5300: 'strength',
@@ -141,16 +141,66 @@
             5303: 'dexterity'
         }
     };
-    // Deep Log Sync: a resumable backward scan that walks the activity log to the beginning of
+    // Item-use activity-log codes we track alongside gym training. Single source of truth for the
+    // log id -> display label/group/metric mapping. `group` (energy|stat|happy) buckets each code for
+    // the grouped export totals and the happy-jump page. The per-item metric flag says what extra
+    // datum to capture beyond a plain count:
+    //   energy:true -> data.energy_increased (energy cans)
+    //   happy:true  -> data.happy_increased  (happy items)
+    //   stat:true   -> data.<stat>_increased (stat enhancers; stat auto-detected)
+    // Quantity-only codes carry no flag. ITEM_LOGS is derived so the API normalizer, the request
+    // groups, the export totals, and the ledger counters all agree.
+    const ITEM_LOG_META = {
+        8981: { label: 'Green Egg Used', group: 'energy', short: 'Egg' },
+        2290: { label: 'Xanax Taken', group: 'energy', short: 'Xans' },
+        2230: { label: 'LSD Taken', group: 'energy', short: 'LSD' },
+        2040: { label: 'Energy Can Used', group: 'energy', energy: true, short: 'Cans' },
+        2190: { label: 'Hotel Coupon Used', group: 'energy', short: 'FHC' },
+        4900: { label: 'Points Refill Used', group: 'energy', short: 'Refill' },
+        2120: { label: 'Parachute Used', group: 'stat', stat: true },
+        2130: { label: 'Skateboard Used', group: 'stat', stat: true },
+        2140: { label: 'Boxing Gloves Used', group: 'stat', stat: true },
+        2150: { label: 'Dumbbells Used', group: 'stat', stat: true },
+        2020: { label: 'Candy Used', group: 'happy', happy: true },
+        2180: { label: 'Erotic DVD Used', group: 'happy', happy: true },
+        2210: { label: 'Ecstasy Taken', group: 'happy', happy: true },
+        8983: { label: 'Yellow Egg Used', group: 'happy', happy: true }
+    };
+    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items' };
+    const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
+    const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
+    // Gym training log ids, one per stat.
+    const TRAIN_LOGS = [5300, 5301, 5302, 5303];
+    // Per-group code lists for the live request architecture. battlestats is always fetched on its
+    // own call (it can't share a request with `log`), and any one `log=` call may carry at most 10
+    // log types — so items are split across the train-click call (energy) and the heartbeat /
+    // reconciliation calls (stat + happy). Backfill ignores these and paginates one type at a time.
+    const ENERGY_LOGS = itemLogsByGroup('energy'); // 6
+    const STAT_LOGS = itemLogsByGroup('stat');     // 4
+    const HAPPY_LOGS = itemLogsByGroup('happy');   // 4
+    const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(','); // reconcile call (10)
+    const STAT_HAPPY_PARAM = [...STAT_LOGS, ...HAPPY_LOGS].join(',');     // reconcile call (8)
+    const ENERGY_PARAM = ENERGY_LOGS.join(',');                          // train-click rider (6)
+    const XANAX_LOG = 2290,
+        ECAN_LOG = 2040;
+    // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
+    // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
+    // makes the overlap harmless.
+    const SYNC_FROM_BUFFER = 3 * 3600;
+    // Backfill Logs: a resumable backward scan that walks the activity log to the beginning of
     // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data
     // reads at 50,000 rows/day per category (the activity log is one category, shared across
-    // every log type and every script the user runs); ROW_CAP leaves headroom for that, and the
-    // cooldown is set slightly over 24h so the rolling-24h window is guaranteed clear on resume.
-    const DEEP_SCAN = {
-        ROW_CAP: 30000,
+    // every log type and every script the user runs). SOFT_CAP leaves comfortable headroom for
+    // that; once crossed, the scan keeps paging only to finish the current day across every
+    // frontier (so the budget spent yields a fully complete, visible day rather than a hidden
+    // partial one), bounded by HARD_CAP as an absolute failsafe against a pathologically dense
+    // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
+    // clear on resume.
+    const BACKFILL = {
+        SOFT_CAP: 35000,   // stop *starting* new days once crossed
+        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
         COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
-        THROTTLE_MS: 700,
-        LOG_IDS: '5300,5301,5302,5303'
+        THROTTLE_MS: 700
     };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
@@ -271,6 +321,7 @@
         isClosing: false,
         isViewAnimating: false,
         isSyncing: false,
+        backfilling: false,
         apiCallTotal: 0,
         resizeObserver: null,
         stickerSlots: [],
@@ -339,6 +390,7 @@
         bestGym: true,
         bestGymSpecialist: true,
         bestGymUnpurchased: true,
+        drugTracker: 'xanax', // ledger primary-drug counter: 'xanax' (2290) or 'lsd' (2230)
         privacyAgreed: ''
     };
     const ALLOWED_CONFIG_KEYS = Object.keys(userConfig);
@@ -427,10 +479,10 @@
                 maximumFractionDigits: d
             });
         },
-        abbr(n, d = 1) {
+        abbr(n, d = 1, upper = false, strip = false) {
             if (!n && n !== 0) return '0';
             const abs = Math.abs(n);
-            if (abs < 1000) return Math.floor(n).toString();
+            if (abs < 1000) return Math.trunc(n).toString();
             const tiers = [
                 [1e15, 'q'],
                 [1e12, 't'],
@@ -439,7 +491,12 @@
                 [1e3, 'k']
             ];
             for (const [mag, suffix] of tiers) {
-                if (abs >= mag) return (n / mag).toFixed(d) + suffix;
+                if (abs >= mag) {
+                    let dec = typeof d === 'function' ? d(mag, abs) : d;
+                    let s = (n / mag).toFixed(dec);
+                    if (strip) s = parseFloat(s).toString();
+                    return s + (upper ? suffix.toUpperCase() : suffix);
+                }
             }
             return Math.floor(n).toString();
         },
@@ -448,6 +505,16 @@
             if (n < 1000) return this.number(n, exp ? 2 : 1);
             if (exp) return this.number(Math.floor(n), 0);
             return this.abbr(n, 1);
+        },
+        achGain(v) {
+            const a = Math.abs(v);
+            if (a < 100) return this.number(v, 1);
+            if (a < 1000) return this.number(v, 0);
+            return this.abbr(v, (m, abs) => m === 1e9 ? 4 : m === 1e6 ? 3 : (abs >= 1e4 ? 2 : 1), true, false);
+        },
+        ratePct(v) {
+            if (Math.abs(v) < 1000) return this.number(v, 0);
+            return this.abbr(v, 2, true, true);
         },
         dual(val, r = false) {
             let std, exp;
@@ -462,23 +529,8 @@
         },
         axis(n) {
             if (n === 0) return '0';
-            const abs = Math.abs(n);
-            let div = 1,
-                s = '';
-            if (abs >= 1e12) {
-                div = 1e12;
-                s = 't';
-            } else if (abs >= 1e9) {
-                div = 1e9;
-                s = 'b';
-            } else if (abs >= 1e6) {
-                div = 1e6;
-                s = 'm';
-            } else if (abs >= 1e3) {
-                div = 1e3;
-                s = 'k';
-            }
-            return (Math.round((n / div) * 10) / 10) + s;
+            if (Math.abs(n) < 1000) return (Math.round(n * 10) / 10).toString();
+            return this.abbr(n, 1, false, true);
         },
         parse(s) {
             if (!s) return new Date();
@@ -691,31 +743,44 @@
         return 1 + Math.round(((date.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getUTCDay() + 6) % 7) / 7);
     }
 
-    function computeWeekCompletion(days, hjDaySet = null, hjCount = 0, dHjDaySet = null) {
+    function computeWeekCompletion(days, hjDaySet = null, hjCount = 0) {
         let totGreen = 0,
             totGold = 0,
             totDiamond = 0;
-        const jumpGold = hjCount >= GAME.GOLD_WEEK_JUMPS;
+            
+        const jumpGold = hjCount === GAME.GOLD_WEEK_JUMPS;
+        const jumpDiamond = hjCount >= GAME.DIAMOND_WEEK_JUMPS;
+
         days.forEach(d => {
             const e = d.eSpent ? d.eSpent.total : 0;
             const isHJ = hjDaySet ? hjDaySet.has(d.date) : false;
-            const isDiamondHJ = isHJ && dHjDaySet && dHjDaySet.has(d.date);
+
             if (isHJ) {
-                if (e >= 2000 || isDiamondHJ) totDiamond += GAME.POINTS_HJ_DIAMOND;
-                else if (e >= 1500) totGold += GAME.POINTS_HJ_GOLD;
-                else if (jumpGold) totGold += GAME.POINTS_HJ_GREEN;
+                let tier = 'GREEN';
+                if (e >= 2000) tier = 'DIAMOND';
+                else if (e >= 1500) tier = 'GOLD';
+
+                if (jumpDiamond) tier = 'DIAMOND';
+                else if (jumpGold && tier === 'GREEN') tier = 'GOLD';
+
+                if (tier === 'DIAMOND') totDiamond += GAME.POINTS_HJ_DIAMOND;
+                else if (tier === 'GOLD') totGold += GAME.POINTS_HJ_GOLD;
                 else totGreen += GAME.POINTS_HJ_GREEN;
                 return;
             }
+
             let base = 0;
             if (e >= 2000) base = GAME.POINTS_DIAMOND;
             else if (e >= 1500) base = GAME.POINTS_GOLD;
             else if (e >= 1000) base = GAME.POINTS_GREEN;
+            
             if (base === 0) return;
+            
             if (base === GAME.POINTS_DIAMOND) totDiamond += base;
             else if (base === GAME.POINTS_GOLD) totGold += base;
             else totGreen += base;
         });
+        
         const total = totGreen + totGold + totDiamond;
         const goldOrBetter = totGold + totDiamond;
         return {
@@ -734,6 +799,15 @@
         const offset = userConfig.weekStartMode === 'mon' ? (dayIdx === 0 ? 6 : dayIdx - 1) : dayIdx;
         const weekStart = new Date(d.getTime() - offset * 86400000);
         return Formatter.dateISO(weekStart.getUTCFullYear(), weekStart.getUTCMonth(), weekStart.getUTCDate());
+    }
+
+    // Week-key of the install date (privacyAgreed). Rewards (stickers now, XP later) are only
+    // eligible for weeks with key >= this. Respects the user's day-start and week-start modes.
+    // Returns null if unknown (no gating) — but init() self-heals privacyAgreed so this is rare.
+    function getInstallWeekKey() {
+        const ms = userConfig.privacyAgreed ? Date.parse(userConfig.privacyAgreed) : NaN;
+        if (isNaN(ms)) return null;
+        return getWeekKey(Formatter.dateLogical(ms));
     }
 
     /**
@@ -827,8 +901,9 @@
                     border-radius:34px; } .slider:before { position:absolute; content:""; height:12px; width:12px; left:3px; bottom:3px;
                     background-color:#fff; transition:.4s; border-radius:50%; } input:checked+.slider { background-color:${CONSTANTS.COLORS.GAINS}; }
                     input:checked+.slider:before { transform:translateX(16px); } /*-----------------------------------------------*/
-                    .bbgl-switch-purple { transform:scale(.85); } .bbgl-switch-purple input:checked+.slider { background-color:#9d039d; /**/
-                    box-shadow:0 0 5px rgba(157,3,157,.6); } /*-----------------------------------------------------------------------*/
+                    .bbgl-switch-purple { transform:scale(.85); } .bbgl-switch-purple input:checked+.slider { background-color:#6a1b9a; /**/
+                    box-shadow:0 0 5px rgba(106,27,154,.6); } #bbgl-settings-view .bbgl-switch input:checked+.slider { background-color:#6a1b9a; /**/
+                    box-shadow:0 0 5px rgba(106,27,154,.6); } /*-----------------------------------------------------------------------*/
                     .bbgl-bestgym { float:right; display:flex; align-items:center; gap:5px; height:24px; line-height:24px; color:#999; margin-right:8px; }
                     .bbgl-bestgym-logo { width:20px; height:20px; flex-shrink:0; } .bbgl-bestgym-label { white-space:nowrap; position:relative; top:1px; } /*-------------------------------------------------*/
                     .bbgl-subsetting { padding-left:26px; } .bbgl-row-disabled { opacity:.45; pointer-events:none; } /*------------------*/
@@ -861,10 +936,10 @@
                     margin:0 10px 10px; width:calc(100% - 20px); display:block; } .bbgl-settings-body .bbgl-btn-grid { margin:8px 10px 0; }
                     [class*="area-desktop___"][class*="active___"] [class*="defaultIcon___"] svg, [class*="area-mobile___"][class*="active___"] [class*="defaultIcon___"] svg {
                     fill:#fff; stroke:#fff; filter:drop-shadow(0 0 4px rgba(255,255,255,.55)); } .bbgl-sb-notif [class*="desktopLink___"] { /*--------*/
-                    background:linear-gradient(to right,rgba(138,43,226,.28),rgba(138,43,226,.12)) !important; } /*---------------------*/
-                    .bbgl-sb-notif [class*="defaultIcon___"] svg { fill:#ce93d8 !important; stroke:#ce93d8 !important; /*-----------------*/
-                    /**/ filter:drop-shadow(0 0 3px rgba(156,39,176,.6)) brightness(1.15) !important; } /*-------------------------------*/
-                    .bbgl-sb-notif [class*="mobileLink___"] > span:not([class]) { color:#ce93d8 !important; } .bbgl-swiper-wr { /*--------*/
+                    background:linear-gradient(to right,rgba(171,71,188,.28),rgba(171,71,188,.12)) !important; } /*---------------------*/
+                    .bbgl-sb-notif [class*="defaultIcon___"] svg { fill:#d896e0 !important; stroke:#d896e0 !important; /*-----------------*/
+                    /**/ filter:drop-shadow(0 0 3px rgba(216,150,224,.6)) brightness(1.15) !important; } /*-------------------------------*/
+                    .bbgl-sb-notif [class*="mobileLink___"] > span:not([class]) { color:#d896e0 !important; } .bbgl-swiper-wr { /*--------*/
                     overflow: visible !important; width: max-content !important; } .bbgl-swiper-cont { overflow: visible !important; } /*-*/
                     #bbgl-page-container { display:flex; flex-direction:column; width:100%; min-height:calc(100vh - 60px); height:auto; /**/
                     padding:8px 0; box-sizing:border-box; container-type:inline-size; container-name:bbgl-page; } .bbgl-native-header { /**/
@@ -951,13 +1026,14 @@
                     --bbgl-ach-scroll-pb:clamp(0px,calc(2px - .5px * var(--bbgl-page-t)),2px); /*----------------------------------------*/
                     padding-top:var(--bbgl-ach-container-pt)!important; padding-left:var(--bbgl-ach-inset-x)!important; /*----------------*/
                     padding-right:var(--bbgl-ach-inset-x)!important; } #bbgl-panel.bbgl-mode-page .bbgl-ach-scroll { /*-------------------*/
-                    padding-top: clamp(18px,calc(24px - 6px * var(--bbgl-page-t)),24px)!important; } /*-----------------------------------*/
+                    padding-top: clamp(18px,calc(18px + 6px * var(--bbgl-page-t)),24px)!important; } /*-----------------------------------*/
                     #bbgl-panel.bbgl-mode-page #bbgl-ach-pageindicator .pg-dot { width:var(--bbgl-ach-dot-w); height:var(--bbgl-ach-dot-w);
                     } #bbgl-panel.bbgl-mode-page .bbgl-ach-section-title { /*-------------------------------------------------------------*/
-                    font-size:clamp(11px,calc(11px + 3px * var(--bbgl-page-t)),14px)!important; } /*--------------------------------------*/
-                    #bbgl-panel.bbgl-mode-page .bbgl-ach-row { font-size:clamp(11px,calc(11px + 3px * var(--bbgl-page-t)),14px)!important;
-                    } #bbgl-panel.bbgl-mode-page .ach-sub { font-size:clamp(8px,calc(8px + 2px * var(--bbgl-page-t)),10px)!important; } /**/
-                    #bbgl-panel.bbgl-mode-page .ach-date { font-size:clamp(9px,calc(9px + 2px * var(--bbgl-page-t)),11px)!important; } /*-*/
+                    font-size:clamp(9.5px,calc(9.5px + 4.5px * var(--bbgl-page-t)),14px)!important; } /*--------------------------------------*/
+                    #bbgl-panel.bbgl-mode-page .bbgl-ach-row { font-size:clamp(9px,calc(9px + 4px * var(--bbgl-page-t)),13px)!important;
+                    } #bbgl-panel.bbgl-mode-page .bbgl-ach-hh-group .bbgl-ach-row, #bbgl-panel.bbgl-mode-page .bbgl-ach-hh-group .bbgl-ach-hh-best-row { font-size:clamp(9px,calc(9px + 4px * var(--bbgl-page-t)),13px)!important; }
+                    #bbgl-panel.bbgl-mode-page .ach-sub { font-size:clamp(7px,calc(7px + 3px * var(--bbgl-page-t)),10px)!important; } /**/
+                    #bbgl-panel.bbgl-mode-page .ach-date { font-size:clamp(7.5px,calc(7.5px + 3.5px * var(--bbgl-page-t)),11px)!important; } /*-*/
                     #bbgl-panel.bbgl-mode-page .col-header, #bbgl-panel.bbgl-mode-page .col-data-block { /*-------------------------------*/
                     margin-bottom:calc(8px * (1 - var(--bbgl-page-t))); } #bbgl-panel.bbgl-mode-page .day-num { /*------------------------*/
                     top:clamp(2px,calc(2px + 4px * var(--bbgl-page-t)),6px); left:clamp(2px,calc(2px + 4px * var(--bbgl-page-t)),6px); /*-*/
@@ -981,8 +1057,8 @@
                     display:none!important; } /*------------------------------------------------------------------------------------------*/
                     .bbgl-mode-page #bbgl-ledger-toggle, .bbgl-mode-page #bbgl-graph-toggle, .bbgl-mode-page #bbgl-achievements-toggle, .bbgl-mode-page #bbgl-sticker-toggle, .bbgl-mode-page #bbgl-copy-btn {
                     opacity:1!important; pointer-events:auto!important; } .bbgl-mode-page #bbgl-ledger-toggle { left:10px!important; } /*-*/
-                    .bbgl-mode-page #bbgl-graph-toggle { left:40px!important; } .bbgl-mode-page #bbgl-achievements-toggle { /*------------*/
-                    left:70px!important; } .bbgl-mode-page #bbgl-sticker-toggle { left:100px!important; } body.bbgl-page-mode-active { /*-*/
+                    .bbgl-mode-page #bbgl-graph-toggle { left:clamp(34px,calc(34px + 6px * var(--bbgl-page-t)),40px)!important; } .bbgl-mode-page #bbgl-achievements-toggle { /*------------*/
+                    left:clamp(58px,calc(58px + 12px * var(--bbgl-page-t)),70px)!important; } .bbgl-mode-page #bbgl-sticker-toggle { left:clamp(82px,calc(82px + 18px * var(--bbgl-page-t)),100px)!important; } body.bbgl-page-mode-active { /*-*/
                     overflow-x:hidden!important; } /*-------------------------------------------------------------------------------------*/
                     body.bbgl-page-mode-active #graph, body.bbgl-page-mode-active .tt-container.tt-theme-background.collapsible { /*------*/
                     display:none!important; } #bbgl-gym-tab { background-image:linear-gradient(180deg,#00698c,#003040)!important; /*------*/
@@ -1085,16 +1161,16 @@
                     .bbgl-tall #bbgl-ledger-toggle { left:32px; opacity:1; pointer-events:auto; } .bbgl-tall #bbgl-graph-toggle { /*------*/
                     left:57px; opacity:1; pointer-events:auto; } .bbgl-tall #bbgl-achievements-toggle { left:82px; opacity:1; /*----------*/
                     pointer-events:auto; } .bbgl-tall #bbgl-sticker-toggle { left:107px; opacity:1; pointer-events:auto; } /*-------------*/
-                    .bbgl-tall #bbgl-copy-btn { right:8px; opacity:1; pointer-events:auto; } .bbgl-expanded #bbgl-tall-toggle { top:3px;
+                    .bbgl-tall #bbgl-copy-btn { right:8px; opacity:1; pointer-events:auto; transform:scale(1.15); } .bbgl-expanded #bbgl-tall-toggle { top:3px;
                     left:3px; font-size:15px; width:19px; height:19px; } .bbgl-expanded.bbgl-tall #bbgl-ledger-toggle { width:15.5px; /*--*/
-                    height:15.5px; left:32px; } .bbgl-expanded.bbgl-tall #bbgl-graph-toggle { width:16px; height:16px; left:60px; } /*----*/
-                    .bbgl-expanded.bbgl-tall #bbgl-achievements-toggle { width:15.5px; height:15.5px; left:88px; } /*---------------------*/
-                    .bbgl-expanded.bbgl-tall #bbgl-sticker-toggle { width:16px; height:16px; left:116px; } /*-----------------------------*/
+                    height:15.5px; left:32px; } .bbgl-expanded.bbgl-tall #bbgl-graph-toggle { width:16px; height:16px; left:clamp(56px,calc(51.6px + 1.45cqi),60px); } /*----*/
+                    .bbgl-expanded.bbgl-tall #bbgl-achievements-toggle { width:15.5px; height:15.5px; left:clamp(80px,calc(71.2px + 2.9cqi),88px); } /*---------------------*/
+                    .bbgl-expanded.bbgl-tall #bbgl-sticker-toggle { width:16px; height:16px; left:clamp(104px,calc(90.8px + 4.35cqi),116px); } /*-----------------------------*/
                     .bbgl-expanded.bbgl-tall #bbgl-copy-btn { width:15.5px; height:15.5px; right:10px; } /*-------------------------------*/
                     #bbgl-panel.bbgl-mode-page #bbgl-ledger-toggle, #bbgl-panel.bbgl-mode-page #bbgl-graph-toggle, #bbgl-panel.bbgl-mode-page #bbgl-achievements-toggle, #bbgl-panel.bbgl-mode-page #bbgl-sticker-toggle, #bbgl-panel.bbgl-mode-page #bbgl-copy-btn {
-                    width:clamp(16px,calc(16px + 2px * var(--bbgl-page-t)),18px); /*------------------------------------------------------*/
-                    height:clamp(16px,calc(16px + 2px * var(--bbgl-page-t)),18px); /*-----------------------------------------------------*/
-                    top:clamp(6px,calc(6px + 4px * var(--bbgl-page-t)),10px); } #bbgl-panel.bbgl-mode-page #bbgl-ledger-toggle { left:32px;
+                    width:clamp(14.5px,calc(14.5px + 3.5px * var(--bbgl-page-t)),18px); /*------------------------------------------------------*/
+                    height:clamp(14.5px,calc(14.5px + 3.5px * var(--bbgl-page-t)),18px); /*-----------------------------------------------------*/
+                    top:clamp(4.5px,calc(4.5px + 5.5px * var(--bbgl-page-t)),10px); } #bbgl-panel.bbgl-mode-page #bbgl-ledger-toggle { left:32px;
                     } #bbgl-panel.bbgl-mode-page #bbgl-graph-toggle { left:62px; } #bbgl-panel.bbgl-mode-page #bbgl-achievements-toggle {
                     left:92px; } #bbgl-panel.bbgl-mode-page #bbgl-sticker-toggle { left:122px; } /*---------------------------------------*/
                     #bbgl-panel.bbgl-mode-page #bbgl-copy-btn { right:12px; } /*----------------------------------------------------------*/
@@ -1116,6 +1192,7 @@
                     #bbgl-top-panel.viewing-stickers { box-shadow:none!important; border-bottom:none!important; /*------------------------*/
                     background-color:transparent!important; padding-bottom:2px!important; } /*--------------------------------------------*/
                     #bbgl-top-panel.viewing-stickers::after, #bbgl-top-panel.viewing-stickers .glass-overlay { display:none!important; }
+                    #bbgl-top-panel.viewing-achievements { border-bottom:none!important; } #bbgl-top-panel.viewing-achievements::after { box-shadow:inset 1px 1px 1px rgba(255,255,255,.2)!important; }
                     #bbgl-panel:not(.bbgl-mode-page) #bbgl-top-panel.viewing-achievements { /*--------------------------------------------*/
                     padding-top:max(0px,calc(clamp(2px,calc(2px + 18px * var(--bbgl-dock-t,0)),20px) - calc(2px * var(--bbgl-dock-t,0))))!important;
                     } .ledger-content { position:relative; flex:1; overflow-y:auto; overflow-x:hidden; padding:4px 2px; display:grid; /*--*/
@@ -1133,7 +1210,7 @@
                     transition:max-height .3s,flex-basis .3s; } .cell-stack { display:flex; flex-direction:column; align-items:center; /*-*/
                     justify-content:flex-start; line-height:1.2; } .view-std { display:inline; } .view-exp { display:none; } /*-----------*/
                     .bbgl-expanded .view-std, .bbgl-mode-page .view-std { display:none; } /*----------------------------------------------*/
-                    .bbgl-expanded .view-exp, .bbgl-mode-page .view-exp { display:inline; } .rate-pct { display:none!important; } /*------*/
+                    .bbgl-expanded .view-exp, .bbgl-mode-page .view-exp { display:inline; } .bbgl-expanded .rates-group, .bbgl-mode-page .rates-group { margin-top:2px; margin-bottom:-2px; } .rate-pct { display:none!important; } /*------*/
                     .bbgl-mode-page .rate-pct, .bbgl-expanded.bbgl-tall .rate-pct { display:inline!important; } .l-top { /*---------------*/
                     font-size:var(--bbgl-f-top); font-weight:550; color:#ddd; margin-bottom:var(--bbgl-f-top-mb); display:flex; /*--------*/
                     align-items:center; justify-content:center; white-space:nowrap; letter-spacing:-.5px; transition:font-size .3s; } /*--*/
@@ -1217,12 +1294,27 @@
                     transition:all .2s; user-select:none; opacity:.6; display:none; align-items:center; justify-content:center; } /*-----*/
                     .bbgl-tall .copy-hist-btn, .bbgl-mode-page .copy-hist-btn { display:flex; } .copy-hist-btn svg { width:100%!important;
                     height:100%!important; margin:0!important; transition:all .2s; } .copy-hist-btn:hover { opacity:1; /*-----------------*/
-                    transform:scale(1.1); filter:drop-shadow(0 0 5px rgba(255,255,255,.4)); } .viewing-stickers .copy-hist-btn { /*------*/
-                    display:none!important; } #bbgl-panel.bbgl-mode-page .copy-hist-btn { /*----------------------------------------------*/
+                    transform:scale(1.27); filter:drop-shadow(0 0 5px rgba(255,255,255,.4)); } .viewing-stickers .copy-hist-btn { /*------*/
+                    display:none!important; }
+                    /* Copy session + item counters are ledger-only: hide on every non-ledger view. */
+                    .viewing-graph .copy-hist-btn, .viewing-achievements .copy-hist-btn { display:none!important; }
+                    #bbgl-item-counters { position:absolute; top:5.5px; right:10%; display:none;
+                    gap:10px; align-items:center; z-index:60; pointer-events:none; white-space:nowrap; font-size:10px;
+                    font-weight:500; color:#bbb; font-family:'Barlow Condensed','Arial Narrow','Nimbus Sans Narrow',Tahoma,sans-serif; font-variant-numeric:tabular-nums; height:14px; pointer-events:auto; }
+                    .bbgl-tall #bbgl-item-counters, .bbgl-mode-page #bbgl-item-counters { display:flex; }
+                    .viewing-graph #bbgl-item-counters, .viewing-achievements #bbgl-item-counters, .viewing-stickers #bbgl-item-counters { display:none!important; }
+                    .bbgl-expanded #bbgl-item-counters { font-size:clamp(11px,2.1cqi,12px); top:6px; right:38px; gap:clamp(4px,calc(-7px + 3.6cqi),14px); }
+                    #bbgl-panel.bbgl-mode-page #bbgl-item-counters { font-size:clamp(8.5px,calc(8.5px + 5.5px * var(--bbgl-page-t)),14px); gap:clamp(4px,calc(4px + 10px * var(--bbgl-page-t)),14px); right:clamp(38px,calc(38px + 4px * var(--bbgl-page-t)),42px); top:clamp(6px,calc(6px + 4px * var(--bbgl-page-t)),10px); height:clamp(16px,calc(16px + 2px * var(--bbgl-page-t)),18px); }
+                    #bbgl-item-counters .bbgl-ic { display:inline-flex; align-items:baseline; gap:3px; }
+                    #bbgl-item-counters .bbgl-ic-dyn { display:none; }
+                    .bbgl-expanded #bbgl-item-counters .bbgl-ic-dyn, #bbgl-panel.bbgl-mode-page #bbgl-item-counters .bbgl-ic-dyn { display:inline-flex; }
+                    #bbgl-item-counters .bbgl-ic-yes { color:#43a047; font-weight:700; }
+                    #bbgl-item-counters .bbgl-ic-no { color:#e53935; font-weight:700; }
+                    #bbgl-item-counters .bbgl-ic-sub { font-size:.82em; opacity:.6; font-weight:500; } #bbgl-panel.bbgl-mode-page .copy-hist-btn { /*----------------------------------------------*/
                     width:clamp(16px,calc(16px + 2px * var(--bbgl-page-t)),18px); /*------------------------------------------------------*/
                     height:clamp(16px,calc(16px + 2px * var(--bbgl-page-t)),18px); /*-----------------------------------------------------*/
                     top:clamp(6px,calc(6px + 4px * var(--bbgl-page-t)),10px); } #bbgl-panel.bbgl-mode-page #bbgl-graph-container .g-hud {
-                    margin-top:clamp(2px,calc(6px - 4px * var(--bbgl-page-t)),6px); /*----------------------------------------------------*/
+                    margin-top:clamp(2px,calc(3px - 1px * var(--bbgl-page-t)),3px); /*----------------------------------------------------*/
                     margin-bottom:clamp(2px,calc(2px + 1px * var(--bbgl-page-t)),3px); } /*-----------------------------------------------*/
                     #bbgl-panel.bbgl-mode-page #bbgl-graph-container .g-pill { /*---------------------------------------------------------*/
                     font-size:clamp(8.8px,calc(8.8px + 1.2px * var(--bbgl-page-t)),10px); /*----------------------------------------------*/
@@ -1381,10 +1473,10 @@
                     background:linear-gradient(120deg,transparent 0%,rgba(120,255,180,.5) 41%,rgba(255,255,255,.7) 50%,rgba(120,255,180,.5) 59%,transparent 100%);
                     background-size:300% auto; mix-blend-mode:soft-light; opacity:0; -webkit-mask-image:var(--jewel-mask); /*-------------*/
                     mask-image:var(--jewel-mask); -webkit-mask-size:contain; mask-size:contain; -webkit-mask-repeat:no-repeat; /*---------*/
-                    mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; } .jewel-type-diamond .jewel-asset { transform:scale(1.12) translateZ(0); backface-visibility:hidden; -webkit-backface-visibility:hidden; } .jewel-type-diamond .jewel-shine { transform:scale(1.06); /*---*/
+                    mask-repeat:no-repeat; -webkit-mask-position:center; mask-position:center; } .jewel-type-diamond .jewel-asset { transform-origin:bottom left; transform:translate(-6%, 6%) scale(1.08, 1.06) translateZ(0); backface-visibility:hidden; -webkit-backface-visibility:hidden; } .jewel-type-diamond .jewel-shine { transform-origin:bottom left; transform:translate(-3%, 3%) scale(1.02, 1.00); /*---*/
                     background:linear-gradient(120deg,transparent 10%,rgba(0,220,110,.4) 28%,rgba(180,255,210,.95) 40%,rgba(255,255,255,1.0) 50%,rgba(180,255,210,.95) 60%,rgba(0,220,110,.4) 72%,transparent 90%);
                     background-size:300% auto; mix-blend-mode:screen; opacity:0; } .jewel-type-diamond .jewel-shine-over { position:absolute;
-                    z-index:3; width:100%; height:100%; transform:scale(1.06); /*----------------------------------------------------------*/
+                    z-index:3; width:100%; height:100%; transform-origin:bottom left; transform:translate(-3%, 3%) scale(1.02, 1.00); /*----------------------------------------------------------*/
                     background:linear-gradient(120deg,transparent 0%,rgba(120,255,180,.5) 41%,rgba(255,255,255,.7) 50%,rgba(120,255,180,.5) 59%,transparent 100%);
                     background-size:300% auto; mix-blend-mode:soft-light; opacity:0; -webkit-mask-image:var(--jewel-mask); /*-------------*/
                     mask-image:var(--jewel-mask); -webkit-mask-size:contain; mask-size:contain; -webkit-mask-repeat:no-repeat; /*---------*/
@@ -1433,13 +1525,13 @@
                     color:#fff; background:#555; transform:scale(1); } .bbgl-day-cell.is-viewing .day-num { color:#fff; background:#888;
                     transform:none; z-index:50; font-size:12px!important; } #bbgl-panel.bbgl-expanded .bbgl-day-cell.is-viewing .day-num {
                     font-size:19px!important; } .bbgl-weekly-anchor { width:100%; height:6px; position:relative; z-index:20; } /*---------*/
-                    .bbgl-weekly-track { position:absolute; bottom:0; left:0; width:100%; height:6px; display:flex; cursor:pointer; /*----*/
+                    .bbgl-weekly-track { position:absolute; bottom:0; left:0; width:100%; height:8px; display:flex; cursor:pointer; /*----*/
                     transition:height .2s cubic-bezier(.18,.89,.32,1.28); border-radius:0 4px 4px 0; overflow:hidden; /*---------------*/
                     pointer-events:auto; /*-----------------------------------------------------------------------------------------------*/
                     background:repeating-linear-gradient(90deg,transparent 0,transparent 1px,rgba(255,255,255,.03) 1px,rgba(255,255,255,.03) 2px),linear-gradient(180deg,#1a1a1a 0%,#2a2a2a 100%);
                     box-shadow:inset 0 2px 5px rgba(0,0,0,.8),inset 0 -1px 0 rgba(255,255,255,.05),0 0 1px #000; } /*-------------------*/
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover, .bbgl-weekly-track.is-scrub-hovered { height:12px; z-index:100; }
-                    .bbgl-weekly-track.is-viewing { height:12px; z-index:80; /*-----------------------------------------------------------*/
+                    body:not(.is-touch-device) .bbgl-weekly-track:hover, .bbgl-weekly-track.is-scrub-hovered { height:14px; z-index:100; }
+                    .bbgl-weekly-track.is-viewing { height:14px; z-index:80; /*-----------------------------------------------------------*/
                     box-shadow:0 0 5px rgba(255,255,255,.3),inset 0 2px 5px rgba(0,0,0,.8); } /*----------------------------------------*/
                     .bbgl-weekly-track.is-viewing .bbgl-track-label { opacity:1; } .bbgl-weekly-track.track-solidified { /*---------------*/
                     background:repeating-linear-gradient(90deg,transparent 0,transparent 1px,rgba(0,0,0,.15) 1px,rgba(0,0,0,.15) 2px),linear-gradient(180deg,#333 0%,#555 30%,#999 60%,#555 70%,#222 100%);
@@ -1471,8 +1563,8 @@
                     background:linear-gradient(180deg,#3d2200 0%,#8f6205 35%,#fff7cc 45%,#fff7cc 55%,#8f6205 65%,#3d2200 100%);
                     } .seg-polished-diamond {
                     background:linear-gradient(110deg,rgba(255,80,180,.9) 0%,rgba(80,255,180,.9) 33%,rgba(80,180,255,.9) 66%,rgba(200,80,255,.9) 100%),linear-gradient(180deg,#111 0%,#777 35%,#fff 45%,#fff 55%,#777 65%,#111 100%); background-blend-mode:overlay,normal; }
-                    .bbgl-track-label { position:absolute; top:0; bottom:0; right:5px; display:flex; align-items:center; font-size:9px; /**/
-                    font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,1); opacity:0; pointer-events:none; /*------------------*/
+                    .bbgl-track-label { position:absolute; top:0; bottom:0; left:0; right:0; justify-content:center; display:flex; align-items:center; font-size:10.5px;
+                    font-family:'Fjalla One','Arial Narrow',sans-serif; font-weight:700; color:#fff; text-shadow:0 0 3px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,1); letter-spacing:0.5px; opacity:0; pointer-events:none;
                     transition:opacity .2s; white-space:nowrap; z-index:60; } /*----------------------------------------------------------*/
                     body:not(.is-touch-device) .bbgl-weekly-track:hover .bbgl-track-label, .bbgl-weekly-track.is-scrub-hovered .bbgl-track-label {
                     opacity:1; } .bbgl-ach-row.is-scrub-hovered { background:rgba(255,255,255,.04); } /*----------------------------------------*/
@@ -1482,7 +1574,11 @@
                     #bbgl-settings-view.active-view, #bbgl-welcome-view.active-view { display:flex; } .bbgl-author-block { /*-------------*/
                     margin:8px 10px 10px; padding:8px 10px; background:#2a2a2a; border:1px solid #3a3a3a; border-radius:4px; /*-----------*/
                     font-family:Arial,sans-serif; font-size:12px; color:#aaa; line-height:1.6; } .bbgl-author-block strong { color:#ddd;
-                    display:block; margin-bottom:4px; font-size:13px; } .bbgl-settings-scroll-area { flex:1; overflow-y:auto; /*----------*/
+                    display:block; margin-bottom:4px; font-size:13px; }
+                    /* CSP-safe author link (replaces inline onmouseover/onmouseout handlers). */
+                    .bbgl-author-link { color:#69f0ae; text-decoration:none; border-bottom:1px dotted rgba(105,240,174,0.4); transition:border-color .2s; }
+                    .bbgl-author-link:hover { border-bottom-color:#69f0ae; }
+                    .bbgl-settings-scroll-area { flex:1; overflow-y:auto; /*----------*/
                     overflow-x:hidden; padding:8px; width:100%; box-sizing:border-box; -ms-overflow-style:none; scrollbar-width:none; } /**/
                     .ledger-content::-webkit-scrollbar, .calendar-wrapper::-webkit-scrollbar, .bbgl-settings-scroll-area::-webkit-scrollbar {
                     display:none; } .bbgl-mask-host { position:relative; } .bbgl-mask-active::after { content:attr(data-mask-text); /*----*/
@@ -1560,9 +1656,9 @@
                     width:15.5px!important; height:15.5px!important; } /*-----------------------------------------------------------------*/
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle, #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle, #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle svg, #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle svg {
                     width:16px!important; height:16px!important; } #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle { /**/
-                    left:32px!important; } #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle { left:60px!important; } /*--*/
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle { left:88px!important; } /*------------------*/
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle { left:116px!important; } /*----------------------*/
+                    left:32px!important; } #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle { left:clamp(56px,calc(51.6px + 1.45cqi),60px)!important; } /*--*/
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle { left:clamp(80px,calc(71.2px + 2.9cqi),88px)!important; } /*------------------*/
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle { left:clamp(104px,calc(90.8px + 4.35cqi),116px)!important; } /*----------------------*/
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .arrow-btn { font-size:clamp(18px,3.65cqi,21px)!important; } /*--------*/
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .all-time-btn { width:33px!important; height:33px!important; /*--------*/
                     margin-top: 8px!important; margin-bottom: -8px!important; } /*--------------------------------------------------------*/
@@ -1656,6 +1752,7 @@
                     flex-shrink:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; /*-------------------------------*/
                     column-gap:var(--bbgl-ach-footer-gap); min-height:0; /*---------------------------------------------------------------*/
                     padding:var(--bbgl-ach-footer-pt) var(--bbgl-ach-inset-x) var(--bbgl-ach-footer-pb); box-sizing:border-box; } /*------*/
+                    #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) #bbgl-ach-footer { padding-bottom:0px; } /*--------------*/
                     .bbgl-ach-footer-side { display:flex; align-items:center; min-width:0; } .bbgl-ach-footer-left { /*-------------------*/
                     justify-content:flex-end; } .bbgl-ach-footer-right { justify-content:flex-start; } .bbgl-ach-nav { position:relative;
                     top:auto; transform:none; font-size:var(--bbgl-ach-nav-fs); color:#888; cursor:pointer; z-index:20; user-select:none;
@@ -1664,19 +1761,23 @@
                     -webkit-appearance:none; appearance:none; } body:not(.is-touch-device) .bbgl-ach-nav:hover { color:#fff; /*-----------*/
                     text-shadow:0 0 3px #fff; } .bbgl-ach-section { margin-bottom:0; width:100%; box-sizing:border-box; overflow:visible; } .bbgl-ach-cols, .bbgl-ach-col, .bbgl-ach-row, .ach-v-wrap, .bbgl-ach-row .ach-value { overflow:visible; } /*--------------*/
                     .bbgl-ach-section-title { cursor:pointer; position:relative; z-index:2; width:100%; box-sizing:border-box; /*---------*/
-                    background:0 0; border:none; box-shadow:none; border-radius:0; margin:0; padding:2px 2px 5px 2px; color:#9a9a9a; /*---*/
+                    background:0 0; border:none; box-shadow:none; border-radius:0; margin:0; padding:2px; color:#9a9a9a; /*---*/
                     font-family:var(--bbgl-ach-font); font-size:clamp(11px,2.2cqi,13px); font-weight:700; letter-spacing:.10em; /*----------*/
                     text-transform:uppercase; line-height:1.25; border-bottom:1px solid rgba(255,255,255,.12); transition:color .15s; } /**/
-                    body:not(.is-touch-device) .bbgl-ach-section-title:hover { color:#c8c8c8; } .bbgl-ach-cols { display:grid; /*---------*/
+                    .bbgl-ach-subsection-title { cursor:pointer; position:relative; z-index:2; width:100%; box-sizing:border-box; /*---------*/
+                    background:0 0; border:none; box-shadow:none; border-radius:0; margin:0; padding:0px 2px 0px 2px; color:#888; /*---*/
+                    font-family:var(--bbgl-ach-font); font-size:clamp(10px,1.8cqi,11px); font-weight:600; letter-spacing:.08em; /*----------*/
+                    text-transform:uppercase; line-height:1.2; transition:color .15s; } /**/
+                    body:not(.is-touch-device) .bbgl-ach-section-title:hover, body:not(.is-touch-device) .bbgl-ach-subsection-title:hover { color:#c8c8c8; } .bbgl-ach-cols { display:grid; /*---------*/
                     grid-template-columns:repeat(4,minmax(0,1fr)); column-gap:clamp(8px,2.2cqi,18px); row-gap:0; align-items:start; /*----*/
-                    width:100%; box-sizing:border-box; padding:3px 0 2px; } @container bbgl-ach (max-width:360px) { .bbgl-ach-cols { /*---*/
+                    width:100%; box-sizing:border-box; padding:0px 0 2px; } @container bbgl-ach (max-width:360px) { .bbgl-ach-cols { /*---*/
                     grid-template-columns:repeat(2,minmax(0,1fr)); } } .bbgl-ach-col { display:flex; flex-direction:column; /*------------*/
                     gap:clamp(2px,.45cqi,5px); min-width:0; text-align:left; } .bbgl-ach-dual { width:100%; box-sizing:border-box; /*-----*/
                     display:flex; flex-direction:column; } .bbgl-ach-dual-headers { display:grid; grid-template-columns:1fr 1fr; /*-------*/
                     column-gap:clamp(8px,2.2cqi,18px); border-bottom:1px solid rgba(255,255,255,.12); width:100%; box-sizing:border-box; }
                     .bbgl-ach-dual .bbgl-ach-section-title { border-bottom:none; padding-bottom:4px; } .bbgl-ach-dual-body { display:grid;
                     grid-template-columns:1fr 1fr; column-gap:clamp(8px,2.2cqi,18px); align-items:start; width:100%; box-sizing:border-box;
-                    padding:3px 0 2px; } .bbgl-ach-col-half { display:flex; flex-direction:column; gap:0; min-width:0; } .bbgl-ach-row {
+                    padding:0px 0 2px; } .bbgl-ach-col-half { display:flex; flex-direction:column; gap:0; min-width:0; } .bbgl-ach-row {
                     display:flex; flex-direction:column; align-items:stretch; padding:clamp(2px,.4cqi,4px) 1px; margin:0; border:none; /*-*/
                     box-shadow:none; background:0 0; cursor:pointer; position:relative; font-size:clamp(10px,2.05cqi,12px); /*------------*/
                     line-height:1.4; } .bbgl-expanded .bbgl-ach-row { font-size:clamp(12px,2.05cqi,12px); color:#ccc; /*------------------*/
@@ -1694,6 +1795,8 @@
                     .bbgl-ach-row .ach-value.ach-stat-str { color:#3264c6; } .bbgl-ach-row .ach-value.ach-stat-def { color:#dc3912; } /*--*/
                     .bbgl-ach-row .ach-value.ach-stat-spd { color:#ff9900; } .bbgl-ach-row .ach-value.ach-stat-dex { color:#109618; } /*--*/
                     .bbgl-ach-row .ach-value.ach-stat-tot { color:#9d039d; } .ach-null { color:#444; } .ach-unit { display:none; } /*-----*/
+                    .bbgl-ach-row .ach-value.ach-happy-col { display:none; color:#eaeaea; } /*--------------------------------------------*/
+                    #bbgl-panel.bbgl-expanded .bbgl-ach-row .ach-value.ach-happy-col, #bbgl-panel.bbgl-mode-page .bbgl-ach-row .ach-value.ach-happy-col { display:inline-flex; } /*--*/
                     #bbgl-panel.bbgl-expanded .ach-unit, #bbgl-panel.bbgl-mode-page .ach-unit { display:inline; } .ach-date { display:none;
                     font-size:clamp(10px,2.1cqi,12px); font-weight:500; color:#999; font-family:var(--bbgl-ach-font); text-align:left; /*-*/
                     margin-left:6px; line-height:1; letter-spacing:.01em; } /*------------------------------------------------------------*/
@@ -1818,7 +1921,7 @@
                     #bbgl-panel.bbgl-expanded .ach-cons-long, #bbgl-panel.bbgl-mode-page .ach-cons-long { display:inline; } /*-*/
                     .bbgl-ach-section-hh { width:100%; box-sizing:border-box; } /*-----------------------------------------*/
                     .bbgl-ach-section-hh .bbgl-ach-row { padding:clamp(2px,.4cqi,4px) 2px; /*-------------------------------*/
-                    border-bottom:1px solid rgba(255,255,255,.05); font-size:clamp(11px,2.05cqi,13px); } /*-----------*/
+                    border-bottom:1px solid rgba(255,255,255,.05); font-size:clamp(11px,2.05cqi,13px)!important; } /*-----------*/
                     .bbgl-ach-hh-best-row { display:flex; align-items:center; justify-content:space-between; gap:8px; /*-*/
                     width:100%; box-sizing:border-box; padding:clamp(3px,.5cqi,5px) 2px; /*-----------------------------*/
                     border-bottom:1px solid rgba(255,255,255,.05); font-family:var(--bbgl-ach-font); /*-----------------*/
@@ -1962,6 +2065,7 @@
         dom.calContainer = root.querySelector('#bbgl-cal-container');
         dom.tallToggle = root.querySelector('#bbgl-tall-toggle');
         dom.copyBtn = root.querySelector('#bbgl-copy-btn');
+        dom.itemCounters = root.querySelector('#bbgl-item-counters');
         dom.popBtn = root.querySelector('#bbgl-pop-btn');
         dom.monthTrigger = root.querySelector('#month-trigger');
         dom.yearTrigger = root.querySelector('#year-trigger');
@@ -1999,11 +2103,30 @@
      *  Layman explanations of every function are provided below for your peace of mind.
      */
 
+    // STORAGE MODEL (partitioned)
+    // =========================================================================
+    // History is stored as one small `meta` record plus one record PER DAY in the
+    // `days` store (keyed by the logical date 'YYYY-MM-DD', value = the fully-built
+    // day object that `_rebuildFromSeries` produces). This replaces the old single
+    // 'main' blob that held the entire flat `series` array.
+    //
+    // Why: with Backfill the series can reach tens of thousands of entries. The old
+    // model structured-cloned and rewrote that entire blob on every sync — even idle
+    // battlestats polls and cross-tab messages — and re-derived every day on every
+    // read. Per-day records mean reads/writes touch only the days that changed, and
+    // boot can load pre-built day objects directly without re-deriving the whole
+    // history.
+    //
+    // The legacy getStorage()/setStorage()/clearStorage() API is preserved as exact
+    // shims (flatten days -> {meta, series} on read; rebuild + replace-all on write)
+    // so export/import behave byte-for-byte as before. Hot paths use the day-scoped
+    // loadHistory()/saveDays() helpers instead.
     const DBManager = {
         _db: null,
         _DB_NAME: 'bbgl_db',
-        _STORE_NAME: 'history',
-        _KEY: 'main',
+        _META_STORE: 'meta',
+        _DAYS_STORE: 'days',
+        _META_KEY: 'meta',
 
         // This function sets up a private database on your browser to save your history.
         initDB() {
@@ -2013,12 +2136,15 @@
                     return;
                 }
                 Perf.start('initDB');
-                const req = indexedDB.open(this._DB_NAME, 1);
+                const req = indexedDB.open(this._DB_NAME, 2);
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    if (!db.objectStoreNames.contains(this._STORE_NAME)) {
-                        db.createObjectStore(this._STORE_NAME);
-                    }
+                    // Pre-release schema change: drop the old single-blob 'history' store
+                    // (testers rebuild their logs via Backfill) and create the partitioned
+                    // meta/days stores. No data migration is performed.
+                    if (db.objectStoreNames.contains('history')) db.deleteObjectStore('history');
+                    if (!db.objectStoreNames.contains(this._META_STORE)) db.createObjectStore(this._META_STORE);
+                    if (!db.objectStoreNames.contains(this._DAYS_STORE)) db.createObjectStore(this._DAYS_STORE);
                 };
                 req.onsuccess = (e) => {
                     this._db = e.target.result;
@@ -2033,49 +2159,66 @@
             });
         },
 
-        // This function reads your saved gym history from your browser's private storage.
-        async getStorage() {
+        async _ensureDb() {
             if (!this._db) {
                 try {
                     await this.initDB();
                 } catch (e) {}
             }
+            return this._db;
+        },
+
+        // Reads the small meta record (baseline, logStartDate, backfill state, stickers).
+        _readMeta() {
             return new Promise((resolve, reject) => {
-                if (!this._db) {
-                    resolve(null);
-                    return;
-                }
-                try {
-                    const tx = this._db.transaction(this._STORE_NAME, 'readonly');
-                    const store = tx.objectStore(this._STORE_NAME);
-                    const req = store.get(this._KEY);
-                    req.onsuccess = () => resolve(sanitizeStorageRecord(req.result || null));
-                    req.onerror = (e) => {
-                        Log.error('IndexedDB read failed', e);
-                        reject(e);
-                    };
-                } catch (e) {
+                const tx = this._db.transaction(this._META_STORE, 'readonly');
+                const req = tx.objectStore(this._META_STORE).get(this._META_KEY);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = (e) => {
+                    Log.error('IndexedDB read failed', e);
                     reject(e);
-                }
+                };
             });
         },
 
-        // This function saves your new training logs to your browser's private storage.
-        async setStorage(data) {
-            if (!this._db) {
-                try {
-                    await this.initDB();
-                } catch (e) {}
-            }
+        // Reads every stored day object via a cursor.
+        _readAllDays() {
+            return new Promise((resolve, reject) => {
+                const out = [];
+                const tx = this._db.transaction(this._DAYS_STORE, 'readonly');
+                const req = tx.objectStore(this._DAYS_STORE).openCursor();
+                req.onsuccess = (e) => {
+                    const cur = e.target.result;
+                    if (cur) {
+                        out.push(cur.value);
+                        cur.continue();
+                    } else resolve(out);
+                };
+                req.onerror = (e) => {
+                    Log.error('IndexedDB read failed', e);
+                    reject(e);
+                };
+            });
+        },
+
+        // Writes meta + the supplied day objects in one transaction. When `replaceAll`
+        // is true the days store is cleared first (used by the setStorage shim / import).
+        // Otherwise only the supplied days are put, leaving untouched days intact (the
+        // incremental hot path). Broadcasts an update to other tabs on completion.
+        _persist(meta, dayObjs, replaceAll) {
             return new Promise((resolve, reject) => {
                 if (!this._db) {
                     reject(new Error("Database not initialized"));
                     return;
                 }
                 try {
-                    const tx = this._db.transaction(this._STORE_NAME, 'readwrite');
-                    const store = tx.objectStore(this._STORE_NAME);
-                    const req = store.put(data, this._KEY);
+                    const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                    const dayStore = tx.objectStore(this._DAYS_STORE);
+                    if (replaceAll) dayStore.clear();
+                    tx.objectStore(this._META_STORE).put(meta || {}, this._META_KEY);
+                    (dayObjs || []).forEach(d => {
+                        if (d && d.date) dayStore.put(d, d.date);
+                    });
                     tx.oncomplete = () => {
                         // This tells other open tabs that your data has been updated.
                         _syncChannel.postMessage({
@@ -2098,29 +2241,114 @@
             });
         },
 
+        // Fast boot/cross-tab load: returns { meta, history, today } as ready-to-use day
+        // objects WITHOUT re-deriving them from a flat series. Returns null for an empty DB
+        // (matching the old getStorage()-returns-null-ish path so callers fall back to the
+        // empty default). Day records were stored already-built by _rebuildFromSeries, so
+        // this reproduces the same in-memory shape syncCache() would, minus the rebuild cost.
+        async loadHistory() {
+            await this._ensureDb();
+            if (!this._db) return null;
+            const [metaRaw, days] = await Promise.all([this._readMeta(), this._readAllDays()]);
+            if (metaRaw === null && days.length === 0) return null;
+            const meta = sanitizeMeta(metaRaw);
+            days.forEach(sanitizeDayRecord);
+            const logicalToday = Formatter.dateLogical();
+            let today = null;
+            const history = [];
+            days.forEach(d => {
+                if (d.date === logicalToday) today = d;
+                // A history day exists if it has logged entries OR if it has real aggregate data
+                // (gains/energy) from legacy synthetic migration. Pure battlestats-only polling
+                // days (no series, no gains) remain gaps and are still dropped.
+                else if ((d.series && d.series.length > 0) || (d.gains && d.gains.total > 0)) history.push(d);
+            });
+            history.sort((a, b) => a.date.localeCompare(b.date));
+            if (!today) {
+                // No record for the current logical day: synthesize an empty `today` carrying
+                // the most recent day's end breakdown forward — identical to what
+                // _rebuildFromSeries does when the series has no entry for today.
+                const carry = history.length > 0 ? history[history.length - 1].endBreakdown : meta.baselineBreakdown;
+                today = initializeDayObject(logicalToday, { ...(carry || ZERO_BREAKDOWN) });
+            }
+            return { meta, history, today };
+        },
+
+        // Incremental write: persists meta + the given changed day objects only, without
+        // clearing untouched days. `today` is always included implicitly by callers.
+        async saveDays(meta, dayObjs) {
+            await this._ensureDb();
+            return this._persist(meta, dayObjs, false);
+        },
+
+        // Legacy exact-behavior shim. Reconstructs the old { meta, series } record by
+        // flattening every stored day's series (ts-sorted) so export and any other
+        // whole-history consumer behave exactly as before.
+        async getStorage() {
+            await this._ensureDb();
+            if (!this._db) return null;
+            const [metaRaw, days] = await Promise.all([this._readMeta(), this._readAllDays()]);
+            if (metaRaw === null && days.length === 0) return sanitizeStorageRecord(null);
+            const series = [];
+            days.forEach(d => {
+                if (d && Array.isArray(d.series) && d.series.length > 0) {
+                    for (const e of d.series) series.push(e);
+                } else if (d && d.gains && d.gains.total > 0) {
+                    // Gap day: has real aggregate data but no granular series entries (legacy
+                    // synthetic migration). Synthesize one entry per stat so the flat series
+                    // round-trips correctly through exports and full rebuilds.
+                    const base = Formatter.parse(d.date);
+                    const ts = Math.floor(base.getTime() / 1000) + 43200;
+                    STAT_KEYS.forEach(stat => {
+                        const gain = (d.gains && d.gains[stat]) || 0;
+                        const cost = (d.eSpent && d.eSpent[stat]) || 0;
+                        const after = (d.endBreakdown && d.endBreakdown[stat]) || 0;
+                        if (gain > 0 || cost > 0) series.push({
+                            ts,
+                            stat,
+                            gain,
+                            cost,
+                            after,
+                            rate: cost > 0 ? r2((gain / cost) * 150) : 0,
+                            synthetic: true
+                        });
+                    });
+                }
+            });
+            series.sort((a, b) => a.ts - b.ts);
+            return sanitizeStorageRecord({ meta: metaRaw || {}, series });
+        },
+
+        // Legacy exact-behavior shim. Rebuilds day objects from the supplied flat series
+        // and REPLACES the whole store (used by import). Hot paths use saveDays() instead.
+        async setStorage(data) {
+            await this._ensureDb();
+            if (!this._db) throw new Error("Database not initialized");
+            const meta = (data && data.meta) || {};
+            const series = (data && Array.isArray(data.series)) ? data.series : [];
+            const rebuilt = DataController._rebuildFromSeries(series, meta.baselineBreakdown || ZERO_BREAKDOWN);
+            return this._persist(meta, [...rebuilt.history, rebuilt.today], true);
+        },
+
         // This function permanently deletes your gym history from your browser when you click 'Clear Data'.
         async clearStorage() {
-            if (!this._db) {
-                try {
-                    await this.initDB();
-                } catch (e) {}
-            }
+            await this._ensureDb();
             return new Promise((resolve, reject) => {
                 if (!this._db) {
                     resolve();
                     return;
                 }
-                const tx = this._db.transaction(this._STORE_NAME, 'readwrite');
-                const store = tx.objectStore(this._STORE_NAME);
-                const req = store.delete(this._KEY);
-                req.onsuccess = () => {
+                const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                tx.objectStore(this._META_STORE).clear();
+                tx.objectStore(this._DAYS_STORE).clear();
+                tx.oncomplete = () => {
                     _syncChannel.postMessage({
                         type: 'update',
                         from: _TAB_ID
                     });
                     resolve();
                 };
-                req.onerror = (e) => {
+                tx.onerror = (e) => {
                     Log.error('IndexedDB clear failed', e);
                     reject(e);
                 };
@@ -2129,39 +2357,83 @@
     };
 
     const _syncChannel = new BroadcastChannel('bbgl_sync');
-    _syncChannel.onmessage = async (event) => {
+    let _xtabSyncTimer = null;
+    _syncChannel.onmessage = (event) => {
         if (event.data && event.data.from === _TAB_ID) return;
         if (runtime.demoMode) return;
-        try {
-            const stored = await DBManager.getStorage();
-            DataController.syncCache(stored);
-            if (dom.panel) renderPanelContent();
-        } catch (e) {
-            Log.warn('Cross-tab sync failed', e);
-        }
+        // Debounce a burst of writes from another tab into a single lightweight re-hydrate
+        // (loadHistory: no rebuild), and only re-render if our panel is actually visible — a
+        // hidden panel re-renders from scratch when it next opens.
+        if (_xtabSyncTimer) clearTimeout(_xtabSyncTimer);
+        _xtabSyncTimer = setTimeout(async () => {
+            _xtabSyncTimer = null;
+            try {
+                const loaded = await DBManager.loadHistory();
+                DataController.hydrate(loaded);
+                if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
+            } catch (e) {
+                Log.warn('Cross-tab sync failed', e);
+            }
+        }, 200);
     };
 
-    // Deep Log Sync progress lives here. `targets` is a registry keyed by scan category so
-    // booster/xanax catch-up can be added later without reworking the state model; for now the
-    // only entry is `gym`. Budget/cooldown are global because every log type shares Torn's one
-    // activity-log daily pool.
-    function defaultDeepScan() {
+    // Backfill Logs progress lives here. `targets.frontiers` is one backward-scan frontier per log
+    // code (4 gym stats + every item code), each paged independently one type per request. Budget/
+    // cooldown are global because every log type shares Torn's one activity-log daily pool.
+    function defaultBackfill() {
         return {
-            targets: {},      // { gym: { frontierCursor: <unixTs>, complete: false } }
+            targets: {},      // { frontiers: { "5300":{cursor,complete}, "2040":{...}, ... } }
             cooldownUntil: 0, // ms; button locked until this time
             lastResult: null, // 'complete' | 'partial'
             acknowledged: true // false holds the "Scan Complete!" state until the user clicks OK
         };
     }
 
-    function normalizeDeepScan(ds) {
-        const d = defaultDeepScan();
+    function normalizeBackfill(ds) {
+        const d = defaultBackfill();
         if (ds && typeof ds === 'object') {
             if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
             if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
             if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
             if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
         }
+        return d;
+    }
+
+    // Normalizes a stored meta record in place (baseline floats + backfill state). Shared by
+    // the getStorage shim and the day-scoped loadHistory path so both agree exactly.
+    function sanitizeMeta(metaRaw) {
+        const m = (metaRaw && typeof metaRaw === 'object') ? metaRaw : {};
+        if (!m.baselineBreakdown) m.baselineBreakdown = {
+            ...ZERO_BREAKDOWN
+        };
+        m.backfill = normalizeBackfill(m.backfill);
+        const k = ['str', 'def', 'spd', 'dex'];
+        k.forEach(key => {
+            if (m.baselineBreakdown[key] !== undefined) m.baselineBreakdown[key] = parseFloat(m.baselineBreakdown[key]) || 0;
+        });
+        return m;
+    }
+
+    // Coerces one series entry's numeric fields and re-derives its materialized `rate`.
+    // `rate` is always re-derived from the entry's own gain/cost so it stays the single source
+    // of truth (backfills old data, never drifts).
+    function sanitizeEntry(e) {
+        if (e.type === 'item') {
+            if (e.ts !== undefined) e.ts = parseInt(e.ts);
+            if (e.energy !== undefined) e.energy = parseInt(e.energy);
+            return;
+        }
+        if (e.ts !== undefined) e.ts = parseInt(e.ts);
+        if (e.gain !== undefined) e.gain = parseFloat(e.gain);
+        if (e.after !== undefined) e.after = parseFloat(e.after);
+        if (e.cost !== undefined) e.cost = parseInt(e.cost);
+        e.rate = (e.cost > 0) ? r2((e.gain / e.cost) * 150) : 0;
+    }
+
+    // Coerces every entry inside one stored day object (used when loading per-day records).
+    function sanitizeDayRecord(d) {
+        if (d && Array.isArray(d.series)) d.series.forEach(sanitizeEntry);
         return d;
     }
 
@@ -2174,46 +2446,10 @@
             },
             series: []
         };
-        if (!s.meta) s.meta = {};
-        if (!s.meta.baselineBreakdown) s.meta.baselineBreakdown = {
-            ...ZERO_BREAKDOWN
-        };
-        s.meta.deepScan = normalizeDeepScan(s.meta.deepScan);
+        s.meta = sanitizeMeta(s.meta);
         if (!s.series || !Array.isArray(s.series)) s.series = [];
-
-        const k = ['str', 'def', 'spd', 'dex'];
-        k.forEach(key => {
-            if (s.meta.baselineBreakdown[key] !== undefined) s.meta.baselineBreakdown[key] = parseFloat(s.meta.baselineBreakdown[key]) || 0;
-        });
-
-        s.series.forEach(e => {
-            if (e.ts !== undefined) e.ts = parseInt(e.ts);
-            if (e.gain !== undefined) e.gain = parseFloat(e.gain);
-            if (e.after !== undefined) e.after = parseFloat(e.after);
-            if (e.cost !== undefined) e.cost = parseInt(e.cost);
-        });
-
+        s.series.forEach(sanitizeEntry);
         return s;
-    }
-
-    // This function prepares a lightweight version of your history for quick-access caching.
-    function serializeForSession(cache) {
-        if (!cache) return null;
-        const stripDay = d => ({
-            date: d.date,
-            startTotal: d.startTotal,
-            endTotal: d.endTotal,
-            startBreakdown: d.startBreakdown,
-            endBreakdown: d.endBreakdown,
-            gains: d.gains,
-            eSpent: d.eSpent,
-            lastLogTimestamp: d.lastLogTimestamp
-        });
-        return JSON.stringify({
-            meta: cache.meta,
-            history: (cache.history || []).map(stripDay),
-            today: cache.today ? stripDay(cache.today) : null
-        });
     }
 
     function validateImportSchema(j) {
@@ -2243,11 +2479,19 @@
     }
 
     // This is the ONLY function that connects to the internet with your API key.
-    // It strictly contacts api.torn.com to fetch your Gym training logs (Log IDs 5300-5303) and current stats.
+    // It strictly contacts api.torn.com to fetch your Gym training logs (Log IDs 5300-5303), a
+    // fixed short list of item-use logs (Xanax, energy cans, etc. — see ITEM_LOG_META), and current stats.
     async function universalFetch(mission, options = {}) {
         if (runtime.demoMode) return {
             success: false,
             demo: true
+        };
+        // While a Big Black Log Backfill is running, every other API call is suppressed so the deep
+        // backward scan owns the shared daily row pool and can't trip a rate-limit / pool-exhausted
+        // error. The next heartbeat's bounded reconcile re-covers any live rows missed in this window.
+        if (runtime.backfilling) return {
+            ok: false,
+            suppressed: true
         };
         const {
             specId = null
@@ -2261,45 +2505,44 @@
         }
 
         const ts = Date.now();
+        const meta = getActiveHistory().meta;
+        // Per-group `from=` lower bound: only fetch rows since our last successful capture of that
+        // group (minus a buffer), so the reconcile window — and the rebuild it triggers — stays
+        // small. Unset on a fresh install/import, so the first call is unbounded (one self-healing
+        // full pass) and then anchors itself.
+        const fromFor = key => {
+            const fl = meta.syncFloor && meta.syncFloor[key];
+            return fl ? `&from=${Math.max(0, fl - SYNC_FROM_BUFFER)}` : '';
+        };
         let reqs = [];
 
-        // We only request specific logs related to gym training.
-        // No items, money, or personal messages are ever accessed.
+        // battlestats can't share a request with `log` (it suppresses the log entirely), and a single
+        // `log=` call accepts at most 10 log types. So logs are grouped: trains+energy on one call,
+        // stat-enhancers+happy on another, and battlestats stands alone. We only ever request gym
+        // training and the ITEM_LOG_META item codes — no money or personal-message logs.
         if (mission === 'TRAIN_SINGLE' && specId) {
+            // A training click: capture that stat plus the energy items used in the same session.
             reqs.push({
                 type: 'log',
-                id: specId,
-                url: `https://api.torn.com/user/?selections=log&log=${specId}&key=${userConfig.apiKey}&timestamp=${ts}`
-            });
-        } else if (mission === 'BATTLESTATS_ONLY') {
-            reqs.push({
-                type: 'battlestats',
-                url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
+                floorKey: 'trainEnergy',
+                url: `https://api.torn.com/user/?selections=log&log=${specId},${ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
             });
         } else {
+            // Reconciliation (heartbeat / gym-exit / refresh): standalone battlestats + two bounded
+            // log calls covering trains+energy (10) and stat+happy (8).
             reqs = [{
-                    type: 'log',
-                    id: 5300,
-                    url: `https://api.torn.com/user/?selections=log&log=5300&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    id: 5301,
-                    url: `https://api.torn.com/user/?selections=log&log=5301&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    id: 5302,
-                    url: `https://api.torn.com/user/?selections=log&log=5302&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    id: 5303,
-                    url: `https://api.torn.com/user/?selections=log&log=5303&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
                     type: 'battlestats',
                     url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
+                },
+                {
+                    type: 'log',
+                    floorKey: 'trainEnergy',
+                    url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
+                },
+                {
+                    type: 'log',
+                    floorKey: 'statHappy',
+                    url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
                 }
             ];
         }
@@ -2323,37 +2566,25 @@
             let logs = {},
                 bs = null;
             res.forEach(r => {
-                if (r.cfg.type === 'log' && r.data.log) logs = {
-                    ...logs,
-                    ...r.data.log
-                };
-                else if (r.cfg.type === 'battlestats') bs = r.data;
+                if (r.data.log) logs = { ...logs, ...r.data.log };
+                if (r.cfg.type === 'battlestats') bs = r.data;
             });
 
-            if (mission === 'BATTLESTATS_ONLY') {
-                if (bs) {
-                    const d = getActiveHistory();
-                    let escalationNeeded = false;
-                    BS_STAT_ROWS.forEach(i => {
-                        const apiVal = bs[i.api];
-                        const localVal = d.today?.endBreakdown?.[i.abbr] || 0;
-                        if (apiVal > localVal) escalationNeeded = true;
-                    });
+            // Every request returned cleanly (we threw above on any error), so advance the per-group
+            // sync floors to now — the next call for each group re-asks only from here (minus buffer).
+            // Failed/errored fetches throw before this point, so a floor never advances past data we
+            // didn't actually receive.
+            const tsSec = Math.floor(ts / 1000);
+            if (!meta.syncFloor) meta.syncFloor = {};
+            reqs.forEach(c => {
+                if (c.floorKey) meta.syncFloor[c.floorKey] = tsSec;
+            });
 
-                    if (escalationNeeded) {
-                        return universalFetch('FULL_SYNC', options);
-                    } else {
-                        await DataController.processDataPayload({}, bs);
-                    }
-                }
+            if (mission !== 'TRAIN_SINGLE') {
+                localStorage.setItem(KEYS.LAST_SYNC, ts.toString());
                 localStorage.setItem(KEYS.BS_SYNC, ts.toString());
-            } else {
-                if (mission === 'FULL_SYNC') {
-                    localStorage.setItem(KEYS.LAST_SYNC, ts.toString());
-                    localStorage.setItem(KEYS.BS_SYNC, ts.toString());
-                }
-                await DataController.processDataPayload(logs, bs);
             }
+            await DataController.processDataPayload(logs, bs);
 
             return {
                 ok: true
@@ -2394,6 +2625,9 @@
                     resetRefreshBtn(btn);
                 }, 2000);
             }
+        } else if (result.suppressed) {
+            // A backfill is running and owns the daily row pool; quietly stand down, no error.
+            resetRefreshBtn(btn);
         } else {
             alert("Sync Error: " + result.error);
             resetRefreshBtn(btn);
@@ -2402,26 +2636,21 @@
     }
 
     // This function runs in the background to keep your training data up to date while the page is open.
+    // Heartbeat: a single FULL_SYNC reconciliation (battlestats + trains/energy + stat/happy) every
+    // 2 hours. The old lightweight BATTLESTATS_ONLY tick is gone — the `from=`-bounded reconcile is
+    // already cheap, and battlestats can no longer ride a log request anyway.
     function startBackgroundSync() {
         if (runtime.bgSyncId) clearInterval(runtime.bgSyncId);
         runtime.bgSyncId = setInterval(function bgSyncTick() {
-            const now = Date.now();
-            const lastFull = parseInt(localStorage.getItem(KEYS.LAST_SYNC) || '0');
-
-            if (now - lastFull > 3600000) universalFetch('FULL_SYNC');
-            else universalFetch('BATTLESTATS_ONLY');
-        }, 600000);
+            universalFetch('FULL_SYNC');
+        }, 7200000);
     }
 
     // This checks if your data is old and needs a refresh when you first open the gym.
     function checkStaleness() {
         const lastFull = localStorage.getItem(KEYS.LAST_SYNC),
             now = Date.now();
-        if (!lastFull || (now - parseInt(lastFull) > 3600000)) universalFetch('FULL_SYNC');
-        else {
-            const lastBs = localStorage.getItem(KEYS.BS_SYNC);
-            if (!lastBs || (now - parseInt(lastBs) > 600000)) universalFetch('BATTLESTATS_ONLY');
-        }
+        if (!lastFull || (now - parseInt(lastFull) > 7200000)) universalFetch('FULL_SYNC');
     }
 
     // This makes sure your final gym training logs are saved even if you navigate away from the gym page.
@@ -2443,19 +2672,90 @@
     // any partial frontier day stored-but-hidden for the next day's resume. Each shown day is
     // therefore always 100% populated, exactly like the genesis anchor/buffer guarantee.
 
-    // Picks meta.logStartDate so the oldest complete day is shown and any partial day is hidden.
-    // getTimeline() shows days >= dateLogical((logStartDate + 86400) * 1000).
-    function deepScanFloorTs(oldestEntryTs, frontierComplete) {
-        const oldestDay = Formatter.dateLogical(oldestEntryTs * 1000);
-        const dayStartSec = Math.floor(Formatter.parse(oldestDay).getTime() / 1000);
-        // Complete -> oldestDay is whole, show it (floor one day earlier).
-        // Partial  -> oldestDay was cut by the budget, hide it and show the day above.
-        return frontierComplete ? dayStartSec - 86400 : dayStartSec;
+    // Gym training log ids, one per stat. Each is paged INDEPENDENTLY so a dense single-stat
+    // burst can't evict another stat's interleaved rows from Torn's shared 100-row response.
+    const GYM_STAT_LOGS = {
+        str: '5300',
+        def: '5301',
+        spd: '5302',
+        dex: '5303'
+    };
+
+    // Start of the logical day containing a unix timestamp (seconds).
+    // Start of the logical day containing a unix timestamp (seconds).
+    function backfillDayStart(ts) {
+        return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    // Merges scanned rows into the canonical series, lowers the origin floor to the oldest
-    // complete day, recomputes the baseline, and persists everything (including scan progress).
-    async function finalizeDeepScan(ds, collected, frontierComplete) {
+    // Every backfilled log code: 4 gym stats + every item code. Each gets its OWN independent
+    // backward-scan frontier and is paged ONE log type per request, so a dense type (a stat, or
+    // energy cans/Xanax) can never evict a sparse type's rows from Torn's 100-row response. (The
+    // live path batches types into ≤10-code calls; backfill deliberately does not.)
+    const BACKFILL_CODES = [...TRAIN_LOGS, ...ITEM_LOGS].map(String);
+
+    // Seeds (or returns) one scan frontier per log code `{cursor, complete}`. A FRESH scan seeds
+    // every code at `now` and re-walks the range (dedup makes this idempotent); a partial scan saves
+    // per-code cursors and the next run RESUMES from them. A NEWLY-ADDED code is simply an absent
+    // frontier → seeded → walked back, so new item codes get backfilled with no extra machinery.
+    // The Math.min guard in computeBackfillFloor keeps the origin floor from ever rising.
+    function ensureBackfillTargets(ds) {
+        if (!ds.targets.frontiers) ds.targets.frontiers = {};
+        const seed = Math.floor(Date.now() / 1000);
+        BACKFILL_CODES.forEach(code => {
+            if (!ds.targets.frontiers[code]) ds.targets.frontiers[code] = {
+                cursor: seed,
+                complete: false
+            };
+        });
+        return ds.targets.frontiers;
+    }
+
+    // Maps a stored series entry to its backfill frontier code (gym entries by stat, items by logId).
+    function seriesEntryCode(e) {
+        return e.type === 'item' ? String(e.logId) : GYM_STAT_LOGS[e.stat];
+    }
+
+    // Picks meta.logStartDate so that every shown day is 100% complete for ALL tracked types (stats
+    // AND items). A day is only safe to show once every still-incomplete frontier has been scanned
+    // back past it, so the floor is the most-recent (max) of the incomplete frontiers' partial days.
+    // Frontiers that hit their true beginning (empty response → complete) or have no data don't
+    // constrain it; when all are complete the floor drops to the earliest day in the data. Never
+    // raises the existing floor.
+    function computeBackfillFloor(stored, frontiers) {
+        const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
+        if (!stored.series.length) return existing;
+
+        const perCodeOldest = {};
+        stored.series.forEach(e => {
+            const code = seriesEntryCode(e);
+            if (code && (perCodeOldest[code] === undefined || e.ts < perCodeOldest[code])) perCodeOldest[code] = e.ts;
+        });
+
+        let shallowPartialDayStart = null;
+        Object.keys(frontiers || {}).forEach(code => {
+            const fr = frontiers[code];
+            if (fr && !fr.complete && perCodeOldest[code] !== undefined) {
+                const dayStart = backfillDayStart(perCodeOldest[code]);
+                if (shallowPartialDayStart === null || dayStart > shallowPartialDayStart) shallowPartialDayStart = dayStart;
+            }
+        });
+
+        let newFloor;
+        if (shallowPartialDayStart !== null) {
+            // Hide the shallowest incomplete stat's partial day (and everything below it); shown
+            // days start at the day above it.
+            newFloor = shallowPartialDayStart + 86400;
+        } else {
+            // All stats complete -> show down to and including the earliest day in the data.
+            newFloor = backfillDayStart(stored.series[0].ts);
+        }
+        if (existing !== null) newFloor = Math.min(newFloor, existing);
+        return newFloor;
+    }
+
+    // Merges scanned rows into the canonical series, recomputes the baseline, advances the origin
+    // floor, and persists everything (including scan progress).
+    async function finalizeBackfill(ds, collected) {
         let stored = await DBManager.getStorage();
         if (!stored) stored = {
             meta: {
@@ -2468,18 +2768,39 @@
         if (!Array.isArray(stored.series)) stored.series = [];
 
         if (collected.length > 0) {
-            const seen = new Set(stored.series.map(e => `${e.ts}_${e.stat}_${e.after}`));
+            // Gym rows dedup on (ts, stat, after); item rows dedup on the natural (ts, logId) key,
+            // which is stable across live capture, backfill, and export/import (the Torn log id is
+            // dropped on export, so it can't be the key).
+            const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
+            const itemKey = e => `${e.ts}_${e.logId}`;
+            const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
             collected.forEach(l => {
+                if (l.type === 'item') {
+                    const key = itemKey(l);
+                    if (!seenItem.has(key)) {
+                        seenItem.add(key);
+                        const entry = {
+                            ts: l.ts,
+                            type: 'item',
+                            id: l.id,
+                            logId: l.logId
+                        };
+                        if (l.energy) entry.energy = l.energy;
+                        stored.series.push(entry);
+                    }
+                    return;
+                }
                 const after = r2(l.after);
                 const key = `${l.ts}_${l.stat}_${after}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
+                if (!seenGym.has(key)) {
+                    seenGym.add(key);
                     stored.series.push({
                         ts: l.ts,
                         stat: l.stat,
                         gain: r2(l.gain),
                         cost: l.cost,
-                        after
+                        after,
+                        rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
                     });
                 }
             });
@@ -2495,14 +2816,10 @@
             });
             stored.meta.baselineBreakdown = baseline;
 
-            // Lower (never raise) the origin floor to the oldest complete day.
-            const oldestTs = stored.series[0].ts;
-            let floorTs = deepScanFloorTs(oldestTs, frontierComplete);
-            if (typeof stored.meta.logStartDate === 'number') floorTs = Math.min(floorTs, stored.meta.logStartDate);
-            stored.meta.logStartDate = floorTs;
+            stored.meta.logStartDate = computeBackfillFloor(stored, ds.targets.frontiers);
         }
 
-        stored.meta.deepScan = ds;
+        stored.meta.backfill = ds;
         await DBManager.setStorage(stored);
 
         const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
@@ -2511,47 +2828,45 @@
             history: rebuilt.history,
             today: rebuilt.today
         };
-        sessionStorage.removeItem(KEYS.SESSION_CACHE);
         DataController.invalidate();
     }
 
-    async function deepLogSync(btn) {
+    // Clears the held "Scan Complete!" confirmation (the user clicked the acknowledge checkmark).
+    // The data is already live on the logs; this only retires the visual confirmation state.
+    async function acknowledgeBackfill() {
+        if (runtime.demoMode || runtime.backfilling) return;
+        const s = getActiveHistory();
+        const ds = s.meta && s.meta.backfill;
+        if (!ds || ds.lastResult !== 'complete' || ds.acknowledged !== false) return;
+        ds.acknowledged = true;
+        await finalizeBackfill(ds, []);
+        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+        renderBackfillButton();
+    }
+
+    async function backfillLogs(btn) {
         if (runtime.demoMode) return;
         if (!userConfig.apiKey || userConfig.apiKey.length < 16) {
             alert('API Key is missing or too short.');
             return;
         }
 
-        if (runtime.deepScanning) return;
+        if (runtime.backfilling) return;
 
         const s = getActiveHistory();
-        if (!s.meta.deepScan) s.meta.deepScan = defaultDeepScan();
-        const ds = s.meta.deepScan;
+        if (!s.meta.backfill) s.meta.backfill = defaultBackfill();
+        const ds = s.meta.backfill;
         const now = Date.now();
 
-        // Clicking a finished scan just acknowledges it (clears the "Scan Complete!" state).
-        if (ds.lastResult === 'complete' && ds.acknowledged === false) {
-            ds.acknowledged = true;
-            await finalizeDeepScan(ds, [], true);
-            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-            return;
-        }
-        // Locked while cooling down.
+        // Locked while cooling down (resume is only ever triggered once the cooldown has elapsed).
         if (ds.cooldownUntil && now < ds.cooldownUntil) {
-            renderDeepScanButton();
+            renderBackfillButton();
             return;
         }
 
-        // Seed the gym target's cursor at the current origin floor; everything above it is
-        // already populated by normal sync, so we walk below it.
-        if (!ds.targets.gym) {
-            ds.targets.gym = {
-                frontierCursor: (typeof s.meta.logStartDate === 'number' && s.meta.logStartDate > 0) ? s.meta.logStartDate : Math.floor(now / 1000),
-                complete: false
-            };
-        }
+        const frontiers = ensureBackfillTargets(ds);
 
-        runtime.deepScanning = true;
+        runtime.backfilling = true;
         if (btn) {
             if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
             btn.style.pointerEvents = 'none';
@@ -2559,69 +2874,90 @@
             btn.innerText = 'Scanning... 0';
         }
 
-        // Furthest-behind targets first (a freshly added category starts near 'now' and catches
-        // up before older targets resume descending). Today there is only `gym`.
-        const order = Object.keys(ds.targets)
-            .filter(k => !ds.targets[k].complete)
-            .sort((a, b) => ds.targets[b].frontierCursor - ds.targets[a].frontierCursor);
-
         let rowsFetched = 0;
         let stoppedEarly = false;
+        let drainDay = null; // once the soft cap is crossed, the day boundary we finish across every frontier
         const collected = [];
 
         try {
-            scan: for (const key of order) {
-                const target = ds.targets[key];
-                let cursor = target.frontierCursor;
-                while (rowsFetched < DEEP_SCAN.ROW_CAP) {
-                    const url = `https://api.torn.com/user/?selections=log&log=${DEEP_SCAN.LOG_IDS}&key=${userConfig.apiKey}&to=${Math.floor(cursor)}`;
-                    incrementApiCount(1);
-                    let data;
-                    try {
-                        const resp = await fetch(url);
-                        if (!resp.ok) throw new Error(resp.status);
-                        data = await resp.json();
-                    } catch (netErr) {
-                        // Failsafe: a network hiccup keeps all progress and drops into cooldown.
-                        Log.warn('Deep scan network error', netErr);
-                        stoppedEarly = true;
-                        break scan;
-                    }
-                    if (data.error) {
-                        // Failsafe: error 14 = daily 50k pool exhausted (possibly by other
-                        // scripts); error 5 = rate limit. Stop cleanly, keep progress, cool down.
-                        if (data.error.code === 14 || data.error.code === 5) {
-                            stoppedEarly = true;
-                            break scan;
-                        }
-                        throw new Error(data.error.error);
-                    }
+            while (rowsFetched < BACKFILL.HARD_CAP) {
+                // Always advance the time-laggard: the incomplete frontier (any of the 18 per-type
+                // frontiers) whose cursor is the most recent. This keeps every frontier descending in
+                // lockstep so a partial scan still advances the shared origin floor (rather than
+                // burning the whole budget on one and stranding the others near the top). Sparse item
+                // frontiers plunge deep quickly, become least-recent, and hand the budget back to the
+                // dense ones (stats, energy cans, Xanax). Once draining (soft cap crossed), only
+                // frontiers still sitting on/above the target day are eligible, so we page exactly
+                // enough to finish that day everywhere and then stop.
+                let pick = null; // { fr, code }
+                const consider = (fr, code) => {
+                    if (fr.complete) return;
+                    if (drainDay !== null && fr.cursor < drainDay) return;
+                    if (pick === null || fr.cursor > pick.fr.cursor) pick = { fr, code };
+                };
+                BACKFILL_CODES.forEach(code => consider(frontiers[code], code));
+                if (pick === null) break; // every frontier reached its beginning (or finished the drain day)
 
-                    const rowKeys = data.log ? Object.keys(data.log) : [];
-                    if (rowKeys.length === 0) {
-                        target.complete = true; // reached the beginning for this target
+                const st = pick.fr;
+                const url = `https://api.torn.com/user/?selections=log&log=${pick.code}&key=${userConfig.apiKey}&to=${Math.floor(st.cursor)}`;
+                incrementApiCount(1);
+                let data;
+                try {
+                    const resp = await fetch(url);
+                    if (!resp.ok) throw new Error(resp.status);
+                    data = await resp.json();
+                } catch (netErr) {
+                    // Failsafe: a network hiccup keeps all progress and drops into cooldown.
+                    Log.warn('Deep scan network error', netErr);
+                    stoppedEarly = true;
+                    break;
+                }
+                if (data.error) {
+                    // Failsafe: error 14 = daily 50k pool exhausted (possibly by other scripts);
+                    // error 5 = rate limit. Stop cleanly, keep progress, cool down.
+                    if (data.error.code === 14 || data.error.code === 5) {
+                        stoppedEarly = true;
                         break;
                     }
-
-                    collected.push(...normalizeApiLogs(data.log));
-                    rowsFetched += rowKeys.length;
-
-                    let oldestTs = cursor;
-                    for (const k of rowKeys) {
-                        const t = data.log[k].timestamp;
-                        if (t < oldestTs) oldestTs = t;
-                    }
-                    cursor = oldestTs - 1;
-                    target.frontierCursor = cursor;
-
-                    if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
-
-                    if (rowsFetched >= DEEP_SCAN.ROW_CAP) {
-                        stoppedEarly = true;
-                        break scan;
-                    }
-                    await new Promise(r => setTimeout(r, DEEP_SCAN.THROTTLE_MS));
+                    throw new Error(data.error.error);
                 }
+
+                const rowKeys = data.log ? Object.keys(data.log) : [];
+                if (rowKeys.length === 0) {
+                    st.complete = true; // reached the beginning for this stat
+                    continue;
+                }
+
+                collected.push(...normalizeApiLogs(data.log));
+                rowsFetched += rowKeys.length;
+
+                let oldestTs = st.cursor;
+                for (const k of rowKeys) {
+                    const t = data.log[k].timestamp;
+                    if (t < oldestTs) oldestTs = t;
+                }
+                st.cursor = oldestTs - 1;
+
+                if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
+
+                // Soft cap crossed: enter the drain phase. Lock onto the current day boundary of the
+                // most-recent incomplete frontier and keep paging only the frontiers still on/above it,
+                // so the budget already spent resolves into a fully complete (visible) day rather than a
+                // stored-but-hidden partial one. HARD_CAP (the while condition) still bounds the drain.
+                if (drainDay === null && rowsFetched >= BACKFILL.SOFT_CAP) {
+                    let maxCursor = -Infinity;
+                    BACKFILL_CODES.forEach(code => {
+                        const fr = frontiers[code];
+                        if (!fr.complete && fr.cursor > maxCursor) maxCursor = fr.cursor;
+                    });
+                    if (maxCursor > -Infinity) drainDay = backfillDayStart(maxCursor);
+                }
+
+                if (rowsFetched >= BACKFILL.HARD_CAP) {
+                    stoppedEarly = true;
+                    break;
+                }
+                await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
             }
         } catch (e) {
             // Any unexpected failure is also treated as a partial stop so progress is preserved.
@@ -2629,26 +2965,25 @@
             stoppedEarly = true;
         }
 
-        const allComplete = Object.keys(ds.targets).every(k => ds.targets[k].complete);
-        const frontierComplete = allComplete && !stoppedEarly;
-        if (frontierComplete) {
+        const allComplete = BACKFILL_CODES.every(code => frontiers[code].complete);
+        if (allComplete && !stoppedEarly) {
             ds.lastResult = 'complete';
             ds.acknowledged = false;
             ds.cooldownUntil = 0;
         } else {
             ds.lastResult = 'partial';
-            ds.cooldownUntil = Date.now() + DEEP_SCAN.COOLDOWN_MS;
+            ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
         }
 
         try {
-            await finalizeDeepScan(ds, collected, frontierComplete);
+            await finalizeBackfill(ds, collected);
         } catch (e) {
             Log.error('Deep scan save failed', e);
         } finally {
-            runtime.deepScanning = false;
+            runtime.backfilling = false;
         }
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-        renderDeepScanButton();
+        renderBackfillButton();
     }
 
     /**
@@ -2686,6 +3021,25 @@
             runtime.stickerData = [];
             runtime._achCache = null;
         },
+        // Lighter invalidation for changes that only touch the current day's stats (e.g. a
+        // battlestats snap from the idle poll). Only the caches that embed today's values go
+        // stale; the sticker map, rate cache, happy-jump data, and achievements are derived
+        // purely from PAST days (getStickerMap skips `date >= today`, _buildRateCache uses
+        // history only, computeAchievements/hjData are unaffected by an absolute-stat snap that
+        // leaves the day's series/gains/eSpent untouched), so they stay valid. A day rollover or
+        // any change to historical days must still call the full invalidate().
+        invalidateToday() {
+            this._cache.timeline = null;
+            this._cache.dateMap = null;
+            this._cache.slices = {};
+        },
+        // Fast hydration from a pre-built { meta, history, today } (DBManager.loadHistory()).
+        // Replaces the old syncCache-on-boot path: no series flatten, no _rebuildFromSeries,
+        // no session serialization.
+        hydrate(loaded) {
+            _historyCache = loaded || null;
+            this.invalidate();
+        },
         syncCache(stored) {
             Perf.start('syncCache');
             if (stored) {
@@ -2696,10 +3050,8 @@
                     history: rebuilt.history,
                     today: rebuilt.today
                 };
-                sessionStorage.setItem(KEYS.SESSION_CACHE, serializeForSession(_historyCache));
             } else {
                 _historyCache = null;
-                sessionStorage.removeItem(KEYS.SESSION_CACHE);
             }
             this.invalidate();
             Perf.end('syncCache');
@@ -2715,8 +3067,7 @@
         getHappyJumpData() {
             if (this._cache.hjData) return this._cache.hjData;
             const hjWeek = {},
-                hjDaySet = new Set(),
-                dHjDaySet = new Set();
+                hjDaySet = new Set();
             const allSeries = [];
             this.getTimeline().forEach(day => {
                 (day.series || []).forEach(e => {
@@ -2733,7 +3084,6 @@
                         const wk = getWeekKey(d);
                         hjWeek[wk] = (hjWeek[wk] || 0) + 1;
                         hjDaySet.add(d);
-                        if (cCost >= GAME.DIAMOND_JUMP_E) dHjDaySet.add(d);
                     }
                 };
                 for (let i = 1; i < allSeries.length; i++) {
@@ -2750,8 +3100,7 @@
             }
             this._cache.hjData = {
                 hjWeek,
-                hjDaySet,
-                dHjDaySet
+                hjDaySet
             };
             return this._cache.hjData;
         },
@@ -2775,8 +3124,13 @@
             const featuredSet = new Set();
             let unlockedCount = 1;
             let rouletteCounter = 0;
+            // Reward gating: stickers (and their unlock progression) only count from the install
+            // week onward. Pre-install weeks still render their bar/day counts elsewhere, but earn
+            // no stickers here. Demo mode is exempt (keeps its 1-sticker showcase behavior).
+            const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
             Object.keys(weekMap).sort().forEach(wk => {
                 if (wk > todayWeekKey) return;
+                if (installWeekKey && wk < installWeekKey) return;
                 const days = weekMap[wk].sort((a, b) => a.date.localeCompare(b.date));
                 const stickerworthyDays = days.filter(d => d.eSpent && d.eSpent.total >= 1000);
                 if (!stickerworthyDays.length) return;
@@ -2844,9 +3198,7 @@
             }
             t.sort((a, b) => a.date.localeCompare(b.date));
             if (s.meta && s.meta.logStartDate) {
-                const anchorMs = (s.meta.logStartDate + 86400) * 1000;
-                const anchorDate = new Date(anchorMs);
-                const floor = Formatter.dateISO(anchorDate.getUTCFullYear(), anchorDate.getUTCMonth(), anchorDate.getUTCDate());
+                const floor = Formatter.dateLogical(s.meta.logStartDate * 1000);
                 t = t.filter(d => d.date >= floor);
             }
             this._cache.timeline = t;
@@ -2862,6 +3214,40 @@
             this._cache.dateMap = m;
             return m;
         },
+        // Calendar-day span of a slice's period, clamped to today (drives the ledger drug avg/day and
+        // the refill ratio denominator). DAY=1; WEEK from its 7-day bounds; MONTH/YEAR derived from
+        // the data's own dates; ALL from the timeline origin. Always >= 1.
+        periodCalendarDays(sl) {
+            if (!sl || sl.resolution === 'DAY') return 1;
+            const DAY = 86400000,
+                today = Formatter.dateLogical();
+            const span = (startStr, endStr) => {
+                const end = endStr > today ? today : endStr;
+                if (!startStr || !end) return 1;
+                return Math.max(1, Math.round((Formatter.parse(end).getTime() - Formatter.parse(startStr).getTime()) / DAY) + 1);
+            };
+            const dl = sl._dailyList || [];
+            if (sl.resolution === 'WEEK') {
+                const s = sl._weekStart || (dl[0] && dl[0].date),
+                    e = sl._weekEnd || (dl.length ? dl[dl.length - 1].date : null);
+                return s && e ? span(s, e) : (dl.length || 1);
+            }
+            if (!dl.length) return 1;
+            if (sl.resolution === 'MONTH') {
+                const p = dl[0].date.slice(0, 7),
+                    y = +p.slice(0, 4),
+                    mo = +p.slice(5, 7);
+                const dim = new Date(y, mo, 0).getDate();
+                return span(`${p}-01`, `${p}-${String(dim).padStart(2, '0')}`);
+            }
+            if (sl.resolution === 'YEAR') {
+                const y = dl[0].date.slice(0, 4);
+                return span(`${y}-01-01`, `${y}-12-31`);
+            }
+            // ALL / other: full span from the earliest timeline day to today.
+            const tl = this.getTimeline();
+            return tl.length ? span(tl[0].date, today) : (dl.length || 1);
+        },
         _buildRateCache() {
             const h = getActiveHistory();
             const allDays = [...(h.history || [])].sort((a, b) => a.date.localeCompare(b.date));
@@ -2872,16 +3258,35 @@
                 dex: null
             };
             const arr = [];
+            // Origin rates: derived from the first per-entry rate on or after the
+            // timeline floor (first fully-visible day). Replaces the old persisted
+            // meta.originRates which locked in at genesis time and went stale when
+            // backfill extended history backward.
+            const derived = {};
+            let floorDate = null;
+            if (h.meta && h.meta.logStartDate) {
+                floorDate = Formatter.dateLogical(h.meta.logStartDate * 1000);
+            }
             allDays.forEach(day => {
                 if (day.series && day.series.length > 0) {
                     day.series.forEach(e => {
-                        if (e.cost > 0) running[e.stat] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                        if (e.cost > 0) {
+                            running[e.stat] = e.rate;
+                            if (!derived[e.stat] && (!floorDate || day.date >= floorDate)) {
+                                derived[e.stat] = e.rate;
+                            }
+                        }
                     });
                 } else {
                     STAT_KEYS.forEach(k => {
                         const cost = (day.eSpent && day.eSpent[k]) || 0;
                         const gain = day.gains ? (day.gains[k] || 0) : 0;
-                        if (cost > 0) running[k] = (gain / cost) * 150;
+                        if (cost > 0) {
+                            running[k] = (gain / cost) * 150;
+                            if (!derived[k] && (!floorDate || day.date >= floorDate)) {
+                                derived[k] = (gain / cost) * 150;
+                            }
+                        }
                     });
                 }
                 arr.push({
@@ -2892,7 +3297,7 @@
                 });
             });
             this._cache.rateArr = arr;
-            this._cache.originRates = (h.meta && h.meta.originRates) || {};
+            this._cache.originRates = derived;
         },
         getHistoricalRate(dateStr, stat) {
             if (!this._cache.rateArr) this._buildRateCache();
@@ -2911,6 +3316,10 @@
             if (best === -1) return (or[stat] || 0);
             const rate = arr[best].rates[stat];
             return rate !== null ? rate : (or[stat] || 0);
+        },
+        getOriginRate(stat) {
+            if (!this._cache.rateArr) this._buildRateCache();
+            return (this._cache.originRates && this._cache.originRates[stat]) || 0;
         },
         getSlice(mode, target, year = null) {
             let k = `${mode}_${target}`;
@@ -2944,7 +3353,7 @@
                 for (let i = day.series.length - 1; i >= 0; i--) {
                     const entry = day.series[i];
                     if (entry.stat === stat && entry.cost > 0) {
-                        return entry.rate !== undefined ? entry.rate : r2((entry.gain / entry.cost) * 150);
+                        return entry.rate != null ? entry.rate : r2((entry.gain / entry.cost) * 150);
                     }
                 }
             }
@@ -3029,23 +3438,49 @@
                     };
                 });
             }
+            // Gain is the authoritative delta between the absolute start/end snapshots, NOT the
+            // sum of per-entry log gains. Summing logs under-reports whenever a training row is
+            // missing from the API data (e.g. dense bursts the deep scan couldn't fully capture),
+            // which breaks the "gain = total - starting" identity in the summaries. The `after`
+            // snapshots are ground truth and telescope exactly, so derive gain from them here.
+            // (Rates above intentionally still use the summed gains; the graph plots from raw
+            // series, so neither is affected by this override.)
+            keys.forEach(k => {
+                if (r.stats[k]) r.stats[k].gain = Math.max(0, r2(r.stats[k].end - r.stats[k].start));
+            });
             const e = r.meta.totalEnergy;
-            const {
-                hjDaySet,
-                dHjDaySet
-            } = this.getHappyJumpData ? this.getHappyJumpData() : {
-                hjDaySet: new Set(),
-                dHjDaySet: new Set()
-            };
+            let hjDaySet;
+            if (this.getHappyJumpData) {
+                const hjData = this.getHappyJumpData();
+                hjDaySet = hjData.hjDaySet;
+            } else {
+                hjDaySet = new Set();
+            }
             const isHJ = r.date && hjDaySet.has(r.date);
-            const isDiamondHJ = r.date && dHjDaySet && dHjDaySet.has(r.date);
-            if (e >= 2000 || isDiamondHJ) r.meta.tier = 3;
+            if (e >= 2000) r.meta.tier = 3;
             else if (e >= 1500) r.meta.tier = 2;
             else if (e >= 1000 || isHJ) r.meta.tier = 1;
             else r.meta.tier = 0;
+            // Item-use totals for the period (powers the ledger counters). Merge per-day `items`
+            // counts and sum the cans' extra energy; dayCount drives the Xanax avg/day readout.
+            const itemDays = sDay ? [sDay] : (dList || []);
+            const items = {};
+            let itemEnergy = 0;
+            itemDays.forEach(d => {
+                if (d && d.items) Object.keys(d.items).forEach(id => {
+                    items[id] = (items[id] || 0) + d.items[id];
+                });
+                if (d) itemEnergy += (d.itemEnergy || 0);
+            });
+            r.items = items;
+            r.xanax = items[XANAX_LOG] || 0;
+            r.ecans = items[ECAN_LOG] || 0;
+            r.ecanEnergy = itemEnergy;
+            r.dayCount = sDay ? 1 : (dList ? dList.length : 0);
             return r;
         },
         async processDataPayload(apiLogs, apiBattlestats) {
+            Perf.start('processDataPayload');
             let s = getActiveHistory();
             const fullApiLogs = normalizeApiLogs(apiLogs);
             let cleanLogs = fullApiLogs;
@@ -3057,102 +3492,124 @@
             }
             if (s.meta.logStartDate) {
                 cleanLogs = cleanLogs.filter(l => l.ts >= s.meta.logStartDate);
-                try {
-                    const stored = await DBManager.getStorage();
-                    if (stored) {
-                        if (stored.series) {
-                            if (cleanLogs.length > 0) {
-                                const minApiTs = cleanLogs[0].ts;
-                                const maxApiTs = cleanLogs[cleanLogs.length - 1].ts;
-                                const apiEntries = cleanLogs.map(l => ({
-                                    ts: l.ts,
-                                    stat: l.stat,
-                                    gain: r2(l.gain),
-                                    cost: l.cost,
-                                    after: r2(l.after)
-                                }));
-                                const apiTsStatSet = new Set(apiEntries.map(e => `${e.ts}_${e.stat}_${e.after}`));
-                                const kept = stored.series.filter(e => e.ts < minApiTs || e.ts > maxApiTs || !apiTsStatSet.has(`${e.ts}_${e.stat}_${e.after}`));
-                                stored.series = [...kept, ...apiEntries].sort((a, b) => a.ts - b.ts);
-                            }
+
+                // Idle / battlestats-only fast path: there are no new gym logs to reconcile, so
+                // there is nothing to merge into history. Update today's stats in place and
+                // persist ONLY the affected day(s) instead of reading, rebuilding, and rewriting
+                // the entire history. Requires an already-hydrated cache (always true after boot,
+                // since hydration runs before any sync) — otherwise fall through to the full path.
+                if (cleanLogs.length === 0 && _historyCache) {
+                    const changedToday = apiBattlestats ? this._snapToBattlestats(apiBattlestats, s) : false;
+                    const logicalToday = Formatter.dateLogical();
+                    if (s.today.date !== logicalToday) {
+                        // Day rollover touches historical days -> full invalidate.
+                        const changedDays = [];
+                        // A day with logged entries OR real aggregate gains becomes a history day.
+                        // An empty/battlestats-only day remains a gap and is not promoted.
+                        if ((s.today.series && s.today.series.length > 0) || (s.today.gains && s.today.gains.total > 0)) {
+                            s.history.push(s.today);
+                            changedDays.push(s.today);
                         }
-                        stored.meta = {
-                            ...stored.meta,
-                            logStartDate: s.meta.logStartDate,
-                            originRates: s.meta.originRates,
-                            stickers: stored.meta.stickers || s.meta.stickers || {}
-                        };
-                        await DBManager.setStorage(stored);
-                        const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
-                        _historyCache = {
-                            meta: stored.meta,
-                            history: rebuilt.history,
-                            today: rebuilt.today
-                        };
-                        sessionStorage.setItem(KEYS.SESSION_CACHE, serializeForSession(_historyCache));
+                        s.today = initializeDayObject(logicalToday, s.today.endBreakdown);
+                        changedDays.push(s.today);
+                        _historyCache = s;
+                        this.invalidate();
+                        await DBManager.saveDays(s.meta, changedDays);
+                    } else if (changedToday) {
+                        _historyCache = s;
+                        this.invalidateToday();
+                        await DBManager.saveDays(s.meta, [s.today]);
                     }
+                    window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+                    Perf.end('processDataPayload');
+                    return 'SUCCESS';
+                }
+
+                // New gym logs to reconcile. Only entries inside the API window [minApiTs, maxApiTs]
+                // can change history, which touches only days at/after that window's first logical
+                // day. Recompute and persist just those days (incremental) rather than the whole,
+                // possibly multi-decade, history. Falls back to the proven full rebuild if the
+                // incremental path throws.
+                let inc = null;
+                try {
+                    inc = this._reconcileIncremental(s, cleanLogs);
+                } catch (e) {
+                    Log.warn('Incremental reconcile failed; falling back to full rebuild', e);
+                    inc = null;
+                }
+
+                if (inc) {
+                    _historyCache = inc.result;
+                    s = getActiveHistory();
+                    // Logs are already merged; this only snaps current battlestats into today.
+                    this._runDailyGrind([], apiBattlestats, s);
+                    const changedDays = inc.changedDays.slice();
+                    const logicalToday = Formatter.dateLogical();
+                    let rolled = false;
+                    if (s.today.date !== logicalToday) {
+                        if ((s.today.series && s.today.series.length > 0) || (s.today.gains && s.today.gains.total > 0)) s.history.push(s.today);
+                        s.today = initializeDayObject(logicalToday, s.today.endBreakdown);
+                        rolled = true;
+                    }
+                    _historyCache = s;
+                    this.invalidate();
+                    if (rolled) {
+                        // A rollover changes the day set; persist everything to stay consistent.
+                        const all = [...(s.history || [])];
+                        if (s.today) all.push(s.today);
+                        await DBManager.saveDays(s.meta, all);
+                    } else {
+                        if (!changedDays.includes(s.today)) changedDays.push(s.today);
+                        await DBManager.saveDays(s.meta, changedDays);
+                    }
+                    window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+                    Perf.end('processDataPayload');
+                    return 'SUCCESS';
+                }
+
+                // Fallback: the original full rebuild from the entire stored series. Persisted by
+                // saveSmartHistory() in the shared tail below.
+                try {
+                    _historyCache = await this._reconcileFull(s, cleanLogs);
                 } catch (e) {
                     Log.warn('Reconciliation error', e);
                 }
                 s = getActiveHistory();
             }
-            if (!s.meta.logStartDate) this._runGenesis(cleanLogs, apiBattlestats, s);
-            else this._runDailyGrind(cleanLogs, apiBattlestats, s);
+            if (!s.meta.logStartDate) {
+                // Forward-only init: baseline = current battlestats, origin = install time.
+                // No historical reconstruction — history only comes from explicit Backfill.
+                if (apiBattlestats) {
+                    s.meta.baselineBreakdown = {
+                        str: apiBattlestats.strength || 0,
+                        def: apiBattlestats.defense || 0,
+                        spd: apiBattlestats.speed || 0,
+                        dex: apiBattlestats.dexterity || 0
+                    };
+                }
+                s.meta.logStartDate = Math.floor(Date.parse(userConfig.privacyAgreed) / 1000);
+                s.today = initializeDayObject(Formatter.dateLogical(), { ...s.meta.baselineBreakdown });
+            }
+            this._runDailyGrind(cleanLogs, apiBattlestats, s);
             const logicalToday = Formatter.dateLogical();
             if (s.today.date !== logicalToday) {
-                if (s.today.startTotal > 0 || s.today.gains.total > 0) s.history.push(s.today);
+                if ((s.today.series && s.today.series.length > 0) || (s.today.gains && s.today.gains.total > 0)) s.history.push(s.today);
                 s.today = initializeDayObject(logicalToday, s.today.endBreakdown);
-            }
-            if (s.meta.logStartDate) {
-                if (!s.meta.originRates) s.meta.originRates = {
-                    ...ZERO_BREAKDOWN
-                };
-                const _anchorStr = Formatter.dateLogical((s.meta.logStartDate + 86400) * 1000);
-                STAT_KEYS.forEach(k => {
-                    if (!s.meta.originRates[k]) {
-                        for (let i = fullApiLogs.length - 1; i >= 0; i--) {
-                            const l = fullApiLogs[i];
-                            if (l.stat === k && l.cost > 0 && Formatter.dateLogical(l.ts * 1000) < _anchorStr) {
-                                s.meta.originRates[k] = (l.gain / l.cost) * 150;
-                                break;
-                            }
-                        }
-                        if (!s.meta.originRates[k]) {
-                            const oldest = fullApiLogs.find(l => l.stat === k && l.cost > 0);
-                            if (oldest) s.meta.originRates[k] = (oldest.gain / oldest.cost) * 150;
-                        }
-                    }
-                });
             }
             this.saveSmartHistory(s);
             window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+            Perf.end('processDataPayload');
             return 'SUCCESS';
         },
         saveSmartHistory(d) {
-            const seen = new Set();
-            const allSeries = [];
             const allDays = [...(d.history || [])];
-            if (d.today) {
-                allDays.push(d.today);
-            }
-            allDays.forEach(day => {
-                if (day.series) {
-                    day.series.forEach(e => {
-                        const key = `${e.ts}_${e.stat}_${e.after}`;
-                        if (!seen.has(key)) {
-                            seen.add(key);
-                            allSeries.push(e);
-                        }
-                    });
-                }
-            });
-            allSeries.sort((a, b) => a.ts - b.ts);
-            const stored = {
-                meta: d.meta,
-                series: allSeries
-            };
-            DBManager.setStorage(stored);
-            sessionStorage.removeItem(KEYS.SESSION_CACHE);
+            if (d.today) allDays.push(d.today);
+            // Persist the in-memory day objects directly — no flatten-to-series + rebuild
+            // round-trip, and a single write (saveDays) rather than the previous whole-history
+            // blob rewrite. saveDays puts each day record without clearing the store; normal
+            // syncs never remove days (only import/clear do, via setStorage/clearStorage), so
+            // untouched days remain intact.
+            DBManager.saveDays(d.meta, allDays);
             _historyCache = d;
             this.invalidate();
         },
@@ -3177,6 +3634,7 @@
                             gain,
                             cost,
                             after,
+                            rate: cost > 0 ? r2((gain / cost) * 150) : 0,
                             synthetic: true
                         });
                     });
@@ -3184,96 +3642,7 @@
             });
             return all.sort((a, b) => a.ts - b.ts);
         },
-        _runGenesis(logs, bs, s) {
-            const allLogs = [...logs].sort((a, b) => a.ts - b.ts);
-            let validLogs;
-            let anchorDay = null;
-            if (allLogs.length > 0) {
-                const statOldest = {};
-                STAT_KEYS.forEach(k => {
-                    const first = allLogs.find(l => l.stat === k);
-                    if (first) statOldest[k] = first.ts;
-                });
-                const trainedStats = Object.keys(statOldest);
-                if (trainedStats.length > 0) {
-                    const anchorTs = Math.max(...trainedStats.map(k => statOldest[k]));
-                    anchorDay = Formatter.dateLogical(anchorTs * 1000);
-                    validLogs = allLogs.filter(l => Formatter.dateLogical(l.ts * 1000) >= anchorDay);
-                } else {
-                    validLogs = allLogs;
-                }
-            } else {
-                validLogs = [];
-            }
-            if (!s.meta.originRates) s.meta.originRates = {
-                ...ZERO_BREAKDOWN
-            };
-            STAT_KEYS.forEach(k => {
-                for (let i = allLogs.length - 1; i >= 0; i--) {
-                    const l = allLogs[i];
-                    if (l.stat === k && l.cost > 0 && (!anchorDay || Formatter.dateLogical(l.ts * 1000) < anchorDay)) {
-                        s.meta.originRates[k] = (l.gain / l.cost) * 150;
-                        break;
-                    }
-                }
-            });
-            const currentStats = bs ? {
-                str: bs.strength,
-                def: bs.defense,
-                spd: bs.speed,
-                dex: bs.dexterity
-            } : {
-                ...ZERO_BREAKDOWN
-            };
-            let totalGains = {
-                ...ZERO_BREAKDOWN
-            };
-            validLogs.forEach(l => totalGains[l.stat] += l.gain);
-            let logStartTs;
-            if (anchorDay) {
-                const anchorDayMs = Formatter.parse(anchorDay).getTime();
-                logStartTs = Math.floor((anchorDayMs - 86400000) / 1000);
-            } else {
-                logStartTs = validLogs.length > 0 ? validLogs[0].ts : Math.floor(Date.now() / 1000);
-            }
-            s.meta.logStartDate = logStartTs;
-            const _br = {
-                str: currentStats.str - totalGains.str,
-                def: currentStats.def - totalGains.def,
-                spd: currentStats.spd - totalGains.spd,
-                dex: currentStats.dex - totalGains.dex
-            };
-            s.meta.baselineBreakdown = _br;
-            let runningBreakdown = {
-                ..._br
-            };
-            const startDayStr = anchorDay || Formatter.dateLogical(validLogs.length > 0 ? validLogs[0].ts * 1000 : Date.now());
-            s.today = initializeDayObject(startDayStr, runningBreakdown);
-            validLogs.forEach(l => {
-                this._applyLogToState(l, s);
-                runningBreakdown[l.stat] = l.after;
-            });
-            if (anchorDay) {
-                const bufferLogs = allLogs.filter(l => {
-                    const d = Formatter.dateLogical(l.ts * 1000);
-                    return d < anchorDay && l.ts >= logStartTs;
-                });
-                if (bufferLogs.length > 0) {
-                    const bufDay = initializeDayObject(Formatter.dateLogical(bufferLogs[0].ts * 1000), {
-                        ...ZERO_BREAKDOWN
-                    });
-                    bufferLogs.forEach(l => bufDay.series.push({
-                        ts: l.ts,
-                        stat: l.stat,
-                        gain: l.gain,
-                        cost: l.cost,
-                        after: l.after
-                    }));
-                    s.history.unshift(bufDay);
-                }
-            }
-            if (bs) this._snapToBattlestats(bs, s);
-        },
+
         _runDailyGrind(logs, bs, s) {
             const allDays = [...(s.history || []), s.today];
             const globalLastTs = allDays.reduce((max, day) => Math.max(max, day.lastLogTimestamp || 0), 0);
@@ -3285,23 +3654,54 @@
         _applyLogToState(l, s) {
             const logDate = Formatter.dateLogical(l.ts * 1000);
             if (s.today.date !== logDate) {
-                if (s.today.startTotal > 0 || s.today.gains.total > 0) s.history.push(s.today);
+                if (s.today.series && s.today.series.length > 0) s.history.push(s.today);
                 s.today = initializeDayObject(logDate, s.today.endBreakdown);
             }
-            s.today.gains[l.stat] += l.gain;
-            s.today.gains.total += l.gain;
-            s.today.eSpent[l.stat] += l.cost;
-            s.today.eSpent.total += l.cost;
-            s.today.endBreakdown[l.stat] = l.after;
-            if (l.ts > s.today.lastLogTimestamp) s.today.lastLogTimestamp = l.ts;
-            s.today.series.push({
-                ts: l.ts,
-                stat: l.stat,
-                gain: l.gain,
-                cost: l.cost,
-                after: l.after
-            });
-            s.today.endTotal = sumStats(s.today.endBreakdown);
+            if (l.type === 'item') {
+                if (!s.today.items) s.today.items = {};
+                if (!s.today.itemLogIds) s.today.itemLogIds = [];
+                // Dedup on the natural (ts, logId) key rather than Torn's log id: the id is dropped
+                // on export, so this is the only key that survives an export/import round-trip (and
+                // two uses of the same item in the same second is not possible in-game).
+                const itemKey = `${l.ts}_${l.logId}`;
+                if (!s.today.itemLogIds.includes(itemKey)) {
+                    s.today.itemLogIds.push(itemKey);
+                    s.today.items[l.logId] = (s.today.items[l.logId] || 0) + 1;
+                    if (l.energy) s.today.itemEnergy = (s.today.itemEnergy || 0) + l.energy;
+                    if (l.happy) s.today.itemHappy = (s.today.itemHappy || 0) + l.happy;
+                }
+                const entry = {
+                    type: 'item',
+                    id: l.id,
+                    ts: l.ts,
+                    logId: l.logId
+                };
+                if (l.energy) entry.energy = l.energy;
+                if (l.happy) entry.happy = l.happy;
+                if (l.statKey) {
+                    entry.statKey = l.statKey;
+                    entry.statGain = l.statGain;
+                }
+                s.today.series.push(entry);
+            } else {
+                s.today.gains[l.stat] += l.gain;
+                s.today.gains.total += l.gain;
+                s.today.eSpent[l.stat] += l.cost;
+                s.today.eSpent.total += l.cost;
+                s.today.endBreakdown[l.stat] = l.after;
+                if (l.ts > s.today.lastLogTimestamp) s.today.lastLogTimestamp = l.ts;
+                s.today.series.push({
+                    type: 'gym',
+                    id: l.id,
+                    ts: l.ts,
+                    stat: l.stat,
+                    gain: l.gain,
+                    cost: l.cost,
+                    after: l.after,
+                    rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
+                });
+                s.today.endTotal = sumStats(s.today.endBreakdown);
+            }
         },
         _snapToBattlestats(bs, s) {
             let upd = false;
@@ -3320,8 +3720,10 @@
                 s.today.endTotal = sumStats(s.today.endBreakdown);
                 s.today.startTotal = sumStats(s.today.startBreakdown);
             }
+            return upd;
         },
         _rebuildFromSeries(seriesArr, baselineBreakdown) {
+            Perf.start('_rebuildFromSeries');
             const days = {};
             let running = {
                 ...baselineBreakdown
@@ -3331,14 +3733,27 @@
                 if (!days[dateKey]) days[dateKey] = initializeDayObject(dateKey, {
                     ...running
                 });
-                days[dateKey].gains[e.stat] += e.gain;
-                days[dateKey].gains.total += e.gain;
-                days[dateKey].eSpent[e.stat] += e.cost;
-                days[dateKey].eSpent.total += e.cost;
-                days[dateKey].endBreakdown[e.stat] = e.after;
-                if (e.ts > days[dateKey].lastLogTimestamp) days[dateKey].lastLogTimestamp = e.ts;
-                if (!e.synthetic) days[dateKey].series.push(e);
-                running[e.stat] = e.after;
+                if (e.type === 'item') {
+                    if (!days[dateKey].items) days[dateKey].items = {};
+                    if (!days[dateKey].itemLogIds) days[dateKey].itemLogIds = [];
+                    const itemKey = `${e.ts}_${e.logId}`;
+                    if (!days[dateKey].itemLogIds.includes(itemKey)) {
+                        days[dateKey].itemLogIds.push(itemKey);
+                        days[dateKey].items[e.logId] = (days[dateKey].items[e.logId] || 0) + 1;
+                        if (e.energy) days[dateKey].itemEnergy = (days[dateKey].itemEnergy || 0) + e.energy;
+                        if (e.happy) days[dateKey].itemHappy = (days[dateKey].itemHappy || 0) + e.happy;
+                    }
+                    if (!e.synthetic) days[dateKey].series.push(e);
+                } else {
+                    days[dateKey].gains[e.stat] += e.gain;
+                    days[dateKey].gains.total += e.gain;
+                    days[dateKey].eSpent[e.stat] += e.cost;
+                    days[dateKey].eSpent.total += e.cost;
+                    days[dateKey].endBreakdown[e.stat] = e.after;
+                    if (e.ts > days[dateKey].lastLogTimestamp) days[dateKey].lastLogTimestamp = e.ts;
+                    if (!e.synthetic) days[dateKey].series.push(e);
+                    running[e.stat] = e.after;
+                }
             });
             Object.values(days).forEach(day => {
                 day.endTotal = sumStats(day.endBreakdown);
@@ -3350,12 +3765,112 @@
                     ...running
                 }),
                 history = sortedKeys.filter(k => k !== logicalToday).map(k => days[k]);
+            Perf.end('_rebuildFromSeries');
             return {
                 history,
                 today: todayObj
             };
+        },
+
+        // Full reconciliation: reads the entire stored series, merges the API logs (dedup window),
+        // and rebuilds EVERY day. This is the original, proven path — used now only as the
+        // production fallback (if the incremental path throws) and as the dev-mode parity oracle.
+        // Returns { meta, history, today } WITHOUT mutating _historyCache or persisting.
+        async _reconcileFull(s, cleanLogs) {
+            const stored = await DBManager.getStorage();
+            if (!stored) return { meta: s.meta, history: s.history, today: s.today };
+            if (stored.series && cleanLogs.length > 0) {
+                const minApiTs = cleanLogs[0].ts;
+                const maxApiTs = cleanLogs[cleanLogs.length - 1].ts;
+                const apiEntries = cleanLogs.map(l => {
+                    if (l.type === 'item') return { ...l };
+                    return {
+                        type: 'gym',
+                        id: l.id,
+                        ts: l.ts,
+                        stat: l.stat,
+                        gain: r2(l.gain),
+                        cost: l.cost,
+                        after: r2(l.after)
+                    };
+                });
+                const getSetKey = e => e.type === 'item' ? `item_${e.id}` : `${e.ts}_${e.stat}_${e.after}`;
+                const apiTsStatSet = new Set(apiEntries.map(getSetKey));
+                const kept = stored.series.filter(e => e.ts < minApiTs || e.ts > maxApiTs || !apiTsStatSet.has(getSetKey(e)));
+                stored.series = [...kept, ...apiEntries].sort((a, b) => a.ts - b.ts);
+            }
+            stored.meta = {
+                ...stored.meta,
+                logStartDate: s.meta.logStartDate,
+                syncFloor: s.meta.syncFloor || stored.meta.syncFloor,
+                stickers: stored.meta.stickers || s.meta.stickers || {}
+            };
+            const rebuilt = this._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
+            return {
+                meta: stored.meta,
+                history: rebuilt.history,
+                today: rebuilt.today
+            };
+        },
+
+        // Incremental reconciliation: only entries within the API window [minApiTs, maxApiTs] can
+        // change, which touches only days at/after the window's first logical day. Days before that
+        // ("prefix") are provably untouched and kept as-is; only the affected tail is rebuilt,
+        // seeded by the prefix's last end breakdown so it chains on EXACTLY as a global rebuild
+        // would. Operates purely on the in-memory cache (no DB read). Returns the reconciled
+        // { result, changedDays } so the caller can persist only the changed days.
+        _reconcileIncremental(s, cleanLogs) {
+            const minApiTs = cleanLogs[0].ts;
+            const maxApiTs = cleanLogs[cleanLogs.length - 1].ts;
+            // Built without `rate` to match the full path exactly; rate is re-derived on load.
+            const apiEntries = cleanLogs.map(l => {
+                if (l.type === 'item') return { ...l };
+                return {
+                    type: 'gym',
+                    id: l.id,
+                    ts: l.ts,
+                    stat: l.stat,
+                    gain: r2(l.gain),
+                    cost: l.cost,
+                    after: r2(l.after)
+                };
+            });
+            const getSetKey = e => e.type === 'item' ? `item_${e.id}` : `${e.ts}_${e.stat}_${e.after}`;
+            const apiTsStatSet = new Set(apiEntries.map(getSetKey));
+            const earliestDay = Formatter.dateLogical(minApiTs * 1000);
+
+            const allDays = [...(s.history || [])];
+            if (s.today) allDays.push(s.today);
+            const prefix = [],
+                affected = [];
+            allDays.forEach(d => {
+                (d.date < earliestDay ? prefix : affected).push(d);
+            });
+
+            const keptAffected = [];
+            affected.forEach(d => {
+                if (Array.isArray(d.series)) {
+                    d.series.forEach(e => {
+                        if (e.ts < minApiTs || e.ts > maxApiTs || !apiTsStatSet.has(getSetKey(e))) keptAffected.push(e);
+                    });
+                }
+            });
+            const mergedAffected = [...keptAffected, ...apiEntries].sort((a, b) => a.ts - b.ts);
+
+            const seed = prefix.length ? prefix[prefix.length - 1].endBreakdown : ((s.meta && s.meta.baselineBreakdown) || ZERO_BREAKDOWN);
+            const rebuilt = this._rebuildFromSeries(mergedAffected, seed);
+
+            return {
+                result: {
+                    meta: { ...s.meta },
+                    history: [...prefix, ...rebuilt.history],
+                    today: rebuilt.today
+                },
+                changedDays: [...rebuilt.history, rebuilt.today]
+            };
         }
     };
+
 
     function generateDemoData() {
         let _seed = 0x9e3779b9;
@@ -3519,16 +4034,13 @@
         };
         const todayObj = initializeDayObject(today, todayStart);
         const oldestDate = history.length ? history[0].date : today;
-        const logStartDate = Math.floor(Formatter.parse(oldestDate).getTime() / 1000) - 86400;
+        const logStartDate = Math.floor(Formatter.parse(oldestDate).getTime() / 1000);
         const lastRates = {};
         statKeys.forEach(k => {
             const perFiveE = simulationGain(running[k]);
             lastRates[k] = perFiveE * (DEMO_FORMULA_E_BASE / DEMO_E_PER_TRAIN);
         });
         const meta = {
-            originRates: {
-                ...lastRates
-            },
             baselineBreakdown: {
                 ...baseline
             },
@@ -3547,19 +4059,12 @@
             return runtime.demoHistory;
         }
         if (_historyCache) return _historyCache;
-        const cached = sessionStorage.getItem(KEYS.SESSION_CACHE);
-        if (cached) {
-            try {
-                _historyCache = JSON.parse(cached);
-                return _historyCache;
-            } catch (e) {}
-        }
         return {
             meta: {
                 baselineBreakdown: {
                     ...ZERO_BREAKDOWN
                 },
-                deepScan: defaultDeepScan()
+                backfill: defaultBackfill()
             },
             history: [],
             today: initializeDayObject(Formatter.dateLogical(), {
@@ -3572,17 +4077,37 @@
         if (!rawLogs || Object.keys(rawLogs).length === 0) return [];
         return Object.keys(rawLogs).map(k => {
             const l = rawLogs[k];
+            const meta = ITEM_LOG_META[l.log];
+            if (meta) {
+                const e = { type: 'item', id: k, ts: l.timestamp, logId: l.log };
+                const d = l.data || {};
+                if (meta.energy) e.energy = parseInt(d.energy_increased || 0);
+                if (meta.happy) e.happy = parseInt(d.happy_increased || 0);
+                if (meta.stat) {
+                    // Stat enhancers carry their gain under <stat>_increased; detect which stat.
+                    const sn = ['strength', 'defense', 'speed', 'dexterity'].find(s => d[`${s}_increased`] != null);
+                    if (sn) {
+                        e.statKey = (sn === 'strength') ? 'str' : (sn === 'defense') ? 'def' : (sn === 'speed') ? 'spd' : 'dex';
+                        e.statGain = r2(parseFloat(d[`${sn}_increased`] || 0));
+                    }
+                }
+                return e;
+            }
             const sn = GAME.STAT_MAP[l.log];
             if (!sn) return null;
             const ab = (sn === 'strength') ? 'str' : (sn === 'defense') ? 'def' : (sn === 'speed') ? 'spd' : 'dex';
+            const gain = r2(parseFloat(l.data[`${sn}_increased`] || 0));
+            const cost = parseInt(l.data.energy_used || 0);
             return {
+                type: 'gym',
                 id: k,
                 ts: l.timestamp,
                 stat: ab,
                 key: sn,
-                gain: r2(parseFloat(l.data[`${sn}_increased`] || 0)),
+                gain,
                 after: r2(parseFloat(l.data[`${sn}_after`] || 0)),
-                cost: parseInt(l.data.energy_used || 0)
+                cost,
+                rate: cost > 0 ? r2((gain / cost) * 150) : 0
             };
         }).filter(x => x !== null).sort((a, b) => a.ts - b.ts);
     }
@@ -3609,6 +4134,10 @@
                 total: 0,
                 ...ZERO_BREAKDOWN
             },
+            items: {},
+            itemLogIds: [],
+            itemEnergy: 0,
+            itemHappy: 0,
             lastLogTimestamp: 0,
             series: []
         };
@@ -3679,6 +4208,8 @@
             dex: null,
             total: null
         };
+        const happyItemTotals = {};
+        HAPPY_LOGS.forEach(id => { happyItemTotals[id] = { count: 0, happy: 0 }; });
         const weekE = {},
             weekG = {},
             monthE = {},
@@ -3753,6 +4284,17 @@
                     msk = sk + '\x00' + mk;
                 weekStatG[wsk] = (weekStatG[wsk] || 0) + sg;
                 monthStatG[msk] = (monthStatG[msk] || 0) + sg;
+            });
+            if (day.items) {
+                HAPPY_LOGS.forEach(id => {
+                    const qty = day.items[id] || 0;
+                    if (qty > 0) happyItemTotals[id].count += qty;
+                });
+            }
+            (day.series || []).forEach(e => {
+                if (e.type === 'item' && e.happy && happyItemTotals[e.logId]) {
+                    happyItemTotals[e.logId].happy += e.happy;
+                }
             });
         });
         const maxOf = (obj, key) => Object.entries(obj).reduce((best, [k, v]) => v > best.value ? {
@@ -4112,7 +4654,8 @@
             longestDiamondStreak,
             longestDiamondStreakStart,
             longestDiamondStreakEnd,
-            longestDiamondStreakGains
+            longestDiamondStreakGains,
+            happyItemTotals
         };
     }
 
@@ -4126,7 +4669,7 @@
     function renderAchievements() {
         const s = getActiveHistory();
         if (!runtime._achCache) {
-            runtime._achCache = computeAchievements(s);
+            runtime._achCache = Perf.wrap('computeAchievements', () => computeAchievements(s));
             runtime._achPage = viewState.achPage || 0;
         }
         if (!runtime._achCache) return;
@@ -4347,7 +4890,7 @@
             recs: ps.bestMonth,
             getDate: r => achFmtMonthLong(r.rawMonth)
         }];
-        const headerStats = STATS.map(sk => `<div class="ach-stat-header ach-stat-${sk}">${STAT_LABEL[sk]}</div>`).join('');
+        const headerStats = STATS.map(sk => `<div class="ach-stat-header ach-stat-${sk} bbgl-ach-col-copy" data-stat="${sk}" data-tooltip="Click to copy ${STAT_LABEL[sk]} column" style="cursor:pointer">${STAT_LABEL[sk]}</div>`).join('');
         const header = `<div class="bbgl-ach-grid-header"><div class="ach-grid-label-area"><span class="bbgl-ach-section-title" data-ach-section="greatest-gains" data-clip-title="Greatest Gains" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">Greatest Gains</span></div>${headerStats}</div>`;
         const rowsHTML = rows.map(r => {
             const labelArea = `<div class="ach-grid-label-area"><div class="ach-k"><span class="ach-title-short">${achEsc(r.short)}</span><span class="ach-title-long">${achEsc(r.long)}</span></div></div>`;
@@ -4479,8 +5022,45 @@
         const hjCount = countRow('Happy Jumps Performed', 'Happy Jumps', d.happyJumps || 0, 'hj-count', 'Total number of Happy Jumps executed (1,000E+ energy used training within a 5-minute window).');
         const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
         const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
-        const clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
-        return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</div>${rowsHTML}</div>`;
+        let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
+        
+        let helpersHTML = '';
+        if (d.happyItemTotals) {
+            const helpers = HAPPY_LOGS.map(id => {
+                const rec = d.happyItemTotals[id] || { count: 0, happy: 0 };
+                return {
+                    id,
+                    label: ITEM_LOG_META[id].label,
+                    short: ITEM_LOG_META[id].short || ITEM_LOG_META[id].label,
+                    count: rec.count,
+                    happy: rec.happy
+                };
+            }).filter(h => h.count > 0).sort((a, b) => b.count - a.count || b.happy - a.happy);
+            
+            if (helpers.length > 0) {
+                const helperRow = (h) => {
+                    const tip = `${achEsc(h.label)} | Happy Gained`;
+                    const clipVal = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
+                    return `<div class="bbgl-ach-row" data-tooltip="${achEsc(tip)}" data-ach-key="happy-helper-${h.id}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">${achEsc(h.label)}</span><span class="ach-title-short">${achEsc(h.short)}</span>:</span></div><div class="ach-v-wrap"><span class="ach-value">${Formatter.number(h.count)}</span><span class="ach-value ach-happy-col">+${achEsc(achFmtGain(h.happy))} Happy</span></div></div></div>`;
+                };
+                
+                const colCount = 2;
+                const rpc = Math.ceil(helpers.length / colCount);
+                const cols = [];
+                for (let i = 0; i < colCount; i++) {
+                    const start = i * rpc;
+                    const chunk = helpers.slice(start, start + rpc);
+                    if (chunk.length) {
+                        cols.push(`<div class="bbgl-ach-col">${chunk.map(helperRow).join('')}</div>`);
+                    }
+                }
+                const clipHelpers = helpers.map(h => `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`).join('\n');
+                clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
+                helpersHTML = `<div class="bbgl-ach-subsection-title" style="margin-top:2px" data-ach-section="happy-helpers" data-clip-section="${achEsc(clipHelpers)}" data-clip-title="Happy Helpers" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HELPERS</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
+            }
+        }
+        
+        return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</div>${rowsHTML}${helpersHTML}</div>`;
     }
 
     function buildAchievementsPage(pageIdx, d) {
@@ -4777,7 +5357,25 @@
             'best-week': 'Highest Gains in a Single Week',
             'best-month': 'Highest Gains in a Single Month'
         };
-        if (el.classList.contains('bbgl-ach-stat-cell')) {
+        if (el.classList.contains('bbgl-ach-col-copy')) {
+            // Clickable Greatest Gains column title: copy that stat across all four best-X rows.
+            const sk = el.getAttribute('data-stat');
+            const r = cache;
+            const PS_MAP_L = { 'best-train': 'bestTrain', 'best-day': 'bestDay', 'best-week': 'bestWeek', 'best-month': 'bestMonth' };
+            const TITLE_MAP_L = { 'best-train': 'Best Train', 'best-day': 'Best Day', 'best-week': 'Best Week', 'best-month': 'Best Month' };
+            if (sk && r && r.perStatBest) {
+                const lines = ['best-train', 'best-day', 'best-week', 'best-month'].map(mkey => {
+                    const rec = (r.perStatBest[PS_MAP_L[mkey]] || {})[sk];
+                    return achFmtStatBlock(mkey, rec, sk, '  ');
+                }).filter(Boolean);
+                if (lines.length) {
+                    txt = '👑BBGL Achievements\nGreatest Gains — ' + achStatFull(sk) + ':\n' + lines.join(NL);
+                    const _sec = el.closest('.bbgl-ach-section');
+                    const _cells = _sec ? Array.from(_sec.querySelectorAll(`.bbgl-ach-stat-cell[data-stat="${sk}"]`)).filter(c => !c.querySelector('.ach-null')) : [];
+                    flashEl = _cells.length ? _cells : el;
+                }
+            }
+        } else if (el.classList.contains('bbgl-ach-stat-cell')) {
             const key = el.getAttribute('data-ach-key');
             const stat = el.getAttribute('data-stat');
             const recs = (cache && cache.perStatBest && PS_MAP[key]) ? cache.perStatBest[PS_MAP[key]] : null;
@@ -4847,7 +5445,7 @@
                 txt = H + NL + 'Happy Jumps Performed: ' + (r.happyJumps || 0) + NL + 'Best Happy Jump: ' + fmtJ(r.bestHappyJump && r.bestHappyJump.total);
                 flashEl = Array.from(el.children);
             }
-        } else if (el.classList.contains('bbgl-ach-section-title')) {
+        } else if (el.classList.contains('bbgl-ach-section-title') || el.classList.contains('bbgl-ach-subsection-title')) {
             const sec = el.getAttribute('data-ach-section'),
                 r = cache,
                 title = el.getAttribute('data-clip-title') || '';
@@ -4887,8 +5485,8 @@
                 txt = achClipSection(H, title, blocks);
                 const _sec = el.closest('.bbgl-ach-section');
                 if (sec === 'greatest-gains') {
-                    const _cells = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-stat-cell')).filter(c => !c.querySelector('.ach-null')) : [];
-                    flashEl = _cells.length ? _cells : el;
+                    const _rows = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-row-multi')) : [];
+                    flashEl = _rows.length ? _rows : el;
                 } else if (sec === 'sexiest-streaks') {
                     const arr = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-row-multi')) : [];
                     flashEl = arr.length ? arr : el;
@@ -4897,6 +5495,22 @@
                     flashEl = _rows.length ? _rows : el;
                 } else {
                     flashEl = el;
+                }
+            } else if (el.hasAttribute('data-clip-section')) {
+                txt = H + NL + NL + '\u2014 ' + title + ' \u2014' + NL + el.getAttribute('data-clip-section');
+                if (sec === 'happy-helpers') {
+                    const _sec = el.closest('.bbgl-ach-section');
+                    const _rows = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-cols .bbgl-ach-row')) : [];
+                    flashEl = _rows.length ? _rows : el;
+                } else if (sec === 'happy-hopping') {
+                    const _sec = el.closest('.bbgl-ach-section');
+                    const _groups = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-hh-group')) : [];
+                    const _helpers = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-cols .bbgl-ach-row')) : [];
+                    const _rows = [..._groups, ..._helpers];
+                    flashEl = _rows.length ? _rows : el;
+                } else {
+                    const _sec = el.closest('.bbgl-ach-section');
+                    flashEl = _sec ? Array.from(_sec.querySelectorAll('.bbgl-ach-row, .bbgl-ach-hh-group')) : el;
                 }
             }
         } else {
@@ -4974,37 +5588,62 @@
             flashEl = el;
         }
         if (!txt || !flashEl || (Array.isArray(flashEl) && !flashEl.length)) return;
+        navigator.clipboard.writeText(txt).then(() => flashCopied(flashEl));
+    }
+
+    // Builds the "Copy Session Data" clipboard text. Pass all four STAT_KEYS for the full button,
+    // or a single-element array [k] for a per-column copy. Energy line uses s[keys[0]].cost for
+    // single-stat, s.total.cost for full. Format is identical to the existing copy-session output.
+    function buildSessionText(sl, s, keys) {
+        const fM = v => (Math.abs(v) >= 1e9) ? Formatter.abbr(v, 4) : Formatter.number(v);
+        const statEmoji = { str: '💪', def: '🛡️', spd: '🎯', dex: '🤺' };
+        const statNames = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity' };
+        let ds = '';
+        if (sl._dailyList && sl._dailyList.length > 1)
+            ds = `${Formatter.dateFull(sl._dailyList[0].date)} - ${Formatter.dateFull(sl._dailyList[sl._dailyList.length - 1].date)}`;
+        else
+            ds = Formatter.dateFull(sl.date);
+        const isSingle = keys.length === 1;
+        const eCost = isSingle ? s[keys[0]].cost : s.total.cost;
+        const eTxt = eCost > 0 ? `⚡${Formatter.number(eCost)} E` : '🛌 I was a lazy POS.';
+        const statLines = keys
+            .filter(k => s[k].gain > 0 || s[k].cost > 0)
+            .map(k => `${statEmoji[k]}${statNames[k]}: +${fM(s[k].gain)} (${fM(s[k].start)} → ${fM(s[k].end)})`);
+        return ['👑BBGymLog', `${ds} |${eTxt}`, ...statLines].join('\n');
+    }
+
+    // Reusable "Copied!" overlay: hide the element's children, show a centred overlay for 1s.
+    // Accepts a single element or an array of elements.
+    function flashCopied(flashEl) {
         const _flashEls = Array.isArray(flashEl) ? flashEl : [flashEl];
-        navigator.clipboard.writeText(txt).then(() => {
-            const _states = _flashEls.map(e => {
-                const kids = Array.from(e.children);
-                const visStates = kids.map(c => c.style.visibility);
-                kids.forEach(c => {
-                    c.style.visibility = 'hidden';
-                });
-                const prevPos = e.style.position;
-                const cs = window.getComputedStyle(e);
-                if (cs.position === 'static') e.style.position = 'relative';
-                const overlay = document.createElement('span');
-                overlay.className = 'bbgl-ach-copied-flash';
-                overlay.textContent = 'Copied!';
-                e.appendChild(overlay);
-                return {
-                    e,
-                    kids,
-                    visStates,
-                    prevPos,
-                    overlay
-                };
+        const _states = _flashEls.map(e => {
+            const kids = Array.from(e.children);
+            const visStates = kids.map(c => c.style.visibility);
+            kids.forEach(c => {
+                c.style.visibility = 'hidden';
             });
-            setTimeout(() => _states.forEach(s => {
-                if (s.overlay && s.overlay.parentNode) s.overlay.parentNode.removeChild(s.overlay);
-                s.kids.forEach((c, i) => {
-                    c.style.visibility = s.visStates[i];
-                });
-                s.e.style.position = s.prevPos;
-            }), 1000);
+            const prevPos = e.style.position;
+            const cs = window.getComputedStyle(e);
+            if (cs.position === 'static') e.style.position = 'relative';
+            const overlay = document.createElement('span');
+            overlay.className = 'bbgl-ach-copied-flash';
+            overlay.textContent = 'Copied!';
+            e.appendChild(overlay);
+            return {
+                e,
+                kids,
+                visStates,
+                prevPos,
+                overlay
+            };
         });
+        setTimeout(() => _states.forEach(s => {
+            if (s.overlay && s.overlay.parentNode) s.overlay.parentNode.removeChild(s.overlay);
+            s.kids.forEach((c, i) => {
+                c.style.visibility = s.visStates[i];
+            });
+            s.e.style.position = s.prevPos;
+        }), 1000);
     }
     async function exportData() {
         let s;
@@ -5066,9 +5705,22 @@
             return `${utcStr} / ${localStr}${tzName ? ` ${tzName}` : ''}`;
         };
         const exportStorage = JSON.parse(JSON.stringify(s));
+        // Per-item-code all-history usage totals for the export meta, nested by category group
+        // ("Energy Items" / "Happy Items"). Every tracked code is listed even when unused (0).
+        const itemTotals = {};
+        Object.keys(ITEM_LOG_META).forEach(id => {
+            const m = ITEM_LOG_META[id];
+            const g = ITEM_GROUP_LABELS[m.group] || 'Other Items';
+            if (!itemTotals[g]) itemTotals[g] = {};
+            itemTotals[g][m.label] = 0;
+        });
         (exportStorage.series || []).forEach(e => {
             if (typeof e.gain === 'number') e.gain = r2(e.gain);
             if (typeof e.after === 'number') e.after = r2(e.after);
+            if (e.type === 'item' && ITEM_LOG_META[e.logId]) {
+                const m = ITEM_LOG_META[e.logId];
+                itemTotals[ITEM_GROUP_LABELS[m.group] || 'Other Items'][m.label]++;
+            }
         });
         const getUtcDay = ts => {
             const d = new Date(ts * 1000);
@@ -5102,17 +5754,31 @@
             }
             if (prevLocalKey !== null && local.key !== prevLocalKey) curDayObj.entries.push(`── ${local.label} (${tzName}) ──`);
             else if (prevLocalKey === null && utc.key !== local.key) curDayObj.entries.push(`── ${local.label} (${tzName}) ──`);
-            curDayObj.entries.push({
-                at: fmtTs(e.ts),
-                ts: e.ts,
-                stat: e.stat,
-                gain: r2(e.gain),
-                cost: e.cost,
-                after: r2(e.after),
-                ...(e.rate !== undefined ? {
-                    rate: e.rate
-                } : {})
-            });
+            if (e.type === 'item') {
+                // Simple labeled line with the raw timestamp (intentionally not human-readable),
+                // plus the captured metric for the item's group.
+                const label = (ITEM_LOG_META[e.logId] && ITEM_LOG_META[e.logId].label) || `Item ${e.logId}`;
+                const entry = { [label]: e.ts };
+                if (e.energy) entry.e = e.energy;
+                if (e.happy) entry.happy = e.happy;
+                if (e.statKey) {
+                    entry.stat = e.statKey;
+                    entry.gain = e.statGain;
+                }
+                curDayObj.entries.push(entry);
+            } else {
+                curDayObj.entries.push({
+                    at: fmtTs(e.ts),
+                    ts: e.ts,
+                    stat: e.stat,
+                    gain: r2(e.gain),
+                    cost: e.cost,
+                    after: r2(e.after),
+                    ...(e.rate !== undefined ? {
+                        rate: e.rate
+                    } : {})
+                });
+            }
             curDayObj._lk.add(local.key);
             prevLocalKey = local.key;
         });
@@ -5126,23 +5792,22 @@
         const cleanCfg = {};
         ALLOWED_CONFIG_KEYS.forEach(k => {
             if (userConfig[k] !== undefined) {
-                if (k === 'privacyAgreed' && userConfig[k]) {
-                    try {
-                        cleanCfg[k] = fmtReadable(new Date(userConfig[k]));
-                    } catch (e) {
-                        cleanCfg[k] = userConfig[k];
-                    }
-                } else {
-                    cleanCfg[k] = userConfig[k];
-                }
+                // Export privacyAgreed as its raw ISO value (NOT reformatted) so the install date
+                // survives an export/import round-trip; reformatting it produced an unparseable
+                // string that corrupted the stored value.
+                cleanCfg[k] = userConfig[k];
             }
         });
         const stickers = exportStorage?.meta?.stickers;
         if (exportStorage.meta) delete exportStorage.meta.stickers;
+        // syncFloor is device-local live-sync state; dropping it means a fresh import does one
+        // unbounded (self-healing) reconcile, then re-anchors from the imported data.
+        if (exportStorage.meta) delete exportStorage.meta.syncFloor;
         let content = JSON.stringify({
             meta: {
                 version: SCRIPT_VERSION,
-                exportedAt: fmtReadable(now)
+                exportedAt: fmtReadable(now),
+                itemTotals
             },
             config: cleanCfg,
             achievements,
@@ -5154,6 +5819,11 @@
             if (r) o += ', "rate": ' + r;
             return o + '}';
         });
+        // Collapse the simple item lines to one line each, mirroring the gym-line collapse above.
+        // Each is a flat object keyed by the item label plus optional metric fields (e/happy/stat+
+        // gain), so just squash the internal whitespace.
+        const itemLineLabels = Object.values(ITEM_LOG_META).map(m => m.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        content = content.replace(new RegExp('\\{\\n\\s+"(' + itemLineLabels + ')":[^}]*\\}', 'g'), m => m.replace(/\s*\n\s*/g, ' '));
         content = content.replace(/\},(\ *\n\ +)\{"at":/g, '},\n$1{"at":');
         content = content.replace(/\},(\ *\n([ ]+))"\u2500/g, '},\n\n$2"\u2500');
         content = content.replace(/\u2500",(\ *\n([ ]+))\{"at":/g, '\u2500",\n\n$2{"at":');
@@ -5209,10 +5879,27 @@
                 if (j.storage) {
                     j.storage = sanitizeStorageRecord(j.storage);
                     if (j.storage.series && j.storage.series.length && j.storage.series[0] && j.storage.series[0].day) {
+                        // Reverse map: exported item lines are labeled ({"Xanax Taken": <ts>} with an
+                        // optional "e" for energy). Convert them back to canonical item entries.
+                        const labelToItem = {};
+                        Object.keys(ITEM_LOG_META).forEach(id => {
+                            labelToItem[ITEM_LOG_META[id].label] = { logId: Number(id), energy: !!ITEM_LOG_META[id].energy };
+                        });
                         j.storage.series = j.storage.series.flatMap(d => (d.entries || []).filter(e => typeof e === 'object' && e !== null)).reverse();
-                        j.storage.series.forEach(e => {
+                        j.storage.series = j.storage.series.map(e => {
+                            // New-style labeled item line: no ts/stat, single label key (+ optional e).
+                            if (e && e.ts === undefined && e.stat === undefined) {
+                                const k = Object.keys(e).find(key => key !== 'e' && labelToItem[key]);
+                                if (k) {
+                                    const m = labelToItem[k];
+                                    const out = { type: 'item', logId: m.logId, ts: e[k] };
+                                    if (e.e !== undefined) out.energy = e.e;
+                                    return out;
+                                }
+                            }
                             delete e.at;
                             delete e.loggedAt;
+                            return e;
                         });
                     }
                     const importedMeta = j.storage.meta || {};
@@ -5234,11 +5921,13 @@
                         history: rebuilt.history,
                         today: rebuilt.today
                     };
-                    sessionStorage.setItem(KEYS.SESSION_CACHE, serializeForSession(_historyCache));
                     if (j.config && typeof j.config === 'object') {
                         ALLOWED_CONFIG_KEYS.forEach(k => {
                             if (j.config[k] !== undefined) userConfig[k] = j.config[k];
                         });
+                        if (!userConfig.privacyAgreed || isNaN(Date.parse(userConfig.privacyAgreed))) {
+                            userConfig.privacyAgreed = new Date().toISOString();
+                        }
                         saveConfig();
                     }
                     try {
@@ -5619,17 +6308,17 @@
             img.src = url;
             if (sl.meta.tier === 2) {
                 sh.className = 'jewel-shine';
-                sh.style.maskImage = `url('${url}')`;
-                sh.style.webkitMaskImage = `url('${url}')`;
+                sh.style.maskImage = `url("${url}")`;
+                sh.style.webkitMaskImage = `url("${url}")`;
                 wrap.appendChild(img);
                 wrap.appendChild(sh);
             } else {
                 sh.className = 'jewel-shine';
-                sh.style.maskImage = `url('${url}')`;
-                sh.style.webkitMaskImage = `url('${url}')`;
+                sh.style.maskImage = `url("${url}")`;
+                sh.style.webkitMaskImage = `url("${url}")`;
                 const so = document.createElement('div');
                 so.className = 'jewel-shine-over';
-                so.style.setProperty('--jewel-mask', `url('${url}')`);
+                so.style.setProperty('--jewel-mask', `url("${url}")`);
                 wrap.appendChild(sh);
                 wrap.appendChild(img);
                 wrap.appendChild(so);
@@ -5654,8 +6343,8 @@
                 si.className = 'cell-sticker-deco';
                 sw.appendChild(si);
                 ss.className = 'sticker-shine';
-                ss.style.webkitMaskImage = `url('${item.url}')`;
-                ss.style.maskImage = `url('${item.url}')`;
+                ss.style.webkitMaskImage = `url("${item.url}")`;
+                ss.style.maskImage = `url("${item.url}")`;
                 let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                 if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                 else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
@@ -5708,7 +6397,6 @@
         if (sl._dailyList.length === 0) return;
         const {
             hjDaySet,
-            dHjDaySet,
             hjWeek
         } = DataController.getHappyJumpData();
         const _wk = getWeekKey(sl._dailyList[0].date);
@@ -5716,7 +6404,7 @@
             totGreen,
             totGold,
             totDiamond
-        } = computeWeekCompletion(sl._dailyList, hjDaySet, hjWeek[_wk] || 0, dHjDaySet);
+        } = computeWeekCompletion(sl._dailyList, hjDaySet, hjWeek[_wk] || 0);
         const anchor = document.createElement('div');
         anchor.className = 'bbgl-weekly-anchor';
         const tr = document.createElement('div');
@@ -5735,40 +6423,58 @@
             openHistory(sl, sl.label);
         };
         tr.setAttribute('data-tooltip-html', generateRichTooltip(sl));
-        let pctGreen = Math.min(100, totGreen / 10);
-        let pctGold = Math.min(100, totGold / 10);
         let pctDiamond = Math.min(100, totDiamond / 10);
-        if (goal) {
-            const visTot = pctGreen + pctGold + pctDiamond;
-            if (visTot < 100) {
-                const deficit = 100 - visTot;
-                if (pctDiamond > 0) pctDiamond += deficit;
-                else if (pctGold > 0) pctGold += deficit;
-                else pctGreen += deficit;
-            }
+        let pctGold = Math.min(100 - pctDiamond, totGold / 10);
+        let pctGreen = Math.min(100 - pctDiamond - pctGold, totGreen / 10);
+        
+        let sum = pctGreen + pctGold + pctDiamond;
+        if (goal && sum < 100) {
+            const deficit = 100 - sum;
+            if (pctDiamond > 0) pctDiamond += deficit;
+            else if (pctGold > 0) pctGold += deficit;
+            else pctGreen += deficit;
         }
-        const dLeft = 50 - pctDiamond / 2;
-        const dRight = 50 + pctDiamond / 2;
-        const greenWidth = Math.min(100, pctGreen > dLeft ? pctGreen + pctDiamond : pctGreen);
-        const goldWidth = Math.min(100, pctGold > dLeft ? pctGold + pctDiamond : pctGold);
+
+        let dLeft = 50 - pctDiamond / 2;
+        let dRight = 50 + pctDiamond / 2;
+        let goLeft = 100 - pctGold;
+
+        if (dRight > goLeft) {
+            dRight = goLeft;
+            dLeft = dRight - pctDiamond;
+        }
+
+        if (dLeft < 0) {
+            dLeft = 0;
+            dRight = pctDiamond;
+            goLeft = dRight;
+            pctGold = 100 - goLeft;
+        }
+
+        let firstOccupiedLeft = (pctDiamond > 0) ? dLeft : goLeft;
+        if (pctGreen > firstOccupiedLeft) pctGreen = firstOccupiedLeft;
+        
         let actualDLeft = dLeft;
-        let actualDRight = dRight;
-        if (100 - goldWidth < dLeft) {
-            actualDLeft = 100 - goldWidth;
-            actualDRight = actualDLeft + pctDiamond;
-        } else if (greenWidth > dRight) {
-            actualDRight = greenWidth;
-            actualDLeft = actualDRight - pctDiamond;
+        let gRight = pctGreen;
+        
+        let greenTouchesNext = false;
+        let goldTouchesPrev = false;
+        if (pctDiamond > 0) {
+            if (Math.abs(gRight - dLeft) < 0.01) greenTouchesNext = true;
+            if (Math.abs(dRight - goLeft) < 0.01) goldTouchesPrev = true;
+        } else {
+            if (Math.abs(gRight - goLeft) < 0.01) {
+                greenTouchesNext = true;
+                goldTouchesPrev = true;
+            }
         }
         if (pctGreen > 0) {
             const d = document.createElement('div');
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-green`;
             d.style.position = 'absolute';
             d.style.left = '0';
-            d.style.zIndex = '1';
-            const meetsGoldOrDiamond = (pctGold > 0 && greenWidth >= 100 - goldWidth) || (pctDiamond > 0 && greenWidth >= actualDLeft);
-            d.style.width = meetsGoldOrDiamond ? `calc(${greenWidth}% + 15px)` : `${greenWidth}%`;
-            if (greenWidth < 100) {
+            d.style.width = `${pctGreen}%`;
+            if (!greenTouchesNext) {
                 d.style.borderTopRightRadius = '10px';
                 d.style.borderBottomRightRadius = '10px';
             }
@@ -5779,10 +6485,8 @@
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-gold`;
             d.style.position = 'absolute';
             d.style.right = '0';
-            d.style.zIndex = '2';
-            const meetsDiamond = pctDiamond > 0 && (100 - goldWidth) <= actualDRight;
-            d.style.width = meetsDiamond ? `calc(${goldWidth}% + 15px)` : `${goldWidth}%`;
-            if (goldWidth < 100) {
+            d.style.width = `${pctGold}%`;
+            if (!goldTouchesPrev) {
                 d.style.borderTopLeftRadius = '10px';
                 d.style.borderBottomLeftRadius = '10px';
             }
@@ -5792,30 +6496,27 @@
             const d = document.createElement('div');
             d.className = `bbgl-seg ${goal ? 'seg-polished' : 'seg-brushed'}-diamond`;
             d.style.position = 'absolute';
-            if (100 - goldWidth < dLeft) {
-                d.style.left = (100 - goldWidth) + '%';
-                d.style.transform = 'none';
-            } else if (greenWidth > dRight) {
-                d.style.right = (100 - greenWidth) + '%';
-                d.style.transform = 'none';
-            } else {
-                d.style.left = '50%';
-                d.style.transform = 'translateX(-50%)';
-            }
-            d.style.zIndex = '3';
-            d.style.width = pctDiamond + '%';
-            if (pctDiamond < 100) {
+            d.style.left = `${actualDLeft}%`;
+            d.style.width = `${pctDiamond}%`;
+            if (!greenTouchesNext) {
                 d.style.borderTopLeftRadius = '10px';
                 d.style.borderBottomLeftRadius = '10px';
+            }
+            if (!goldTouchesPrev) {
                 d.style.borderTopRightRadius = '10px';
                 d.style.borderBottomRightRadius = '10px';
             }
             tr.appendChild(d);
         }
-        const lb = document.createElement('div');
-        lb.className = 'bbgl-track-label';
-        lb.innerHTML = `${tot}/${GAME.WEEKLY_GOAL}`;
-        tr.appendChild(lb);
+        // The numeric X/1000 points readout is suppressed for pre-install weeks, but displays
+        // for the install week onward.
+        const installWk = runtime.demoMode ? null : getInstallWeekKey();
+        if (!installWk || _wk >= installWk) {
+            const tl = document.createElement('div');
+            tl.className = 'bbgl-track-label';
+            tl.textContent = `${tot}/${GAME.WEEKLY_GOAL}`;
+            tr.appendChild(tl);
+        }
         anchor.appendChild(tr);
         cont.appendChild(anchor);
         if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) openHistory(sl, sl.label);
@@ -5860,6 +6561,64 @@
             sl,
             s
         };
+        // Ledger energy-item counters. Two fixed counters (primary drug per config + Refill) always
+        // show when the bar is visible; the avg parens and the dynamic per-item counters are
+        // .view-exp / .bbgl-ic-dyn (expanded/page only). Each reads sl.items, which _hydrate
+        // aggregates over the slice's period — so an item only appears in the buckets it was used in.
+        if (dom.itemCounters) {
+            const items = sl.items || {};
+            const isDay = sl.resolution === 'DAY';
+            const cnt = code => items[code] || 0;
+            const shortOf = code => (ITEM_LOG_META[code] && ITEM_LOG_META[code].short) || `#${code}`;
+            const drugCode = userConfig.drugTracker === 'lsd' ? 2230 : XANAX_LOG;
+            const secondaryCode = userConfig.drugTracker === 'lsd' ? XANAX_LOG : 2230;
+            const parts = [];
+
+            // 1. Primary drug (always). Avg/day parens are week+ only, and expanded/page only; daily
+            // view shows just the count (a single-day avg changes daily and is confusing).
+            let drugSub = '';
+            if (!isDay) {
+                const days = DataController.periodCalendarDays(sl);
+                const drugAvg = days > 0 ? cnt(drugCode) / days : 0;
+                drugSub = sl.resolution === 'ALL' ? '' : `<span class="bbgl-ic-sub view-exp">(${drugAvg.toFixed(2)})</span>`;
+            }
+            const nameOf = (c) => {
+                if (c === 2290) return 'Xanax';
+                if (c === 2230) return 'LSD';
+                if (c === 2040) return 'Cans';
+                if (c === 2190) return 'FHC';
+                if (c === 8981) return 'Eggs';
+                return shortOf(c);
+            };
+            const isAll = sl.resolution === 'ALL';
+            const drugTip = `<div style="text-align:center">${nameOf(drugCode)} Taken` + ((!isDay && !isAll) ? `<br><span class="tt-sub">(Avg/Day)</span>` : ``) + `</div>`;
+            parts.push(`<span class="bbgl-ic" data-tooltip-html='${drugTip}'>${shortOf(drugCode)}: ${cnt(drugCode)}${drugSub}</span>`);
+
+            // 2. Dynamic energy counters (expanded/page only via .bbgl-ic-dyn), only when used.
+            // Order: Cans → FHC → secondary drug → Egg (most common to least common).
+            [ECAN_LOG, 2190, secondaryCode, 8981].forEach(code => {
+                const c = cnt(code);
+                if (c <= 0) return;
+                const sub = (code === ECAN_LOG && sl.resolution !== 'ALL') ? `<span class="bbgl-ic-sub">(+${Math.round(sl.ecanEnergy || 0)})</span>` : '';
+                let dynTip = '';
+                if (code === ECAN_LOG) {
+                    dynTip = `<div style="text-align:center">Cans Used` + (!isAll ? `<br><span class="tt-sub">(Energy Gained)</span>` : ``) + `</div>`;
+                } else {
+                    dynTip = `<div style="text-align:center">${nameOf(code)} Used</div>`;
+                }
+                parts.push(`<span class="bbgl-ic bbgl-ic-dyn" data-tooltip-html='${dynTip}'>${shortOf(code)}: ${c}${sub}</span>`);
+            });
+
+            // 3. Refill (always, last): daily = used-today check; week+ = used/calendar-days ratio.
+            const refills = cnt(4900);
+            const refillVal = isDay ?
+                (refills > 0 ? `<span class="bbgl-ic-yes">✓</span>` : `<span class="bbgl-ic-no">✗</span>`) :
+                `${refills}/${DataController.periodCalendarDays(sl)}`;
+            const refillTip = `<div style="text-align:center">Refills Used` + (!isDay ? `<br><span class="tt-sub">(Refills/Days)</span>` : ``) + `</div>`;
+            parts.push(`<span class="bbgl-ic" data-tooltip-html='${refillTip}'>Refill: ${refillVal}</span>`);
+
+            dom.itemCounters.innerHTML = parts.join('');
+        }
         const todayStr = Formatter.dateLogical();
         const slLastDate = sl._dailyList && sl._dailyList.length > 0 ? sl._dailyList[sl._dailyList.length - 1].date : sl.date;
         const isCurrentPeriod = sl.resolution === 'ALL' || slLastDate >= todayStr;
@@ -5888,7 +6647,7 @@
                         del = r2 - r1,
                         sg = del >= 0 ? '+' : '',
                         pct = r1 > 0 ? ((r2 - r1) / r1) * 100 : 0;
-                    th = `<div style="display:flex;flex-direction:column;align-items:center;line-height:1.1"><span>${sg}${Math.round(del)}</span><span class="view-exp rate-pct" style="font-size:0.8em;opacity:0.7">(${sg}${Math.round(pct)}%)</span></div>`;
+                    th = `<div class="rates-group" style="display:flex;flex-direction:column;align-items:center;line-height:1.1"><span>${sg}${Formatter.achGain(del)}</span><span class="view-exp rate-pct" style="font-size:0.8em;opacity:0.7;margin-top:2px;margin-bottom:-2px;">(${sg}${Formatter.ratePct(pct)}%)</span></div>`;
                     rt = mkTip(r1, r2, pct, sg);
                 }
                 rh = userConfig.ratesEnabled ? th : '';
@@ -5908,7 +6667,7 @@
                     rt = `Growth Rate (Gains / 150E)`;
                 }
             }
-            return `<div class="stat-column"><div class="col-header cell-stack"><div class="l-top c-label ${cl}"><span class="view-std">${lc}</span><span class="view-exp">${ft}</span></div><div class="l-bot" data-tooltip="${isP ? `Energy Used on ${ft}` : `Energy Used`}">${Formatter.dual(d.cost)} E</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-gain"><div class="l-top" data-tooltip="${ft} Gained">+${Formatter.dual(d.gain)}</div><div class="l-bot" data-tooltip="${rt}">${rh}</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-total"><div class="l-top" data-tooltip="${isCurrentPeriod ? 'Current' : 'Ending'} ${ft}">${Formatter.dual(d.end)}</div><div class="l-bot" data-tooltip="Starting ${ft}">${Formatter.dual(d.start)}</div></div></div>`;
+            return `<div class="stat-column" data-copy-stat="${k}"><div class="col-header cell-stack"><div class="l-top c-label ${cl} bbgl-copy-label" data-tooltip="Click to copy ${ft} data" style="cursor:pointer"><span class="view-std">${lc}</span><span class="view-exp">${ft}</span></div><div class="l-bot" data-tooltip="${isP ? `Energy Used on ${ft}` : `Energy Used`}">${Formatter.dual(d.cost)} E</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-gain"><div class="l-top" data-tooltip="${ft} Gained">+${Formatter.dual(d.gain)}</div><div class="l-bot" data-tooltip="${rt}">${rh}</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-total"><div class="l-top" data-tooltip="${isCurrentPeriod ? 'Current' : 'Ending'} ${ft}">${Formatter.dual(d.end)}</div><div class="l-bot" data-tooltip="Starting ${ft}">${Formatter.dual(d.start)}</div></div></div>`;
         };
         c.innerHTML = ` ${col('STR', 'str', 't-str')} ${col('DEF', 'def', 't-def')} ${col('SPD', 'spd', 't-spd')} ${col('DEX', 'dex', 't-dex')} `;
     }
@@ -6414,7 +7173,7 @@
         const r = document.createElement('div');
         r.className = cfg.row;
         const l = document.createElement('a');
-        l.href = '#gymlog';
+        l.href = '/calendar.php#gymlog';
         l.className = cfg.link;
         l.innerHTML = `<span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${GYM_LOG_ICON}</span></span>${mob ? '<span>Gym Log</span>' : '<span class="linkName___FoKha">Gym Log</span>'}`;
         const _isNewInstall = !localStorage.getItem('bbgl_initialized') && !localStorage.getItem(KEYS.SB_NOTIF);
@@ -6429,15 +7188,15 @@
                 if (_liveIsNewInstall) localStorage.setItem(KEYS.SB_NOTIF, '1');
                 if (_liveHasChangelogNotif) syncChangelogNotif(false);
             }
-            if (hadNotif && _liveHasChangelogNotif) {
-                localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
-                localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+            if (window.location.pathname !== '/calendar.php' || window.location.hash !== '#gymlog') {
+                window.location.href = '/calendar.php#gymlog';
+            } else {
+                if (hadNotif && _liveHasChangelogNotif) {
+                    localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                    localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+                    setTimeout(() => openChangelogModal(), 400);
+                }
             }
-            if (window.location.hash !== '#gymlog') {
-                history.pushState(null, null, '#gymlog');
-                checkViewRouting();
-            }
-            if (hadNotif && _liveHasChangelogNotif) setTimeout(() => openChangelogModal(), 400);
         });
         r.appendChild(l);
         c.appendChild(r);
@@ -6536,6 +7295,7 @@
     const TOOLTIPS = {
         ANIM: "<b>Toggle UI transitions and cosmetic effects</b><br><i>Disable to prioritize performance on slower devices.</i>",
         RATES: "<b>Display growth rate and efficiency metrics</b><br><i>Turn off for a minimalist view focused strictly on totals.</i>",
+        DRUG_TRACKER: "<b>Choose the primary training drug that appears on the ledger.</b><br><i>People on SSL path may want to track LSD instead of Xanax usage.</i>",
         LOC: "<b>Choose where the Gym Log icon appears in your Torn UI</b><br><i>Select Sidebar if the Footer Tab is hidden or if you are using Chat 2.0.</i>",
         DAY_START: "<b>Anchor logs to UTC or your system clock</b><br><i>Syncs your ongoing training sessions with your real-world schedule.</i>",
         WEEK_START: "<b>Change your preferred starting day for the week</b><br><i>Adjusts the calendar layout and weekly performance metrics.</i>",
@@ -6557,6 +7317,8 @@
         DEMO_EXIT: "Exit Demo Mode",
         DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>",
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
+        BACKFILL_AGREE_GATE: "Read and agree to start the backfill",
+        BACKFILL_RESUME_COOLDOWN: (t) => `Daily limit reached. Wait ${t} before resuming the Backfill.`,
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 
@@ -6668,7 +7430,7 @@
     }
 
     function buildFeatureGuideModalHTML() {
-        const guideSection = buildSection('Feature Guide', `<div class="bbgl-modal-scrollbox" style="max-height:calc(68vh - 80px); min-height:250px;"></div>`, 'margin-bottom:8px;');
+        const guideSection = buildSection('Feature Guide', `<div class="bbgl-modal-scrollbox" style="max-height:calc(68vh - 80px); min-height:250px;"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;');
         return `<div class="bbgl-modal-overlay" id="bbgl-feature-guide-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-feature-guide-close" title="Close">${ICONS.CLOSE}</div>${guideSection}</div></div>`;
     }
 
@@ -6685,6 +7447,58 @@
         modal.querySelector('#bbgl-feature-guide-close').onclick = () => closeFeatureGuideModal();
         modal.onclick = (e) => {
             if (e.target === modal) closeFeatureGuideModal();
+        };
+    }
+
+    const BACKFILL_TEXT = {
+        DISCLOSURE: `<strong>What the Backfill Does</strong><p>The Big Black Log Backfill walks your Torn activity log <strong>backward in time</strong>, one window at a time, rebuilding your full training history from today all the way to the very beginning of your account. It only ever reads gym training and the specific item logs this script tracks &mdash; nothing else.</p><strong>Torn's Cloud Limit</strong><p>Torn caps activity-log reads at <strong>50,000 rows per day</strong>, and that pool is <strong>shared</strong> across every script you run against the same key. The backfill stops itself well before that ceiling to leave room for normal use.</p><strong>How Fast It Calls</strong><p>The Torn API allows roughly <strong>100 calls per minute</strong>. To stay safely under that, the backfill deliberately paces itself (about one call every 0.7s, ~85/min). This is by design &mdash; it trades speed for safety.</p><strong>Large Logs May Take Several Days</strong><p>If your history is very large, a single run will hit the daily row limit before reaching the beginning. That is normal. The scan saves its progress, cools down for ~24 hours, and you simply <strong>resume it the next day</strong>, repeating until the whole log is backfilled.</p><strong>It Runs in the Background</strong><p>Once started, the scan runs in the background &mdash; you can keep using the panel and the rest of Torn and check back on its progress whenever you like. While a backfill is running, this script's other API calls are <strong>automatically paused</strong> so the scan owns the daily pool and no rate-limit errors occur. They resume on their own once the scan finishes.</p><strong>Partial Scans Are Still Complete</strong><p>If a run only reaches part of the way back, the data it did retrieve is <strong>100% complete for that span</strong>. Backfilled days are only shown once fully populated, so you never see a half-filled day &mdash; just a smaller, fully accurate window that grows each time you resume.</p>`
+    };
+
+    function buildBackfillModalHTML() {
+        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I have read and agree</label></div>`,
+            infoSection = buildSection('API Information', `<div class="bbgl-modal-scrollbox">${BACKFILL_TEXT.DISCLOSURE}${agreeRow}</div>`, 'margin-bottom:5px;'),
+            configSection = buildSection('Backfill Configuration', `<div class="bbgl-modal-scrollbox"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;'),
+            footer = `<div style="display:flex; justify-content:flex-end; margin:0 10px 4px 10px;"><span class="bbgl-agree-wrap" style="flex:0 0 auto; display:inline-flex;" data-tooltip="${TOOLTIPS.BACKFILL_AGREE_GATE}">${buildButton('bbgl-backfill-start-btn', 'Start', 'green', 'margin:0; min-width:96px;')}</span></div>`;
+        return `<div class="bbgl-modal-overlay" id="bbgl-backfill-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-backfill-close" title="Close">${ICONS.CLOSE}</div>${infoSection}${configSection}${footer}</div></div>`;
+    }
+
+    function closeBackfillModal() {
+        const m = document.getElementById('bbgl-backfill-modal');
+        if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+
+    function openBackfillModal() {
+        if (runtime.demoMode) return;
+        closeBackfillModal();
+        document.body.insertAdjacentHTML('beforeend', buildBackfillModalHTML());
+        const modal = document.getElementById('bbgl-backfill-modal');
+        if (!modal) return;
+        modal.querySelector('#bbgl-backfill-close').onclick = () => closeBackfillModal();
+        modal.onclick = (e) => {
+            if (e.target === modal) closeBackfillModal();
+        };
+        const startBtn = modal.querySelector('#bbgl-backfill-start-btn'),
+            startWrap = modal.querySelector('.bbgl-agree-wrap'),
+            agree = modal.querySelector('#bbgl-backfill-agree');
+        startBtn.classList.add('bbgl-btn-disabled');
+        const refreshStartState = () => {
+            if (agree.checked) {
+                startBtn.classList.remove('bbgl-btn-disabled');
+                if (startWrap) startWrap.removeAttribute('data-tooltip');
+            } else {
+                startBtn.classList.add('bbgl-btn-disabled');
+                if (startWrap) startWrap.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_AGREE_GATE);
+            }
+        };
+        agree.onchange = refreshStartState;
+        refreshStartState();
+        // Agreement is intentionally not persisted: starting the scan creates its own timers, which
+        // are the record. The disclaimer is shown fresh on every manual start.
+        startBtn.onclick = function() {
+            if (startBtn.classList.contains('bbgl-btn-disabled')) return;
+            this.blur();
+            closeBackfillModal();
+            backfillLogs(document.getElementById('backfill-btn'));
         };
     }
 
@@ -6790,14 +7604,14 @@
     }
 
     function buildWelcomeIntroSection() {
-        const body = `<div class="bbgl-author-block"><strong>By <a href="https://www.torn.com/profiles.php?XID=3550896" target="_blank" style="color:#69f0ae; text-decoration:none; border-bottom:1px dotted rgba(105,240,174,0.4); transition:border-color .2s;" onmouseover="this.style.borderBottomColor='#69f0ae'" onmouseout="this.style.borderBottomColor='rgba(105,240,174,0.4)'">BigBlackHawk</a></strong>When it comes to your stats, size matters! So stop guessing and start measuring. Prove to everyone you&rsquo;re a grower and not just a show-er.<br><br>Big Black Gym Log brings high-fidelity graphs and detailed logs to your training routine. Earn fun incentives, track your gains with high precision, and experience a tracking suite built to integrate seamlessly with Torn&rsquo;s native UI.</div><div class="bbgl-author-block" style="margin-top:0;">Please read the privacy disclosure or import an existing log below before continuing.</div>${buildButton('init-privacy-btn', 'PRIVACY DISCLOSURE', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;')}`;
+        const body = `<div class="bbgl-author-block"><strong>By <a class="bbgl-author-link" href="https://www.torn.com/profiles.php?XID=3550896" target="_blank">BigBlackHawk</a></strong>When it comes to your stats, size matters! So stop guessing and start measuring. Prove to everyone you&rsquo;re a grower and not just a show-er.<br><br>Big Black Gym Log brings high-fidelity graphs and detailed logs to your training routine. Earn fun incentives, track your gains with high precision, and experience a tracking suite built to integrate seamlessly with Torn&rsquo;s native UI.</div><div class="bbgl-author-block" style="margin-top:0;">Please read the privacy disclosure or import an existing log below before continuing.</div>${buildButton('init-privacy-btn', 'PRIVACY DISCLOSURE', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;')}`;
         return `<div class="bbgl-prefs-tab-title" style="border-radius:5px 5px 0 0; margin-top:0;">Welcome to Big Black Gym Log</div><div class="bbgl-settings-body" style="margin-bottom:5px;">${body}</div>`;
     }
 
     function buildWelcomeInitSection() {
         const inputHTML = buildApiEntryField('init', 'margin:8px 10px;');
         const createBtn = buildButton('init-create-api-btn', 'CREATE API KEY', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;');
-        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="init-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
+        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
         const startBtn = buildButton('init-start-btn', 'START TRACKING', 'green', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
         const body = `<div id="init-section-masked-body" class="bbgl-mask-host" data-mask-text="Please agree to the privacy disclosure first.">${inputHTML}${createBtn}${rows}${startBtn}</div>`;
         return buildSection('Initialization Settings', body, 'margin-bottom:5px;');
@@ -6818,7 +7632,8 @@
 
     function buildSettingsFeaturesSection() {
         const bestGymGroup = buildToggle('set-bestgym-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM}">BB Best Gym</span>`, 'bbgl-bestgym-lead') + buildToggle('set-bestgym-spec-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_SPEC}">Specialty Gyms</span>`, 'bbgl-subgroup-row') + buildToggle('set-bestgym-unpurch-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_UNPURCHASED}">Unpurchased Gyms</span>`, 'bbgl-subgroup-row bbgl-subgroup-row-last');
-        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + `<div class="bbgl-btn-grid" style="margin: 8px 10px; width: calc(100% - 20px);">` + buildButton('feature-guide-btn', 'FEATURE GUIDE', '', 'border-bottom-left-radius: 5px!important;') + buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', 'border-bottom-right-radius: 5px!important;') + `</div>`);
+        const backfillBtn = buildButton('backfill-btn', '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
+        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`) + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${backfillBtn}</div>`);
     }
 
     function buildSettingsLogFormatSection() {
@@ -6833,13 +7648,15 @@
     }
 
     function buildSettingsDataSection() {
-        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('deep-sync-btn', 'DEEP LOG SYNC', 'purple', 'margin: 0 10px 0 10px; width: calc(100% - 20px); display: block; border-radius: 0; border-bottom: none;') + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
+        const inner = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'margin: 8px 10px 0 10px; width: calc(100% - 20px); display: block; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;') + `<div class="bbgl-btn-grid" style="margin: 0 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-radius: 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-radius: 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>` + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
         return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inner}</div>`);
     }
 
     function buildSettingsInfoSection() {
-        const stack = `<div style="margin: 8px 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-top-left-radius: 0; border-top-right-radius: 0; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
-        return buildSection('Information', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>`);
+        const guideBtn = buildButton('feature-guide-btn', 'FEATURE GUIDE', '', 'margin: 8px 10px 0 10px; width: calc(100% - 20px); display: block; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;');
+        const stack = `<div style="margin: 0 10px 0 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-radius: 0; border-bottom: none; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
+        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
+        return buildSection('Information', guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>${demoBtn}`);
     }
 
     function getSettingsHTML() {
@@ -6850,7 +7667,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
     }
 
     /**
@@ -6947,9 +7764,8 @@
                     sr[s] = DataController.getHistoricalRate(_prevDateStr, s);
                 });
             } else {
-                const _or = (h.meta && h.meta.originRates) || {};
                 st.forEach(s => {
-                    sr[s] = _or[s] || 0;
+                    sr[s] = DataController.getOriginRate(s);
                 });
             }
             sr.total = st.reduce((a, b) => a + (sr[b] || 0), 0);
@@ -6966,7 +7782,7 @@
                     for (let j = ser.length - 1; j >= 0; j--) {
                         const e = ser[j];
                         if (e.stat === s && e.cost > 0) {
-                            ur[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                            ur[s] = e.rate;
                             break;
                         }
                     }
@@ -6994,7 +7810,7 @@
                         for (let i = ser.length - 1; i >= 0; i--) {
                             const e = ser[i];
                             if (e.stat === s && e.cost > 0 && (e.ts * 1000) <= cutoffMs) {
-                                rates[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                rates[s] = e.rate;
                                 break;
                             }
                         }
@@ -7015,7 +7831,7 @@
                 if (raw && raw.series) st.forEach(s => {
                     if (sr[s] === 0) {
                         const fLog = raw.series.find(l => l.stat === s);
-                        if (fLog && fLog.cost > 0) sr[s] = (fLog.gain / fLog.cost) * 150;
+                        if (fLog && fLog.cost > 0) sr[s] = fLog.rate;
                     }
                 });
                 const ser = (raw && raw.series) ? raw.series : [];
@@ -7288,7 +8104,7 @@
                         for (let j = allSer.length - 1; j >= 0; j--) {
                             const e = allSer[j];
                             if (e.stat === s && e.cost > 0) {
-                                r[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                r[s] = e.rate;
                                 break;
                             }
                         }
@@ -7344,7 +8160,7 @@
                                 for (let j = allSer.length - 1; j >= 0; j--) {
                                     const e = allSer[j];
                                     if (e.stat === s && e.cost > 0) {
-                                        liveRates[s] = e.rate !== undefined ? e.rate : (e.gain / e.cost) * 150;
+                                        liveRates[s] = e.rate;
                                         break;
                                     }
                                 }
@@ -8976,6 +9792,12 @@
             document.title = "Gym Log | TORN";
             document.body.classList.add('bbgl-page-mode-active');
             renderPageMode();
+            if (localStorage.getItem(KEYS.CHANGELOG_NOTIF) === '1') {
+                localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION);
+                localStorage.removeItem(KEYS.CHANGELOG_NOTIF);
+                syncChangelogNotif(false);
+                setTimeout(() => openChangelogModal(), 400);
+            }
         } else {
             document.body.classList.remove('bbgl-page-mode-active');
             const cw = document.querySelector('.content-wrapper'),
@@ -9544,7 +10366,7 @@
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
-    let _deepScanCountdownId = null;
+    let _backfillCountdownId = null;
 
     function formatCountdown(ms) {
         const total = Math.max(0, Math.ceil(ms / 1000));
@@ -9555,21 +10377,24 @@
         return `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
 
-    // Reflects deep-scan state onto the button. Idle -> "DEEP LOG SYNC". A finished scan holds
-    // "Scan Complete!" until clicked (acknowledged). A budget-capped scan shows
-    // "Scan Partially Completed" with a "?" info icon (live countdown tooltip) and is inert until
-    // the cooldown expires, after which it reverts to idle and a click resumes where it left off.
-    function renderDeepScanButton() {
-        const btn = document.getElementById('deep-sync-btn');
+    // Reflects backfill state onto the button and wires its per-state click behavior:
+    //  - idle: responsive label; clicking opens the disclaimer/config modal.
+    //  - complete (unacknowledged): "Scan Complete!" in green with a clickable checkmark the user
+    //    taps to retire the confirmation (the data is already live). The button body itself is inert.
+    //  - partial + cooling down: "Partial Scan Complete! Resume?", dimmed and inert, with a live
+    //    countdown tooltip on the whole button (hover/tap to see how long until resume).
+    //  - partial + cooldown elapsed: same label, full opacity, clicking resumes immediately (no modal).
+    function renderBackfillButton() {
+        const btn = document.getElementById('backfill-btn');
         if (!btn) return;
-        if (_deepScanCountdownId) {
-            clearInterval(_deepScanCountdownId);
-            _deepScanCountdownId = null;
+        if (_backfillCountdownId) {
+            clearInterval(_backfillCountdownId);
+            _backfillCountdownId = null;
         }
-        if (runtime.demoMode || runtime.deepScanning) return;
+        if (runtime.demoMode || runtime.backfilling) return;
 
         const s = getActiveHistory();
-        const ds = s.meta && s.meta.deepScan;
+        const ds = s.meta && s.meta.backfill;
 
         // Reset to a clean baseline before applying the active state.
         btn.style.pointerEvents = 'auto';
@@ -9577,29 +10402,50 @@
         btn.style.color = '';
         btn.removeAttribute('data-tooltip');
         delete btn.dataset.originalText;
+        btn.onclick = null;
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
-            btn.textContent = 'Scan Complete!';
             btn.style.color = '#43a047';
+            btn.innerHTML = `Scan Complete!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
+            const ack = btn.querySelector('#bbgl-backfill-ack');
+            if (ack) ack.onclick = (e) => {
+                e.stopPropagation();
+                acknowledgeBackfill();
+            };
             return;
         }
 
         if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
             btn.style.opacity = '0.6';
+            btn.textContent = 'Partial Scan Complete! Resume?';
             const render = () => {
                 const remaining = ds.cooldownUntil - Date.now();
                 if (remaining <= 0) {
-                    renderDeepScanButton();
+                    renderBackfillButton();
                     return;
                 }
-                btn.innerHTML = `Scan Partially Completed<span class="bbgl-deep-info" data-tooltip="Your logs are too large to finish in one day (Torn's daily limit). Come back in ${formatCountdown(remaining)} to resume where it left off." style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;border:1px solid currentColor;font-size:10px;line-height:1;cursor:help;vertical-align:middle;">?</span>`;
+                btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(remaining)));
             };
             render();
-            _deepScanCountdownId = setInterval(render, 1000);
+            _backfillCountdownId = setInterval(render, 1000);
             return;
         }
 
-        btn.textContent = 'DEEP LOG SYNC';
+        if (ds && ds.lastResult === 'partial') {
+            // Cooldown elapsed: stay in the resume state until the log is fully backfilled.
+            btn.textContent = 'Partial Scan Complete! Resume?';
+            btn.onclick = function() {
+                this.blur();
+                backfillLogs(this);
+            };
+            return;
+        }
+
+        btn.innerHTML = '<span class="view-std">BB Log Backfill</span><span class="view-exp">Big Black Log Backfill</span>';
+        btn.onclick = function() {
+            this.blur();
+            openBackfillModal();
+        };
     }
 
     function setupEventListeners(root) {
@@ -9631,17 +10477,8 @@
             runtime.stickerData = [];
             _historyCache = null;
             DataController.invalidate();
-            DBManager.getStorage().then(stored => {
-                if (stored) {
-                    if (!stored.meta) stored.meta = {};
-                    const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
-                    _historyCache = {
-                        meta: stored.meta,
-                        history: rebuilt.history,
-                        today: rebuilt.today
-                    };
-                    sessionStorage.setItem(KEYS.SESSION_CACHE, serializeForSession(_historyCache));
-                }
+            DBManager.loadHistory().then(loaded => {
+                DataController.hydrate(loaded);
                 if (userConfig.apiKey) {
                     checkStaleness();
                     startBackgroundSync();
@@ -9705,32 +10542,14 @@
             e.stopPropagation();
             const cs = runtime.currentStats;
             if (!cs) return;
-            const {
-                sl,
-                s
-            } = cs;
-            let ds = '';
-            if (sl._dailyList && sl._dailyList.length > 1) ds = `${Formatter.dateFull(sl._dailyList[0].date)} - ${Formatter.dateFull(sl._dailyList[sl._dailyList.length - 1].date)}`;
-            else ds = Formatter.dateFull(sl.date);
-            const fM = (v) => (Math.abs(v) >= 1e9) ? Formatter.abbr(v, 4) : Formatter.number(v);
-            const statEmoji = {
-                str: "\uD83D\uDCAA",
-                def: "\uD83D\uDEE1\uFE0F",
-                spd: "\uD83C\uDFAF",
-                dex: "\uD83E\uDD3A"
-            };
-            const statNames = {
-                str: "Strength",
-                def: "Defense",
-                spd: "Speed",
-                dex: "Dexterity"
-            };
-            const statLines = ["str", "def", "spd", "dex"].filter(k => s[k].gain > 0 || s[k].cost > 0).map(k => `${statEmoji[k]}${statNames[k]}: +${fM(s[k].gain)} (${fM(s[k].start)} \u2192 ${fM(s[k].end)})`);
-            const eTxt = s.total.cost > 0 ? `\u26A1${Formatter.number(s.total.cost)} E` : "\uD83D\uDECC I was a lazy POS.";
-            let txt = [`\uD83D\uDC51BBGymLog`, `${ds} |${eTxt}`, ...statLines].join("\n");
+            const { sl, s } = cs;
+            const txt = buildSessionText(sl, s, ['str', 'def', 'spd', 'dex']);
             navigator.clipboard.writeText(txt).then(() => {
-                const oH = cpb.innerHTML,
-                    oC = cpb.style.color;
+                // Flash all four stat columns on the ledger.
+                const cols = dom.ledgerView ? Array.from(dom.ledgerView.querySelectorAll('.stat-column')) : [];
+                if (cols.length) flashCopied(cols);
+                // Also animate the copy button itself.
+                const oH = cpb.innerHTML, oC = cpb.style.color;
                 cpb.innerHTML = ICONS.CHECK;
                 cpb.style.color = '#69f0ae';
                 cpb.style.opacity = '1';
@@ -9741,6 +10560,24 @@
                 }, 1000);
             });
         };
+
+        // Delegated click on the ledger view: clicking a stat label copies that stat's data.
+        if (dom.ledgerView) {
+            dom.ledgerView.addEventListener('click', (e) => {
+                const label = e.target.closest('.bbgl-copy-label');
+                if (!label) return;
+                const col = label.closest('.stat-column');
+                if (!col) return;
+                const k = col.getAttribute('data-copy-stat');
+                if (!k) return;
+                const cs = runtime.currentStats;
+                if (!cs) return;
+                const { sl, s } = cs;
+                if (!s[k]) return;
+                const txt = buildSessionText(sl, s, [k]);
+                navigator.clipboard.writeText(txt).then(() => flashCopied(col));
+            });
+        }
         const gt = get('bbgl-graph-toggle');
         if (gt) gt.onclick = toggleGraphView;
         const act = get('bbgl-achievements-toggle');
@@ -9814,6 +10651,19 @@
                     GraphController.restoreUi();
                     GraphController.draw();
                 } else {
+                    const sd = calendarState.selectedData;
+                    renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical());
+                }
+            };
+        }
+        const dtk = get('set-drug-tracker');
+        if (dtk) {
+            dtk.value = userConfig.drugTracker || 'xanax';
+            dtk.onchange = () => {
+                userConfig.drugTracker = dtk.value;
+                saveConfig();
+                const tp = dom.topPanel;
+                if (!tp || !tp.classList.contains('viewing-graph')) {
                     const sd = calendarState.selectedData;
                     renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical());
                 }
@@ -9943,12 +10793,9 @@
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
-        const dsb = get('deep-sync-btn');
-        if (dsb) dsb.onclick = function() {
-            this.blur();
-            deepLogSync(this);
-        };
-        renderDeepScanButton();
+        // The backfill button's click behavior is state-dependent (open modal / resume / acknowledge),
+        // so renderBackfillButton owns wiring its onclick for the current state.
+        renderBackfillButton();
         const clb = get('clear-btn');
         if (clb) clb.onclick = function() {
             this.blur();
@@ -10066,6 +10913,11 @@
                 passive: true
             });
             achContainer.addEventListener('click', (e) => {
+                const colHeader = e.target.closest('.bbgl-ach-col-copy');
+                if (colHeader) {
+                    handleAchCopy(colHeader);
+                    return;
+                }
                 const statCell = e.target.closest('.bbgl-ach-stat-cell');
                 if (statCell) {
                     handleAchCopy(statCell);
@@ -10076,7 +10928,7 @@
                     handleAchCopy(group);
                     return;
                 }
-                const row = e.target.closest('.bbgl-ach-section-title, .bbgl-ach-row');
+                const row = e.target.closest('.bbgl-ach-section-title, .bbgl-ach-subsection-title, .bbgl-ach-row');
                 if (row) handleAchCopy(row);
             });
         }
@@ -10222,13 +11074,23 @@
             }
         }
         if (!runtime.demoMode) {
+            // Self-heal the install date: if privacyAgreed is missing or unparseable (e.g. corrupted
+            // by an older export/import round-trip), stamp it to now. This only governs when reward
+            // (sticker/XP) gating begins — it never touches log data.
+            if (!userConfig.privacyAgreed || isNaN(Date.parse(userConfig.privacyAgreed))) {
+                userConfig.privacyAgreed = new Date().toISOString();
+                saveConfig();
+            }
             try {
                 await DBManager.initDB();
-                const stored = await DBManager.getStorage();
-                DataController.syncCache(stored);
+                // Fast boot: load pre-built day objects directly (no series flatten, no
+                // _rebuildFromSeries, no session serialization) so every page navigation stays
+                // light regardless of how large the backfilled history is.
+                const loaded = await DBManager.loadHistory();
+                DataController.hydrate(loaded);
                 GraphController.applyDefaultsIfNeeded();
-                renderDeepScanButton();
-                if (stored && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
+                renderBackfillButton();
+                if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
             }
@@ -10241,7 +11103,7 @@
         });
         window.addEventListener('bbgl:dataUpdated', () => {
             renderPanelContent();
-            renderDeepScanButton();
+            renderBackfillButton();
         });
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch() {

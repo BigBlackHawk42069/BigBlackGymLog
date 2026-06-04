@@ -11,10 +11,10 @@
                 maximumFractionDigits: d
             });
         },
-        abbr(n, d = 1) {
+        abbr(n, d = 1, upper = false, strip = false) {
             if (!n && n !== 0) return '0';
             const abs = Math.abs(n);
-            if (abs < 1000) return Math.floor(n).toString();
+            if (abs < 1000) return Math.trunc(n).toString();
             const tiers = [
                 [1e15, 'q'],
                 [1e12, 't'],
@@ -23,7 +23,12 @@
                 [1e3, 'k']
             ];
             for (const [mag, suffix] of tiers) {
-                if (abs >= mag) return (n / mag).toFixed(d) + suffix;
+                if (abs >= mag) {
+                    let dec = typeof d === 'function' ? d(mag, abs) : d;
+                    let s = (n / mag).toFixed(dec);
+                    if (strip) s = parseFloat(s).toString();
+                    return s + (upper ? suffix.toUpperCase() : suffix);
+                }
             }
             return Math.floor(n).toString();
         },
@@ -32,6 +37,16 @@
             if (n < 1000) return this.number(n, exp ? 2 : 1);
             if (exp) return this.number(Math.floor(n), 0);
             return this.abbr(n, 1);
+        },
+        achGain(v) {
+            const a = Math.abs(v);
+            if (a < 100) return this.number(v, 1);
+            if (a < 1000) return this.number(v, 0);
+            return this.abbr(v, (m, abs) => m === 1e9 ? 4 : m === 1e6 ? 3 : (abs >= 1e4 ? 2 : 1), true, false);
+        },
+        ratePct(v) {
+            if (Math.abs(v) < 1000) return this.number(v, 0);
+            return this.abbr(v, 2, true, true);
         },
         dual(val, r = false) {
             let std, exp;
@@ -46,23 +61,8 @@
         },
         axis(n) {
             if (n === 0) return '0';
-            const abs = Math.abs(n);
-            let div = 1,
-                s = '';
-            if (abs >= 1e12) {
-                div = 1e12;
-                s = 't';
-            } else if (abs >= 1e9) {
-                div = 1e9;
-                s = 'b';
-            } else if (abs >= 1e6) {
-                div = 1e6;
-                s = 'm';
-            } else if (abs >= 1e3) {
-                div = 1e3;
-                s = 'k';
-            }
-            return (Math.round((n / div) * 10) / 10) + s;
+            if (Math.abs(n) < 1000) return (Math.round(n * 10) / 10).toString();
+            return this.abbr(n, 1, false, true);
         },
         parse(s) {
             if (!s) return new Date();
@@ -275,31 +275,44 @@
         return 1 + Math.round(((date.getTime() - w1.getTime()) / 86400000 - 3 + (w1.getUTCDay() + 6) % 7) / 7);
     }
 
-    function computeWeekCompletion(days, hjDaySet = null, hjCount = 0, dHjDaySet = null) {
+    function computeWeekCompletion(days, hjDaySet = null, hjCount = 0) {
         let totGreen = 0,
             totGold = 0,
             totDiamond = 0;
-        const jumpGold = hjCount >= GAME.GOLD_WEEK_JUMPS;
+            
+        const jumpGold = hjCount === GAME.GOLD_WEEK_JUMPS;
+        const jumpDiamond = hjCount >= GAME.DIAMOND_WEEK_JUMPS;
+
         days.forEach(d => {
             const e = d.eSpent ? d.eSpent.total : 0;
             const isHJ = hjDaySet ? hjDaySet.has(d.date) : false;
-            const isDiamondHJ = isHJ && dHjDaySet && dHjDaySet.has(d.date);
+
             if (isHJ) {
-                if (e >= 2000 || isDiamondHJ) totDiamond += GAME.POINTS_HJ_DIAMOND;
-                else if (e >= 1500) totGold += GAME.POINTS_HJ_GOLD;
-                else if (jumpGold) totGold += GAME.POINTS_HJ_GREEN;
+                let tier = 'GREEN';
+                if (e >= 2000) tier = 'DIAMOND';
+                else if (e >= 1500) tier = 'GOLD';
+
+                if (jumpDiamond) tier = 'DIAMOND';
+                else if (jumpGold && tier === 'GREEN') tier = 'GOLD';
+
+                if (tier === 'DIAMOND') totDiamond += GAME.POINTS_HJ_DIAMOND;
+                else if (tier === 'GOLD') totGold += GAME.POINTS_HJ_GOLD;
                 else totGreen += GAME.POINTS_HJ_GREEN;
                 return;
             }
+
             let base = 0;
             if (e >= 2000) base = GAME.POINTS_DIAMOND;
             else if (e >= 1500) base = GAME.POINTS_GOLD;
             else if (e >= 1000) base = GAME.POINTS_GREEN;
+            
             if (base === 0) return;
+            
             if (base === GAME.POINTS_DIAMOND) totDiamond += base;
             else if (base === GAME.POINTS_GOLD) totGold += base;
             else totGreen += base;
         });
+        
         const total = totGreen + totGold + totDiamond;
         const goldOrBetter = totGold + totDiamond;
         return {
@@ -318,5 +331,14 @@
         const offset = userConfig.weekStartMode === 'mon' ? (dayIdx === 0 ? 6 : dayIdx - 1) : dayIdx;
         const weekStart = new Date(d.getTime() - offset * 86400000);
         return Formatter.dateISO(weekStart.getUTCFullYear(), weekStart.getUTCMonth(), weekStart.getUTCDate());
+    }
+
+    // Week-key of the install date (privacyAgreed). Rewards (stickers now, XP later) are only
+    // eligible for weeks with key >= this. Respects the user's day-start and week-start modes.
+    // Returns null if unknown (no gating) — but init() self-heals privacyAgreed so this is rare.
+    function getInstallWeekKey() {
+        const ms = userConfig.privacyAgreed ? Date.parse(userConfig.privacyAgreed) : NaN;
+        if (isNaN(ms)) return null;
+        return getWeekKey(Formatter.dateLogical(ms));
     }
 
