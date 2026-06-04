@@ -197,8 +197,8 @@
     // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
     // clear on resume.
     const BACKFILL = {
-        SOFT_CAP: 35000,   // stop *starting* new days once crossed
-        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
+        SOFT_CAP: 30000,   // stop *starting* new days once crossed
+        HARD_CAP: 32000,   // absolute failsafe, normally never reached, keeps us < 50k
         COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
         THROTTLE_MS: 700
     };
@@ -1878,6 +1878,10 @@
                     #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-page0 .bbgl-ach-grid-header, /*----*/
                     #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-page0 .bbgl-ach-row-multi { /*-----*/
                     grid-template-columns:minmax(0,28%) repeat(4,minmax(0,1fr)); } /*----------------------------------------*/
+                    #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-title { /*------------------------*/
+                    font-size:clamp(10px,2cqi,12px); } /*----------------------------------------------------------------*/
+                    #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-subsection-title { /*------------------*/
+                    font-size:clamp(9px,1.6cqi,10px); } /*---------------------------------------------------------------*/
                     .bbgl-ach-section-page1 .ach-streak-date { grid-column:1; text-align:left; margin:0; /*------------*/
                     padding-left:15%; padding-right:4px; line-height:1.15; white-space:nowrap; overflow:visible; } /*--*/
                     .ach-streak-days-inline { display:inline; } /*------------------------------------------------*/
@@ -2616,6 +2620,7 @@
         const result = await universalFetch(mission, options);
 
         if (result.ok) {
+            scheduleHeartbeat();
             if (btn) {
                 btn.innerText = "Refreshed!";
                 btn.style.color = "#43a047";
@@ -2635,30 +2640,35 @@
         Perf.end('syncWithFeedback');
     }
 
-    // This function runs in the background to keep your training data up to date while the page is open.
-    // Heartbeat: a single FULL_SYNC reconciliation (battlestats + trains/energy + stat/happy) every
-    // 2 hours. The old lightweight BATTLESTATS_ONLY tick is gone — the `from=`-bounded reconcile is
-    // already cheap, and battlestats can no longer ride a log request anyway.
-    function startBackgroundSync() {
-        if (runtime.bgSyncId) clearInterval(runtime.bgSyncId);
-        runtime.bgSyncId = setInterval(function bgSyncTick() {
-            universalFetch('FULL_SYNC');
-        }, 7200000);
+    // Schedules the next background reconciliation based on when the last FULL_SYNC occurred.
+    // Replaces the old fixed setInterval — the timer anchors to the last real sync from any
+    // source (gym exit, manual refresh, or the heartbeat itself) rather than restarting blindly
+    // from page load. On init: fires immediately if stale (>2 hours or never synced), or waits
+    // out the remainder of the current 2-hour window. Any FULL_SYNC completion path that calls
+    // scheduleHeartbeat() resets the clock to a fresh 2-hour window from that moment.
+    function scheduleHeartbeat() {
+        if (runtime.bgSyncId) clearTimeout(runtime.bgSyncId);
+        const lastFull = localStorage.getItem(KEYS.LAST_SYNC);
+        const elapsed = lastFull ? (Date.now() - parseInt(lastFull)) : Infinity;
+        const delay = elapsed >= 7200000 ? 0 : (7200000 - elapsed);
+        runtime.bgSyncId = setTimeout(async function bgSyncTick() {
+            runtime.bgSyncId = null;
+            await universalFetch('FULL_SYNC');
+            scheduleHeartbeat();
+        }, delay);
     }
 
-    // This checks if your data is old and needs a refresh when you first open the gym.
-    function checkStaleness() {
-        const lastFull = localStorage.getItem(KEYS.LAST_SYNC),
-            now = Date.now();
-        if (!lastFull || (now - parseInt(lastFull) > 7200000)) universalFetch('FULL_SYNC');
+    function startBackgroundSync() {
+        scheduleHeartbeat();
     }
 
     // This makes sure your final gym training logs are saved even if you navigate away from the gym page.
-    function checkExitSync() {
+    async function checkExitSync() {
         const f = sessionStorage.getItem(KEYS.SESSION);
         if (f === 'true' && !window.location.href.includes('gym.php')) {
-            universalFetch('FULL_SYNC');
             sessionStorage.removeItem(KEYS.SESSION);
+            await universalFetch('FULL_SYNC');
+            scheduleHeartbeat();
         }
     }
 
@@ -5285,6 +5295,28 @@
         };
     }
 
+    function achGetWeekBA(weekOf, stat) {
+        const s = getActiveHistory();
+        const all = [...(s.history || [])];
+        if (s.today && s.today.date) {
+            const i = all.findIndex(d => d.date === s.today.date);
+            if (i >= 0) all[i] = s.today;
+            else all.push(s.today);
+        }
+        const startD = new Date(weekOf + 'T00:00:00Z');
+        const endD = new Date(startD);
+        endD.setUTCDate(endD.getUTCDate() + 6);
+        const endStr = Formatter.dateISO(endD.getUTCFullYear(), endD.getUTCMonth(), endD.getUTCDate());
+        const days = all
+            .filter(d => d.date >= weekOf && d.date <= endStr && ((d.gains && d.gains[stat]) || 0) > 0)
+            .sort((a, b) => a.date.localeCompare(b.date));
+        if (!days.length) return null;
+        return {
+            before: (days[0].startBreakdown && days[0].startBreakdown[stat]) || 0,
+            after: (days[days.length - 1].endBreakdown && days[days.length - 1].endBreakdown[stat]) || 0
+        };
+    }
+
     function achFmtBA(ba) {
         return ba ? Formatter.number(ba.before) + ' \u2192 ' + Formatter.number(ba.after) : null;
     }
@@ -7380,9 +7412,9 @@
         syncSiblingSelect('init-week-start', 'set-week-start', val);
     }
     const PRIVACY_TEXT = {
-        DISCLOSURE: `<strong>What API Key is Needed?</strong><p>Since the Torn API lacks a direct endpoint for training energy (E), this script requires an API key with log and battlestats access to read your training records. This is the only way to accurately calculate your energy spent. Without this level of access, the script&rsquo;s core mechanics would not be possible.</p><strong>How Your Data Is Handled</strong><p>When accessing logs, this script only retrieves the specific training data for each stat &mdash; no other logs are read. All data retrieved from your API key is <strong>processed locally within your browser</strong>. This script <strong>does not transmit, store, or share your data externally</strong> in any way. I, as the developer, do not have access to your logs, API data, or any information generated by your use of this script.</p><strong>Transparency &amp; Verification</strong><p>For full transparency, you can verify how your data is handled by reviewing the script's source code. Specifically, you can search for the section titled "THE CHECK-IN COUNTER," which clearly shows how and where data is processed. This allows you to independently confirm that all data remains on your device.</p>`,
+        DISCLOSURE: `<strong>What API Key is Needed?</strong><p>Since the Torn API lacks a direct endpoint for training energy (E), this script requires an API key with log and battlestats access to read your training records. This is the only way to accurately calculate your energy spent. Without this level of access, the script&rsquo;s core mechanics would not be possible.</p><strong>API Call Frequency &amp; Limits</strong><p>This script makes <strong>1 call</strong> when you click Train, and a <strong>3-call reconciliation</strong> in three situations: when you leave the gym after a session, when you tap the manual Refresh button, and automatically in the background &mdash; no sooner than 2 hours after the last sync of any kind.</p><p>An optional <strong>Backfill</strong> feature is also available to import your full historical training data. Tapping the Backfill button opens a dedicated screen that fully explains how that process works and requires your explicit agreement before any scan begins.</p><strong>How Your Data Is Handled</strong><p>When accessing logs, this script only retrieves the specific training data for each stat &mdash; no other logs are read. All data retrieved from your API key is <strong>processed locally within your browser</strong>. This script <strong>does not transmit, store, or share your data externally</strong> in any way. I, as the developer, do not have access to your logs, API data, or any information generated by your use of this script.</p><strong>Transparency &amp; Verification</strong><p>For full transparency, you can verify how your data is handled by reviewing the script's source code. Specifically, you can search for the section titled "THE CHECK-IN COUNTER," which clearly shows how and where data is processed. This allows you to independently confirm that all data remains on your device.</p>`,
         ACK_INTRO: `<div style="padding:0 0 8px 0; color:#bbb; font-size:12px;">By using this script, you acknowledge and agree to the following:</div>`,
-        ACK_ITEMS: ["I understand that this script requires full log access solely due to limitations in Torn's API.", "I understand that all data is processed and stored locally within my own browser.", "I understand that no data is transmitted, stored externally, or accessible to the developer.", "I understand that I can verify these claims by reviewing the script's source code, specifically the \"THE CHECK-IN COUNTER\" section.", "I understand I can use Demo mode to test the script before registering any API Key or agreeing to this disclosure."]
+        ACK_ITEMS: ["I understand that this script requires full log access solely due to limitations in Torn's API.", "I understand this script's API usage and that it is designed to stay well within Torn's rate limits.", "I understand that all data is processed and stored locally within my own browser, and is never transmitted, stored externally, or accessible to the developer.", "I understand that I can verify these claims by reviewing the script's source code, specifically the \"THE CHECK-IN COUNTER\" section.", "I understand I can use Demo mode to test the script before registering any API Key or agreeing to this disclosure."]
     };
 
     function buildPrivacyModalHTML(reviewMode) {
@@ -7451,12 +7483,12 @@
     }
 
     const BACKFILL_TEXT = {
-        DISCLOSURE: `<strong>What the Backfill Does</strong><p>The Big Black Log Backfill walks your Torn activity log <strong>backward in time</strong>, one window at a time, rebuilding your full training history from today all the way to the very beginning of your account. It only ever reads gym training and the specific item logs this script tracks &mdash; nothing else.</p><strong>Torn's Cloud Limit</strong><p>Torn caps activity-log reads at <strong>50,000 rows per day</strong>, and that pool is <strong>shared</strong> across every script you run against the same key. The backfill stops itself well before that ceiling to leave room for normal use.</p><strong>How Fast It Calls</strong><p>The Torn API allows roughly <strong>100 calls per minute</strong>. To stay safely under that, the backfill deliberately paces itself (about one call every 0.7s, ~85/min). This is by design &mdash; it trades speed for safety.</p><strong>Large Logs May Take Several Days</strong><p>If your history is very large, a single run will hit the daily row limit before reaching the beginning. That is normal. The scan saves its progress, cools down for ~24 hours, and you simply <strong>resume it the next day</strong>, repeating until the whole log is backfilled.</p><strong>It Runs in the Background</strong><p>Once started, the scan runs in the background &mdash; you can keep using the panel and the rest of Torn and check back on its progress whenever you like. While a backfill is running, this script's other API calls are <strong>automatically paused</strong> so the scan owns the daily pool and no rate-limit errors occur. They resume on their own once the scan finishes.</p><strong>Partial Scans Are Still Complete</strong><p>If a run only reaches part of the way back, the data it did retrieve is <strong>100% complete for that span</strong>. Backfilled days are only shown once fully populated, so you never see a half-filled day &mdash; just a smaller, fully accurate window that grows each time you resume.</p>`
+        DISCLOSURE: `<strong>What the Backfill Does</strong><p>The Big Black Log Backfill walks your Torn activity log backward in time, one window at a time, rebuilding your full training history from today all the way to the very beginning of your account. It only ever reads gym training and the specific item logs this script tracks. Nothing else.</p><strong>Torn's Cloud Limit</strong><p>Torn caps activity-log reads at <strong>50,000 rows per day</strong>, and that pool is shared across every script running against the same user ID and API key. The backfill limits itself to <strong>30,000 rows per run</strong>, with an enforced cap to back that up. The remaining <strong>20,000 rows</strong> is well above what multiple active scripts need over many days of normal use. This level of consumption only ever occurs during the initial backfill. Once your log is fully built out, this script's routine sync calls are lightweight by comparison and will never come close to this threshold again.</p><strong>How Fast It Calls</strong><p>The Torn API allows roughly <strong>100 calls per minute</strong>. To stay safely under that, the backfill deliberately paces itself at about one call every 0.7 seconds (~85/min). This, by design, trades speed for safety.</p><strong>It Runs in the Background</strong><p>Once started, the scan runs in the background. You can keep using the panel and the rest of Torn and check back on progress whenever you like. While a backfill is running, this script's other API calls are <strong>automatically paused</strong> so the scan owns the daily pool and no rate-limit errors occur. They resume on their own once the scan finishes.</p><strong>Large Logs May Take Several Days</strong><p>If your history is very large, a single run will hit the daily row limit before reaching the beginning. That is normal. The scan saves its progress, cools down for ~24 hours, and you simply <strong>resume it the next day</strong>, repeating until the whole log is backfilled.</p><strong>Partial Scans Are Still Complete</strong><p>If a run only reaches part of the way back, the data it did retrieve is <strong>100% complete for that span</strong>. Backfilled days are only shown once fully populated, so you never see a half-filled day. Just a smaller, fully accurate window that grows each time you resume.</p>`
     };
 
     function buildBackfillModalHTML() {
-        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I have read and agree</label></div>`,
-            infoSection = buildSection('API Information', `<div class="bbgl-modal-scrollbox">${BACKFILL_TEXT.DISCLOSURE}${agreeRow}</div>`, 'margin-bottom:5px;'),
+        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I understand what the Backfill does, how it uses my API key, and what to expect.</label></div>`,
+            infoSection = buildSection('Big Black Dicslosure', `<div class="bbgl-modal-scrollbox">${BACKFILL_TEXT.DISCLOSURE}${agreeRow}</div>`, 'margin-bottom:5px;'),
             configSection = buildSection('Backfill Configuration', `<div class="bbgl-modal-scrollbox"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;'),
             footer = `<div style="display:flex; justify-content:flex-end; margin:0 10px 4px 10px;"><span class="bbgl-agree-wrap" style="flex:0 0 auto; display:inline-flex;" data-tooltip="${TOOLTIPS.BACKFILL_AGREE_GATE}">${buildButton('bbgl-backfill-start-btn', 'Start', 'green', 'margin:0; min-width:96px;')}</span></div>`;
         return `<div class="bbgl-modal-overlay" id="bbgl-backfill-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-backfill-close" title="Close">${ICONS.CLOSE}</div>${infoSection}${configSection}${footer}</div></div>`;
@@ -10480,12 +10512,10 @@
             DBManager.loadHistory().then(loaded => {
                 DataController.hydrate(loaded);
                 if (userConfig.apiKey) {
-                    checkStaleness();
                     startBackgroundSync();
                 }
             }).catch(e => {
                 if (userConfig.apiKey) {
-                    checkStaleness();
                     startBackgroundSync();
                 }
             });
@@ -11207,7 +11237,6 @@
             }
         });
         if (!runtime.demoMode) {
-            checkStaleness();
             startBackgroundSync();
             checkExitSync();
         }

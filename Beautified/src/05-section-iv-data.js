@@ -524,6 +524,7 @@
         const result = await universalFetch(mission, options);
 
         if (result.ok) {
+            scheduleHeartbeat();
             if (btn) {
                 btn.innerText = "Refreshed!";
                 btn.style.color = "#43a047";
@@ -543,30 +544,35 @@
         Perf.end('syncWithFeedback');
     }
 
-    // This function runs in the background to keep your training data up to date while the page is open.
-    // Heartbeat: a single FULL_SYNC reconciliation (battlestats + trains/energy + stat/happy) every
-    // 2 hours. The old lightweight BATTLESTATS_ONLY tick is gone — the `from=`-bounded reconcile is
-    // already cheap, and battlestats can no longer ride a log request anyway.
-    function startBackgroundSync() {
-        if (runtime.bgSyncId) clearInterval(runtime.bgSyncId);
-        runtime.bgSyncId = setInterval(function bgSyncTick() {
-            universalFetch('FULL_SYNC');
-        }, 7200000);
+    // Schedules the next background reconciliation based on when the last FULL_SYNC occurred.
+    // Replaces the old fixed setInterval — the timer anchors to the last real sync from any
+    // source (gym exit, manual refresh, or the heartbeat itself) rather than restarting blindly
+    // from page load. On init: fires immediately if stale (>2 hours or never synced), or waits
+    // out the remainder of the current 2-hour window. Any FULL_SYNC completion path that calls
+    // scheduleHeartbeat() resets the clock to a fresh 2-hour window from that moment.
+    function scheduleHeartbeat() {
+        if (runtime.bgSyncId) clearTimeout(runtime.bgSyncId);
+        const lastFull = localStorage.getItem(KEYS.LAST_SYNC);
+        const elapsed = lastFull ? (Date.now() - parseInt(lastFull)) : Infinity;
+        const delay = elapsed >= 7200000 ? 0 : (7200000 - elapsed);
+        runtime.bgSyncId = setTimeout(async function bgSyncTick() {
+            runtime.bgSyncId = null;
+            await universalFetch('FULL_SYNC');
+            scheduleHeartbeat();
+        }, delay);
     }
 
-    // This checks if your data is old and needs a refresh when you first open the gym.
-    function checkStaleness() {
-        const lastFull = localStorage.getItem(KEYS.LAST_SYNC),
-            now = Date.now();
-        if (!lastFull || (now - parseInt(lastFull) > 7200000)) universalFetch('FULL_SYNC');
+    function startBackgroundSync() {
+        scheduleHeartbeat();
     }
 
     // This makes sure your final gym training logs are saved even if you navigate away from the gym page.
-    function checkExitSync() {
+    async function checkExitSync() {
         const f = sessionStorage.getItem(KEYS.SESSION);
         if (f === 'true' && !window.location.href.includes('gym.php')) {
-            universalFetch('FULL_SYNC');
             sessionStorage.removeItem(KEYS.SESSION);
+            await universalFetch('FULL_SYNC');
+            scheduleHeartbeat();
         }
     }
 

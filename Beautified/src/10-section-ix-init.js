@@ -1024,12 +1024,10 @@
             DBManager.loadHistory().then(loaded => {
                 DataController.hydrate(loaded);
                 if (userConfig.apiKey) {
-                    checkStaleness();
                     startBackgroundSync();
                 }
             }).catch(e => {
                 if (userConfig.apiKey) {
-                    checkStaleness();
                     startBackgroundSync();
                 }
             });
@@ -1751,7 +1749,6 @@
             }
         });
         if (!runtime.demoMode) {
-            checkStaleness();
             startBackgroundSync();
             checkExitSync();
         }

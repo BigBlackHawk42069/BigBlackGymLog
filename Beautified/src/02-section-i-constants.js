@@ -132,8 +132,8 @@
     // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
     // clear on resume.
     const BACKFILL = {
-        SOFT_CAP: 35000,   // stop *starting* new days once crossed
-        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
+        SOFT_CAP: 30000,   // stop *starting* new days once crossed
+        HARD_CAP: 32000,   // absolute failsafe, normally never reached, keeps us < 50k
         COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
         THROTTLE_MS: 700
     };

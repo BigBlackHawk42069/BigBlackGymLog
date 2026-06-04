@@ -1066,6 +1066,10 @@
                     #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-page0 .bbgl-ach-grid-header, /*----*/
                     #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-page0 .bbgl-ach-row-multi { /*-----*/
                     grid-template-columns:minmax(0,28%) repeat(4,minmax(0,1fr)); } /*----------------------------------------*/
+                    #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-section-title { /*------------------------*/
+                    font-size:clamp(10px,2cqi,12px); } /*----------------------------------------------------------------*/
+                    #bbgl-panel:not(.bbgl-expanded):not(.bbgl-mode-page) .bbgl-ach-subsection-title { /*------------------*/
+                    font-size:clamp(9px,1.6cqi,10px); } /*---------------------------------------------------------------*/
                     .bbgl-ach-section-page1 .ach-streak-date { grid-column:1; text-align:left; margin:0; /*------------*/
                     padding-left:15%; padding-right:4px; line-height:1.15; white-space:nowrap; overflow:visible; } /*--*/
                     .ach-streak-days-inline { display:inline; } /*------------------------------------------------*/

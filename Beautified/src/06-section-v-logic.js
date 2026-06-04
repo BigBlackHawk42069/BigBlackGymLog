@@ -2297,6 +2297,28 @@
         };
     }
 
+    function achGetWeekBA(weekOf, stat) {
+        const s = getActiveHistory();
+        const all = [...(s.history || [])];
+        if (s.today && s.today.date) {
+            const i = all.findIndex(d => d.date === s.today.date);
+            if (i >= 0) all[i] = s.today;
+            else all.push(s.today);
+        }
+        const startD = new Date(weekOf + 'T00:00:00Z');
+        const endD = new Date(startD);
+        endD.setUTCDate(endD.getUTCDate() + 6);
+        const endStr = Formatter.dateISO(endD.getUTCFullYear(), endD.getUTCMonth(), endD.getUTCDate());
+        const days = all
+            .filter(d => d.date >= weekOf && d.date <= endStr && ((d.gains && d.gains[stat]) || 0) > 0)
+            .sort((a, b) => a.date.localeCompare(b.date));
+        if (!days.length) return null;
+        return {
+            before: (days[0].startBreakdown && days[0].startBreakdown[stat]) || 0,
+            after: (days[days.length - 1].endBreakdown && days[days.length - 1].endBreakdown[stat]) || 0
+        };
+    }
+
     function achFmtBA(ba) {
         return ba ? Formatter.number(ba.before) + ' \u2192 ' + Formatter.number(ba.after) : null;
     }
