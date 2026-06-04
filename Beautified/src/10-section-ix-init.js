@@ -555,6 +555,7 @@
             if (tgt === 'welcome') {
                 if (wv) {
                     wv.innerHTML = getWelcomeHTML();
+                    populateWelcomeContent(wv);
                     wv.classList.add('active-view');
                     const cwb = wv.querySelector('.close-settings-btn');
                     if (cwb) cwb.onclick = (e) => {
