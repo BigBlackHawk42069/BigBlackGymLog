@@ -10931,9 +10931,18 @@
             pctGold = 100 - goLeft;
         }
 
-        let firstOccupiedLeft = (pctDiamond > 0) ? dLeft : goLeft;
-        if (pctGreen > firstOccupiedLeft) pctGreen = firstOccupiedLeft;
-        
+        // Green pushes diamond right, but only into empty space (not into gold)
+        if (pctDiamond > 0 && pctGreen > dLeft) {
+            const pushNeeded = pctGreen - dLeft;
+            const emptyRight = goLeft - dRight;
+            const pushAllowed = Math.min(pushNeeded, Math.max(0, emptyRight));
+            dLeft += pushAllowed;
+            dRight += pushAllowed;
+            if (pushAllowed < pushNeeded) pctGreen = dLeft;
+        } else if (pctDiamond === 0 && pctGreen > goLeft) {
+            pctGreen = goLeft;
+        }
+
         let actualDLeft = dLeft;
         let gRight = pctGreen;
         
