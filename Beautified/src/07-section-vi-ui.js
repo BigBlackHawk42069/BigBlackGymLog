@@ -464,8 +464,8 @@
             const refills = cnt(4900);
             const refillVal = isDay ?
                 (refills > 0 ? `<span class="bbgl-ic-yes">✓</span>` : `<span class="bbgl-ic-no">✗</span>`) :
-                `${refills}/${DataController.periodCalendarDays(sl)}`;
-            const refillTip = `<div style="text-align:center">Refills Used` + (!isDay ? `<br><span class="tt-sub">(Refills/Days)</span>` : ``) + `</div>`;
+                `${refills}`;
+            const refillTip = `<div style="text-align:center">Refills Used</div>`;
             parts.push(`<span class="bbgl-ic" data-tooltip-html='${refillTip}'>Refill: ${refillVal}</span>`);
 
             dom.itemCounters.innerHTML = parts.join('');

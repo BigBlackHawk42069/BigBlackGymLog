@@ -233,92 +233,90 @@
         BASE_RIGHT: 5
     };
     const PAGE_TITLES = ["Sweat Equity", "Casino Collection", "Frequent Felon Passport", "Memories of Misdemeanors", "Postcards from the Frontline"];
-    const _d = s => atob(s);
-    //Base64 Encoded sticker URLs to make it harder to see them without unlocking.
     const CUSTOM_STICKERS = [
         //Sweat Equity
         {
             id: 1,
             name: "Just Checking the Mirror",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vSnVzdCUyMENoZWNraW5nJTIwdGhlJTIwTWlycm9yJTIwLSUyMFJlZG8ucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Just%20Checking%20the%20Mirror%20-%20Redo.png'
         }, {
             id: 2,
             name: "Up, Down, Repeat",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vVXAsJTIwRG93biwlMjBSZXBlYXQlMjAtJTIwUmVkby5wbmc=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Up,%20Down,%20Repeat%20-%20Redo.png'
         }, {
             id: 3,
             name: "Flat Bench Therapy",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vRmxhdCUyMEJlbmNoJTIwVGhlcmFweSUyMC0lMjBSZWRvLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Flat%20Bench%20Therapy%20-%20Redo.png'
         }, {
             id: 4,
             name: "Bring Home the Feed",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vQnJpbmclMjBIb21lJTIwdGhlJTIwRmVlZCUyMC0lMjBSZWRvLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Bring%20Home%20the%20Feed%20-%20Redo.png'
         }, {
             id: 5,
             name: "Never Skip Leg Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vTmV2ZXIlMjBTa2lwJTIwTGVnJTIwRGF5JTIwLSUyMFJlZG8ucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Never%20Skip%20Leg%20Day%20-%20Redo.png'
         }, {
             id: 6,
             name: "Tire Rotation",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vVGlyZSUyMFJvdGF0aW9uJTIwLSUyMFJlZG8ucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Tire%20Rotation%20-%20Redo.png'
         }, {
             id: 7,
             name: "Back End Engagement",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vQmFjayUyMEVuZCUyMEVuZ2FnZW1lbnQlMjAtJTIwUmVkby5wbmc=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Back%20End%20Engagement%20-%20Redo.png'
         }, {
             id: 8,
             name: "The Upside of Exercise",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vVGhlJTIwVXBzaWRlJTIwb2YlMjBFeGVyY2lzZSUyMC0lMjBSZWRvLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/The%20Upside%20of%20Exercise%20-%20Redo.png'
         }, {
             id: 9,
             name: "Shellshock Stretches",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vU2hlbGxzaG9jayUyMFN0cmV0Y2hlcyUyMC0lMjBSZWRvLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Shellshock%20Stretches%20-%20Redo.png'
         }, {
             id: 10,
             name: "Certified Cardio",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9HeW0vQ2VydGlmaWVkJTIwQ2FyZGlvJTIwLSUyMFJlZG8ucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Certified%20Cardio%20-%20Redo.png'
         },
         //Casino Collection
         {
             id: 11,
             name: "Just One More Spin",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vSnVzdCUyME9uZSUyME1vcmUlMjBTcGluLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Just%20One%20More%20Spin.png'
         }, {
             id: 12,
             name: "Bingo! I Think...",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vQmluZ28hJTIwSSUyMHRoaW5rLi4uLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Bingo!%20I%20think....png'
         }, {
             id: 13,
             name: "Lucky Shot",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vTHVja3klMjBTaG90LnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Lucky%20Shot.png'
         }, {
             id: 14,
             name: "Holy Craps",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vSG9seSUyMENyYXBzLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Holy%20Craps.png'
         }, {
             id: 15,
             name: "Tilted in My Favor",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vVGlsdGVkJTIwaW4lMjBNeSUyMEZhdm9yLnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Tilted%20in%20My%20Favor.png'
         }, {
             id: 16,
             name: "Choose Wisely",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vQ2hvb3NlJTIwV2lzZWx5LnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Choose%20Wisely.png'
         }, {
             id: 17,
             name: "Hit Me",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vSGl0JTIwTWUucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Hit%20Me.png'
         }, {
             id: 18,
             name: "Dead Men's Hand",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vRGVhZCUyME1lbidzJTIwSGFuZC5wbmc=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Dead%20Men\'s%20Hand.png'
         }, {
             id: 19,
             name: "Trigger Warning",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vVHJpZ2dlciUyMFdhcm5pbmcucG5n')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Trigger%20Warning.png'
         }, {
             id: 20,
             name: "Leslie's Sick Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvbWFpbi9DYXNpbm8vTGVzbGllJ3MlMjBTaWNrJTIwRGF5LnBuZw==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Leslie\'s%20Sick%20Day.png'
         }
     ];
     let runtime = {
@@ -11102,8 +11100,8 @@
             const refills = cnt(4900);
             const refillVal = isDay ?
                 (refills > 0 ? `<span class="bbgl-ic-yes">✓</span>` : `<span class="bbgl-ic-no">✗</span>`) :
-                `${refills}/${DataController.periodCalendarDays(sl)}`;
-            const refillTip = `<div style="text-align:center">Refills Used` + (!isDay ? `<br><span class="tt-sub">(Refills/Days)</span>` : ``) + `</div>`;
+                `${refills}`;
+            const refillTip = `<div style="text-align:center">Refills Used</div>`;
             parts.push(`<span class="bbgl-ic" data-tooltip-html='${refillTip}'>Refill: ${refillVal}</span>`);
 
             dom.itemCounters.innerHTML = parts.join('');
