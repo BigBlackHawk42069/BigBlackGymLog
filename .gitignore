@@ -1,1 +1,8 @@
 node_modules/
+
+# Build tools
+Beautified/build.bat
+Beautified/concat.ps1
+Root/build-root.bat
+Root/expand-styles.bat
+Root/BuildTools/
