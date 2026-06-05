@@ -780,6 +780,13 @@
 
         const frontiers = ensureBackfillTargets(ds);
 
+        // Write a partial+cooldown tombstone to IndexedDB before the loop starts.
+        // If the page dies mid-scan, the stored state is already 'partial' with a full
+        // cooldown so the button renders correctly on reload instead of appearing idle.
+        ds.lastResult = 'partial';
+        ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
+        await finalizeBackfill(ds, []);
+
         runtime.backfilling = true;
         if (btn) {
             if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;

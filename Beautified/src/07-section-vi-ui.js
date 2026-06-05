@@ -1319,7 +1319,7 @@
     }
 
     function buildBackfillModalHTML() {
-        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I understand what the Backfill does, how it uses my API key, and what to expect.</label></div>`,
+        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I understand what the Backfill does, how it uses my API key, and what happens if the scan is interrupted.</label></div>`,
             infoSection = buildSection('Big Black Dicslosure', `<div class="bbgl-modal-scrollbox"><div id="bbgl-backfill-disc">${DOC_LOADING_HTML}</div>${agreeRow}</div>`, 'margin-bottom:5px;'),
             configSection = buildSection('Backfill Configuration', `<div class="bbgl-modal-scrollbox"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;'),
             footer = `<div style="display:flex; justify-content:flex-end; margin:0 10px 4px 10px;"><span class="bbgl-agree-wrap" style="flex:0 0 auto; display:inline-flex;" data-tooltip="${TOOLTIPS.BACKFILL_AGREE_GATE}">${buildButton('bbgl-backfill-start-btn', 'Start', 'green', 'margin:0; min-width:96px;')}</span></div>`;

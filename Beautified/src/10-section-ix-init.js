@@ -951,7 +951,7 @@
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
             btn.style.color = '#43a047';
-            btn.innerHTML = `Scan Complete!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
+            btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
             const ack = btn.querySelector('#bbgl-backfill-ack');
             if (ack) ack.onclick = (e) => {
                 e.stopPropagation();

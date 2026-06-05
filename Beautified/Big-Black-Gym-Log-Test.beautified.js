@@ -8,8 +8,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/DeepScan/main/Big-Black-Gym-Log-Test.js
-// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/DeepScan/main/Big-Black-Gym-Log-Test.js
+// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/DeepScan/Beautified/Big-Black-Gym-Log-Test.beautified.js
+// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BBGLTeste/refs/heads/DeepScan/Beautified/Big-Black-Gym-Log-Test.beautified.js
 // ==/UserScript==
 
 (function() {
@@ -7293,6 +7293,13 @@
 
         const frontiers = ensureBackfillTargets(ds);
 
+        // Write a partial+cooldown tombstone to IndexedDB before the loop starts.
+        // If the page dies mid-scan, the stored state is already 'partial' with a full
+        // cooldown so the button renders correctly on reload instead of appearing idle.
+        ds.lastResult = 'partial';
+        ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
+        await finalizeBackfill(ds, []);
+
         runtime.backfilling = true;
         if (btn) {
             if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
@@ -11950,7 +11957,7 @@
     }
 
     function buildBackfillModalHTML() {
-        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I understand what the Backfill does, how it uses my API key, and what to expect.</label></div>`,
+        const agreeRow = `<div class="bbgl-ack-row" style="margin-top:10px;"><input type="checkbox" id="bbgl-backfill-agree"><label for="bbgl-backfill-agree">I understand what the Backfill does, how it uses my API key, and what happens if the scan is interrupted.</label></div>`,
             infoSection = buildSection('Big Black Dicslosure', `<div class="bbgl-modal-scrollbox"><div id="bbgl-backfill-disc">${DOC_LOADING_HTML}</div>${agreeRow}</div>`, 'margin-bottom:5px;'),
             configSection = buildSection('Backfill Configuration', `<div class="bbgl-modal-scrollbox"><div style="padding:20px; text-align:center; color:#888;">Cumming Soon...</div></div>`, 'margin-bottom:8px;'),
             footer = `<div style="display:flex; justify-content:flex-end; margin:0 10px 4px 10px;"><span class="bbgl-agree-wrap" style="flex:0 0 auto; display:inline-flex;" data-tooltip="${TOOLTIPS.BACKFILL_AGREE_GATE}">${buildButton('bbgl-backfill-start-btn', 'Start', 'green', 'margin:0; min-width:96px;')}</span></div>`;
@@ -14936,7 +14943,7 @@
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
             btn.style.color = '#43a047';
-            btn.innerHTML = `Scan Complete!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
+            btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
             const ack = btn.querySelector('#bbgl-backfill-ack');
             if (ack) ack.onclick = (e) => {
                 e.stopPropagation();
