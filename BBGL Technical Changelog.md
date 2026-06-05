@@ -1,6 +1,6 @@
 # Big Black Gym Log - Testing Phase Changelog
 
-Version 0.9.75 - 2026-06-04
+Version 0.9.75 - 2026-06-05
 
 ### New Features:
 - **BB Backfill**: A powerful historical reconstruction engine that allows you to walk back and synchronize your training history, reaching all the way to the creation of your account. By intelligently scanning and parsing your training logs in reverse, it bridges missing data gaps to construct a complete, seamless lifetime record of your progression at your own pace.
@@ -12,6 +12,7 @@ Version 0.9.75 - 2026-06-04
 - **Dynamic Item Counter**: View your daily, weekly, monthly, and yearly item usage in real-time with a context-aware counter that dynamically displays relevant items when appropriate.
 
 ### Bug Fixes:
+- **Graph Tooltip Month Label (Monthly View)**: Fixed a bug where hovering over the monthly graph after navigating the calendar grid to a different month would display the grid's current month in the tooltip instead of the month the graph data belongs to. The tooltip now reads the month and year from values frozen at draw time (`selectedMonth`/`selectedYear` on the `dat` object returned by `_transformData`) rather than from the live `calendarState.month`/`calendarState.year`, which change whenever the user navigates the grid. This also covers the latent cross-year variant of the same bug.
 - **Gold Week Sticker Award**: Fixed an issue where some gold weeks were not properly awarding 2 stickers instead of 1.
 - **Sidebar Notification State**: Fixed an issue where the sidebar icon for the Gym Log would sometimes light up green when other pages received notifications, causing false positives.
 - **TornPDA Update Flag**: Fixed an issue that prevented the update notification flag from appearing immediately after updating and refreshing on TornPDA.

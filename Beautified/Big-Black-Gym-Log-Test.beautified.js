@@ -13130,7 +13130,9 @@
                 labels: labs,
                 trends: tr,
                 viewType: vt,
-                xParams: xp
+                xParams: xp,
+                selectedMonth: vt === 'MONTH' ? CONSTANTS.MONTHS.indexOf(lbl) : null,
+                selectedYear: vt === 'MONTH' ? (year || new Date().getUTCFullYear()) : null
             };
         },
         _graphTooltipHeader(vt, p, i, arr, dat) {
@@ -13154,8 +13156,8 @@
             }
             if (vt === 'MONTH') {
                 const z = Math.floor(p.x);
-                const mIdx = calendarState.month,
-                    year = calendarState.year || new Date().getUTCFullYear();
+                const mIdx = (dat.selectedMonth != null) ? dat.selectedMonth : calendarState.month,
+                    year = (dat.selectedYear != null) ? dat.selectedYear : (calendarState.year || new Date().getUTCFullYear());
                 return `${CONSTANTS.MONTHS_SHORT[mIdx]} ${z} \u2022 ${year}`;
             }
             if (vt === 'ALL_TIME') {
