@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Big Black Gym Log Teste
 // @namespace    http://tampermonkey.net/
-// @version      0.9.58
+// @version      0.9.75
 // @description  A high-fidelity, gamified stat tracker built to integrate seamlessly with Torn's native UI.
 // @author       BigBlackHawk [3550896]
 // @match        https://www.torn.com/*
@@ -25,7 +25,7 @@
      *  so that you don't have to.
      */
 
-    const SCRIPT_VERSION = '0.9.58';
+    const SCRIPT_VERSION = '0.9.75';
     const Log = { _bootShown: false, _badge: ['%c BBGL %c', 'background:#6a1b9a;color:#fff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;', 'color:#999;'], _isDev: isDevMode, boot() { if (this._bootShown) return; this._bootShown = true; console.log(...this._badge, `v${SCRIPT_VERSION} booted`); }, info(...a) { console.log(...this._badge, ...a); }, warn(...a) { console.warn(...this._badge, ...a); }, error(...a) { console.error(...this._badge, ...a); }, debug(...a) { if (!this._isDev()) return; console.log(...this._badge, '[debug]', ...a); }, group(label, fn) { if (!this._isDev()) { fn(); return; } console.groupCollapsed(...this._badge, label); try { fn(); } finally { console.groupEnd(); } } };
     const Perf = { _enabled: isDevMode, mark(n) { if (!this._enabled()) return; try { performance.mark('bbgl:' + n); } catch (e) {} }, start(n) { this.mark(n + ':start'); }, end(n) { if (!this._enabled()) return; try { performance.mark('bbgl:' + n + ':end'); performance.measure('bbgl:' + n, 'bbgl:' + n + ':start', 'bbgl:' + n + ':end'); } catch (e) {} }, async wrapAsync(n, fn) { this.start(n); try { return await fn(); } finally { this.end(n); } }, wrap(n, fn) { this.start(n); try { return fn(); } finally { this.end(n); } } };
     const KEYS = { STATE: 'bbgl_view_state_v1', CONFIG: 'bbgl_config_v1', SESSION: 'bbgl_trained_flag', LAST_SYNC: 'bbgl_last_data_sync_v1', BS_SYNC: 'bbgl_bs_last_sync_v1', SESSION_CACHE: 'bbgl_session_cache_v1', DEMO: 'bbgl_demo_mode', SB_NOTIF: 'bbgl_sb_notif_seen', DEV_MODE: 'bbgl_dev_mode', CHANGELOG_VER: 'bbgl_changelog_seen_ver', CHANGELOG_NOTIF: 'bbgl_changelog_notif' };

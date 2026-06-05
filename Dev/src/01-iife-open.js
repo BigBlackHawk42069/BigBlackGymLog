@@ -14,7 +14,7 @@
      *  so that you don't have to.
      */
 
-    const SCRIPT_VERSION = '0.9.58';
+    const SCRIPT_VERSION = '0.9.75';
     const Log = {
         _bootShown: false,
         _badge: ['%c BBGL %c', 'background:#6a1b9a;color:#fff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;', 'color:#999;'],

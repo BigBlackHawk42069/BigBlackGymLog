@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         Big Black Gym Log Teste
 // @namespace    http://tampermonkey.net/
-// @version      0.9.58
+// @version      0.9.75
 // @description  A high-fidelity, gamified stat tracker built to integrate seamlessly with Torn's native UI.
 // @author       BigBlackHawk [3550896]
 // @match        https://www.torn.com/*
@@ -28,7 +28,7 @@
      *  so that you don't have to.
      */
 
-    const SCRIPT_VERSION = '0.9.58';
+    const SCRIPT_VERSION = '0.9.75';
     const Log = {
         _bootShown: false,
         _badge: ['%c BBGL %c', 'background:#6a1b9a;color:#fff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;', 'color:#999;'],
