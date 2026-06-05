@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Big Black Gym Log Teste
 // @namespace    http://tampermonkey.net/
-// @version      0.9.58
+// @version      0.9.75
 // @description  A high-fidelity, gamified stat tracker built to integrate seamlessly with Torn's native UI.
 // @author       BigBlackHawk [3550896]
 // @match        https://www.torn.com/*
@@ -25,7 +25,7 @@
      *  so that you don't have to.
      */
 
-    const SCRIPT_VERSION = '0.9.58';
+    const SCRIPT_VERSION = '0.9.75';
     const Log = { _bootShown: false, _badge: ['%c BBGL %c', 'background:#6a1b9a;color:#fff;font-weight:700;border-radius:3px 0 0 3px;padding:2px 6px;', 'color:#999;'], _isDev: isDevMode, boot() { if (this._bootShown) return; this._bootShown = true; console.log(...this._badge, `v${SCRIPT_VERSION} booted`); }, info(...a) { console.log(...this._badge, ...a); }, warn(...a) { console.warn(...this._badge, ...a); }, error(...a) { console.error(...this._badge, ...a); }, debug(...a) { if (!this._isDev()) return; console.log(...this._badge, '[debug]', ...a); }, group(label, fn) { if (!this._isDev()) { fn(); return; } console.groupCollapsed(...this._badge, label); try { fn(); } finally { console.groupEnd(); } } };
     const Perf = { _enabled: isDevMode, mark(n) { if (!this._enabled()) return; try { performance.mark('bbgl:' + n); } catch (e) {} }, start(n) { this.mark(n + ':start'); }, end(n) { if (!this._enabled()) return; try { performance.mark('bbgl:' + n + ':end'); performance.measure('bbgl:' + n, 'bbgl:' + n + ':start', 'bbgl:' + n + ':end'); } catch (e) {} }, async wrapAsync(n, fn) { this.start(n); try { return await fn(); } finally { this.end(n); } }, wrap(n, fn) { this.start(n); try { return fn(); } finally { this.end(n); } } };
     const KEYS = { STATE: 'bbgl_view_state_v1', CONFIG: 'bbgl_config_v1', SESSION: 'bbgl_trained_flag', LAST_SYNC: 'bbgl_last_data_sync_v1', BS_SYNC: 'bbgl_bs_last_sync_v1', SESSION_CACHE: 'bbgl_session_cache_v1', DEMO: 'bbgl_demo_mode', SB_NOTIF: 'bbgl_sb_notif_seen', DEV_MODE: 'bbgl_dev_mode', CHANGELOG_VER: 'bbgl_changelog_seen_ver', CHANGELOG_NOTIF: 'bbgl_changelog_notif' };
@@ -1423,24 +1423,6 @@
      *  Layman explanations of every function are provided below for your peace of mind.
      */
 
-    // STORAGE MODEL (partitioned)
-    // =========================================================================
-    // History is stored as one small `meta` record plus one record PER DAY in the
-    // `days` store (keyed by the logical date 'YYYY-MM-DD', value = the fully-built
-    // day object that `_rebuildFromSeries` produces). This replaces the old single
-    // 'main' blob that held the entire flat `series` array.
-    //
-    // Why: with Backfill the series can reach tens of thousands of entries. The old
-    // model structured-cloned and rewrote that entire blob on every sync — even idle
-    // battlestats polls and cross-tab messages — and re-derived every day on every
-    // read. Per-day records mean reads/writes touch only the days that changed, and
-    // boot can load pre-built day objects directly without re-deriving the whole
-    // history.
-    //
-    // The legacy getStorage()/setStorage()/clearStorage() API is preserved as exact
-    // shims (flatten days -> {meta, series} on read; rebuild + replace-all on write)
-    // so export/import behave byte-for-byte as before. Hot paths use the day-scoped
-    // loadHistory()/saveDays() helpers instead.
     const DBManager = {
         _db: null,
         _DB_NAME: 'bbgl_db',
@@ -1459,9 +1441,6 @@
                 const req = indexedDB.open(this._DB_NAME, 2);
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
-                    // Pre-release schema change: drop the old single-blob 'history' store
-                    // (testers rebuild their logs via Backfill) and create the partitioned
-                    // meta/days stores. No data migration is performed.
                     if (db.objectStoreNames.contains('history')) db.deleteObjectStore('history');
                     if (!db.objectStoreNames.contains(this._META_STORE)) db.createObjectStore(this._META_STORE);
                     if (!db.objectStoreNames.contains(this._DAYS_STORE)) db.createObjectStore(this._DAYS_STORE);
@@ -1488,7 +1467,6 @@
             return this._db;
         },
 
-        // Reads the small meta record (baseline, logStartDate, backfill state, stickers).
         _readMeta() {
             return new Promise((resolve, reject) => {
                 const tx = this._db.transaction(this._META_STORE, 'readonly');
@@ -1501,7 +1479,6 @@
             });
         },
 
-        // Reads every stored day object via a cursor.
         _readAllDays() {
             return new Promise((resolve, reject) => {
                 const out = [];
@@ -1521,10 +1498,7 @@
             });
         },
 
-        // Writes meta + the supplied day objects in one transaction. When `replaceAll`
-        // is true the days store is cleared first (used by the setStorage shim / import).
-        // Otherwise only the supplied days are put, leaving untouched days intact (the
-        // incremental hot path). Broadcasts an update to other tabs on completion.
+        // Saves your gym data to your browser's private storage.
         _persist(meta, dayObjs, replaceAll) {
             return new Promise((resolve, reject) => {
                 if (!this._db) {
@@ -1561,11 +1535,7 @@
             });
         },
 
-        // Fast boot/cross-tab load: returns { meta, history, today } as ready-to-use day
-        // objects WITHOUT re-deriving them from a flat series. Returns null for an empty DB
-        // (matching the old getStorage()-returns-null-ish path so callers fall back to the
-        // empty default). Day records were stored already-built by _rebuildFromSeries, so
-        // this reproduces the same in-memory shape syncCache() would, minus the rebuild cost.
+        // Loads your complete gym history from your browser's private storage.
         async loadHistory() {
             await this._ensureDb();
             if (!this._db) return null;
@@ -1578,32 +1548,23 @@
             const history = [];
             days.forEach(d => {
                 if (d.date === logicalToday) today = d;
-                // A history day exists if it has logged entries OR if it has real aggregate data
-                // (gains/energy) from legacy synthetic migration. Pure battlestats-only polling
-                // days (no series, no gains) remain gaps and are still dropped.
                 else if ((d.series && d.series.length > 0) || (d.gains && d.gains.total > 0)) history.push(d);
             });
             history.sort((a, b) => a.date.localeCompare(b.date));
             if (!today) {
-                // No record for the current logical day: synthesize an empty `today` carrying
-                // the most recent day's end breakdown forward — identical to what
-                // _rebuildFromSeries does when the series has no entry for today.
                 const carry = history.length > 0 ? history[history.length - 1].endBreakdown : meta.baselineBreakdown;
                 today = initializeDayObject(logicalToday, { ...(carry || ZERO_BREAKDOWN) });
             }
             return { meta, history, today };
         },
 
-        // Incremental write: persists meta + the given changed day objects only, without
-        // clearing untouched days. `today` is always included implicitly by callers.
+        // Saves your latest gym session to your browser.
         async saveDays(meta, dayObjs) {
             await this._ensureDb();
             return this._persist(meta, dayObjs, false);
         },
 
-        // Legacy exact-behavior shim. Reconstructs the old { meta, series } record by
-        // flattening every stored day's series (ts-sorted) so export and any other
-        // whole-history consumer behave exactly as before.
+        // Packages your gym history for export.
         async getStorage() {
             await this._ensureDb();
             if (!this._db) return null;
@@ -1614,9 +1575,6 @@
                 if (d && Array.isArray(d.series) && d.series.length > 0) {
                     for (const e of d.series) series.push(e);
                 } else if (d && d.gains && d.gains.total > 0) {
-                    // Gap day: has real aggregate data but no granular series entries (legacy
-                    // synthetic migration). Synthesize one entry per stat so the flat series
-                    // round-trips correctly through exports and full rebuilds.
                     const base = Formatter.parse(d.date);
                     const ts = Math.floor(base.getTime() / 1000) + 43200;
                     STAT_KEYS.forEach(stat => {
@@ -1639,8 +1597,7 @@
             return sanitizeStorageRecord({ meta: metaRaw || {}, series });
         },
 
-        // Legacy exact-behavior shim. Rebuilds day objects from the supplied flat series
-        // and REPLACES the whole store (used by import). Hot paths use saveDays() instead.
+        // Restores your gym history from an imported backup file.
         async setStorage(data) {
             await this._ensureDb();
             if (!this._db) throw new Error("Database not initialized");
@@ -1681,9 +1638,6 @@
     _syncChannel.onmessage = (event) => {
         if (event.data && event.data.from === _TAB_ID) return;
         if (runtime.demoMode) return;
-        // Debounce a burst of writes from another tab into a single lightweight re-hydrate
-        // (loadHistory: no rebuild), and only re-render if our panel is actually visible — a
-        // hidden panel re-renders from scratch when it next opens.
         if (_xtabSyncTimer) clearTimeout(_xtabSyncTimer);
         _xtabSyncTimer = setTimeout(async () => {
             _xtabSyncTimer = null;
@@ -1697,15 +1651,12 @@
         }, 200);
     };
 
-    // Backfill Logs progress lives here. `targets.frontiers` is one backward-scan frontier per log
-    // code (4 gym stats + every item code), each paged independently one type per request. Budget/
-    // cooldown are global because every log type shares Torn's one activity-log daily pool.
     function defaultBackfill() {
         return {
-            targets: {},      // { frontiers: { "5300":{cursor,complete}, "2040":{...}, ... } }
-            cooldownUntil: 0, // ms; button locked until this time
-            lastResult: null, // 'complete' | 'partial'
-            acknowledged: true // false holds the "Scan Complete!" state until the user clicks OK
+            targets: {},
+            cooldownUntil: 0,
+            lastResult: null,
+            acknowledged: true
         };
     }
 
@@ -1720,8 +1671,6 @@
         return d;
     }
 
-    // Normalizes a stored meta record in place (baseline floats + backfill state). Shared by
-    // the getStorage shim and the day-scoped loadHistory path so both agree exactly.
     function sanitizeMeta(metaRaw) {
         const m = (metaRaw && typeof metaRaw === 'object') ? metaRaw : {};
         if (!m.baselineBreakdown) m.baselineBreakdown = {
@@ -1735,9 +1684,6 @@
         return m;
     }
 
-    // Coerces one series entry's numeric fields and re-derives its materialized `rate`.
-    // `rate` is always re-derived from the entry's own gain/cost so it stays the single source
-    // of truth (backfills old data, never drifts).
     function sanitizeEntry(e) {
         if (e.type === 'item') {
             if (e.ts !== undefined) e.ts = parseInt(e.ts);
@@ -1751,7 +1697,6 @@
         e.rate = (e.cost > 0) ? r2((e.gain / e.cost) * 150) : 0;
     }
 
-    // Coerces every entry inside one stored day object (used when loading per-day records).
     function sanitizeDayRecord(d) {
         if (d && Array.isArray(d.series)) d.series.forEach(sanitizeEntry);
         return d;
@@ -1806,9 +1751,6 @@
             success: false,
             demo: true
         };
-        // While a Big Black Backfill is running, every other API call is suppressed so the deep
-        // backward scan owns the shared daily row pool and can't trip a rate-limit / pool-exhausted
-        // error. The next heartbeat's bounded reconcile re-covers any live rows missed in this window.
         if (runtime.backfilling) return {
             ok: false,
             suppressed: true
@@ -1826,30 +1768,19 @@
 
         const ts = Date.now();
         const meta = getActiveHistory().meta;
-        // Per-group `from=` lower bound: only fetch rows since our last successful capture of that
-        // group (minus a buffer), so the reconcile window — and the rebuild it triggers — stays
-        // small. Unset on a fresh install/import, so the first call is unbounded (one self-healing
-        // full pass) and then anchors itself.
         const fromFor = key => {
             const fl = meta.syncFloor && meta.syncFloor[key];
             return fl ? `&from=${Math.max(0, fl - SYNC_FROM_BUFFER)}` : '';
         };
         let reqs = [];
 
-        // battlestats can't share a request with `log` (it suppresses the log entirely), and a single
-        // `log=` call accepts at most 10 log types. So logs are grouped: trains+energy on one call,
-        // stat-enhancers+happy on another, and battlestats stands alone. We only ever request gym
-        // training and the ITEM_LOG_META item codes — no money or personal-message logs.
         if (mission === 'TRAIN_SINGLE' && specId) {
-            // A training click: capture that stat plus the energy items used in the same session.
             reqs.push({
                 type: 'log',
                 floorKey: 'trainEnergy',
                 url: `https://api.torn.com/user/?selections=log&log=${specId},${ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
             });
         } else {
-            // Reconciliation (heartbeat / gym-exit / refresh): standalone battlestats + two bounded
-            // log calls covering trains+energy (10) and stat+happy (8).
             reqs = [{
                     type: 'battlestats',
                     url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
@@ -1890,10 +1821,6 @@
                 if (r.cfg.type === 'battlestats') bs = r.data;
             });
 
-            // Every request returned cleanly (we threw above on any error), so advance the per-group
-            // sync floors to now — the next call for each group re-asks only from here (minus buffer).
-            // Failed/errored fetches throw before this point, so a floor never advances past data we
-            // didn't actually receive.
             const tsSec = Math.floor(ts / 1000);
             if (!meta.syncFloor) meta.syncFloor = {};
             reqs.forEach(c => {
@@ -1956,12 +1883,7 @@
         Perf.end('syncWithFeedback');
     }
 
-    // Schedules the next background reconciliation based on when the last FULL_SYNC occurred.
-    // Replaces the old fixed setInterval — the timer anchors to the last real sync from any
-    // source (gym exit, manual refresh, or the heartbeat itself) rather than restarting blindly
-    // from page load. On init: fires immediately if stale (>2 hours or never synced), or waits
-    // out the remainder of the current 2-hour window. Any FULL_SYNC completion path that calls
-    // scheduleHeartbeat() resets the clock to a fresh 2-hour window from that moment.
+    // Automatically checks for new training data every 2 hours in the background.
     function scheduleHeartbeat() {
         if (runtime.bgSyncId) clearTimeout(runtime.bgSyncId);
         const lastFull = localStorage.getItem(KEYS.LAST_SYNC);
@@ -1988,18 +1910,6 @@
         }
     }
 
-    // DEEP LOG SYNC
-    // =========================================================================
-    // Walks the activity log backward in time to rebuild deep history. Normal sync only ever
-    // sees the most recent ~100 rows per log type; this pages further back (cursor = one second
-    // before the oldest row actually returned, so windows never drop entries) until it either
-    // reaches the beginning of the account or hits the daily row budget. It does NOT lift the
-    // origin floor (meta.logStartDate) — it lowers it to the oldest *fully complete* day, leaving
-    // any partial frontier day stored-but-hidden for the next day's resume. Each shown day is
-    // therefore always 100% populated, exactly like the genesis anchor/buffer guarantee.
-
-    // Gym training log ids, one per stat. Each is paged INDEPENDENTLY so a dense single-stat
-    // burst can't evict another stat's interleaved rows from Torn's shared 100-row response.
     const GYM_STAT_LOGS = {
         str: '5300',
         def: '5301',
@@ -2007,23 +1917,12 @@
         dex: '5303'
     };
 
-    // Start of the logical day containing a unix timestamp (seconds).
-    // Start of the logical day containing a unix timestamp (seconds).
     function backfillDayStart(ts) {
         return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    // Every backfilled log code: 4 gym stats + every item code. Each gets its OWN independent
-    // backward-scan frontier and is paged ONE log type per request, so a dense type (a stat, or
-    // energy cans/Xanax) can never evict a sparse type's rows from Torn's 100-row response. (The
-    // live path batches types into ≤10-code calls; backfill deliberately does not.)
     const BACKFILL_CODES = [...TRAIN_LOGS, ...ITEM_LOGS].map(String);
 
-    // Seeds (or returns) one scan frontier per log code `{cursor, complete}`. A FRESH scan seeds
-    // every code at `now` and re-walks the range (dedup makes this idempotent); a partial scan saves
-    // per-code cursors and the next run RESUMES from them. A NEWLY-ADDED code is simply an absent
-    // frontier → seeded → walked back, so new item codes get backfilled with no extra machinery.
-    // The Math.min guard in computeBackfillFloor keeps the origin floor from ever rising.
     function ensureBackfillTargets(ds) {
         if (!ds.targets.frontiers) ds.targets.frontiers = {};
         const seed = Math.floor(Date.now() / 1000);
@@ -2036,17 +1935,10 @@
         return ds.targets.frontiers;
     }
 
-    // Maps a stored series entry to its backfill frontier code (gym entries by stat, items by logId).
     function seriesEntryCode(e) {
         return e.type === 'item' ? String(e.logId) : GYM_STAT_LOGS[e.stat];
     }
 
-    // Picks meta.logStartDate so that every shown day is 100% complete for ALL tracked types (stats
-    // AND items). A day is only safe to show once every still-incomplete frontier has been scanned
-    // back past it, so the floor is the most-recent (max) of the incomplete frontiers' partial days.
-    // Frontiers that hit their true beginning (empty response → complete) or have no data don't
-    // constrain it; when all are complete the floor drops to the earliest day in the data. Never
-    // raises the existing floor.
     function computeBackfillFloor(stored, frontiers) {
         const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
         if (!stored.series.length) return existing;
@@ -2068,19 +1960,15 @@
 
         let newFloor;
         if (shallowPartialDayStart !== null) {
-            // Hide the shallowest incomplete stat's partial day (and everything below it); shown
-            // days start at the day above it.
             newFloor = shallowPartialDayStart + 86400;
         } else {
-            // All stats complete -> show down to and including the earliest day in the data.
             newFloor = backfillDayStart(stored.series[0].ts);
         }
         if (existing !== null) newFloor = Math.min(newFloor, existing);
         return newFloor;
     }
 
-    // Merges scanned rows into the canonical series, recomputes the baseline, advances the origin
-    // floor, and persists everything (including scan progress).
+    // Saves the results of a Deep Log Scan to your browser's private storage.
     async function finalizeBackfill(ds, collected) {
         let stored = await DBManager.getStorage();
         if (!stored) stored = {
@@ -2094,9 +1982,6 @@
         if (!Array.isArray(stored.series)) stored.series = [];
 
         if (collected.length > 0) {
-            // Gym rows dedup on (ts, stat, after); item rows dedup on the natural (ts, logId) key,
-            // which is stable across live capture, backfill, and export/import (the Torn log id is
-            // dropped on export, so it can't be the key).
             const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
             const itemKey = e => `${e.ts}_${e.logId}`;
             const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
@@ -2132,7 +2017,6 @@
             });
             stored.series.sort((a, b) => a.ts - b.ts);
 
-            // Baseline = stat totals just before the very first log we now hold.
             const baseline = {
                 ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
             };
@@ -2157,8 +2041,7 @@
         DataController.invalidate();
     }
 
-    // Clears the held "Scan Complete!" confirmation (the user clicked the acknowledge checkmark).
-    // The data is already live on the logs; this only retires the visual confirmation state.
+    // Called when you dismiss the 'Scan Complete' confirmation after a Deep Log Scan.
     async function acknowledgeBackfill() {
         if (runtime.demoMode || runtime.backfilling) return;
         const s = getActiveHistory();
@@ -2170,6 +2053,9 @@
         renderBackfillButton();
     }
 
+    // Deep Log Scan: uses your API key to page back through your full training history on Torn's
+    // servers. Only reads gym training logs and a short list of item logs (energy cans, Xanax, etc.)
+    // — never reads your messages, money, or any other personal information.
     async function backfillLogs(btn) {
         if (runtime.demoMode) return;
         if (!userConfig.apiKey || userConfig.apiKey.length < 16) {
@@ -2184,7 +2070,6 @@
         const ds = s.meta.backfill;
         const now = Date.now();
 
-        // Locked while cooling down (resume is only ever triggered once the cooldown has elapsed).
         if (ds.cooldownUntil && now < ds.cooldownUntil) {
             renderBackfillButton();
             return;
@@ -2192,9 +2077,6 @@
 
         const frontiers = ensureBackfillTargets(ds);
 
-        // Write a partial+cooldown tombstone to IndexedDB before the loop starts.
-        // If the page dies mid-scan, the stored state is already 'partial' with a full
-        // cooldown so the button renders correctly on reload instead of appearing idle.
         ds.lastResult = 'partial';
         ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
         await finalizeBackfill(ds, []);
@@ -2209,27 +2091,19 @@
 
         let rowsFetched = 0;
         let stoppedEarly = false;
-        let drainDay = null; // once the soft cap is crossed, the day boundary we finish across every frontier
+        let drainDay = null;
         const collected = [];
 
         try {
             while (rowsFetched < BACKFILL.HARD_CAP) {
-                // Always advance the time-laggard: the incomplete frontier (any of the 18 per-type
-                // frontiers) whose cursor is the most recent. This keeps every frontier descending in
-                // lockstep so a partial scan still advances the shared origin floor (rather than
-                // burning the whole budget on one and stranding the others near the top). Sparse item
-                // frontiers plunge deep quickly, become least-recent, and hand the budget back to the
-                // dense ones (stats, energy cans, Xanax). Once draining (soft cap crossed), only
-                // frontiers still sitting on/above the target day are eligible, so we page exactly
-                // enough to finish that day everywhere and then stop.
-                let pick = null; // { fr, code }
+                let pick = null;
                 const consider = (fr, code) => {
                     if (fr.complete) return;
                     if (drainDay !== null && fr.cursor < drainDay) return;
                     if (pick === null || fr.cursor > pick.fr.cursor) pick = { fr, code };
                 };
                 BACKFILL_CODES.forEach(code => consider(frontiers[code], code));
-                if (pick === null) break; // every frontier reached its beginning (or finished the drain day)
+                if (pick === null) break;
 
                 const st = pick.fr;
                 const url = `https://api.torn.com/user/?selections=log&log=${pick.code}&key=${userConfig.apiKey}&to=${Math.floor(st.cursor)}`;
@@ -2240,14 +2114,11 @@
                     if (!resp.ok) throw new Error(resp.status);
                     data = await resp.json();
                 } catch (netErr) {
-                    // Failsafe: a network hiccup keeps all progress and drops into cooldown.
                     Log.warn('Deep scan network error', netErr);
                     stoppedEarly = true;
                     break;
                 }
                 if (data.error) {
-                    // Failsafe: error 14 = daily 50k pool exhausted (possibly by other scripts);
-                    // error 5 = rate limit. Stop cleanly, keep progress, cool down.
                     if (data.error.code === 14 || data.error.code === 5) {
                         stoppedEarly = true;
                         break;
@@ -2257,7 +2128,7 @@
 
                 const rowKeys = data.log ? Object.keys(data.log) : [];
                 if (rowKeys.length === 0) {
-                    st.complete = true; // reached the beginning for this stat
+                    st.complete = true;
                     continue;
                 }
 
@@ -2273,10 +2144,6 @@
 
                 if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
 
-                // Soft cap crossed: enter the drain phase. Lock onto the current day boundary of the
-                // most-recent incomplete frontier and keep paging only the frontiers still on/above it,
-                // so the budget already spent resolves into a fully complete (visible) day rather than a
-                // stored-but-hidden partial one. HARD_CAP (the while condition) still bounds the drain.
                 if (drainDay === null && rowsFetched >= BACKFILL.SOFT_CAP) {
                     let maxCursor = -Infinity;
                     BACKFILL_CODES.forEach(code => {
@@ -2293,7 +2160,6 @@
                 await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
             }
         } catch (e) {
-            // Any unexpected failure is also treated as a partial stop so progress is preserved.
             Log.error('Deep sync failed', e);
             stoppedEarly = true;
         }
