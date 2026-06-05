@@ -1,6 +1,6 @@
 # Big Black Gym Log - User Changelog
 
-Version 0.9.60 - Pending
+Version 0.9.75 - 2026-06-04
 
 ### New Features:
 - **BB Backfill**: A powerful historical reconstruction engine that allows you to walk back and synchronize your training history, reaching all the way to the creation of your account. By intelligently scanning and parsing your training logs in reverse, it bridges missing data gaps to construct a complete, seamless lifetime record of your progression at your own pace.
