@@ -1,0 +1,10 @@
+# Dev source and build tools
+Beautified/
+Root/BuildTools/
+Root/build-root.bat
+Root/build.ps1
+
+# Editor config
+.claude/
+.cursor/
+
