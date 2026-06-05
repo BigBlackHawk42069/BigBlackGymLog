@@ -233,90 +233,91 @@
         BASE_RIGHT: 5
     };
     const PAGE_TITLES = ["Sweat Equity", "Casino Collection", "Frequent Felon Passport", "Memories of Misdemeanors", "Postcards from the Frontline"];
+    const _d = s => atob(s);
     const CUSTOM_STICKERS = [
         //Sweat Equity
         {
             id: 1,
             name: "Just Checking the Mirror",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Just%20Checking%20the%20Mirror%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vanN0LWNoay1taXJyci5wbmc=')
         }, {
             id: 2,
             name: "Up, Down, Repeat",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Up,%20Down,%20Repeat%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXAtZG4tcnB0LnBuZw==')
         }, {
             id: 3,
             name: "Flat Bench Therapy",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Flat%20Bench%20Therapy%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vZmx0LWJuY2gtdGhycHkucG5n')
         }, {
             id: 4,
             name: "Bring Home the Feed",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Bring%20Home%20the%20Feed%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYnJuZy1obS1mZWVkLnBuZw==')
         }, {
             id: 5,
             name: "Never Skip Leg Day",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Never%20Skip%20Leg%20Day%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vbnZyLXNrcC1sZWcucG5n')
         }, {
             id: 6,
             name: "Tire Rotation",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Tire%20Rotation%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdGlyZS1yb3RuLnBuZw==')
         }, {
             id: 7,
             name: "Back End Engagement",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Back%20End%20Engagement%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYmNrLWVuZC1lbmdtdC5wbmc=')
         }, {
             id: 8,
             name: "The Upside of Exercise",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/The%20Upside%20of%20Exercise%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXBzZC1leHJjc2UucG5n')
         }, {
             id: 9,
             name: "Shellshock Stretches",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Shellshock%20Stretches%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vc2hsc2hrLXN0cmNoLnBuZw==')
         }, {
             id: 10,
             name: "Certified Cardio",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gym/Certified%20Cardio%20-%20Redo.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vY3J0ZmQtY3JkaW8ucG5n')
         },
         //Casino Collection
         {
             id: 11,
             name: "Just One More Spin",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Just%20One%20More%20Spin.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vanN0LW9uZS1zcG4ucG5n')
         }, {
             id: 12,
             name: "Bingo! I Think...",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Bingo!%20I%20think....png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vYmluZ28taS10aG5rLnBuZw==')
         }, {
             id: 13,
             name: "Lucky Shot",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Lucky%20Shot.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbGNreS1zaHQucG5n')
         }, {
             id: 14,
             name: "Holy Craps",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Holy%20Craps.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaG9seS1jcnBzLnBuZw==')
         }, {
             id: 15,
             name: "Tilted in My Favor",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Tilted%20in%20My%20Favor.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdGx0ZC1teS1mdnIucG5n')
         }, {
             id: 16,
             name: "Choose Wisely",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Choose%20Wisely.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vY2hzZS13c2x5LnBuZw==')
         }, {
             id: 17,
             name: "Hit Me",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Hit%20Me.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaGl0LW1lLnBuZw==')
         }, {
             id: 18,
             name: "Dead Men's Hand",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Dead%20Men\'s%20Hand.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vZGVhZC1tZW5zLnBuZw==')
         }, {
             id: 19,
             name: "Trigger Warning",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Trigger%20Warning.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdHJnci13cm5nLnBuZw==')
         }, {
             id: 20,
             name: "Leslie's Sick Day",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Casino/Leslie\'s%20Sick%20Day.png'
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbHNscy1zY2stZHkucG5n')
         }
     ];
     let runtime = {
@@ -820,7 +821,7 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: "https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Header.jpg",
+        HEADER_IMG: "https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-hdr.jpg",
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -2449,7 +2450,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Glass%20Overlay.jpg');
+                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.jpg');
                         background-size: 100% 100%;
                         background-position: center;
                         opacity: .5;
@@ -2910,7 +2911,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Sticker%20Page.png');
+                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.png');
                         background-size: cover;
                         background-position: center;
                         z-index: 5;
@@ -4193,7 +4194,7 @@
                         left: 4%;
                         width: 92%;
                         height: 92%;
-                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/New%20Sticker.png') no-repeat center / contain;
+                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.png') no-repeat center / contain;
                         z-index: 20;
                         filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
                         transform-origin: top right;
@@ -10698,7 +10699,7 @@
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Future.jpg)');
+        c.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-futr.jpg)');
         const todayStr = Formatter.dateLogical();
         const frag = document.createDocumentFragment();
         let batch = [],
@@ -10717,7 +10718,7 @@
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past.jpg)');
+                if (isArch) rd.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-past.jpg)');
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx);
@@ -10761,9 +10762,9 @@
         });
         const isToday = (ds === Formatter.dateLogical());
         if (isFlipped && sl.meta.tier > 0) {
-            let url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past%20Green.jpg)';
-            if (sl.meta.tier === 2) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past%20Gold.jpg)';
-            else if (sl.meta.tier === 3) url = 'url(https://github.com/BigBlackHawk42069/asdfaskijdnfawef/blob/main/CalendarGrid-DiamondPast.jpg?raw=true&v=4)';
+            let url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-grn.jpg)';
+            if (sl.meta.tier === 2) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-gold.jpg)';
+            else if (sl.meta.tier === 3) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-dmnd.jpg)';
             cell.style.backgroundImage = url;
             cell.style.backgroundSize = "700% 600%";
             cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
@@ -10773,13 +10774,13 @@
                 img = document.createElement('img'),
                 sh = document.createElement('div');
             let tType = 'green',
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Green%20Jewels%20-%20New.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-grn.png';
             if (sl.meta.tier === 2) {
                 tType = 'gold';
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gold%20Bars.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-gold.png';
             } else if (sl.meta.tier === 3) {
                 tType = 'diamond';
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Diamonds.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-dmnd.png';
             }
             wrap.className = `jewel-wrapper jewel-type-${tType}`;
             img.className = 'jewel-asset';

@@ -4,7 +4,7 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: "https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Header.jpg",
+        HEADER_IMG: "https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-hdr.jpg",
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -1633,7 +1633,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Glass%20Overlay.jpg');
+                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.jpg');
                         background-size: 100% 100%;
                         background-position: center;
                         opacity: .5;
@@ -2094,7 +2094,7 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Sticker%20Page.png');
+                        background-image: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.png');
                         background-size: cover;
                         background-position: center;
                         z-index: 5;
@@ -3377,7 +3377,7 @@
                         left: 4%;
                         width: 92%;
                         height: 92%;
-                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/New%20Sticker.png') no-repeat center / contain;
+                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.png') no-repeat center / contain;
                         z-index: 20;
                         filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
                         transform-origin: top right;

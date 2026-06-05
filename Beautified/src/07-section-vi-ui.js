@@ -62,7 +62,7 @@
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Future.jpg)');
+        c.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-futr.jpg)');
         const todayStr = Formatter.dateLogical();
         const frag = document.createDocumentFragment();
         let batch = [],
@@ -81,7 +81,7 @@
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past.jpg)');
+                if (isArch) rd.style.setProperty('--bg-url', 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-past.jpg)');
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx);
@@ -125,9 +125,9 @@
         });
         const isToday = (ds === Formatter.dateLogical());
         if (isFlipped && sl.meta.tier > 0) {
-            let url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past%20Green.jpg)';
-            if (sl.meta.tier === 2) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Calendar%20Grid%20-%20Past%20Gold.jpg)';
-            else if (sl.meta.tier === 3) url = 'url(https://github.com/BigBlackHawk42069/asdfaskijdnfawef/blob/main/CalendarGrid-DiamondPast.jpg?raw=true&v=4)';
+            let url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-grn.jpg)';
+            if (sl.meta.tier === 2) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-gold.jpg)';
+            else if (sl.meta.tier === 3) url = 'url(https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cal-grid-dmnd.jpg)';
             cell.style.backgroundImage = url;
             cell.style.backgroundSize = "700% 600%";
             cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
@@ -137,13 +137,13 @@
                 img = document.createElement('img'),
                 sh = document.createElement('div');
             let tType = 'green',
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Green%20Jewels%20-%20New.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-grn.png';
             if (sl.meta.tier === 2) {
                 tType = 'gold';
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Gold%20Bars.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-gold.png';
             } else if (sl.meta.tier === 3) {
                 tType = 'diamond';
-                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/main/Diamonds.png';
+                url = 'https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/rwrd-dmnd.png';
             }
             wrap.className = `jewel-wrapper jewel-type-${tType}`;
             img.className = 'jewel-asset';
