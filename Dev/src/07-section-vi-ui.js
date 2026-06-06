@@ -1170,6 +1170,8 @@
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
         BACKFILL_AGREE_GATE: "Read and agree to start the backfill",
         BACKFILL_RESUME_COOLDOWN: (t) => `Daily limit reached. Wait ${t} before resuming the Backfill.`,
+        BACKFILL_COMPLETE_ORIGIN: "Your full training history was reconstructed back to the very beginning.",
+        BACKFILL_COMPLETE_EXHAUSTED: "Scan reached the end of the logs Torn still retains. Any older history is no longer available from Torn's servers.",
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 

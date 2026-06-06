@@ -951,6 +951,7 @@
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
             btn.style.color = '#43a047';
+            btn.setAttribute('data-tooltip', ds.completion === 'exhausted' ? TOOLTIPS.BACKFILL_COMPLETE_EXHAUSTED : TOOLTIPS.BACKFILL_COMPLETE_ORIGIN);
             btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
             const ack = btn.querySelector('#bbgl-backfill-ack');
             if (ack) ack.onclick = (e) => {
@@ -1641,6 +1642,9 @@
                 const loaded = await DBManager.loadHistory();
                 DataController.hydrate(loaded);
                 GraphController.applyDefaultsIfNeeded();
+                // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
+                // stale; release it so the Resume button works again without a 24h lockout.
+                await recoverInterruptedBackfill();
                 renderBackfillButton();
                 if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {

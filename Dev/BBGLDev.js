@@ -185,6 +185,18 @@
     const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(','); // reconcile call (10)
     const STAT_HAPPY_PARAM = [...STAT_LOGS, ...HAPPY_LOGS].join(',');     // reconcile call (8)
     const ENERGY_PARAM = ENERGY_LOGS.join(',');                          // train-click rider (6)
+    // Backfill batches its backward scan into these two grouped `log=` calls (<=10 types each),
+    // reusing the live reconcile groups so the scan spends one request per group per page instead
+    // of one per log code. BACKFILL_GROUP_OF maps every individual code back to its group so the
+    // origin floor can reason about per-group completeness.
+    const BACKFILL_GROUPS = {
+        trainEnergy: TRAIN_ENERGY_PARAM,
+        statHappy: STAT_HAPPY_PARAM
+    };
+    const BACKFILL_GROUP_KEYS = Object.keys(BACKFILL_GROUPS);
+    const BACKFILL_GROUP_OF = {};
+    [...TRAIN_LOGS, ...ENERGY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'trainEnergy'; });
+    [...STAT_LOGS, ...HAPPY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
     const XANAX_LOG = 2290,
         ECAN_LOG = 2040;
     // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
@@ -198,13 +210,27 @@
     // that; once crossed, the scan keeps paging only to finish the current day across every
     // frontier (so the budget spent yields a fully complete, visible day rather than a hidden
     // partial one), bounded by HARD_CAP as an absolute failsafe against a pathologically dense
-    // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
-    // clear on resume.
+    // single day.
+    //
+    // Budget accounting is a fixed 24.2h window (WINDOW_MS) anchored at the first scan of the
+    // window: rowsThisWindow accumulates across resumes, the per-run budget is SOFT_CAP minus what
+    // is already spent, and the cooldown is only armed (windowStart + WINDOW_MS) when that budget
+    // is exhausted. Any other stop (interrupt, crash, network) leaves the cooldown clear so Resume
+    // works immediately. The 0.2h margin keeps the earliest spends provably aged out of Torn's
+    // rolling 24h window on resume. Progress is checkpointed to storage every CHECKPOINT_ROWS rows
+    // so an interruption never loses more than the last partial batch, and a heartbeat (refreshed
+    // every HEARTBEAT_MS, considered dead after LOCK_STALE_MS) guards against two tabs scanning at
+    // once. ORIGIN_MAX_STAT classifies a completed scan: if every baseline stat is at/under it the
+    // scan genuinely reached the account's origin, otherwise it merely exhausted Torn's retained logs.
     const BACKFILL = {
         SOFT_CAP: 30000,   // stop *starting* new days once crossed
         HARD_CAP: 32000,   // absolute failsafe, normally never reached, keeps us < 50k
-        COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
-        THROTTLE_MS: 700
+        WINDOW_MS: Math.round(24.2 * 3600 * 1000),
+        THROTTLE_MS: 700,
+        CHECKPOINT_ROWS: 2000,
+        HEARTBEAT_MS: 15000,
+        LOCK_STALE_MS: 45000,
+        ORIGIN_MAX_STAT: 50
     };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
@@ -6754,9 +6780,13 @@
     function defaultBackfill() {
         return {
             targets: {},
-            cooldownUntil: 0,
-            lastResult: null,
-            acknowledged: true
+            windowStart: 0,      // anchor of the current budget window (ms); 0 = no window open
+            rowsThisWindow: 0,   // rows spent in the current window, accumulated across resumes
+            cooldownUntil: 0,    // armed only when the window budget is exhausted
+            lastResult: null,    // 'partial' | 'complete'
+            completion: null,    // 'origin' | 'exhausted' (only meaningful once lastResult === 'complete')
+            acknowledged: true,
+            lock: 0              // heartbeat timestamp of the tab currently scanning; 0 = no scan running
         };
     }
 
@@ -6764,9 +6794,13 @@
         const d = defaultBackfill();
         if (ds && typeof ds === 'object') {
             if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
+            if (typeof ds.windowStart === 'number') d.windowStart = ds.windowStart;
+            if (typeof ds.rowsThisWindow === 'number') d.rowsThisWindow = ds.rowsThisWindow;
             if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
             if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
+            if (ds.completion === 'origin' || ds.completion === 'exhausted') d.completion = ds.completion;
             if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
+            if (typeof ds.lock === 'number') d.lock = ds.lock;
         }
         return d;
     }
@@ -7021,17 +7055,22 @@
         return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    const BACKFILL_CODES = [...TRAIN_LOGS, ...ITEM_LOGS].map(String);
-
+    // Seeds/repairs the two group frontiers (trainEnergy, statHappy). Any stored shape that is not
+    // exactly the two-group form (e.g. the older per-code frontiers) is reseeded to "now" so the
+    // scan restarts cleanly; already-stored rows are deduped on the way back, so a reseed is safe.
     function ensureBackfillTargets(ds) {
-        if (!ds.targets.frontiers) ds.targets.frontiers = {};
-        const seed = Math.floor(Date.now() / 1000);
-        BACKFILL_CODES.forEach(code => {
-            if (!ds.targets.frontiers[code]) ds.targets.frontiers[code] = {
-                cursor: seed,
-                complete: false
-            };
-        });
+        if (!ds.targets || typeof ds.targets !== 'object') ds.targets = {};
+        const fr = ds.targets.frontiers;
+        const validShape = fr && typeof fr === 'object' &&
+            BACKFILL_GROUP_KEYS.every(g => fr[g] && typeof fr[g].cursor === 'number') &&
+            Object.keys(fr).every(k => BACKFILL_GROUP_KEYS.includes(k));
+        if (!validShape) {
+            ds.targets.frontiers = {};
+            const seed = Math.floor(Date.now() / 1000);
+            BACKFILL_GROUP_KEYS.forEach(g => {
+                ds.targets.frontiers[g] = { cursor: seed, complete: false };
+            });
+        }
         return ds.targets.frontiers;
     }
 
@@ -7043,17 +7082,21 @@
         const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
         if (!stored.series.length) return existing;
 
-        const perCodeOldest = {};
+        // Oldest stored timestamp per scan group (gym codes -> trainEnergy, item codes per group).
+        const perGroupOldest = {};
         stored.series.forEach(e => {
             const code = seriesEntryCode(e);
-            if (code && (perCodeOldest[code] === undefined || e.ts < perCodeOldest[code])) perCodeOldest[code] = e.ts;
+            const g = code && BACKFILL_GROUP_OF[code];
+            if (g && (perGroupOldest[g] === undefined || e.ts < perGroupOldest[g])) perGroupOldest[g] = e.ts;
         });
 
+        // The shallowest still-incomplete group caps how far down we can trust: its oldest scanned
+        // day is only partially covered, so the first trusted day is the one after it.
         let shallowPartialDayStart = null;
-        Object.keys(frontiers || {}).forEach(code => {
-            const fr = frontiers[code];
-            if (fr && !fr.complete && perCodeOldest[code] !== undefined) {
-                const dayStart = backfillDayStart(perCodeOldest[code]);
+        Object.keys(frontiers || {}).forEach(g => {
+            const fr = frontiers[g];
+            if (fr && !fr.complete && perGroupOldest[g] !== undefined) {
+                const dayStart = backfillDayStart(perGroupOldest[g]);
                 if (shallowPartialDayStart === null || dayStart > shallowPartialDayStart) shallowPartialDayStart = dayStart;
             }
         });
@@ -7068,8 +7111,26 @@
         return newFloor;
     }
 
-    // Saves the results of a Deep Log Scan to your browser's private storage.
-    async function finalizeBackfill(ds, collected) {
+    // Lightweight progress checkpoint: persists ONLY the backfill state (frontiers, window budget,
+    // cooldown, heartbeat lock) to the meta store. No series merge, no day rebuild, no UI refresh —
+    // cheap enough to call on every heartbeat tick.
+    async function persistBackfillState(ds) {
+        let meta;
+        if (_historyCache && _historyCache.meta) {
+            meta = _historyCache.meta;
+        } else {
+            const stored = await DBManager.getStorage();
+            meta = (stored && stored.meta) || { baselineBreakdown: { ...ZERO_BREAKDOWN } };
+        }
+        meta.backfill = ds;
+        await DBManager.saveDays(meta, []);
+    }
+
+    // Merges a batch of freshly scanned rows into the stored series (dedup across sessions),
+    // recomputes the baseline and origin floor, and persists the rebuilt day objects + meta.
+    // Does NOT touch the in-memory cache or render — that is deferred to finalizeBackfill so the UI
+    // is only rebuilt once the scan stops. Returns the persisted storage record.
+    async function _persistBackfillSeries(ds, collected) {
         let stored = await DBManager.getStorage();
         if (!stored) stored = {
             meta: {
@@ -7081,7 +7142,7 @@
         };
         if (!Array.isArray(stored.series)) stored.series = [];
 
-        if (collected.length > 0) {
+        if (collected && collected.length > 0) {
             const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
             const itemKey = e => `${e.ts}_${e.logId}`;
             const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
@@ -7131,7 +7192,13 @@
 
         stored.meta.backfill = ds;
         await DBManager.setStorage(stored);
+        return stored;
+    }
 
+    // Final save for a Deep Log Scan: persists any remaining rows, then rebuilds the in-memory
+    // history cache and invalidates derived caches so the UI reflects the freshly scanned history.
+    async function finalizeBackfill(ds, collected) {
+        const stored = await _persistBackfillSeries(ds, collected);
         const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
         _historyCache = {
             meta: stored.meta,
@@ -7153,6 +7220,17 @@
         renderBackfillButton();
     }
 
+    // One backward log page for a group, with a changing &timestamp cache-buster. Torn's ~29s API
+    // cache is NOT keyed on `to`, so without this a rapid sequence of paged calls can return a stale
+    // (even empty) earlier response; the buster guarantees each page is fresh.
+    async function fetchBackfillPage(param, cursor) {
+        const url = `https://api.torn.com/user/?selections=log&log=${param}&key=${userConfig.apiKey}&to=${Math.floor(cursor)}&timestamp=${Date.now()}`;
+        incrementApiCount(1);
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(resp.status);
+        return resp.json();
+    }
+
     // Deep Log Scan: uses your API key to page back through your full training history on Torn's
     // servers. Only reads gym training logs and a short list of item logs (energy cans, Xanax, etc.)
     // — never reads your messages, money, or any other personal information.
@@ -7170,7 +7248,33 @@
         const ds = s.meta.backfill;
         const now = Date.now();
 
+        // Budget cooldown gate: only armed when a previous run exhausted the window's budget.
         if (ds.cooldownUntil && now < ds.cooldownUntil) {
+            renderBackfillButton();
+            return;
+        }
+
+        // Cross-tab guard: if another tab is mid-scan its heartbeat lock is fresh in storage. Stand
+        // down quietly rather than running two scans into the same store. Read the freshest copy.
+        const freshStored = await DBManager.getStorage();
+        const liveLock = freshStored && freshStored.meta && freshStored.meta.backfill && freshStored.meta.backfill.lock;
+        if (liveLock && (Date.now() - liveLock) < BACKFILL.LOCK_STALE_MS) {
+            renderBackfillButton();
+            return;
+        }
+
+        // Open or roll the budget window: a window older than WINDOW_MS has fully aged out of Torn's
+        // rolling 24h, so we start fresh; otherwise this run spends only the remaining budget.
+        if (!ds.windowStart || (Date.now() - ds.windowStart) >= BACKFILL.WINDOW_MS) {
+            ds.windowStart = Date.now();
+            ds.rowsThisWindow = 0;
+        }
+        const budget = Math.max(0, BACKFILL.SOFT_CAP - (ds.rowsThisWindow || 0));
+        if (budget <= 0) {
+            // Window already spent (e.g. resumed right at the boundary): arm the cooldown and bail.
+            ds.lastResult = 'partial';
+            ds.cooldownUntil = ds.windowStart + BACKFILL.WINDOW_MS;
+            await persistBackfillState(ds);
             renderBackfillButton();
             return;
         }
@@ -7178,8 +7282,8 @@
         const frontiers = ensureBackfillTargets(ds);
 
         ds.lastResult = 'partial';
-        ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-        await finalizeBackfill(ds, []);
+        ds.lock = Date.now();
+        await persistBackfillState(ds);
 
         runtime.backfilling = true;
         if (btn) {
@@ -7189,30 +7293,39 @@
             btn.innerText = 'Scanning... 0';
         }
 
-        let rowsFetched = 0;
+        let sessionRows = 0;       // rows fetched this run (failsafe against HARD_CAP)
         let stoppedEarly = false;
-        let drainDay = null;
-        const collected = [];
+        let capHit = false;        // window budget reached this run
+        let drainDay = null;       // once the cap is hit, only finish the current day
+        let pending = [];          // rows not yet flushed to storage
+        let lastHeartbeat = Date.now();
+
+        const flush = async () => {
+            ds.lock = Date.now();
+            await _persistBackfillSeries(ds, pending);
+            pending = [];
+            lastHeartbeat = Date.now();
+        };
 
         try {
-            while (rowsFetched < BACKFILL.HARD_CAP) {
+            while (sessionRows < BACKFILL.HARD_CAP) {
+                // Pick the still-incomplete group with the deepest (highest) cursor, honoring the
+                // drain boundary so we never start a day older than the one being finished.
                 let pick = null;
-                const consider = (fr, code) => {
-                    if (fr.complete) return;
+                BACKFILL_GROUP_KEYS.forEach(g => {
+                    const fr = frontiers[g];
+                    if (!fr || fr.complete) return;
                     if (drainDay !== null && fr.cursor < drainDay) return;
-                    if (pick === null || fr.cursor > pick.fr.cursor) pick = { fr, code };
-                };
-                BACKFILL_CODES.forEach(code => consider(frontiers[code], code));
+                    if (pick === null || fr.cursor > frontiers[pick].cursor) pick = g;
+                });
                 if (pick === null) break;
 
-                const st = pick.fr;
-                const url = `https://api.torn.com/user/?selections=log&log=${pick.code}&key=${userConfig.apiKey}&to=${Math.floor(st.cursor)}`;
-                incrementApiCount(1);
+                const fr = frontiers[pick];
+                const param = BACKFILL_GROUPS[pick];
+
                 let data;
                 try {
-                    const resp = await fetch(url);
-                    if (!resp.ok) throw new Error(resp.status);
-                    data = await resp.json();
+                    data = await fetchBackfillPage(param, fr.cursor);
                 } catch (netErr) {
                     Log.warn('Deep scan network error', netErr);
                     stoppedEarly = true;
@@ -7226,34 +7339,70 @@
                     throw new Error(data.error.error);
                 }
 
-                const rowKeys = data.log ? Object.keys(data.log) : [];
+                let rowKeys = data.log ? Object.keys(data.log) : [];
                 if (rowKeys.length === 0) {
-                    st.complete = true;
-                    continue;
+                    // An empty page only means "nothing retrievable past here" if it is real. Confirm
+                    // with one cache-busted retry before trusting it, so a stale/empty cache hit can't
+                    // falsely declare this group complete.
+                    await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
+                    let confirm;
+                    try {
+                        confirm = await fetchBackfillPage(param, fr.cursor);
+                    } catch (netErr) {
+                        Log.warn('Deep scan confirm network error', netErr);
+                        stoppedEarly = true;
+                        break;
+                    }
+                    if (confirm.error) {
+                        if (confirm.error.code === 14 || confirm.error.code === 5) {
+                            stoppedEarly = true;
+                            break;
+                        }
+                        throw new Error(confirm.error.error);
+                    }
+                    const cKeys = confirm.log ? Object.keys(confirm.log) : [];
+                    if (cKeys.length === 0) {
+                        fr.complete = true;
+                        continue;
+                    }
+                    data = confirm;
+                    rowKeys = cKeys;
                 }
 
-                collected.push(...normalizeApiLogs(data.log));
-                rowsFetched += rowKeys.length;
+                pending.push(...normalizeApiLogs(data.log));
+                sessionRows += rowKeys.length;
+                ds.rowsThisWindow = (ds.rowsThisWindow || 0) + rowKeys.length;
 
-                let oldestTs = st.cursor;
+                let oldestTs = fr.cursor;
                 for (const k of rowKeys) {
                     const t = data.log[k].timestamp;
                     if (t < oldestTs) oldestTs = t;
                 }
-                st.cursor = oldestTs - 1;
+                fr.cursor = oldestTs - 1;
 
-                if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
+                if (btn) btn.innerText = `Scanning... ${sessionRows}`;
 
-                if (drainDay === null && rowsFetched >= BACKFILL.SOFT_CAP) {
+                // Window budget reached: stop STARTING new days, drain the current one across both
+                // groups so the persisted boundary is a fully complete day.
+                if (drainDay === null && ds.rowsThisWindow >= BACKFILL.SOFT_CAP) {
+                    capHit = true;
                     let maxCursor = -Infinity;
-                    BACKFILL_CODES.forEach(code => {
-                        const fr = frontiers[code];
-                        if (!fr.complete && fr.cursor > maxCursor) maxCursor = fr.cursor;
+                    BACKFILL_GROUP_KEYS.forEach(g => {
+                        const f = frontiers[g];
+                        if (f && !f.complete && f.cursor > maxCursor) maxCursor = f.cursor;
                     });
                     if (maxCursor > -Infinity) drainDay = backfillDayStart(maxCursor);
                 }
 
-                if (rowsFetched >= BACKFILL.HARD_CAP) {
+                if (pending.length >= BACKFILL.CHECKPOINT_ROWS) {
+                    await flush();
+                } else if (Date.now() - lastHeartbeat >= BACKFILL.HEARTBEAT_MS) {
+                    ds.lock = Date.now();
+                    await persistBackfillState(ds);
+                    lastHeartbeat = Date.now();
+                }
+
+                if (sessionRows >= BACKFILL.HARD_CAP) {
                     stoppedEarly = true;
                     break;
                 }
@@ -7264,25 +7413,65 @@
             stoppedEarly = true;
         }
 
-        const allComplete = BACKFILL_CODES.every(code => frontiers[code].complete);
+        const allComplete = BACKFILL_GROUP_KEYS.every(g => frontiers[g] && frontiers[g].complete);
         if (allComplete && !stoppedEarly) {
             ds.lastResult = 'complete';
             ds.acknowledged = false;
             ds.cooldownUntil = 0;
+            ds.windowStart = 0;
+            ds.rowsThisWindow = 0;
         } else {
             ds.lastResult = 'partial';
-            ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
+            // Arm the cooldown only when the budget was actually spent. Interruptions, network
+            // errors, and crashes leave it clear so Resume is immediately available.
+            if (capHit || (ds.rowsThisWindow || 0) >= BACKFILL.SOFT_CAP) {
+                ds.cooldownUntil = ds.windowStart + BACKFILL.WINDOW_MS;
+            }
         }
+        ds.lock = 0;
 
         try {
-            await finalizeBackfill(ds, collected);
+            await finalizeBackfill(ds, pending);
         } catch (e) {
             Log.error('Deep scan save failed', e);
         } finally {
             runtime.backfilling = false;
         }
+
+        // Classify a completed scan now that the deepest rows (the final batch) are merged and the
+        // baseline reflects them: reaching ~10 across every stat means we hit the account's true
+        // origin; otherwise we merely exhausted the logs Torn still retains.
+        if (ds.lastResult === 'complete') {
+            const baseline = (_historyCache && _historyCache.meta && _historyCache.meta.baselineBreakdown) || ZERO_BREAKDOWN;
+            const reachedOrigin = STAT_KEYS.every(k => (baseline[k] || 0) <= BACKFILL.ORIGIN_MAX_STAT);
+            ds.completion = reachedOrigin ? 'origin' : 'exhausted';
+            try {
+                await persistBackfillState(ds);
+            } catch (e) {
+                Log.error('Backfill completion flag save failed', e);
+            }
+        }
+
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
         renderBackfillButton();
+    }
+
+    // Crash/refresh recovery: on boot, a backfill heartbeat lock that has gone stale means a scan was
+    // interrupted. Release the lock so Resume works (its cooldown is already correct — clear unless
+    // the cap was hit). A still-fresh lock means another live tab owns the scan, so we leave it be.
+    async function recoverInterruptedBackfill() {
+        if (runtime.demoMode || runtime.backfilling) return;
+        const s = getActiveHistory();
+        const ds = s.meta && s.meta.backfill;
+        if (!ds || !ds.lock) return;
+        if ((Date.now() - ds.lock) <= BACKFILL.LOCK_STALE_MS) return;
+        ds.lock = 0;
+        if (!ds.lastResult) ds.lastResult = 'partial';
+        try {
+            await persistBackfillState(ds);
+        } catch (e) {
+            Log.warn('Backfill lock recovery save failed', e);
+        }
     }
 
     /**
@@ -11668,6 +11857,8 @@
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
         BACKFILL_AGREE_GATE: "Read and agree to start the backfill",
         BACKFILL_RESUME_COOLDOWN: (t) => `Daily limit reached. Wait ${t} before resuming the Backfill.`,
+        BACKFILL_COMPLETE_ORIGIN: "Your full training history was reconstructed back to the very beginning.",
+        BACKFILL_COMPLETE_EXHAUSTED: "Scan reached the end of the logs Torn still retains. Any older history is no longer available from Torn's servers.",
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 
@@ -14813,6 +15004,7 @@
 
         if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) {
             btn.style.color = '#43a047';
+            btn.setAttribute('data-tooltip', ds.completion === 'exhausted' ? TOOLTIPS.BACKFILL_COMPLETE_EXHAUSTED : TOOLTIPS.BACKFILL_COMPLETE_ORIGIN);
             btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`;
             const ack = btn.querySelector('#bbgl-backfill-ack');
             if (ack) ack.onclick = (e) => {
@@ -15503,6 +15695,9 @@
                 const loaded = await DBManager.loadHistory();
                 DataController.hydrate(loaded);
                 GraphController.applyDefaultsIfNeeded();
+                // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
+                // stale; release it so the Resume button works again without a 24h lockout.
+                await recoverInterruptedBackfill();
                 renderBackfillButton();
                 if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {

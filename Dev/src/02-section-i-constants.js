@@ -119,6 +119,18 @@
     const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(','); // reconcile call (10)
     const STAT_HAPPY_PARAM = [...STAT_LOGS, ...HAPPY_LOGS].join(',');     // reconcile call (8)
     const ENERGY_PARAM = ENERGY_LOGS.join(',');                          // train-click rider (6)
+    // Backfill batches its backward scan into these two grouped `log=` calls (<=10 types each),
+    // reusing the live reconcile groups so the scan spends one request per group per page instead
+    // of one per log code. BACKFILL_GROUP_OF maps every individual code back to its group so the
+    // origin floor can reason about per-group completeness.
+    const BACKFILL_GROUPS = {
+        trainEnergy: TRAIN_ENERGY_PARAM,
+        statHappy: STAT_HAPPY_PARAM
+    };
+    const BACKFILL_GROUP_KEYS = Object.keys(BACKFILL_GROUPS);
+    const BACKFILL_GROUP_OF = {};
+    [...TRAIN_LOGS, ...ENERGY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'trainEnergy'; });
+    [...STAT_LOGS, ...HAPPY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
     const XANAX_LOG = 2290,
         ECAN_LOG = 2040;
     // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
@@ -132,13 +144,27 @@
     // that; once crossed, the scan keeps paging only to finish the current day across every
     // frontier (so the budget spent yields a fully complete, visible day rather than a hidden
     // partial one), bounded by HARD_CAP as an absolute failsafe against a pathologically dense
-    // single day. The cooldown is set slightly over 24h so the rolling-24h window is guaranteed
-    // clear on resume.
+    // single day.
+    //
+    // Budget accounting is a fixed 24.2h window (WINDOW_MS) anchored at the first scan of the
+    // window: rowsThisWindow accumulates across resumes, the per-run budget is SOFT_CAP minus what
+    // is already spent, and the cooldown is only armed (windowStart + WINDOW_MS) when that budget
+    // is exhausted. Any other stop (interrupt, crash, network) leaves the cooldown clear so Resume
+    // works immediately. The 0.2h margin keeps the earliest spends provably aged out of Torn's
+    // rolling 24h window on resume. Progress is checkpointed to storage every CHECKPOINT_ROWS rows
+    // so an interruption never loses more than the last partial batch, and a heartbeat (refreshed
+    // every HEARTBEAT_MS, considered dead after LOCK_STALE_MS) guards against two tabs scanning at
+    // once. ORIGIN_MAX_STAT classifies a completed scan: if every baseline stat is at/under it the
+    // scan genuinely reached the account's origin, otherwise it merely exhausted Torn's retained logs.
     const BACKFILL = {
         SOFT_CAP: 30000,   // stop *starting* new days once crossed
         HARD_CAP: 32000,   // absolute failsafe, normally never reached, keeps us < 50k
-        COOLDOWN_MS: Math.round(24.2 * 3600 * 1000),
-        THROTTLE_MS: 700
+        WINDOW_MS: Math.round(24.2 * 3600 * 1000),
+        THROTTLE_MS: 700,
+        CHECKPOINT_ROWS: 2000,
+        HEARTBEAT_MS: 15000,
+        LOCK_STALE_MS: 45000,
+        ORIGIN_MAX_STAT: 50
     };
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
