@@ -141,16 +141,11 @@
             // no stickers here. Demo mode is exempt (keeps its 1-sticker showcase behavior).
             const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
             Object.keys(weekMap).sort().forEach(wk => {
-                if (wk > todayWeekKey) return;
+                if (wk >= todayWeekKey) return;
                 if (installWeekKey && wk < installWeekKey) return;
                 const days = weekMap[wk].sort((a, b) => a.date.localeCompare(b.date));
                 const stickerworthyDays = days.filter(d => d.eSpent && d.eSpent.total >= 1000);
                 if (!stickerworthyDays.length) return;
-                let completionDays = days;
-                if (wk === todayWeekKey) {
-                    const todayEntry = this.getTimeline().find(d => d.date === today);
-                    if (todayEntry) completionDays = [...days, todayEntry];
-                }
                 const {
                     isCompleted,
                     isGold

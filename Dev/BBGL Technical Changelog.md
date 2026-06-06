@@ -1,5 +1,13 @@
 # Big Black Gym Log - Testing Phase Changelog
 
+Version 0.9.76 - Pending
+
+### Bug Fixes:
+- **Native Torn Button Conflict**: Fixed a site-wide button misshaping issue caused by BBGL's custom button styles being applied globally to Torn's native `.torn-btn` class. All BBGL-generated buttons have been migrated to a private `.bbgl-btn` class family (`.bbgl-btn`, `.bbgl-btn-green`, `.bbgl-btn-red`, `.bbgl-btn-purple`), keeping button appearance identical while fully isolating BBGL's styles from Torn's UI on every page.
+- **Premature Sticker Unlock**: Fixed a bug where stickers were appearing in the stickerbook as soon as the weekly bar filled up mid-week. The sticker award logic now only processes fully completed past weeks, so stickers are never unlocked for the current active week regardless of bar fill state — they appear correctly once the week ends and is archived.
+
+--------------------------------------------------
+
 Version 0.9.75 - 2026-06-05
 
 ### New Features:

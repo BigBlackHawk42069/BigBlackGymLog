@@ -1375,6 +1375,11 @@
             this.blur();
             openFeatureGuideModal();
         };
+        const sbb = get('settings-backfill-btn');
+        if (sbb) sbb.onclick = function() {
+            this.blur();
+            openBackfillModal();
+        };
         const drb = get('dev-reset-btn');
         if (drb) drb.onclick = function() {
             this.blur();

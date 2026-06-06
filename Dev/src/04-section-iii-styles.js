@@ -69,7 +69,7 @@
                         margin-top: 0;
                     }
 
-                    .torn-btn {
+                    .bbgl-btn {
                         background-image: linear-gradient(rgb(17, 17, 17) 0%, rgb(85, 85, 85) 25%, rgb(51, 51, 51) 60%, rgb(51, 51, 51) 78%, rgb(17, 17, 17) 100%);
                         color: #eee;
                         font-family: "Fjalla One", Arial, serif;
@@ -89,56 +89,56 @@
                         transition: none;
                     }
 
-                    .torn-btn:hover {
+                    .bbgl-btn:hover {
                         background-image: linear-gradient(rgb(51, 51, 51) 0%, rgb(119, 119, 119) 25%, rgb(51, 51, 51) 59%, rgb(102, 102, 102) 78%, rgb(51, 51, 51) 100%);
                         color: #fff;
                     }
 
-                    .torn-btn:active {
+                    .bbgl-btn:active {
                         background-image: linear-gradient(#000 0%, #333 100%);
                         color: #ddd;
                         box-shadow: rgba(255, 255, 255, .07) 0 -1px 0 0 inset;
                         border-color: #ddd;
                     }
 
-                    .torn-btn-green {
+                    .bbgl-btn-green {
                         background-image: linear-gradient(#0e1806 0%, #3e5e22 25%, #2b4216 60%, #2b4216 78%, #0e1806 100%) !important;
                         border-color: #0e1806 !important;
                     }
 
-                    .torn-btn-green:hover {
+                    .bbgl-btn-green:hover {
                         background-image: linear-gradient(#1a2e0b 0%, #4f782b 25%, #3a591e 60%, #3a591e 78%, #1a2e0b 100%) !important;
                     }
 
-                    .torn-btn-green:active {
+                    .bbgl-btn-green:active {
                         background-image: linear-gradient(#080f03 0%, #2b4216 100%) !important;
                         border-color: #555 !important;
                     }
 
-                    .torn-btn-red {
+                    .bbgl-btn-red {
                         background-image: linear-gradient(#200505 0%, #701a1a 25%, #4f0e0e 60%, #4f0e0e 78%, #200505 100%) !important;
                         border-color: #200505 !important;
                     }
 
-                    .torn-btn-red:hover {
+                    .bbgl-btn-red:hover {
                         background-image: linear-gradient(#360808 0%, #942222 25%, #6e1313 60%, #6e1313 78%, #360808 100%) !important;
                     }
 
-                    .torn-btn-red:active {
+                    .bbgl-btn-red:active {
                         background-image: linear-gradient(#140303 0%, #4f0e0e 100%) !important;
                         border-color: #555 !important;
                     }
 
-                    .torn-btn-purple {
+                    .bbgl-btn-purple {
                         background-image: linear-gradient(#1a0529 0%, #6a1b9a 25%, #4a1070 60%, #4a1070 78%, #1a0529 100%) !important;
                         border-color: #1a0529 !important;
                     }
 
-                    .torn-btn-purple:hover {
+                    .bbgl-btn-purple:hover {
                         background-image: linear-gradient(#2a0840 0%, #8e24aa 25%, #6a1b9a 60%, #6a1b9a 78%, #2a0840 100%) !important;
                     }
 
-                    .torn-btn-purple:active {
+                    .bbgl-btn-purple:active {
                         background-image: linear-gradient(#0f0318 0%, #4a1070 100%) !important;
                         border-color: #555 !important;
                     }
@@ -371,18 +371,18 @@
                         margin-bottom: 0;
                     }
 
-                    .bbgl-btn-grid .torn-btn {
+                    .bbgl-btn-grid .bbgl-btn {
                         flex: 1;
                     }
 
-                    .bbgl-btn-grid .torn-btn:first-of-type {
+                    .bbgl-btn-grid .bbgl-btn:first-of-type {
                         border-top-right-radius: 0;
                         border-bottom-right-radius: 0;
                         border-bottom-left-radius: 0;
                         border-right: none;
                     }
 
-                    .bbgl-btn-grid .torn-btn:last-of-type {
+                    .bbgl-btn-grid .bbgl-btn:last-of-type {
                         border-top-left-radius: 0;
                         border-bottom-left-radius: 0;
                         border-bottom-right-radius: 0;
@@ -396,13 +396,13 @@
                         width: auto !important;
                     }
 
-                    .bbgl-api-grid .torn-btn {
+                    .bbgl-api-grid .bbgl-btn {
                         flex: 1 1 0 !important;
                         margin: 0 !important;
                         width: 50% !important;
                     }
 
-                    .bbgl-api-grid .torn-btn:first-child {
+                    .bbgl-api-grid .bbgl-btn:first-child {
                         border-top-right-radius: 0 !important;
                         border-bottom-right-radius: 0 !important;
                         border-top-left-radius: 5px !important;
@@ -410,7 +410,7 @@
                         border-right: none !important;
                     }
 
-                    .bbgl-api-grid .torn-btn:last-child {
+                    .bbgl-api-grid .bbgl-btn:last-child {
                         border-top-left-radius: 0 !important;
                         border-bottom-left-radius: 0 !important;
                         border-top-right-radius: 5px !important;
@@ -3945,7 +3945,7 @@
                         flex: 1;
                     }
 
-                    .torn-btn.bbgl-btn-disabled {
+                    .bbgl-btn.bbgl-btn-disabled {
                         filter: grayscale(1);
                         opacity: .5;
                         pointer-events: none;
@@ -3956,7 +3956,7 @@
                         display: block;
                     }
 
-                    .bbgl-agree-wrap .torn-btn {
+                    .bbgl-agree-wrap .bbgl-btn {
                         width: 100%;
                     }
 

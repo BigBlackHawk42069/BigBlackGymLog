@@ -1134,7 +1134,7 @@
     }
 
     function buildButton(id, label, modifier = '', extraStyle = '') {
-        const cls = ['torn-btn', modifier ? `torn-btn-${modifier}` : ''].filter(Boolean).join(' ');
+        const cls = ['bbgl-btn', modifier ? `bbgl-btn-${modifier}` : ''].filter(Boolean).join(' ');
         const style = extraStyle ? ` style="${extraStyle}"` : '';
         return `<button id="${id}" class="${cls}"${style}>${label}</button>`;
     }
@@ -1560,7 +1560,7 @@
 
     function buildSettingsInfoSection() {
         const guideBtn = buildButton('feature-guide-btn', 'FEATURE GUIDE', '', 'margin: 8px 10px 0 10px; width: calc(100% - 20px); display: block; border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none;');
-        const stack = `<div style="margin: 0 10px 0 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-radius: 0; border-bottom: none; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
+        const stack = `<div style="margin: 0 10px 0 10px; display: flex; flex-direction: column;">` + buildButton('settings-changelog-btn', 'CHANGELOG', '', 'border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: none; width: 100%;') + buildButton('show-welcome-btn', 'WELCOME PAGE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('settings-backfill-btn', 'BACKFILL DISCLOSURE', '', 'border-radius: 0; border-bottom: none; width: 100%;') + buildButton('dev-reset-btn', 'DEV: FACTORY RESET', 'red', `border-radius: 0; border-bottom: none; width: 100%; opacity: 0.6; display: ${runtime.devMode ? 'block' : 'none'};`) + `</div>`;
         const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
         return buildSection('Information', guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>${demoBtn}`);
     }
