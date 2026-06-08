@@ -149,7 +149,7 @@
                 const {
                     isCompleted,
                     isGold
-                } = computeWeekCompletion(completionDays, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
+                } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
                 const numFeatured = isGold ? 2 : (isCompleted ? 1 : 0);
                 const splitIdx = Math.max(0, stickerworthyDays.length - numFeatured);
                 const rouletteDays = stickerworthyDays.slice(0, splitIdx);

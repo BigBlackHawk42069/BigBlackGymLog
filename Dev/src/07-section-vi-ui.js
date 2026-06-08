@@ -587,6 +587,7 @@
                 if (showFooter && gtCached && dom.notesBtn && dom.notesBtn.isConnected && gtCached.nextSibling !== dom.notesBtn) {
                     dom.notesBtn.parentNode.insertBefore(gtCached, dom.notesBtn);
                 }
+                if (showSidebar) syncSidebarState();
                 settleDomObs();
                 return;
             }
@@ -645,6 +646,7 @@
             }
         }
         _lastButtonLocation = loc;
+        if (showSidebar) syncSidebarState();
         settleDomObs();
         Perf.end('handleDomMutation');
     }
@@ -713,13 +715,16 @@
     function syncSidebarState() {
         const a = window.location.hash.includes('gymlog'),
             ids = [SB_DESKTOP.id, SB_MOBILE.id];
-        const probe = document.querySelector('[id^="nav-"][class*="active___"]') || document.querySelector('[class*="active___"]');
-        const activeCls = probe ? Array.from(probe.classList).find(c => c.startsWith('active___')) : null;
-        if (!activeCls) return;
+        // Our own CSS highlights the active sidebar entry via the substring selector
+        // [class*="active___"], so we don't need Torn's exact (hashed) active class — a stable
+        // literal sentinel works and, unlike borrowing a live probe, never depends on some other
+        // nav item happening to be active (on /calendar.php nothing native is, which is why the
+        // old probe came back empty and the button never lit up).
+        const BBGL_ACTIVE = 'active___bbgl';
         if (a) {
             ids.forEach(id => {
                 const c = document.getElementById(id);
-                if (c) c.classList.add(activeCls);
+                if (c && !c.classList.contains(BBGL_ACTIVE)) c.classList.add(BBGL_ACTIVE);
             });
             document.querySelectorAll('[id^="nav-"]').forEach(navEl => {
                 if (ids.includes(navEl.id)) return;
