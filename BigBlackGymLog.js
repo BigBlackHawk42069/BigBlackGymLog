@@ -44,9 +44,14 @@
     const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(',');
     const STAT_HAPPY_PARAM = [...STAT_LOGS, ...HAPPY_LOGS].join(',');
     const ENERGY_PARAM = ENERGY_LOGS.join(',');
+    const BACKFILL_GROUPS = { trainEnergy: TRAIN_ENERGY_PARAM, statHappy: STAT_HAPPY_PARAM };
+    const BACKFILL_GROUP_KEYS = Object.keys(BACKFILL_GROUPS);
+    const BACKFILL_GROUP_OF = {};
+    [...TRAIN_LOGS, ...ENERGY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'trainEnergy'; });
+    [...STAT_LOGS, ...HAPPY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
     const XANAX_LOG = 2290, ECAN_LOG = 2040;
     const SYNC_FROM_BUFFER = 3 * 3600;
-    const BACKFILL = { SOFT_CAP: 30000, HARD_CAP: 32000, COOLDOWN_MS: Math.round(24.2 * 3600 * 1000), THROTTLE_MS: 700 };
+    const BACKFILL = { SOFT_CAP: 30000, HARD_CAP: 32000, WINDOW_MS: Math.round(24.2 * 3600 * 1000), THROTTLE_MS: 700, CHECKPOINT_ROWS: 2000, HEARTBEAT_MS: 15000, LOCK_STALE_MS: 45000, ORIGIN_MAX_STAT: 50 };
     const GYM_TIERS = { str: [1, 2, 3, 4, [5, 6], 7, 8, 10, 9, [11, 12, 13], 14, [16, 17], [19, 20], 18, [22, 23], 21, 24, 26, 27, 31, 32], spd: [1, 2, [3, 4], [5, 6], 8, 9, [10, 11], 12, 13, 15, 14, 16, 17, [18, 20, 21], [19, 22], 23, 24, 26, 29, 31, 32], def: [1, 2, 3, 4, 5, 6, 7, [8, 9], [10, 13], 12, 11, [14, 15], 16, 18, [17, 19, 21], 20, [22, 23], 24, 25, 28, 31, 32], dex: [1, 2, 3, 5, 7, 6, 8, 9, 10, 11, 12, [13, 14], 15, 16, [17, 18], [21, 22], [19, 23], 20, 24, 25, 30, 31, 32] };
     const BS_STAT_ROWS = [{ api: 'strength', abbr: 'str' }, { api: 'defense', abbr: 'def' }, { api: 'speed', abbr: 'spd' }, { api: 'dexterity', abbr: 'dex' }];
     const LAYOUT = { LIFT_HEIGHT: 43, BASE_RIGHT: 5 };
@@ -1654,9 +1659,13 @@
     function defaultBackfill() {
         return {
             targets: {},
-            cooldownUntil: 0,
-            lastResult: null,
-            acknowledged: true
+            windowStart: 0,      // anchor of the current budget window (ms); 0 = no window open
+            rowsThisWindow: 0,   // rows spent in the current window, accumulated across resumes
+            cooldownUntil: 0,    // armed only when the window budget is exhausted
+            lastResult: null,    // 'partial' | 'complete'
+            completion: null,    // 'origin' | 'exhausted' (only meaningful once lastResult === 'complete')
+            acknowledged: true,
+            lock: 0              // heartbeat timestamp of the tab currently scanning; 0 = no scan running
         };
     }
 
@@ -1664,9 +1673,13 @@
         const d = defaultBackfill();
         if (ds && typeof ds === 'object') {
             if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
+            if (typeof ds.windowStart === 'number') d.windowStart = ds.windowStart;
+            if (typeof ds.rowsThisWindow === 'number') d.rowsThisWindow = ds.rowsThisWindow;
             if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
             if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
+            if (ds.completion === 'origin' || ds.completion === 'exhausted') d.completion = ds.completion;
             if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
+            if (typeof ds.lock === 'number') d.lock = ds.lock;
         }
         return d;
     }
@@ -1921,17 +1934,22 @@
         return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    const BACKFILL_CODES = [...TRAIN_LOGS, ...ITEM_LOGS].map(String);
-
+    // Seeds/repairs the two group frontiers (trainEnergy, statHappy). Any stored shape that is not
+    // exactly the two-group form (e.g. the older per-code frontiers) is reseeded to "now" so the
+    // scan restarts cleanly; already-stored rows are deduped on the way back, so a reseed is safe.
     function ensureBackfillTargets(ds) {
-        if (!ds.targets.frontiers) ds.targets.frontiers = {};
-        const seed = Math.floor(Date.now() / 1000);
-        BACKFILL_CODES.forEach(code => {
-            if (!ds.targets.frontiers[code]) ds.targets.frontiers[code] = {
-                cursor: seed,
-                complete: false
-            };
-        });
+        if (!ds.targets || typeof ds.targets !== 'object') ds.targets = {};
+        const fr = ds.targets.frontiers;
+        const validShape = fr && typeof fr === 'object' &&
+            BACKFILL_GROUP_KEYS.every(g => fr[g] && typeof fr[g].cursor === 'number') &&
+            Object.keys(fr).every(k => BACKFILL_GROUP_KEYS.includes(k));
+        if (!validShape) {
+            ds.targets.frontiers = {};
+            const seed = Math.floor(Date.now() / 1000);
+            BACKFILL_GROUP_KEYS.forEach(g => {
+                ds.targets.frontiers[g] = { cursor: seed, complete: false };
+            });
+        }
         return ds.targets.frontiers;
     }
 
@@ -1943,17 +1961,21 @@
         const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
         if (!stored.series.length) return existing;
 
-        const perCodeOldest = {};
+        // Oldest stored timestamp per scan group (gym codes -> trainEnergy, item codes per group).
+        const perGroupOldest = {};
         stored.series.forEach(e => {
             const code = seriesEntryCode(e);
-            if (code && (perCodeOldest[code] === undefined || e.ts < perCodeOldest[code])) perCodeOldest[code] = e.ts;
+            const g = code && BACKFILL_GROUP_OF[code];
+            if (g && (perGroupOldest[g] === undefined || e.ts < perGroupOldest[g])) perGroupOldest[g] = e.ts;
         });
 
+        // The shallowest still-incomplete group caps how far down we can trust: its oldest scanned
+        // day is only partially covered, so the first trusted day is the one after it.
         let shallowPartialDayStart = null;
-        Object.keys(frontiers || {}).forEach(code => {
-            const fr = frontiers[code];
-            if (fr && !fr.complete && perCodeOldest[code] !== undefined) {
-                const dayStart = backfillDayStart(perCodeOldest[code]);
+        Object.keys(frontiers || {}).forEach(g => {
+            const fr = frontiers[g];
+            if (fr && !fr.complete && perGroupOldest[g] !== undefined) {
+                const dayStart = backfillDayStart(perGroupOldest[g]);
                 if (shallowPartialDayStart === null || dayStart > shallowPartialDayStart) shallowPartialDayStart = dayStart;
             }
         });
@@ -1968,8 +1990,26 @@
         return newFloor;
     }
 
-    // Saves the results of a Deep Log Scan to your browser's private storage.
-    async function finalizeBackfill(ds, collected) {
+    // Lightweight progress checkpoint: persists ONLY the backfill state (frontiers, window budget,
+    // cooldown, heartbeat lock) to the meta store. No series merge, no day rebuild, no UI refresh —
+    // cheap enough to call on every heartbeat tick.
+    async function persistBackfillState(ds) {
+        let meta;
+        if (_historyCache && _historyCache.meta) {
+            meta = _historyCache.meta;
+        } else {
+            const stored = await DBManager.getStorage();
+            meta = (stored && stored.meta) || { baselineBreakdown: { ...ZERO_BREAKDOWN } };
+        }
+        meta.backfill = ds;
+        await DBManager.saveDays(meta, []);
+    }
+
+    // Merges a batch of freshly scanned rows into the stored series (dedup across sessions),
+    // recomputes the baseline and origin floor, and persists the rebuilt day objects + meta.
+    // Does NOT touch the in-memory cache or render — that is deferred to finalizeBackfill so the UI
+    // is only rebuilt once the scan stops. Returns the persisted storage record.
+    async function _persistBackfillSeries(ds, collected) {
         let stored = await DBManager.getStorage();
         if (!stored) stored = {
             meta: {
@@ -1981,7 +2021,7 @@
         };
         if (!Array.isArray(stored.series)) stored.series = [];
 
-        if (collected.length > 0) {
+        if (collected && collected.length > 0) {
             const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
             const itemKey = e => `${e.ts}_${e.logId}`;
             const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
@@ -2031,7 +2071,13 @@
 
         stored.meta.backfill = ds;
         await DBManager.setStorage(stored);
+        return stored;
+    }
 
+    // Final save for a Deep Log Scan: persists any remaining rows, then rebuilds the in-memory
+    // history cache and invalidates derived caches so the UI reflects the freshly scanned history.
+    async function finalizeBackfill(ds, collected) {
+        const stored = await _persistBackfillSeries(ds, collected);
         const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
         _historyCache = {
             meta: stored.meta,
@@ -2053,6 +2099,17 @@
         renderBackfillButton();
     }
 
+    // One backward log page for a group, with a changing &timestamp cache-buster. Torn's ~29s API
+    // cache is NOT keyed on `to`, so without this a rapid sequence of paged calls can return a stale
+    // (even empty) earlier response; the buster guarantees each page is fresh.
+    async function fetchBackfillPage(param, cursor) {
+        const url = `https://api.torn.com/user/?selections=log&log=${param}&key=${userConfig.apiKey}&to=${Math.floor(cursor)}&timestamp=${Date.now()}`;
+        incrementApiCount(1);
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error(resp.status);
+        return resp.json();
+    }
+
     // Deep Log Scan: uses your API key to page back through your full training history on Torn's
     // servers. Only reads gym training logs and a short list of item logs (energy cans, Xanax, etc.)
     // — never reads your messages, money, or any other personal information.
@@ -2070,7 +2127,33 @@
         const ds = s.meta.backfill;
         const now = Date.now();
 
+        // Budget cooldown gate: only armed when a previous run exhausted the window's budget.
         if (ds.cooldownUntil && now < ds.cooldownUntil) {
+            renderBackfillButton();
+            return;
+        }
+
+        // Cross-tab guard: if another tab is mid-scan its heartbeat lock is fresh in storage. Stand
+        // down quietly rather than running two scans into the same store. Read the freshest copy.
+        const freshStored = await DBManager.getStorage();
+        const liveLock = freshStored && freshStored.meta && freshStored.meta.backfill && freshStored.meta.backfill.lock;
+        if (liveLock && (Date.now() - liveLock) < BACKFILL.LOCK_STALE_MS) {
+            renderBackfillButton();
+            return;
+        }
+
+        // Open or roll the budget window: a window older than WINDOW_MS has fully aged out of Torn's
+        // rolling 24h, so we start fresh; otherwise this run spends only the remaining budget.
+        if (!ds.windowStart || (Date.now() - ds.windowStart) >= BACKFILL.WINDOW_MS) {
+            ds.windowStart = Date.now();
+            ds.rowsThisWindow = 0;
+        }
+        const budget = Math.max(0, BACKFILL.SOFT_CAP - (ds.rowsThisWindow || 0));
+        if (budget <= 0) {
+            // Window already spent (e.g. resumed right at the boundary): arm the cooldown and bail.
+            ds.lastResult = 'partial';
+            ds.cooldownUntil = ds.windowStart + BACKFILL.WINDOW_MS;
+            await persistBackfillState(ds);
             renderBackfillButton();
             return;
         }
@@ -2078,8 +2161,8 @@
         const frontiers = ensureBackfillTargets(ds);
 
         ds.lastResult = 'partial';
-        ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-        await finalizeBackfill(ds, []);
+        ds.lock = Date.now();
+        await persistBackfillState(ds);
 
         runtime.backfilling = true;
         if (btn) {
@@ -2089,30 +2172,39 @@
             btn.innerText = 'Scanning... 0';
         }
 
-        let rowsFetched = 0;
+        let sessionRows = 0;       // rows fetched this run (failsafe against HARD_CAP)
         let stoppedEarly = false;
-        let drainDay = null;
-        const collected = [];
+        let capHit = false;        // window budget reached this run
+        let drainDay = null;       // once the cap is hit, only finish the current day
+        let pending = [];          // rows not yet flushed to storage
+        let lastHeartbeat = Date.now();
+
+        const flush = async () => {
+            ds.lock = Date.now();
+            await _persistBackfillSeries(ds, pending);
+            pending = [];
+            lastHeartbeat = Date.now();
+        };
 
         try {
-            while (rowsFetched < BACKFILL.HARD_CAP) {
+            while (sessionRows < BACKFILL.HARD_CAP) {
+                // Pick the still-incomplete group with the deepest (highest) cursor, honoring the
+                // drain boundary so we never start a day older than the one being finished.
                 let pick = null;
-                const consider = (fr, code) => {
-                    if (fr.complete) return;
+                BACKFILL_GROUP_KEYS.forEach(g => {
+                    const fr = frontiers[g];
+                    if (!fr || fr.complete) return;
                     if (drainDay !== null && fr.cursor < drainDay) return;
-                    if (pick === null || fr.cursor > pick.fr.cursor) pick = { fr, code };
-                };
-                BACKFILL_CODES.forEach(code => consider(frontiers[code], code));
+                    if (pick === null || fr.cursor > frontiers[pick].cursor) pick = g;
+                });
                 if (pick === null) break;
 
-                const st = pick.fr;
-                const url = `https://api.torn.com/user/?selections=log&log=${pick.code}&key=${userConfig.apiKey}&to=${Math.floor(st.cursor)}`;
-                incrementApiCount(1);
+                const fr = frontiers[pick];
+                const param = BACKFILL_GROUPS[pick];
+
                 let data;
                 try {
-                    const resp = await fetch(url);
-                    if (!resp.ok) throw new Error(resp.status);
-                    data = await resp.json();
+                    data = await fetchBackfillPage(param, fr.cursor);
                 } catch (netErr) {
                     Log.warn('Deep scan network error', netErr);
                     stoppedEarly = true;
@@ -2126,34 +2218,70 @@
                     throw new Error(data.error.error);
                 }
 
-                const rowKeys = data.log ? Object.keys(data.log) : [];
+                let rowKeys = data.log ? Object.keys(data.log) : [];
                 if (rowKeys.length === 0) {
-                    st.complete = true;
-                    continue;
+                    // An empty page only means "nothing retrievable past here" if it is real. Confirm
+                    // with one cache-busted retry before trusting it, so a stale/empty cache hit can't
+                    // falsely declare this group complete.
+                    await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
+                    let confirm;
+                    try {
+                        confirm = await fetchBackfillPage(param, fr.cursor);
+                    } catch (netErr) {
+                        Log.warn('Deep scan confirm network error', netErr);
+                        stoppedEarly = true;
+                        break;
+                    }
+                    if (confirm.error) {
+                        if (confirm.error.code === 14 || confirm.error.code === 5) {
+                            stoppedEarly = true;
+                            break;
+                        }
+                        throw new Error(confirm.error.error);
+                    }
+                    const cKeys = confirm.log ? Object.keys(confirm.log) : [];
+                    if (cKeys.length === 0) {
+                        fr.complete = true;
+                        continue;
+                    }
+                    data = confirm;
+                    rowKeys = cKeys;
                 }
 
-                collected.push(...normalizeApiLogs(data.log));
-                rowsFetched += rowKeys.length;
+                pending.push(...normalizeApiLogs(data.log));
+                sessionRows += rowKeys.length;
+                ds.rowsThisWindow = (ds.rowsThisWindow || 0) + rowKeys.length;
 
-                let oldestTs = st.cursor;
+                let oldestTs = fr.cursor;
                 for (const k of rowKeys) {
                     const t = data.log[k].timestamp;
                     if (t < oldestTs) oldestTs = t;
                 }
-                st.cursor = oldestTs - 1;
+                fr.cursor = oldestTs - 1;
 
-                if (btn) btn.innerText = `Scanning... ${rowsFetched}`;
+                if (btn) btn.innerText = `Scanning... ${sessionRows}`;
 
-                if (drainDay === null && rowsFetched >= BACKFILL.SOFT_CAP) {
+                // Window budget reached: stop STARTING new days, drain the current one across both
+                // groups so the persisted boundary is a fully complete day.
+                if (drainDay === null && ds.rowsThisWindow >= BACKFILL.SOFT_CAP) {
+                    capHit = true;
                     let maxCursor = -Infinity;
-                    BACKFILL_CODES.forEach(code => {
-                        const fr = frontiers[code];
-                        if (!fr.complete && fr.cursor > maxCursor) maxCursor = fr.cursor;
+                    BACKFILL_GROUP_KEYS.forEach(g => {
+                        const f = frontiers[g];
+                        if (f && !f.complete && f.cursor > maxCursor) maxCursor = f.cursor;
                     });
                     if (maxCursor > -Infinity) drainDay = backfillDayStart(maxCursor);
                 }
 
-                if (rowsFetched >= BACKFILL.HARD_CAP) {
+                if (pending.length >= BACKFILL.CHECKPOINT_ROWS) {
+                    await flush();
+                } else if (Date.now() - lastHeartbeat >= BACKFILL.HEARTBEAT_MS) {
+                    ds.lock = Date.now();
+                    await persistBackfillState(ds);
+                    lastHeartbeat = Date.now();
+                }
+
+                if (sessionRows >= BACKFILL.HARD_CAP) {
                     stoppedEarly = true;
                     break;
                 }
@@ -2164,25 +2292,65 @@
             stoppedEarly = true;
         }
 
-        const allComplete = BACKFILL_CODES.every(code => frontiers[code].complete);
+        const allComplete = BACKFILL_GROUP_KEYS.every(g => frontiers[g] && frontiers[g].complete);
         if (allComplete && !stoppedEarly) {
             ds.lastResult = 'complete';
             ds.acknowledged = false;
             ds.cooldownUntil = 0;
+            ds.windowStart = 0;
+            ds.rowsThisWindow = 0;
         } else {
             ds.lastResult = 'partial';
-            ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
+            // Arm the cooldown only when the budget was actually spent. Interruptions, network
+            // errors, and crashes leave it clear so Resume is immediately available.
+            if (capHit || (ds.rowsThisWindow || 0) >= BACKFILL.SOFT_CAP) {
+                ds.cooldownUntil = ds.windowStart + BACKFILL.WINDOW_MS;
+            }
         }
+        ds.lock = 0;
 
         try {
-            await finalizeBackfill(ds, collected);
+            await finalizeBackfill(ds, pending);
         } catch (e) {
             Log.error('Deep scan save failed', e);
         } finally {
             runtime.backfilling = false;
         }
+
+        // Classify a completed scan now that the deepest rows (the final batch) are merged and the
+        // baseline reflects them: reaching ~10 across every stat means we hit the account's true
+        // origin; otherwise we merely exhausted the logs Torn still retains.
+        if (ds.lastResult === 'complete') {
+            const baseline = (_historyCache && _historyCache.meta && _historyCache.meta.baselineBreakdown) || ZERO_BREAKDOWN;
+            const reachedOrigin = STAT_KEYS.every(k => (baseline[k] || 0) <= BACKFILL.ORIGIN_MAX_STAT);
+            ds.completion = reachedOrigin ? 'origin' : 'exhausted';
+            try {
+                await persistBackfillState(ds);
+            } catch (e) {
+                Log.error('Backfill completion flag save failed', e);
+            }
+        }
+
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
         renderBackfillButton();
+    }
+
+    // Crash/refresh recovery: on boot, a backfill heartbeat lock that has gone stale means a scan was
+    // interrupted. Release the lock so Resume works (its cooldown is already correct — clear unless
+    // the cap was hit). A still-fresh lock means another live tab owns the scan, so we leave it be.
+    async function recoverInterruptedBackfill() {
+        if (runtime.demoMode || runtime.backfilling) return;
+        const s = getActiveHistory();
+        const ds = s.meta && s.meta.backfill;
+        if (!ds || !ds.lock) return;
+        if ((Date.now() - ds.lock) <= BACKFILL.LOCK_STALE_MS) return;
+        ds.lock = 0;
+        if (!ds.lastResult) ds.lastResult = 'partial';
+        try {
+            await persistBackfillState(ds);
+        } catch (e) {
+            Log.warn('Backfill lock recovery save failed', e);
+        }
     }
 
     /**
@@ -2301,7 +2469,7 @@
     function buildToggle(id, labelHTML, extraClass = '') { return buildRow(labelHTML, `<label class="bbgl-switch"><input type="checkbox" id="${id}"><span class="slider"></span></label>`, extraClass); }
     function buildButton(id, label, modifier = '', extraStyle = '') { const cls = ['bbgl-btn', modifier ? `bbgl-btn-${modifier}` : ''].filter(Boolean).join(' '); const style = extraStyle ? ` style="${extraStyle}"` : ''; return `<button id="${id}" class="${cls}"${style}>${label}</button>`; }
     function buildApiEntryField(prefix, extraStyle = '') { const style = extraStyle ? ` style="${extraStyle}"` : ''; return `<div class="bbgl-api-container"${style}><div id="${prefix}-api-paste" class="bbgl-paste-icon" data-tooltip="${TOOLTIPS.PASTE_CLIPBOARD}">${ICONS.PASTE}</div><input id="${prefix}-api-key" type="text" name="bbgl_api_key" autocomplete="off" class="bbgl-native-input" placeholder="Enter Full or Custom API Key..."></div>`; }
-    const TOOLTIPS = { ANIM: "<b>Toggle UI transitions and cosmetic effects</b><br><i>Disable to prioritize performance on slower devices.</i>", RATES: "<b>Display growth rate and efficiency metrics</b><br><i>Turn off for a minimalist view focused strictly on totals.</i>", DRUG_TRACKER: "<b>Choose the primary training drug that appears on the ledger.</b><br><i>People on SSL path may want to track LSD instead of Xanax usage.</i>", LOC: "<b>Choose where the Gym Log icon appears in your Torn UI</b><br><i>Select Sidebar if the Footer Tab is hidden or if you are using Chat 2.0.</i>", DAY_START: "<b>Anchor logs to UTC or your system clock</b><br><i>Syncs your ongoing training sessions with your real-world schedule.</i>", WEEK_START: "<b>Change your preferred starting day for the week</b><br><i>Adjusts the calendar layout and weekly performance metrics.</i>", BEST_GYM: "<b>Always train at your best unlocked gym</b><br><i>Pressing train switches you to the highest-tier gym for that stat.</i>", BEST_GYM_SPEC: "<b>Allow switching to specialist gyms</b><br><i>When off, auto-switch only considers standard gyms.</i>", BEST_GYM_UNPURCHASED: "<b>Allow switching to unpurchased gyms</b><br><i>When off, auto-switch only considers gyms you have already bought.</i>", API: "Custom API key required.<br><br><i>This script strictly requests 'battlestats' and 'log' data. Click the Create API Key button below to securely generate a key for this script. For maximum safety, you can edit this newly created key in your Torn API Settings to restrict its log access specifically to the 'Gym' category.<br><br>Your key is stored locally on your device only and is sent exclusively to api.torn.com.</i>", PASTE_CLIPBOARD: "Paste from Clipboard", AGREE_GATE: "Check every box in the user acknowledgement", LOCKED: "Locked", LEDGER_VIEW: "Ledger", GRAPH_VIEW: "Graph", STICKERBOOK: "Stickerbook", ACHIEVEMENTS: "Achievements", COPY_SESSION: "Copy Session Data", ALL_TIME_SUMMARY: "All-Time Summary", YEARLY_SUMMARY: "Yearly Summary", MONTHLY_SUMMARY: "Monthly Summary", DEMO_EXIT: "Exit Demo Mode", DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>", REFRESH_COOLDOWN: remaining => `Please wait ${remaining}s before refreshing the log again`, BACKFILL_AGREE_GATE: "Read and agree to start the backfill", BACKFILL_RESUME_COOLDOWN: t => `Daily limit reached. Wait ${t} before resuming the Backfill.`, CELL_DATE: ds => `Date: ${ds}` };
+    const TOOLTIPS = { ANIM: "<b>Toggle UI transitions and cosmetic effects</b><br><i>Disable to prioritize performance on slower devices.</i>", RATES: "<b>Display growth rate and efficiency metrics</b><br><i>Turn off for a minimalist view focused strictly on totals.</i>", DRUG_TRACKER: "<b>Choose the primary training drug that appears on the ledger.</b><br><i>People on SSL path may want to track LSD instead of Xanax usage.</i>", LOC: "<b>Choose where the Gym Log icon appears in your Torn UI</b><br><i>Select Sidebar if the Footer Tab is hidden or if you are using Chat 2.0.</i>", DAY_START: "<b>Anchor logs to UTC or your system clock</b><br><i>Syncs your ongoing training sessions with your real-world schedule.</i>", WEEK_START: "<b>Change your preferred starting day for the week</b><br><i>Adjusts the calendar layout and weekly performance metrics.</i>", BEST_GYM: "<b>Always train at your best unlocked gym</b><br><i>Pressing train switches you to the highest-tier gym for that stat.</i>", BEST_GYM_SPEC: "<b>Allow switching to specialist gyms</b><br><i>When off, auto-switch only considers standard gyms.</i>", BEST_GYM_UNPURCHASED: "<b>Allow switching to unpurchased gyms</b><br><i>When off, auto-switch only considers gyms you have already bought.</i>", API: "Custom API key required.<br><br><i>This script strictly requests 'battlestats' and 'log' data. Click the Create API Key button below to securely generate a key for this script. For maximum safety, you can edit this newly created key in your Torn API Settings to restrict its log access specifically to the 'Gym' category.<br><br>Your key is stored locally on your device only and is sent exclusively to api.torn.com.</i>", PASTE_CLIPBOARD: "Paste from Clipboard", AGREE_GATE: "Check every box in the user acknowledgement", LOCKED: "Locked", LEDGER_VIEW: "Ledger", GRAPH_VIEW: "Graph", STICKERBOOK: "Stickerbook", ACHIEVEMENTS: "Achievements", COPY_SESSION: "Copy Session Data", ALL_TIME_SUMMARY: "All-Time Summary", YEARLY_SUMMARY: "Yearly Summary", MONTHLY_SUMMARY: "Monthly Summary", DEMO_EXIT: "Exit Demo Mode", DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>", REFRESH_COOLDOWN: remaining => `Please wait ${remaining}s before refreshing the log again`, BACKFILL_AGREE_GATE: "Read and agree to start the backfill", BACKFILL_RESUME_COOLDOWN: t => `Daily limit reached. Wait ${t} before resuming the Backfill.`, BACKFILL_COMPLETE_ORIGIN: "Your full training history was reconstructed back to the very beginning.", BACKFILL_COMPLETE_EXHAUSTED: "Scan reached the end of the logs Torn still retains. Any older history is no longer available from Torn's servers.", CELL_DATE: ds => `Date: ${ds}` };
     function syncSiblingSelect(primaryId, siblingId, val) { if (!dom.panel) return; const sib = dom.panel.querySelector('#' + siblingId); if (sib && sib.value !== val) sib.value = val; }
     function onChangeLoc(val) { userConfig.buttonLocation = val; saveConfig(); handleDomMutation(); syncSiblingSelect('set-loc-select', 'init-loc-select', val); syncSiblingSelect('init-loc-select', 'set-loc-select', val); }
     function resetSelectionState() { calendarState.selectedData = null; calendarState.selectedLabel = null; viewState.activeViewLabel = null; runtime.stickerData = []; }
@@ -2411,12 +2579,12 @@
     function updateTransformOrigin() { const p = dom.panel, b = dom.gymTab; if (!p || !b) { runtime.transformOriginRetries = 0; return; } const pr = p.getBoundingClientRect(), br = b.getBoundingClientRect(); if (pr.width === 0 || pr.height === 0) { runtime.transformOriginRetries = (runtime.transformOriginRetries || 0) + 1; if (runtime.transformOriginRetries > 30) { runtime.transformOriginRetries = 0; return; } window.requestAnimationFrame(updateTransformOrigin); return; } runtime.transformOriginRetries = 0; const cx = br.left + br.width / 2, cy = br.top + br.height / 2; p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`; }
     let _backfillCountdownId = null;
     function formatCountdown(ms) { const total = Math.max(0, Math.ceil(ms / 1000)); const h = Math.floor(total / 3600), m = Math.floor(total % 3600 / 60), s = total % 60; const pad = n => String(n).padStart(2, '0'); return `${pad(h)}:${pad(m)}:${pad(s)}`; }
-    function renderBackfillButton() { const btn = document.getElementById('backfill-btn'); if (!btn) return; if (_backfillCountdownId) { clearInterval(_backfillCountdownId); _backfillCountdownId = null; } if (runtime.demoMode || runtime.backfilling) return; const s = getActiveHistory(); const ds = s.meta && s.meta.backfill; btn.style.pointerEvents = 'auto'; btn.style.opacity = '1'; btn.style.color = ''; btn.removeAttribute('data-tooltip'); delete btn.dataset.originalText; btn.onclick = null; if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) { btn.style.color = '#43a047'; btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`; const ack = btn.querySelector('#bbgl-backfill-ack'); if (ack) ack.onclick = e => { e.stopPropagation(); acknowledgeBackfill(); }; return; } if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) { btn.style.opacity = '0.6'; btn.textContent = 'Partial Scan Complete! Resume?'; const render = () => { const remaining = ds.cooldownUntil - Date.now(); if (remaining <= 0) { renderBackfillButton(); return; } btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(remaining))); }; render(); _backfillCountdownId = setInterval(render, 1000); return; } if (ds && ds.lastResult === 'partial') { btn.textContent = 'Partial Scan Complete! Resume?'; btn.onclick = function () { this.blur(); backfillLogs(this); }; return; } btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>'; btn.onclick = function () { this.blur(); openBackfillModal(); }; }
+    function renderBackfillButton() { const btn = document.getElementById('backfill-btn'); if (!btn) return; if (_backfillCountdownId) { clearInterval(_backfillCountdownId); _backfillCountdownId = null; } if (runtime.demoMode || runtime.backfilling) return; const s = getActiveHistory(); const ds = s.meta && s.meta.backfill; btn.style.pointerEvents = 'auto'; btn.style.opacity = '1'; btn.style.color = ''; btn.removeAttribute('data-tooltip'); delete btn.dataset.originalText; btn.onclick = null; if (ds && ds.lastResult === 'complete' && ds.acknowledged === false) { btn.style.color = '#43a047'; btn.setAttribute('data-tooltip', ds.completion === 'exhausted' ? TOOLTIPS.BACKFILL_COMPLETE_EXHAUSTED : TOOLTIPS.BACKFILL_COMPLETE_ORIGIN); btn.innerHTML = `Full Backfill Completed!<span id="bbgl-backfill-ack" title="Confirm" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;margin-left:8px;cursor:pointer;vertical-align:middle;">${ICONS.CHECK}</span>`; const ack = btn.querySelector('#bbgl-backfill-ack'); if (ack) ack.onclick = e => { e.stopPropagation(); acknowledgeBackfill(); }; return; } if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) { btn.style.opacity = '0.6'; btn.textContent = 'Partial Scan Complete! Resume?'; const render = () => { const remaining = ds.cooldownUntil - Date.now(); if (remaining <= 0) { renderBackfillButton(); return; } btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(remaining))); }; render(); _backfillCountdownId = setInterval(render, 1000); return; } if (ds && ds.lastResult === 'partial') { btn.textContent = 'Partial Scan Complete! Resume?'; btn.onclick = function () { this.blur(); backfillLogs(this); }; return; } btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>'; btn.onclick = function () { this.blur(); openBackfillModal(); }; }
     function setupEventListeners(root) { cacheDOM(root); const get = id => root.querySelector('#' + id); const hb = get('bbgl-header-bar'); if (hb) hb.onclick = e => { if (e.target.closest('.bbgl-custom-icon') || e.target.closest('#bbgl-demo-exit-btn') || e.target.closest('#bbgl-pop-btn') || e.target.closest('#bbgl-demo-exit')) return; closePanel(); }; const atBtn = get('all-time-btn'); if (atBtn) atBtn.onclick = e => { e.stopPropagation(); calcAllTimeStats(); }; const cb = get('bbgl-close-btn'); if (cb) cb.onclick = () => closePanel(); const sb = get('bbgl-settings-btn'); if (sb) sb.onclick = toggleSettingsView; const csb = root.querySelector('#bbgl-settings-view .close-settings-btn'); if (csb) csb.onclick = toggleSettingsView; const debBtn = get('bbgl-demo-exit-btn'), deb = get('bbgl-demo-exit'); if (deb) deb.onclick = e => { e.stopPropagation(); localStorage.removeItem(KEYS.DEMO); runtime.demoMode = false; runtime.demoHistory = null; runtime.stickerData = []; _historyCache = null; DataController.invalidate(); DBManager.loadHistory().then(loaded => { DataController.hydrate(loaded); if (userConfig.apiKey) { startBackgroundSync(); } }).catch(e => { if (userConfig.apiKey) { startBackgroundSync(); } }); calendarState.selectedData = null; calendarState.selectedLabel = Formatter.dateLogical(); viewState.activeViewLabel = null; deb.style.display = 'none'; if (debBtn) debBtn.style.display = 'none'; const pdeb = document.getElementById('bbgl-page-demo-exit'); if (pdeb) pdeb.style.display = 'none'; if (window.TooltipController) window.TooltipController.hide(); refreshInitLock(); refreshDemoMasks(); if (runtime.realReturnView) { runtime.returnView = runtime.realReturnView; runtime.realReturnView = null; } const isInit = !!localStorage.getItem('bbgl_initialized'); if (isInit) { switchView('settings'); } else { switchView('welcome', true); openPrivacyModal(); } }; if (debBtn) debBtn.onclick = deb ? deb.onclick : null; const pb = get('bbgl-pop-btn'); if (pb) pb.onclick = e => { e.stopPropagation(); if (dom.panel.classList.contains('bbgl-mode-page')) return; viewState.expanded = !viewState.expanded; const p = dom.panel; if (viewState.expanded) { p.classList.add('bbgl-expanded'); pb.innerHTML = ICONS.COMPRESS; } else { p.classList.remove('bbgl-expanded'); pb.innerHTML = ICONS.POPOUT; } saveViewState(); handleLayout(); renderPanelContent(); if (dom.topPanel.classList.contains('viewing-graph')) { GraphController.draw(); setTimeout(GraphController.draw, 320); } }; const tt = get('bbgl-tall-toggle'); if (tt) tt.onclick = toggleTall; const lt = get('bbgl-ledger-toggle'); if (lt) lt.onclick = toggleLedgerView; const cpb = dom.copyBtn; if (cpb) cpb.onclick = e => { e.stopPropagation(); const cs = runtime.currentStats; if (!cs) return; const { sl, s } = cs; const txt = buildSessionText(sl, s, ['str', 'def', 'spd', 'dex']); navigator.clipboard.writeText(txt).then(() => { const cols = dom.ledgerView ? Array.from(dom.ledgerView.querySelectorAll('.stat-column')) : []; if (cols.length) flashCopied(cols); const oH = cpb.innerHTML, oC = cpb.style.color; cpb.innerHTML = ICONS.CHECK; cpb.style.color = '#69f0ae'; cpb.style.opacity = '1'; setTimeout(() => { cpb.innerHTML = oH; cpb.style.color = oC; cpb.style.opacity = ''; }, 1000); }); }; if (dom.ledgerView) { dom.ledgerView.addEventListener('click', e => { const label = e.target.closest('.bbgl-copy-label'); if (!label) return; const col = label.closest('.stat-column'); if (!col) return; const k = col.getAttribute('data-copy-stat'); if (!k) return; const cs = runtime.currentStats; if (!cs) return; const { sl, s } = cs; if (!s[k]) return; const txt = buildSessionText(sl, s, [k]); navigator.clipboard.writeText(txt).then(() => flashCopied(col)); }); } const gt = get('bbgl-graph-toggle'); if (gt) gt.onclick = toggleGraphView; const act = get('bbgl-achievements-toggle'); if (act) act.onclick = toggleAchievementsView; const st = get('bbgl-sticker-toggle'); if (st) st.onclick = toggleStickerView; const sp = get('sticker-prev-btn'), sn = get('sticker-next-btn'),
         ssp = get('sticker-sponsor-btn'); if (sp) sp.onclick = e => { e.stopPropagation(); if (runtime.currentStickerPage > 0) changeStickerPage(-1); }; if (sn) sn.onclick = e => { e.stopPropagation(); if (runtime.currentStickerPage < Math.ceil((runtime.stickerData.length || 0) / 10) - 1) changeStickerPage(1); }; if (ssp) ssp.onclick = e => { e.stopPropagation(); if (ssp.classList.contains('disabled')) return; if (runtime.currentStickerPage === 0) changeStickerPage(-1); }; const pm = get('prev-month-btn'); if (pm) pm.onclick = () => changeMonth(-1); const nm = get('next-month-btn'); if (nm) nm.onclick = () => changeMonth(1); const mt = get('month-trigger'); if (mt) mt.onclick = e => { e.stopPropagation(); toggleMonthDropdown(); }; const yt = get('year-trigger'); if (yt) yt.onclick = e => { e.stopPropagation(); toggleYearDropdown(); }; const ms = get('month-stats-btn'); if (ms) ms.onclick = e => { e.stopPropagation(); calcPeriodStats('month'); }; const ys = get('year-stats-btn'); if (ys) ys.onclick = e => { e.stopPropagation(); calcPeriodStats('year'); }; const at = get('set-anim-toggle'); if (at) { at.checked = userConfig.animations; at.onchange = () => { userConfig.animations = at.checked; saveConfig(); if (dom.panel) dom.panel.classList.toggle('bbgl-no-animations', !userConfig.animations); renderPanelContent(); }; } const rt = get('set-rate-toggle'); if (rt) { rt.checked = userConfig.ratesEnabled; rt.onchange = () => { userConfig.ratesEnabled = rt.checked; saveConfig(); if (dom.panel) dom.panel.classList.toggle('bbgl-no-rates', !userConfig.ratesEnabled); if (!userConfig.ratesEnabled && graphState.mode === 'rates') { graphState.mode = 'values'; viewState.graphMode = 'values'; saveViewState(); } const tp = dom.topPanel; if (tp && tp.classList.contains('viewing-graph')) { GraphController.restoreUi(); GraphController.draw(); } else { const sd = calendarState.selectedData; renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical()); } }; } const dtk = get('set-drug-tracker'); if (dtk) { dtk.value = userConfig.drugTracker || 'xanax'; dtk.onchange = () => { userConfig.drugTracker = dtk.value; saveConfig(); const tp = dom.topPanel; if (!tp || !tp.classList.contains('viewing-graph')) { const sd = calendarState.selectedData; renderStats(sd || getActiveHistory().today, calendarState.selectedLabel || Formatter.dateLogical()); } }; } const agt = get('set-bestgym-toggle'); if (agt) { agt.checked = userConfig.bestGym; agt.onchange = () => setBestGym(agt.checked); } const ags = get('set-bestgym-spec-toggle'); if (ags) { ags.checked = userConfig.bestGymSpecialist; const agsRow = ags.closest('.bbgl-setting-row'); if (agsRow) agsRow.classList.toggle('bbgl-row-disabled', !userConfig.bestGym); ags.onchange = () => { userConfig.bestGymSpecialist = ags.checked; saveConfig(); }; } const agu = get('set-bestgym-unpurch-toggle'); if (agu) { agu.checked = userConfig.bestGymUnpurchased; const aguRow = agu.closest('.bbgl-setting-row'); if (aguRow) aguRow.classList.toggle('bbgl-row-disabled', !userConfig.bestGym); agu.onchange = () => { userConfig.bestGymUnpurchased = agu.checked; saveConfig(); }; } const ls = get('set-loc-select'); if (ls) { ls.value = userConfig.buttonLocation; ls.onchange = () => onChangeLoc(ls.value); } const ds = get('set-day-start'); if (ds) { ds.value = userConfig.dayStartMode; ds.onchange = () => onChangeDayStart(ds.value); } const ws = get('set-week-start'); if (ws) { ws.value = userConfig.weekStartMode; ws.onchange = () => onChangeWeekStart(ws.value); } const ai = get('set-api-key'), ap = get('set-api-paste'); if (ap && ai) ap.onclick = async () => { try { const t = await navigator.clipboard.readText(); if (t) ai.value = t.trim(); } catch (e) { alert("Clipboard access denied. Please paste manually."); } }; const ub = get('updt-settings-btn'); if (ub && ai) ub.onclick = async function () { this.blur(); const v = ai.value.trim(); if (!/^[a-zA-Z0-9]{16}$/.test(v)) { alert("Invalid Format.\nA Torn API Key must be exactly 16 alphanumeric characters."); return; } const ot = ub.innerText; ub.innerText = "VERIFYING..."; try { const res = await fetch(`https://api.torn.com/user/?selections=battlestats,log&log=5300&key=${v}`), data = await res.json(); if (data.error) { alert(`Key Verification Failed: ${data.error.error}\n\nPlease generate a key properly configured with 'battlestats' and 'log' access.`); ub.innerText = ot; return; } userConfig.apiKey = v; saveConfig(); ub.style.transition = "all 0.2s"; ub.style.color = "#69f0ae"; ub.style.borderColor = "#69f0ae"; ub.innerText = "KEY SAVED"; if (ub.dataset.timer) clearTimeout(ub.dataset.timer); ub.dataset.timer = setTimeout(() => { ub.style.color = ""; ub.style.borderColor = ""; ub.innerText = ot; },
         2000); } catch (e) { alert("Network error during verification."); ub.innerText = ot; } }; const cab = get('clear-api-btn'); if (cab && ai) cab.onclick = function () { this.blur(); userConfig.apiKey = ''; saveConfig(); ai.value = ''; localStorage.removeItem(KEYS.LAST_SYNC); localStorage.removeItem(KEYS.BS_SYNC); sessionStorage.removeItem(KEYS.SESSION_CACHE); sessionStorage.removeItem(KEYS.SESSION); const ot = cab.innerText; cab.innerText = "WIPED"; setTimeout(() => { cab.innerText = ot; }, 2000); }; const crb = get('create-api-btn'); if (crb) crb.onclick = function () { this.blur(); window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank'); }; const rb = get('refresh-log-btn'); if (rb) rb.onclick = function () { this.blur(); if (checkRefreshCooldown(this)) return; syncWithFeedback('FULL_SYNC'); }; const eb = get('export-btn'); if (eb) eb.onclick = function () { this.blur(); exportData(); }; const ib = get('import-btn'); if (ib) ib.onclick = function () { this.blur(); get('import-file').click(); }; const iF = get('import-file'); if (iF) iF.onchange = e => importData(e.target.files[0]); renderBackfillButton(); const clb = get('clear-btn'); if (clb) clb.onclick = function () { this.blur(); clearData(); }; const wb = get('show-welcome-btn'); if (wb) wb.onclick = function () { this.blur(); runtime.welcomeReturn = 'settings'; switchView('welcome'); }; const cl = get('settings-changelog-btn'); if (cl) cl.onclick = function () { this.blur(); openChangelogModal(); }; const pl = get('settings-privacy-btn'); if (pl) pl.onclick = function () { this.blur(); openPrivacyModal(); }; const sdemo = get('settings-demo-btn'); if (sdemo) sdemo.onclick = function () { this.blur(); if (runtime.demoMode) { const deb = document.getElementById('bbgl-demo-exit'); if (deb) deb.click(); } else { enterDemoFromSettings(); } }; const fgb = get('feature-guide-btn'); if (fgb) fgb.onclick = function () { this.blur(); openFeatureGuideModal(); }; const sbb = get('settings-backfill-btn'); if (sbb) sbb.onclick = function () { this.blur(); openBackfillModal(); }; const drb = get('dev-reset-btn'); if (drb) drb.onclick = function () { this.blur(); devFactoryReset(); }; const sa = get('swipe-area'); if (sa) { let _sX = 0, _sY = 0; sa.addEventListener('touchstart', e => { _sX = e.touches[0].clientX; _sY = e.touches[0].clientY; }, { passive: true }); sa.addEventListener('touchend', e => { if (window._bbglScrubbing) return; const dx = e.changedTouches[0].clientX - _sX, dy = e.changedTouches[0].clientY - _sY; if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeMonth(dx < 0 ? 1 : -1); }, { passive: true }); } const sgSwipe = get('bbgl-sticker-container'); if (sgSwipe) { let _sgX = 0, _sgY = 0; sgSwipe.addEventListener('touchstart', e => { _sgX = e.touches[0].clientX; _sgY = e.touches[0].clientY; }, { passive: true }); sgSwipe.addEventListener('touchend', e => { if (window._bbglScrubbing) return; const dx = e.changedTouches[0].clientX - _sgX, dy = e.changedTouches[0].clientY - _sgY; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { const dir = dx < 0 ? 1 : -1, maxP = Math.ceil((runtime.stickerData.length || 0) / 10) - 1; if (dir < 0 && runtime.currentStickerPage > -1 || dir > 0 && runtime.currentStickerPage < maxP) changeStickerPage(dir); } }, { passive: true }); } GraphController.setupControls(); setupStickerGrid(); refreshInitLock(); const achPrev = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-prev') : null; const achNext = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-next') : null; if (achPrev) achPrev.onclick = e => { e.stopPropagation(); gotoAchievementsPage(-1); }; if (achNext) achNext.onclick = e => { e.stopPropagation(); gotoAchievementsPage(1); }; const achContainer = get('bbgl-achievements-container'); if (achContainer) { let _achX = 0, _achY = 0; achContainer.addEventListener('touchstart', e => { _achX = e.touches[0].clientX; _achY = e.touches[0].clientY; }, { passive: true }); achContainer.addEventListener('touchend', e => { if (window._bbglScrubbing) return; const dx = e.changedTouches[0].clientX - _achX, dy = e.changedTouches[0].clientY - _achY; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) { gotoAchievementsPage(dx < 0 ? 1 : -1); } }, { passive: true }); achContainer.addEventListener('click', e => { const colHeader = e.target.closest('.bbgl-ach-col-copy'); if (colHeader) { handleAchCopy(colHeader); return; } const statCell = e.target.closest('.bbgl-ach-stat-cell'); if (statCell) { handleAchCopy(statCell); return; } const group = e.target.closest('.bbgl-ach-hh-group'); if (group) { handleAchCopy(group); return; } const row = e.target.closest('.bbgl-ach-section-title, .bbgl-ach-subsection-title, .bbgl-ach-row'); if (row) handleAchCopy(row); }); } }
     function handleStorageEvent(e) { if (e.key === KEYS.STATE) { try { const ns = JSON.parse(e.newValue); if (!ns) return; runtime.isSyncing = true; const openC = ns.isOpen !== viewState.isOpen, viewC = ns.subView !== viewState.subView, expandedC = ns.expanded !== viewState.expanded, tallC = ns.isTall !== viewState.isTall, stickerPC = ns.currentStickerPage !== viewState.currentStickerPage, labelC = ns.activeViewLabel !== viewState.activeViewLabel, calC = ns.calMonth !== viewState.calMonth || ns.calYear !== viewState.calYear, itemC = ns.activeItemId !== viewState.activeItemId, gMC = ns.graphMode !== viewState.graphMode, gSC = JSON.stringify(ns.graphStats) !== JSON.stringify(viewState.graphStats); viewState = ns; const p = dom.panel; if (!p) { runtime.isSyncing = false; return; } if (!openC && !viewC && !expandedC && !tallC && !stickerPC && !labelC && !calC && !itemC && !gMC && !gSC) { runtime.isSyncing = false; return; } if (!p.classList.contains('bbgl-mode-page') && openC) { if (ns.isOpen && p.style.display === 'none') togglePanel(false);else if (!ns.isOpen && p.style.display !== 'none') closePanel(null); } if (viewC) switchView(ns.subView); if (stickerPC) { runtime.currentStickerPage = ns.currentStickerPage || 0; if (ns.subView === 'stickers') renderStickers(); } if (gMC || gSC) { if (ns.graphMode) graphState.mode = (ns.graphMode === 'gains' ? 'values' : ns.graphMode) || 'values'; if (ns.graphStats) graphState.activeStats = ns.graphStats; GraphController.restoreUi(); if (ns.subView === 'graph') window.requestAnimationFrame(GraphController.draw); } if (labelC) { if (ns.activeViewLabel) { const s = getActiveHistory(); let td = null; if (/^\d{4}-\d{2}-\d{2}$/.test(ns.activeViewLabel)) { td = s.history.find(d => d.date === ns.activeViewLabel); if (!td && s.today.date === ns.activeViewLabel) td = s.today; if (td) { calendarState.selectedData = td; calendarState.selectedLabel = ns.activeViewLabel; if (ns.subView === 'graph') { GraphController.draw(); const de = dom.dateLabel; if (de) de.innerText = Formatter.datePretty(ns.activeViewLabel); } else renderStats(td, ns.activeViewLabel); } } else { calendarState.selectedLabel = ns.activeViewLabel; const type = ns.activeViewLabel === 'All-Time' ? 'ALL' : /^\d{4}$/.test(ns.activeViewLabel) ? 'YEAR' : 'MONTH', sl = DataController.getSlice(type, ns.activeViewLabel, calendarState.year); calendarState.selectedData = sl; if (ns.subView === 'graph') GraphController.draw();else renderStats(sl, ns.activeViewLabel); } } else { calendarState.selectedData = null; calendarState.selectedLabel = null; const ts = Formatter.dateLogical(); if (ns.subView === 'graph') { GraphController.draw(); const de = dom.dateLabel; if (de) de.innerText = Formatter.datePretty(ts); } else renderStats(getActiveHistory().today, ts); } renderPanelContent(); } else if (calC) { if (ns.calYear) calendarState.year = ns.calYear; if (ns.calMonth !== undefined && ns.calMonth !== null) calendarState.month = ns.calMonth; renderPanelContent(); } if (!p.classList.contains('bbgl-mode-page')) { if (expandedC) { if (ns.expanded) p.classList.add('bbgl-expanded');else p.classList.remove('bbgl-expanded'); const pb = dom.popBtn; if (pb) pb.innerHTML = ns.expanded ? ICONS.COMPRESS : ICONS.POPOUT; } if (tallC) { if (ns.isTall) p.classList.add('bbgl-tall');else p.classList.remove('bbgl-tall'); const tb = dom.tallToggle; if (tb) tb.innerText = ns.isTall ? "–" : "+"; } if (expandedC || tallC) handleLayout(); } if (ns.subView === 'stickers' || ns.subView === 'viewer') { const ti = ns.activeItemId ? Number(ns.activeItemId) : null; if (ti && ti !== runtime.currentOpenedItemId) { if (!runtime.stickerData.length) loadStickerData(); const i = runtime.stickerData.find(x => x.id === ti); if (i) { const delay = viewC && userConfig.animations ? 400 : 0; if (delay) setTimeout(() => openItemViewer(i, false), delay);else openItemViewer(i, false); } } else if (!ti && runtime.currentOpenedItemId !== null) closeItemViewer(false); } } catch (err) { Log.warn('Sync error', err); } finally { runtime.isSyncing = false; } } else if (e.key === KEYS.LAST_SYNC) _syncChannel.onmessage({ data: { from: 'storage_event' } });else if (e.key === KEYS.DEMO) { if (e.newValue === '1') { if (!runtime.demoMode) enterDemo('external'); } else if (runtime.demoMode) { const deb = dom.panel ? dom.panel.querySelector('#bbgl-demo-exit') : null; if (deb) deb.click(); } } }
-    async function init() { Perf.start('init'); injectStyles(); syncDevModeUI(); const _seenVer = localStorage.getItem(KEYS.CHANGELOG_VER); if (SCRIPT_VERSION && typeof SCRIPT_VERSION === 'string') { if (!_seenVer) { localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION); } else if (_seenVer !== SCRIPT_VERSION) { localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1'); } } if (!runtime.demoMode) { if (userConfig.configVersion < REQUIRED_CONFIG_VERSION) { await factoryReset(); } if (!userConfig.privacyAgreed || isNaN(Date.parse(userConfig.privacyAgreed))) { userConfig.privacyAgreed = new Date().toISOString(); saveConfig(); } try { await DBManager.initDB(); const loaded = await DBManager.loadHistory(); DataController.hydrate(loaded); GraphController.applyDefaultsIfNeeded(); renderBackfillButton(); if (loaded && (_historyCache.history.length > 0 || _historyCache.meta && _historyCache.meta.logStartDate) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1'); } catch (e) { Log.warn('IndexedDB boot failed, continuing with empty state', e); } } window.addEventListener('storage', handleStorageEvent); window.addEventListener('hashchange', checkViewRouting); window.addEventListener('popstate', checkViewRouting); window.addEventListener('resize', () => { _topCeilingCache = null; }); window.addEventListener('bbgl:dataUpdated', () => { renderPanelContent(); renderBackfillButton(); }); let _domRaf = null; const domObs = new MutationObserver(function onDomMutationBatch() { if (_domRaf) return; _domRaf = requestAnimationFrame(function onDomMutationFrame() { _domRaf = null; handleDomMutation(); }); }); runtime.domObs = domObs; runtime._domGuards = []; runtime._domObsArmed = true; domObs.observe(document.body, { childList: true, subtree: true }); attachLayoutObservers(); calendarState.selectedLabel = Formatter.dateLogical(); window.devmode = val => { const mode = val === 'on' || val === true; runtime.devMode = mode; sessionStorage.setItem(KEYS.DEV_MODE, mode); syncDevModeUI(); Log.info(`Developer mode ${mode ? 'ENABLED' : 'DISABLED'}`); }; const _bbglRedactConfig = () => { const c = { ...userConfig }; if (c.apiKey) c.apiKey = c.apiKey.length >= 4 ? '***' + c.apiKey.slice(-4) : '***'; return c; }; window.BBGL = Object.freeze({ version: SCRIPT_VERSION, state: () => ({ view: { ...viewState }, calendar: { ...calendarState }, runtime: { devMode: runtime.devMode, demoMode: runtime.demoMode, isSyncing: runtime.isSyncing, apiCallTotal: runtime.apiCallTotal, domObsArmed: runtime._domObsArmed === true } }), config: () => _bbglRedactConfig(), history: () => { const h = getActiveHistory(); return h ? { meta: h.meta, today: h.today, historyCount: (h.history || []).length, firstDate: h.history && h.history[0] ? h.history[0].date : null, lastDate: h.history && h.history.length ? h.history[h.history.length - 1].date : null } : null; }, cache: Object.freeze({ peek: () => ({ timeline: !!DataController._cache.timeline, slices: Object.keys(DataController._cache.slices || {}).length, dateMap: !!DataController._cache.dateMap, rateArr: !!DataController._cache.rateArr, stickerMap: !!DataController._cache.stickerMap, unlockedCount: DataController._cache.unlockedCount }) }), help: () => { console.table([{ command: 'BBGL.version', returns: 'string', description: 'Script version' }, { command: 'BBGL.state()', returns: 'object', description: 'View / calendar / runtime snapshot' }, { command: 'BBGL.config()', returns: 'object', description: 'User config (API key redacted)' }, { command: 'BBGL.history()', returns: 'object', description: 'Active history meta + count + date range' }, { command: 'BBGL.cache.peek()', returns: 'object', description: 'Which derived caches are populated' }, { command: 'BBGL.help()', returns: 'void', description: 'This table' }, { command: 'devmode("on"|"off")', returns: 'void', description: 'Toggle dev mode (enables Perf marks + dev UI)' }]); } }); if (!runtime.demoMode) { startBackgroundSync(); checkExitSync(); } TooltipController.init(); let tRaf = null, tSup = 0; const _onMouseMove = e => { if (tRaf || Date.now() < tSup) return; tRaf = requestAnimationFrame(() => { TooltipController.handleHover(e); tRaf = null; }); }; let _mouseMoveBound = true; document.addEventListener('mousemove', _onMouseMove); let _tX = 0, _tY = 0, _tTimer = null, _scrubMode = false, _scrubMoveBound = null; const _onScrubMove = e => { if (!_scrubMode) return; if (e.cancelable) e.preventDefault(); const touch = e.touches[0]; const el = document.elementFromPoint(touch.clientX, touch.clientY); const t = TooltipController.resolve(el); const _sh = t ? t.getAttribute('data-tooltip-html') : null,
+    async function init() { Perf.start('init'); injectStyles(); syncDevModeUI(); const _seenVer = localStorage.getItem(KEYS.CHANGELOG_VER); if (SCRIPT_VERSION && typeof SCRIPT_VERSION === 'string') { if (!_seenVer) { localStorage.setItem(KEYS.CHANGELOG_VER, SCRIPT_VERSION); } else if (_seenVer !== SCRIPT_VERSION) { localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1'); } } if (!runtime.demoMode) { if (userConfig.configVersion < REQUIRED_CONFIG_VERSION) { await factoryReset(); } if (!userConfig.privacyAgreed || isNaN(Date.parse(userConfig.privacyAgreed))) { userConfig.privacyAgreed = new Date().toISOString(); saveConfig(); } try { await DBManager.initDB(); const loaded = await DBManager.loadHistory(); DataController.hydrate(loaded); GraphController.applyDefaultsIfNeeded(); await recoverInterruptedBackfill(); renderBackfillButton(); if (loaded && (_historyCache.history.length > 0 || _historyCache.meta && _historyCache.meta.logStartDate) && !localStorage.getItem('bbgl_initialized')) localStorage.setItem('bbgl_initialized', '1'); } catch (e) { Log.warn('IndexedDB boot failed, continuing with empty state', e); } } window.addEventListener('storage', handleStorageEvent); window.addEventListener('hashchange', checkViewRouting); window.addEventListener('popstate', checkViewRouting); window.addEventListener('resize', () => { _topCeilingCache = null; }); window.addEventListener('bbgl:dataUpdated', () => { renderPanelContent(); renderBackfillButton(); }); let _domRaf = null; const domObs = new MutationObserver(function onDomMutationBatch() { if (_domRaf) return; _domRaf = requestAnimationFrame(function onDomMutationFrame() { _domRaf = null; handleDomMutation(); }); }); runtime.domObs = domObs; runtime._domGuards = []; runtime._domObsArmed = true; domObs.observe(document.body, { childList: true, subtree: true }); attachLayoutObservers(); calendarState.selectedLabel = Formatter.dateLogical(); window.devmode = val => { const mode = val === 'on' || val === true; runtime.devMode = mode; sessionStorage.setItem(KEYS.DEV_MODE, mode); syncDevModeUI(); Log.info(`Developer mode ${mode ? 'ENABLED' : 'DISABLED'}`); }; const _bbglRedactConfig = () => { const c = { ...userConfig }; if (c.apiKey) c.apiKey = c.apiKey.length >= 4 ? '***' + c.apiKey.slice(-4) : '***'; return c; }; window.BBGL = Object.freeze({ version: SCRIPT_VERSION, state: () => ({ view: { ...viewState }, calendar: { ...calendarState }, runtime: { devMode: runtime.devMode, demoMode: runtime.demoMode, isSyncing: runtime.isSyncing, apiCallTotal: runtime.apiCallTotal, domObsArmed: runtime._domObsArmed === true } }), config: () => _bbglRedactConfig(), history: () => { const h = getActiveHistory(); return h ? { meta: h.meta, today: h.today, historyCount: (h.history || []).length, firstDate: h.history && h.history[0] ? h.history[0].date : null, lastDate: h.history && h.history.length ? h.history[h.history.length - 1].date : null } : null; }, cache: Object.freeze({ peek: () => ({ timeline: !!DataController._cache.timeline, slices: Object.keys(DataController._cache.slices || {}).length, dateMap: !!DataController._cache.dateMap, rateArr: !!DataController._cache.rateArr, stickerMap: !!DataController._cache.stickerMap, unlockedCount: DataController._cache.unlockedCount }) }), help: () => { console.table([{ command: 'BBGL.version', returns: 'string', description: 'Script version' }, { command: 'BBGL.state()', returns: 'object', description: 'View / calendar / runtime snapshot' }, { command: 'BBGL.config()', returns: 'object', description: 'User config (API key redacted)' }, { command: 'BBGL.history()', returns: 'object', description: 'Active history meta + count + date range' }, { command: 'BBGL.cache.peek()', returns: 'object', description: 'Which derived caches are populated' }, { command: 'BBGL.help()', returns: 'void', description: 'This table' }, { command: 'devmode("on"|"off")', returns: 'void', description: 'Toggle dev mode (enables Perf marks + dev UI)' }]); } }); if (!runtime.demoMode) { startBackgroundSync(); checkExitSync(); } TooltipController.init(); let tRaf = null, tSup = 0; const _onMouseMove = e => { if (tRaf || Date.now() < tSup) return; tRaf = requestAnimationFrame(() => { TooltipController.handleHover(e); tRaf = null; }); }; let _mouseMoveBound = true; document.addEventListener('mousemove', _onMouseMove); let _tX = 0, _tY = 0, _tTimer = null, _scrubMode = false, _scrubMoveBound = null; const _onScrubMove = e => { if (!_scrubMode) return; if (e.cancelable) e.preventDefault(); const touch = e.touches[0]; const el = document.elementFromPoint(touch.clientX, touch.clientY); const t = TooltipController.resolve(el); const _sh = t ? t.getAttribute('data-tooltip-html') : null,
         _st = t ? t.getAttribute('data-tooltip') : null; if (t && (_sh || _st)) { if (TooltipController.currentTarget !== t) { if (TooltipController.currentTarget) { TooltipController.currentTarget.classList.remove('is-scrub-hovered'); if (TooltipController.currentTarget.classList.contains('bbgl-day-cell') && !TooltipController.currentTarget.classList.contains('is-viewing')) TooltipController.currentTarget.classList.remove('shimmer-active'); } TooltipController.currentTarget = t; t.classList.add('is-scrub-hovered'); if (t.classList.contains('bbgl-day-cell') && userConfig.animations) t.classList.add('shimmer-active'); TooltipController.show(_sh || '<div style="text-align:center; color:#ddd;">' + _st + '</div>', t.getBoundingClientRect()); } } else { if (TooltipController.currentTarget) { TooltipController.currentTarget.classList.remove('is-scrub-hovered'); if (TooltipController.currentTarget.classList.contains('bbgl-day-cell') && !TooltipController.currentTarget.classList.contains('is-viewing')) TooltipController.currentTarget.classList.remove('shimmer-active'); TooltipController.hide(); } } }; const _enterScrub = () => { if (_scrubMoveBound) return; _scrubMoveBound = _onScrubMove; document.addEventListener('touchmove', _scrubMoveBound, { passive: false }); }; const _exitScrub = () => { if (!_scrubMoveBound) return; document.removeEventListener('touchmove', _scrubMoveBound, { passive: false }); _scrubMoveBound = null; }; document.addEventListener('touchstart', e => { if (!document.body.classList.contains('is-touch-device')) { document.body.classList.add('is-touch-device'); if (_mouseMoveBound) { document.removeEventListener('mousemove', _onMouseMove); _mouseMoveBound = false; } } _tX = e.touches[0].clientX; _tY = e.touches[0].clientY; _scrubMode = false; window._bbglScrubbing = false; const t = TooltipController.resolve(e.target); const _panel = dom.panel || document.getElementById('bbgl-page-container'); if (_panel && _panel.contains(e.target)) { _tTimer = setTimeout(() => { _scrubMode = true; window._bbglScrubbing = true; _enterScrub(); if (t) { TooltipController.currentTarget = t; t.classList.add('is-scrub-hovered'); if (t.classList.contains('bbgl-day-cell') && userConfig.animations) t.classList.add('shimmer-active'); const _th = t.getAttribute('data-tooltip-html'), _tt = t.getAttribute('data-tooltip'); if (_th || _tt) TooltipController.show(_th || '<div style="text-align:center; color:#ddd;">' + _tt + '</div>', t.getBoundingClientRect()); } }, 400); } }, { passive: true }); document.addEventListener('touchmove', e => { if (_scrubMode) return; if (_tTimer) { const dx = e.touches[0].clientX - _tX, dy = e.touches[0].clientY - _tY; if (Math.sqrt(dx * dx + dy * dy) > 10) { clearTimeout(_tTimer); _tTimer = null; } } }, { passive: true }); document.addEventListener('touchend', e => { if (_tTimer) { clearTimeout(_tTimer); _tTimer = null; } if (_scrubMode) { if (e.cancelable) e.preventDefault(); if (TooltipController.currentTarget) { TooltipController.currentTarget.classList.remove('is-scrub-hovered'); if (TooltipController.currentTarget.classList.contains('bbgl-day-cell') && !TooltipController.currentTarget.classList.contains('is-viewing')) TooltipController.currentTarget.classList.remove('shimmer-active'); TooltipController.hide(); } _scrubMode = false; window._bbglScrubbing = false; _exitScrub(); tSup = Date.now() + 500; return; } _exitScrub(); const dx = e.changedTouches[0].clientX - _tX, dy = e.changedTouches[0].clientY - _tY; if (Math.sqrt(dx * dx + dy * dy) > 10) { if (TooltipController.currentTarget) TooltipController.hide(); tSup = Date.now() + 500; return; } const t = TooltipController.resolve(e.target); if (t) { const h = t.getAttribute('data-tooltip-html'), txt = t.getAttribute('data-tooltip'); if (h) { if (TooltipController.currentTarget === t) TooltipController.hide(); } else if (txt) { if (TooltipController.currentTarget === t) TooltipController.hide();else { TooltipController.currentTarget = t; TooltipController.show('<div style="text-align:center; color:#ddd;">' + txt + '</div>', t.getBoundingClientRect()); } } } else if (TooltipController.currentTarget) TooltipController.hide(); tSup = Date.now() + 500; }, { passive: false }); document.addEventListener('click', function (e) { if (e.target.closest('#bbgl-gym-tab')) { e.preventDefault(); e.stopPropagation(); togglePanel(true); return; } if (BestGymController.handleTrainClick(e)) return; handleGymClick(e); }, true); handleDomMutation(); if (localStorage.getItem(KEYS.CHANGELOG_NOTIF) === '1') syncChangelogNotif(true); checkViewRouting(); if (!window.location.hash.includes('gymlog')) handleLayout(); Log.boot(); Perf.end('init'); }
     function installDomHooks() { injectStyles(); const _oI = Node.prototype.insertBefore, _oA = Node.prototype.appendChild; let _hA = true, _navGymDone = false, _notesBtnDone = false, _uninstallTimer = null, _loadHandler = null; const needsNavGym = () => userConfig.buttonLocation === 'sidebar' || userConfig.buttonLocation === 'both'; const needsNotesBtn = () => userConfig.buttonLocation === 'notes' || userConfig.buttonLocation === 'both'; function forceUninstall() { if (!_hA) return; Node.prototype.insertBefore = _oI; Node.prototype.appendChild = _oA; _hA = false; if (_uninstallTimer) { clearTimeout(_uninstallTimer); _uninstallTimer = null; } if (_loadHandler) { window.removeEventListener('load', _loadHandler); _loadHandler = null; } } function maybeUninstall() { const navOk = !needsNavGym() || _navGymDone; const notesOk = !needsNotesBtn() || _notesBtnDone; if (navOk && notesOk) forceUninstall(); } function handleNavGym() { if (_navGymDone) return; _navGymDone = true; if (needsNavGym()) Promise.resolve().then(() => { if (!document.getElementById(SB_MOBILE.id)) injectSidebarButton(SB_MOBILE, true); if (!document.getElementById(SB_DESKTOP.id)) injectSidebarButton(SB_DESKTOP, false); }); maybeUninstall(); } function handleNotesBtn(el) { if (_notesBtnDone) return; _notesBtnDone = true; if (needsNotesBtn()) Promise.resolve().then(() => injectFooterButton(el)); maybeUninstall(); } function check(n) { if (!_hA || !n || n.nodeType !== 1) return; try { const wantNav = needsNavGym() && !_navGymDone, wantNotes = needsNotesBtn() && !_notesBtnDone; if (!wantNav && !wantNotes) return; if (wantNav && n.id === 'nav-gym') handleNavGym(); if (wantNotes && n.id === 'notes_panel_button') handleNotesBtn(n); if (!n.firstElementChild) return; const stillWantNav = needsNavGym() && !_navGymDone, stillWantNotes = needsNotesBtn() && !_notesBtnDone; if (!stillWantNav && !stillWantNotes) return; if (n.id && !n.id.startsWith('nav-') && n.id !== 'sidebar') return; const sel = stillWantNav && stillWantNotes ? '#nav-gym, #notes_panel_button' : stillWantNav ? '#nav-gym' : '#notes_panel_button'; const hit = n.querySelector(sel); if (!hit) return; if (hit.id === 'nav-gym') handleNavGym();else if (hit.id === 'notes_panel_button') handleNotesBtn(hit); } catch (e) {} } Node.prototype.insertBefore = function (n, r) { const res = _oI.call(this, n, r); check(n); return res; }; Node.prototype.appendChild = function (n) { const res = _oA.call(this, n); check(n); return res; }; const startCountdown = () => { if (_uninstallTimer) return; _uninstallTimer = setTimeout(forceUninstall, 1000); }; if (document.readyState === 'complete') startCountdown();else { _loadHandler = () => startCountdown(); window.addEventListener('load', _loadHandler, { once: true }); if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => { setTimeout(() => { if (_hA) forceUninstall(); }, 3000); }, { once: true }); } else { setTimeout(() => { if (_hA) forceUninstall(); }, 3000); } } }
     installDomHooks();
