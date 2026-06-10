@@ -11402,16 +11402,28 @@
     function syncSidebarState() {
         const a = window.location.hash.includes('gymlog'),
             ids = [SB_DESKTOP.id, SB_MOBILE.id];
-        // Our own CSS highlights the active sidebar entry via the substring selector
-        // [class*="active___"], so we don't need Torn's exact (hashed) active class — a stable
-        // literal sentinel works and, unlike borrowing a live probe, never depends on some other
-        // nav item happening to be active (on /calendar.php nothing native is, which is why the
-        // old probe came back empty and the button never lit up).
+        // Our own CSS lights the icon via the substring selector [class*="active___"], so the
+        // literal sentinel below guarantees the SVG glows even when nothing native is active
+        // (on /calendar.php Torn marks no nav item active, which is why the old hash-borrow
+        // approach left the button dark).
         const BBGL_ACTIVE = 'active___bbgl';
+        // Torn's native bar/background highlight, however, is keyed on its exact hashed active
+        // class — one hash per build, shared across every sidebar entry. Opportunistically learn
+        // that hash from any genuinely-active nav item while browsing and cache it, so we can also
+        // reapply it on the gym-log page and get the full native bar (not just the icon). If it's
+        // never been seen this session we simply fall back to the icon-only glow — no regression.
+        const probe = document.querySelector('[id^="nav-"][class*="active___"]');
+        if (probe && probe.id !== SB_DESKTOP.id && probe.id !== SB_MOBILE.id) {
+            const real = Array.from(probe.classList).find(c => c.startsWith('active___') && c !== BBGL_ACTIVE);
+            if (real) runtime._sidebarActiveCls = real;
+        }
+        const realActive = runtime._sidebarActiveCls;
         if (a) {
             ids.forEach(id => {
                 const c = document.getElementById(id);
-                if (c && !c.classList.contains(BBGL_ACTIVE)) c.classList.add(BBGL_ACTIVE);
+                if (!c) return;
+                if (!c.classList.contains(BBGL_ACTIVE)) c.classList.add(BBGL_ACTIVE);
+                if (realActive && !c.classList.contains(realActive)) c.classList.add(realActive);
             });
             document.querySelectorAll('[id^="nav-"]').forEach(navEl => {
                 if (ids.includes(navEl.id)) return;
@@ -15735,6 +15747,32 @@
             subtree: true
         });
         attachLayoutObservers();
+        // SPA-navigation safety net for the footer tab. Torn travels (and some other in-app nav)
+        // via history.pushState — no hashchange, no popstate, no full reload — and during the
+        // transition it rebuilds whole regions of the chat/footer, removing our injected tab. The
+        // narrow guard observers settleDomObs() leaves behind don't catch a wholesale parent
+        // replacement, so the tab is never re-inserted (the "suppressed while flying" symptom).
+        // Re-run the existing placement pass a few times across the transition window so the tab
+        // re-anchors against the rebuilt notes button. This deliberately touches no observer or
+        // injection internals — it just calls handleDomMutation (which the observer already invokes
+        // constantly) on a short, bounded schedule, and only on an actual navigation. Each call
+        // fast-paths out when nothing has changed, so steady state stays lightweight.
+        const _bbglRecheckNav = () => {
+            [150, 600, 1500].forEach(ms => setTimeout(() => {
+                try { handleDomMutation(); } catch (e) {}
+            }, ms));
+        };
+        ['pushState', 'replaceState'].forEach(name => {
+            const orig = history[name];
+            if (typeof orig !== 'function' || orig._bbglWrapped) return;
+            const wrapped = function() {
+                const r = orig.apply(this, arguments);
+                _bbglRecheckNav();
+                return r;
+            };
+            wrapped._bbglWrapped = true;
+            history[name] = wrapped;
+        });
         calendarState.selectedLabel = Formatter.dateLogical();
         window.devmode = (val) => {
             const mode = (val === 'on' || val === true);

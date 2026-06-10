@@ -1677,6 +1677,32 @@
             subtree: true
         });
         attachLayoutObservers();
+        // SPA-navigation safety net for the footer tab. Torn travels (and some other in-app nav)
+        // via history.pushState — no hashchange, no popstate, no full reload — and during the
+        // transition it rebuilds whole regions of the chat/footer, removing our injected tab. The
+        // narrow guard observers settleDomObs() leaves behind don't catch a wholesale parent
+        // replacement, so the tab is never re-inserted (the "suppressed while flying" symptom).
+        // Re-run the existing placement pass a few times across the transition window so the tab
+        // re-anchors against the rebuilt notes button. This deliberately touches no observer or
+        // injection internals — it just calls handleDomMutation (which the observer already invokes
+        // constantly) on a short, bounded schedule, and only on an actual navigation. Each call
+        // fast-paths out when nothing has changed, so steady state stays lightweight.
+        const _bbglRecheckNav = () => {
+            [150, 600, 1500].forEach(ms => setTimeout(() => {
+                try { handleDomMutation(); } catch (e) {}
+            }, ms));
+        };
+        ['pushState', 'replaceState'].forEach(name => {
+            const orig = history[name];
+            if (typeof orig !== 'function' || orig._bbglWrapped) return;
+            const wrapped = function() {
+                const r = orig.apply(this, arguments);
+                _bbglRecheckNav();
+                return r;
+            };
+            wrapped._bbglWrapped = true;
+            history[name] = wrapped;
+        });
         calendarState.selectedLabel = Formatter.dateLogical();
         window.devmode = (val) => {
             const mode = (val === 'on' || val === true);
