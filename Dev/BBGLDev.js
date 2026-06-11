@@ -131,10 +131,13 @@
         WEEKLY_GOAL: 1000,
         POINTS_GREEN: 200,
         POINTS_GOLD: 300,
-        POINTS_DIAMOND: 500,
+        POINTS_DIAMOND: 600,
         POINTS_HJ_GREEN: 500,
         POINTS_HJ_GOLD: 500,
-        POINTS_HJ_DIAMOND: 500,
+        POINTS_HJ_DIAMOND: 600,
+        BONUS_WEEK_GREEN: 200,
+        BONUS_WEEK_GOLD: 300,
+        BONUS_WEEK_DIAMOND: 600,
         GOLD_WEEK_JUMPS: 3,
         DIAMOND_WEEK_JUMPS: 4,
         HJ_WINDOW_SECONDS: 300,
@@ -823,6 +826,60 @@
             total
         };
     }
+
+    // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
+    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 2066 EXP
+    // Atrophy multipliers derived from 14 / 18 / 22 month ratios.
+    const LEVEL_FLOOR = 200;
+    const LEVEL_P0_MAX = 2066;
+    const LEVEL_ATRO_MULT = [1, 18 / 14, 22 / 14];
+
+    function computeLevelExpCost(level, atrophy) {
+        const t = (level - 1) / 98;
+        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.5));
+        return Math.round(base * LEVEL_ATRO_MULT[atrophy]);
+    }
+
+    // Pre-compute the total EXP required to finish each atrophy stage.
+    const LEVEL_ATRO_BUDGETS = [0, 1, 2].map(a => {
+        let s = 0;
+        for (let lv = 1; lv <= 99; lv++) s += computeLevelExpCost(lv, a);
+        return s;
+    });
+
+    function calculateLevelProgress(totalExp) {
+        let remaining = totalExp;
+        let atrophy = 0;
+        for (let a = 0; a < 3; a++) {
+            if (remaining < LEVEL_ATRO_BUDGETS[a]) { atrophy = a; break; }
+            remaining -= LEVEL_ATRO_BUDGETS[a];
+            atrophy = a + 1;
+        }
+        if (atrophy >= 3) return { atrophy: 2, level: 100, expInLevel: 0, expToNext: 0 };
+        let level = 1;
+        for (let lv = 1; lv <= 99; lv++) {
+            const cost = computeLevelExpCost(lv, atrophy);
+            if (remaining < cost) { level = lv; break; }
+            remaining -= cost;
+            level = lv + 1;
+        }
+        const expInLevel = level <= 99 ? remaining : 0;
+        const expToNext = level <= 99 ? computeLevelExpCost(level, atrophy) : 0;
+        return { atrophy, level, expInLevel, expToNext };
+    }
+
+    // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
+    // Requires at least one train-click; milestones stack on top of each other.
+    function computeDailyLevelExp(eSpent, hasTrainLog) {
+        if (!hasTrainLog) return 0;
+        let exp = 50;                          // +50: clicked train
+        if (eSpent >= 500)  exp += 50;         // +50: reached 500E  → 100 total
+        if (eSpent >= 1000) exp += 100;        // +100: reached Green → 200 total
+        if (eSpent >= 1500) exp += 100;        // +100: reached Gold  → 300 total
+        if (eSpent >= 2000) exp += 300;        // +300: reached Diamond → 600 total
+        return exp;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     function getWeekKey(dateStr) {
         const d = Formatter.parse(dateStr);
@@ -4980,15 +5037,6 @@
 
                     #bbgl-panel:not(.bbgl-mode-page) .bbgl-grid-container {
                         padding: 0 !important;
-                        overflow: visible !important;
-                        height: auto !important;
-                        flex: none !important;
-                    }
-
-                    #bbgl-panel:not(.bbgl-mode-page) .calendar-wrapper {
-                        overflow: visible !important;
-                        height: auto !important;
-                        flex: none !important;
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-month-header {
@@ -7669,6 +7717,32 @@
                     _historyCache.meta.stickers = freshStates;
                 }
             }
+            // --- Career EXP Accumulation ---
+            // Sum all real-time daily EXP + end-of-week bonuses from the install date onward.
+            // Today's real-time contribution is added separately in renderExpBar.
+            let careerExp = 0;
+            if (!runtime.demoMode) {
+                Object.keys(weekMap).sort().forEach(wk => {
+                    if (wk >= todayWeekKey) return;
+                    if (installWeekKey && wk < installWeekKey) return;
+
+                    const days = weekMap[wk];
+                    days.forEach(d => {
+                        const e = d.eSpent ? d.eSpent.total : 0;
+                        const hasTrainLog = d.series && d.series.some(s => s.type === 'gym');
+                        careerExp += computeDailyLevelExp(e, hasTrainLog);
+                    });
+
+                    const { isCompleted, isGold, totDiamond } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
+                    if (isCompleted) {
+                        if (totDiamond >= GAME.WEEKLY_GOAL) careerExp += GAME.BONUS_WEEK_DIAMOND;
+                        else if (isGold)      careerExp += GAME.BONUS_WEEK_GOLD;
+                        else                  careerExp += GAME.BONUS_WEEK_GREEN;
+                    }
+                });
+                runtime.careerLevelExp = careerExp;
+            }
+
             return stickerMap;
         },
         getTimeline() {
@@ -12279,7 +12353,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
     }
 
     /**
@@ -14720,12 +14794,12 @@
                     };
                     refreshInitMask(wv);
                 }
-                tp.style.display = 'none';
-                bp.style.display = 'none';
+                tp.style.setProperty('display', 'none', 'important');
+                bp.style.setProperty('display', 'none', 'important');
             } else if (tgt === 'settings') {
                 sp.classList.add('active-view');
-                tp.style.display = 'none';
-                bp.style.display = 'none';
+                tp.style.setProperty('display', 'none', 'important');
+                bp.style.setProperty('display', 'none', 'important');
                 const ki = document.getElementById('set-api-key');
                 if (ki) ki.value = userConfig.apiKey || '';
                 const at = document.getElementById('set-anim-toggle');

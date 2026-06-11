@@ -325,6 +325,60 @@
         };
     }
 
+    // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
+    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 2066 EXP
+    // Atrophy multipliers derived from 14 / 18 / 22 month ratios.
+    const LEVEL_FLOOR = 200;
+    const LEVEL_P0_MAX = 2066;
+    const LEVEL_ATRO_MULT = [1, 18 / 14, 22 / 14];
+
+    function computeLevelExpCost(level, atrophy) {
+        const t = (level - 1) / 98;
+        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.5));
+        return Math.round(base * LEVEL_ATRO_MULT[atrophy]);
+    }
+
+    // Pre-compute the total EXP required to finish each atrophy stage.
+    const LEVEL_ATRO_BUDGETS = [0, 1, 2].map(a => {
+        let s = 0;
+        for (let lv = 1; lv <= 99; lv++) s += computeLevelExpCost(lv, a);
+        return s;
+    });
+
+    function calculateLevelProgress(totalExp) {
+        let remaining = totalExp;
+        let atrophy = 0;
+        for (let a = 0; a < 3; a++) {
+            if (remaining < LEVEL_ATRO_BUDGETS[a]) { atrophy = a; break; }
+            remaining -= LEVEL_ATRO_BUDGETS[a];
+            atrophy = a + 1;
+        }
+        if (atrophy >= 3) return { atrophy: 2, level: 100, expInLevel: 0, expToNext: 0 };
+        let level = 1;
+        for (let lv = 1; lv <= 99; lv++) {
+            const cost = computeLevelExpCost(lv, atrophy);
+            if (remaining < cost) { level = lv; break; }
+            remaining -= cost;
+            level = lv + 1;
+        }
+        const expInLevel = level <= 99 ? remaining : 0;
+        const expToNext = level <= 99 ? computeLevelExpCost(level, atrophy) : 0;
+        return { atrophy, level, expInLevel, expToNext };
+    }
+
+    // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
+    // Requires at least one train-click; milestones stack on top of each other.
+    function computeDailyLevelExp(eSpent, hasTrainLog) {
+        if (!hasTrainLog) return 0;
+        let exp = 50;                          // +50: clicked train
+        if (eSpent >= 500)  exp += 50;         // +50: reached 500E  → 100 total
+        if (eSpent >= 1000) exp += 100;        // +100: reached Green → 200 total
+        if (eSpent >= 1500) exp += 100;        // +100: reached Gold  → 300 total
+        if (eSpent >= 2000) exp += 300;        // +300: reached Diamond → 600 total
+        return exp;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     function getWeekKey(dateStr) {
         const d = Formatter.parse(dateStr);
         const dayIdx = d.getUTCDay();

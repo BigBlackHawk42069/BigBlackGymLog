@@ -545,7 +545,8 @@
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
-            tp.style.display = 'flex';
+            tp.style.removeProperty('display');
+            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
             if (!(tgt === 'stickers' && viewState.activeItemId)) {
                 bp.style.removeProperty('display');
                 if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
@@ -650,12 +651,12 @@
                     };
                     refreshInitMask(wv);
                 }
-                tp.style.display = 'none';
-                bp.style.display = 'none';
+                tp.style.setProperty('display', 'none', 'important');
+                bp.style.setProperty('display', 'none', 'important');
             } else if (tgt === 'settings') {
                 sp.classList.add('active-view');
-                tp.style.display = 'none';
-                bp.style.display = 'none';
+                tp.style.setProperty('display', 'none', 'important');
+                bp.style.setProperty('display', 'none', 'important');
                 const ki = document.getElementById('set-api-key');
                 if (ki) ki.value = userConfig.apiKey || '';
                 const at = document.getElementById('set-anim-toggle');
@@ -766,10 +767,14 @@
         if (sp) sp.classList.remove('active-view');
         if (wv) wv.classList.remove('active-view');
         if (tp) {
-            tp.style.display = 'flex';
+            tp.style.removeProperty('display');
+            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
         }
-        if (bp) bp.style.display = 'flex';
+        if (bp) {
+            bp.style.removeProperty('display');
+            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
+        }
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;

@@ -193,6 +193,32 @@
                     _historyCache.meta.stickers = freshStates;
                 }
             }
+            // --- Career EXP Accumulation ---
+            // Sum all real-time daily EXP + end-of-week bonuses from the install date onward.
+            // Today's real-time contribution is added separately in renderExpBar.
+            let careerExp = 0;
+            if (!runtime.demoMode) {
+                Object.keys(weekMap).sort().forEach(wk => {
+                    if (wk >= todayWeekKey) return;
+                    if (installWeekKey && wk < installWeekKey) return;
+
+                    const days = weekMap[wk];
+                    days.forEach(d => {
+                        const e = d.eSpent ? d.eSpent.total : 0;
+                        const hasTrainLog = d.series && d.series.some(s => s.type === 'gym');
+                        careerExp += computeDailyLevelExp(e, hasTrainLog);
+                    });
+
+                    const { isCompleted, isGold, totDiamond } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
+                    if (isCompleted) {
+                        if (totDiamond >= GAME.WEEKLY_GOAL) careerExp += GAME.BONUS_WEEK_DIAMOND;
+                        else if (isGold)      careerExp += GAME.BONUS_WEEK_GOLD;
+                        else                  careerExp += GAME.BONUS_WEEK_GREEN;
+                    }
+                });
+                runtime.careerLevelExp = careerExp;
+            }
+
             return stickerMap;
         },
         getTimeline() {
