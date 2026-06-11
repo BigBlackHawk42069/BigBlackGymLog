@@ -14689,7 +14689,8 @@
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
-            tp.style.display = 'flex';
+            tp.style.removeProperty('display');
+            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
             if (!(tgt === 'stickers' && viewState.activeItemId)) {
                 bp.style.removeProperty('display');
                 if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
@@ -14910,10 +14911,14 @@
         if (sp) sp.classList.remove('active-view');
         if (wv) wv.classList.remove('active-view');
         if (tp) {
-            tp.style.display = 'flex';
+            tp.style.removeProperty('display');
+            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
         }
-        if (bp) bp.style.display = 'flex';
+        if (bp) {
+            bp.style.removeProperty('display');
+            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
+        }
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
