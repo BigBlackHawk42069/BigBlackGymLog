@@ -326,11 +326,11 @@
     }
 
     // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
-    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 2066 EXP
-    // Atrophy multipliers derived from 14 / 18 / 22 month ratios.
+    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 1641 EXP
+    // Atrophy multipliers: +15% and +30%
     const LEVEL_FLOOR = 200;
-    const LEVEL_P0_MAX = 2066;
-    const LEVEL_ATRO_MULT = [1, 18 / 14, 22 / 14];
+    const LEVEL_P0_MAX = 1641;
+    const LEVEL_ATRO_MULT = [1, 1.15, 1.30];
 
     function computeLevelExpCost(level, atrophy) {
         const t = (level - 1) / 98;
@@ -367,15 +367,13 @@
     }
 
     // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
-    // Requires at least one train-click; milestones stack on top of each other.
+    // Continuous piecewise rate: 0.2 EXP/E up to Gold (1500E), then 0.6 EXP/E beyond.
+    // Reproduces all old milestone totals exactly (200 @ Green, 300 @ Gold, 600 @ Diamond).
     function computeDailyLevelExp(eSpent, hasTrainLog) {
         if (!hasTrainLog) return 0;
-        let exp = 50;                          // +50: clicked train
-        if (eSpent >= 500)  exp += 50;         // +50: reached 500E  → 100 total
-        if (eSpent >= 1000) exp += 100;        // +100: reached Green → 200 total
-        if (eSpent >= 1500) exp += 100;        // +100: reached Gold  → 300 total
-        if (eSpent >= 2000) exp += 300;        // +300: reached Diamond → 600 total
-        return exp;
+        const base  = Math.min(eSpent, 1500) * 0.2;
+        const bonus = Math.max(eSpent - 1500, 0) * 0.6;
+        return Math.round(base + bonus);
     }
     // ─────────────────────────────────────────────────────────────────────────
 
