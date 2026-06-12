@@ -12,7 +12,7 @@
 // @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/DevBranch/Dev/BBGLDev.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
     if (window.__BBGL_LOADED__) return;
     window.__BBGL_LOADED__ = true;
@@ -70,7 +70,7 @@
             if (!this._enabled()) return;
             try {
                 performance.mark('bbgl:' + n);
-            } catch (e) {}
+            } catch (e) { }
         },
         start(n) {
             this.mark(n + ':start');
@@ -80,7 +80,7 @@
             try {
                 performance.mark('bbgl:' + n + ':end');
                 performance.measure('bbgl:' + n, 'bbgl:' + n + ':start', 'bbgl:' + n + ':end');
-            } catch (e) {}
+            } catch (e) { }
         },
         async wrapAsync(n, fn) {
             this.start(n);
@@ -487,7 +487,7 @@
             ALLOWED_CONFIG_KEYS.forEach(k => {
                 if (parsed[k] !== undefined) userConfig[k] = parsed[k];
             });
-        } catch (e) {}
+        } catch (e) { }
     }
     if (localStorage.getItem(KEYS.DEMO) === '1') runtime.demoMode = true;
     if (sessionStorage.getItem(KEYS.DEV_MODE) === 'true') runtime.devMode = true;
@@ -778,7 +778,7 @@
         let totGreen = 0,
             totGold = 0,
             totDiamond = 0;
-            
+
         const jumpGold = hjCount === GAME.GOLD_WEEK_JUMPS;
         const jumpDiamond = hjCount >= GAME.DIAMOND_WEEK_JUMPS;
 
@@ -804,14 +804,14 @@
             if (e >= 2000) base = GAME.POINTS_DIAMOND;
             else if (e >= 1500) base = GAME.POINTS_GOLD;
             else if (e >= 1000) base = GAME.POINTS_GREEN;
-            
+
             if (base === 0) return;
-            
+
             if (base === GAME.POINTS_DIAMOND) totDiamond += base;
             else if (base === GAME.POINTS_GOLD) totGold += base;
             else totGreen += base;
         });
-        
+
         const total = totGreen + totGold + totDiamond;
         const goldOrBetter = totGold + totDiamond;
         return {
@@ -6588,7 +6588,7 @@
             if (!this._db) {
                 try {
                     await this.initDB();
-                } catch (e) {}
+                } catch (e) { }
             }
             return this._db;
         },
@@ -6916,19 +6916,19 @@
             });
         } else {
             reqs = [{
-                    type: 'battlestats',
-                    url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    floorKey: 'trainEnergy',
-                    url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    floorKey: 'statHappy',
-                    url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
-                }
+                type: 'battlestats',
+                url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
+            },
+            {
+                type: 'log',
+                floorKey: 'trainEnergy',
+                url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
+            },
+            {
+                type: 'log',
+                floorKey: 'statHappy',
+                url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
+            }
             ];
         }
 
@@ -8643,9 +8643,9 @@
             diamondDays = 0,
             trainingDays = 0;
         let maxEDay = {
-                value: 0,
-                date: null
-            },
+            value: 0,
+            date: null
+        },
             maxGainsDay = {
                 value: 0,
                 date: null
@@ -8661,11 +8661,11 @@
                 stat: null
             };
         const bestTrainByStat = {
-                str: null,
-                def: null,
-                spd: null,
-                dex: null
-            },
+            str: null,
+            def: null,
+            spd: null,
+            dex: null
+        },
             bestDayByStat = {
                 str: null,
                 def: null,
@@ -9506,7 +9506,7 @@
         const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
         const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
         let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
-        
+
         let helpersHTML = '';
         if (d.happyItemTotals) {
             const helpers = HAPPY_LOGS.map(id => {
@@ -9519,14 +9519,14 @@
                     happy: rec.happy
                 };
             }).filter(h => h.count > 0).sort((a, b) => b.count - a.count || b.happy - a.happy);
-            
+
             if (helpers.length > 0) {
                 const helperRow = (h) => {
                     const tip = `${achEsc(h.label)} | Happy Gained`;
                     const clipVal = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
                     return `<div class="bbgl-ach-row" data-tooltip="${achEsc(tip)}" data-ach-key="happy-helper-${h.id}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">${achEsc(h.label)}</span><span class="ach-title-short">${achEsc(h.short)}</span>:</span></div><div class="ach-v-wrap"><span class="ach-value">${Formatter.number(h.count)}</span><span class="ach-value ach-happy-col">+${achEsc(achFmtGain(h.happy))} Happy</span></div></div></div>`;
                 };
-                
+
                 const colCount = 2;
                 const rpc = Math.ceil(helpers.length / colCount);
                 const cols = [];
@@ -9542,7 +9542,7 @@
                 helpersHTML = `<div class="bbgl-ach-subsection-title" style="margin-top:2px" data-ach-section="happy-helpers" data-clip-section="${achEsc(clipHelpers)}" data-clip-title="Happy Helpers" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HELPERS</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
             }
         }
-        
+
         return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</div>${rowsHTML}${helpersHTML}</div>`;
     }
 
@@ -9703,7 +9703,7 @@
             def: 'Defense',
             spd: 'Speed',
             dex: 'Dexterity'
-        } [s] || s;
+        }[s] || s;
     }
 
     function achFmtGainsLine(g) {
@@ -10055,7 +10055,7 @@
                     'green-streak': ['Longest Green Streak (1,000 E+)', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd],
                     'gold-streak': ['Longest Gold Streak (1,500 E+)', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd],
                     'diamond-streak': ['Longest Diamond Streak (2,000 E+)', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd]
-                } [key];
+                }[key];
                 const label = SK[0],
                     len = SK[1] || 0,
                     gains = SK[2],
@@ -10339,15 +10339,15 @@
                 type: 'text/plain'
             });
             if (navigator.canShare && navigator.canShare({
-                    files: [f]
-                }) && window.innerWidth <= 800) {
+                files: [f]
+            }) && window.innerWidth <= 800) {
                 await navigator.share({
                     title: filename,
                     files: [f]
                 });
                 return;
             }
-        } catch (e) {}
+        } catch (e) { }
         const blob = new Blob([content], {
             type: 'application/json'
         });
@@ -10412,7 +10412,7 @@
                     if (typeof stickers === 'string') {
                         try {
                             stickers = JSON.parse(stickers);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     if (!stickers) stickers = {};
                     j.storage.meta.stickers = stickers;
@@ -10447,7 +10447,7 @@
                             localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
                             syncChangelogNotif(true);
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                     DataController.invalidate();
                     calendarState.selectedData = null;
                     calendarState.selectedLabel = null;
@@ -10583,7 +10583,7 @@
                     f = f.return;
                     depth++;
                 }
-            } catch (e) {}
+            } catch (e) { }
             return null;
         },
         scanGyms() {
@@ -10955,7 +10955,7 @@
         let pctDiamond = Math.min(100, totDiamond / 10);
         let pctGold = Math.min(100 - pctDiamond, totGold / 10);
         let pctGreen = Math.min(100 - pctDiamond - pctGold, totGreen / 10);
-        
+
         let sum = pctGreen + pctGold + pctDiamond;
         if (goal && sum < 100) {
             const deficit = 100 - sum;
@@ -10994,7 +10994,7 @@
 
         let actualDLeft = dLeft;
         let gRight = pctGreen;
-        
+
         let greenTouchesNext = false;
         let goldTouchesPrev = false;
         if (pctDiamond > 0) {
@@ -11383,12 +11383,12 @@
         });
     }
     const SB_DESKTOP = {
-            target: '#nav-gym[class*="area-desktop"]',
-            container: 'area-desktop___vZLI8',
-            link: 'desktopLink___SG2RU',
-            row: 'area-row___iBD8N',
-            id: 'nav-gym-log-desktop'
-        },
+        target: '#nav-gym[class*="area-desktop"]',
+        container: 'area-desktop___vZLI8',
+        link: 'desktopLink___SG2RU',
+        row: 'area-row___iBD8N',
+        id: 'nav-gym-log-desktop'
+    },
         SB_MOBILE = {
             target: '#nav-gym[class*="area-mobile"]',
             container: 'area-mobile___sx8BQ',
@@ -11483,7 +11483,7 @@
             if (!next.has(w)) {
                 try {
                     runtime.layoutResizeObserver.unobserve(w);
-                } catch (_) {}
+                } catch (_) { }
                 prev.delete(w);
             }
         });
@@ -11606,7 +11606,7 @@
                 _syncLayoutResizeTargets();
                 handleLayout();
                 clearTimeout(runtime._layoutResyncTimer);
-                runtime._layoutResyncTimer = setTimeout(function() {
+                runtime._layoutResyncTimer = setTimeout(function () {
                     runtime._layoutResyncTimer = null;
                     _syncLayoutResizeTargets();
                 }, 350);
@@ -11956,7 +11956,7 @@
         });
     }
     const DOC_LOADING_HTML = `<div style="padding:20px; text-align:center; color:#888;">Loading...</div>`;
-    const DOC_ERROR_HTML   = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
+    const DOC_ERROR_HTML = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
 
     const PRIVACY_TEXT = {
         ACK_INTRO: `<div style="padding:0 0 8px 0; color:#bbb; font-size:12px;">By using this script, you acknowledge and agree to the following:</div>`,
@@ -11965,10 +11965,10 @@
 
     function buildPrivacyModalHTML(reviewMode) {
         const ackRows = PRIVACY_TEXT.ACK_ITEMS.map((txt, i) => {
-                const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
-                    label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
-                return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
-            }).join(''),
+            const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
+                label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
+            return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
+        }).join(''),
             discSection = buildSection('Privacy Disclosure', `<div class="bbgl-modal-scrollbox"><div id="bbgl-privacy-disc">${DOC_LOADING_HTML}</div></div>`, 'margin-bottom:5px;'),
             ackSection = buildSection('User Acknowledgement', `<div class="bbgl-modal-scrollbox">${PRIVACY_TEXT.ACK_INTRO}${ackRows}</div>`, 'margin-bottom:8px;'),
             footer = reviewMode ? '' : `<div style="display:flex; margin:0 10px 4px 10px;">${buildButton('bbgl-privacy-demo-btn', 'DEMO', 'purple', 'flex:2; border-radius:4px 0 0 4px; margin:0;')}<span class="bbgl-agree-wrap" style="flex:1; display:flex;" data-tooltip="${TOOLTIPS.AGREE_GATE}">${buildButton('bbgl-privacy-agree-btn', 'AGREE', 'green', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</span></div>`;
@@ -12072,7 +12072,7 @@
         refreshStartState();
         // Agreement is intentionally not persisted: starting the scan creates its own timers, which
         // are the record. The disclaimer is shown fresh on every manual start.
-        startBtn.onclick = function() {
+        startBtn.onclick = function () {
             if (startBtn.classList.contains('bbgl-btn-disabled')) return;
             this.blur();
             closeBackfillModal();
@@ -12116,12 +12116,12 @@
             };
             boxes.forEach(b => b.onchange = refreshAgreeState);
             refreshAgreeState();
-            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function() {
+            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function () {
                 this.blur();
                 enterDemo('privacy');
                 closePrivacyModal();
             };
-            agreeBtn.onclick = function() {
+            agreeBtn.onclick = function () {
                 if (agreeBtn.classList.contains('bbgl-btn-disabled')) return;
                 this.blur();
                 userConfig.privacyAgreed = new Date().toISOString();
@@ -12227,12 +12227,12 @@
         try {
             const raw = await fetchDoc('welcome');
             const parts = raw.split('<!--RETURNING-->');
-            introHTML     = parts[0] || DOC_ERROR_HTML;
+            introHTML = parts[0] || DOC_ERROR_HTML;
             returningHTML = parts[1] || DOC_ERROR_HTML;
-        } catch (e) {}
-        const introEl     = wv.querySelector('#bbgl-welcome-intro-text');
+        } catch (e) { }
+        const introEl = wv.querySelector('#bbgl-welcome-intro-text');
         const returningEl = wv.querySelector('#bbgl-welcome-returning-text');
-        if (introEl)     introEl.innerHTML = introHTML;
+        if (introEl) introEl.innerHTML = introHTML;
         if (returningEl) returningEl.innerHTML = returningHTML;
     }
 
@@ -12350,9 +12350,9 @@
                 tl = DataController.getTimeline(),
                 h = getActiveHistory();
             let sr = {
-                    ...ZERO_BREAKDOWN,
-                    total: 0
-                },
+                ...ZERO_BREAKDOWN,
+                total: 0
+            },
                 startTs = 0;
             if (vt === 'DAY') {
                 const _p = sl.date.split('-');
@@ -12404,8 +12404,8 @@
             };
             const _snapAt = (cutoffMs, d, baseVals, baseRates) => {
                 let vals = {
-                        ...baseVals
-                    },
+                    ...baseVals
+                },
                     rates = {
                         ...baseRates
                     };
@@ -12483,8 +12483,8 @@
                     };
                 };
                 let lr = {
-                        ...sr
-                    },
+                    ...sr
+                },
                     now = Date.now();
                 const BKT = 15 * 60 * 1000;
                 const sBkts = [];
@@ -13257,11 +13257,11 @@
                 return;
             }
             const dat = GraphController._transformData({
-                    selectedData: calendarState.selectedData,
-                    selectedLabel: calendarState.selectedLabel,
-                    year: calendarState.year,
-                    graphMode: graphState.mode
-                }),
+                selectedData: calendarState.selectedData,
+                selectedLabel: calendarState.selectedLabel,
+                year: calendarState.year,
+                graphMode: graphState.mode
+            }),
                 tr = dat.trends,
                 lbls = dat.labels,
                 vt = dat.viewType,
@@ -13371,9 +13371,9 @@
                 g.appendChild(t);
             }
             const gx = (v) => {
-                    const r = xp.max - xp.min;
-                    return r === 0 ? 0 : ((v - xp.min) / r) * cw;
-                },
+                const r = xp.max - xp.min;
+                return r === 0 ? 0 : ((v - xp.min) / r) * cw;
+            },
                 gy = (v) => chPlot - ((v - fMin) / fr) * chPlot;
             (function _drawTicks() {
                 const _addTick = (tx) => {
@@ -13947,8 +13947,8 @@
         if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
         requestAnimationFrame(animateViewer);
         const spdUp = () => {
-                runtime.viewerSpeed = 3;
-            },
+            runtime.viewerSpeed = 3;
+        },
             spdDn = () => {
                 runtime.viewerSpeed = 0.3;
             };
@@ -14602,13 +14602,13 @@
             runtime.viewerLoopId = null;
         }
         const gel = (m) => {
-                if (m === 'settings') return sp;
-                if (m === 'welcome') return wv;
-                if (m === 'graph') return dom.graphContainer;
-                if (m === 'stickers') return dom.stickerContainer;
-                if (m === 'achievements') return dom.achievementsContainer;
-                return dom.ledgerView;
-            },
+            if (m === 'settings') return sp;
+            if (m === 'welcome') return wv;
+            if (m === 'graph') return dom.graphContainer;
+            if (m === 'stickers') return dom.stickerContainer;
+            if (m === 'achievements') return dom.achievementsContainer;
+            return dom.ledgerView;
+        },
             cel = gel(cm),
             nel = gel(tgt);
         const app = () => {
@@ -14662,12 +14662,12 @@
                         iweekSel.onchange = () => onChangeWeekStart(iweekSel.value);
                     }
                     const ipb = wv.querySelector('#init-privacy-btn');
-                    if (ipb) ipb.onclick = function() {
+                    if (ipb) ipb.onclick = function () {
                         this.blur();
                         openPrivacyModal();
                     };
                     const isb = wv.querySelector('#init-start-btn');
-                    if (isb && iak) isb.onclick = async function() {
+                    if (isb && iak) isb.onclick = async function () {
                         this.blur();
                         const v = iak.value.trim();
                         if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -14704,13 +14704,13 @@
                         }
                     };
                     const cb = wv.querySelector('#init-create-api-btn');
-                    if (cb) cb.onclick = function() {
+                    if (cb) cb.onclick = function () {
                         this.blur();
                         window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
-                    if (rib && rif) rib.onclick = function() {
+                    if (rib && rif) rib.onclick = function () {
                         this.blur();
                         rif.click();
                     };
@@ -15050,7 +15050,7 @@
         if (ds && ds.lastResult === 'partial') {
             // Cooldown elapsed: stay in the resume state until the log is fully backfilled.
             btn.textContent = 'Partial Scan Complete! Resume?';
-            btn.onclick = function() {
+            btn.onclick = function () {
                 this.blur();
                 backfillLogs(this);
             };
@@ -15058,7 +15058,7 @@
         }
 
         btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>';
-        btn.onclick = function() {
+        btn.onclick = function () {
             this.blur();
             openBackfillModal();
         };
@@ -15334,7 +15334,7 @@
             }
         };
         const ub = get('updt-settings-btn');
-        if (ub && ai) ub.onclick = async function() {
+        if (ub && ai) ub.onclick = async function () {
             this.blur();
             const v = ai.value.trim();
             if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -15369,7 +15369,7 @@
             }
         };
         const cab = get('clear-api-btn');
-        if (cab && ai) cab.onclick = function() {
+        if (cab && ai) cab.onclick = function () {
             this.blur();
             userConfig.apiKey = '';
             saveConfig();
@@ -15385,23 +15385,23 @@
             }, 2000);
         };
         const crb = get('create-api-btn');
-        if (crb) crb.onclick = function() {
+        if (crb) crb.onclick = function () {
             this.blur();
             window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
         };
         const rb = get('refresh-log-btn');
-        if (rb) rb.onclick = function() {
+        if (rb) rb.onclick = function () {
             this.blur();
             if (checkRefreshCooldown(this)) return;
             syncWithFeedback('FULL_SYNC');
         };
         const eb = get('export-btn');
-        if (eb) eb.onclick = function() {
+        if (eb) eb.onclick = function () {
             this.blur();
             exportData();
         };
         const ib = get('import-btn');
-        if (ib) ib.onclick = function() {
+        if (ib) ib.onclick = function () {
             this.blur();
             get('import-file').click();
         };
@@ -15411,28 +15411,28 @@
         // so renderBackfillButton owns wiring its onclick for the current state.
         renderBackfillButton();
         const clb = get('clear-btn');
-        if (clb) clb.onclick = function() {
+        if (clb) clb.onclick = function () {
             this.blur();
             clearData();
         };
         const wb = get('show-welcome-btn');
-        if (wb) wb.onclick = function() {
+        if (wb) wb.onclick = function () {
             this.blur();
             runtime.welcomeReturn = 'settings';
             switchView('welcome');
         };
         const cl = get('settings-changelog-btn');
-        if (cl) cl.onclick = function() {
+        if (cl) cl.onclick = function () {
             this.blur();
             openChangelogModal();
         };
         const pl = get('settings-privacy-btn');
-        if (pl) pl.onclick = function() {
+        if (pl) pl.onclick = function () {
             this.blur();
             openPrivacyModal();
         };
         const sdemo = get('settings-demo-btn');
-        if (sdemo) sdemo.onclick = function() {
+        if (sdemo) sdemo.onclick = function () {
             this.blur();
             if (runtime.demoMode) {
                 const deb = document.getElementById('bbgl-demo-exit');
@@ -15442,17 +15442,17 @@
             }
         };
         const fgb = get('feature-guide-btn');
-        if (fgb) fgb.onclick = function() {
+        if (fgb) fgb.onclick = function () {
             this.blur();
             openFeatureGuideModal();
         };
         const sbb = get('settings-backfill-btn');
-        if (sbb) sbb.onclick = function() {
+        if (sbb) sbb.onclick = function () {
             this.blur();
             openBackfillModal();
         };
         const drb = get('dev-reset-btn');
-        if (drb) drb.onclick = function() {
+        if (drb) drb.onclick = function () {
             this.blur();
             devFactoryReset();
         };
@@ -15759,13 +15759,13 @@
         // fast-paths out when nothing has changed, so steady state stays lightweight.
         const _bbglRecheckNav = () => {
             [150, 600, 1500].forEach(ms => setTimeout(() => {
-                try { handleDomMutation(); } catch (e) {}
+                try { handleDomMutation(); } catch (e) { }
             }, ms));
         };
         ['pushState', 'replaceState'].forEach(name => {
             const orig = history[name];
             if (typeof orig !== 'function' || orig._bbglWrapped) return;
-            const wrapped = function() {
+            const wrapped = function () {
                 const r = orig.apply(this, arguments);
                 _bbglRecheckNav();
                 return r;
@@ -16009,7 +16009,7 @@
         }, {
             passive: false
         });
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (e.target.closest('#bbgl-gym-tab')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -16095,14 +16095,14 @@
                 if (!hit) return;
                 if (hit.id === 'nav-gym') handleNavGym();
                 else if (hit.id === 'notes_panel_button') handleNotesBtn(hit);
-            } catch (e) {}
+            } catch (e) { }
         }
-        Node.prototype.insertBefore = function(n, r) {
+        Node.prototype.insertBefore = function (n, r) {
             const res = _oI.call(this, n, r);
             check(n);
             return res;
         };
-        Node.prototype.appendChild = function(n) {
+        Node.prototype.appendChild = function (n) {
             const res = _oA.call(this, n);
             check(n);
             return res;
