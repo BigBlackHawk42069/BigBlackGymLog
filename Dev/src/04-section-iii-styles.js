@@ -3695,6 +3695,83 @@
                         background-blend-mode: overlay, normal;
                     }
 
+                    /* ─── Level EXP Bar ─────────────────────────────────── */
+                    #bbgl-level-container {
+                        position: absolute;
+                        bottom: 0;
+                        left: 0;
+                        right: 0;
+                        height: 18px;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: flex-end;
+                        pointer-events: none;
+                        z-index: 10;
+                    }
+
+                    #bbgl-level-num {
+                        font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-size: clamp(8px, 1.8cqi, 10px);
+                        font-weight: 700;
+                        color: rgba(230, 190, 255, 0.85);
+                        text-shadow: 0 0 4px rgba(140, 60, 200, 0.8), 0 1px 2px rgba(0, 0, 0, 1);
+                        letter-spacing: 0.5px;
+                        line-height: 1;
+                        margin-bottom: 1px;
+                        white-space: nowrap;
+                    }
+
+                    #bbgl-level-track {
+                        position: relative;
+                        width: 100%;
+                        height: 8px;
+                        border-radius: 0;
+                        overflow: hidden;
+                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(0, 0, 0, .15) 1px, rgba(0, 0, 0, .15) 2px), linear-gradient(180deg, #1a0a2e 0%, #2d1550 30%, #3d1a6e 60%, #2d1550 70%, #0f0520 100%);
+                        box-shadow: inset 0 0 2px rgba(0, 0, 0, .5);
+                        border-top: 1px solid rgba(180, 100, 255, .15);
+                    }
+
+                    #bbgl-level-fill {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        height: 100%;
+                        width: 0%;
+                        background: linear-gradient(180deg, #2d0a5e 0%, #7b2fd4 35%, #d9a0ff 45%, #d9a0ff 55%, #7b2fd4 65%, #2d0a5e 100%);
+                        border-top-right-radius: 10px;
+                        border-bottom-right-radius: 10px;
+                        transition: width .4s cubic-bezier(.25, 1, .5, 1);
+                        will-change: width;
+                    }
+
+                    #bbgl-level-fill.level-full {
+                        border-top-right-radius: 0;
+                        border-bottom-right-radius: 0;
+                    }
+
+                    #bbgl-panel.bbgl-expanded #bbgl-level-track {
+                        height: 10px;
+                    }
+
+                    #bbgl-panel.bbgl-expanded #bbgl-level-num {
+                        font-size: clamp(9px, 1.8cqi, 11px);
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-level-container {
+                        height: clamp(18px, calc(18px + 8px * var(--bbgl-page-t)), 26px);
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-level-track {
+                        height: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-level-num {
+                        font-size: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                    }
+                    /* ─────────────────────────────────────────────────────── */
+
                     .bbgl-track-label {
                         position: absolute;
                         top: 0;

@@ -325,6 +325,61 @@
         };
     }
 
+<<<<<<< HEAD
+    // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
+    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 1641 EXP
+    // Atrophy multipliers: +15% and +30%
+    const LEVEL_FLOOR = 200;
+    const LEVEL_P0_MAX = 1641;
+    const LEVEL_ATRO_MULT = [1, 1.15, 1.30];
+
+    function computeLevelExpCost(level, atrophy) {
+        const t = (level - 1) / 98;
+        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.5));
+        return Math.round(base * LEVEL_ATRO_MULT[atrophy]);
+    }
+
+    // Pre-compute the total EXP required to finish each atrophy stage.
+    const LEVEL_ATRO_BUDGETS = [0, 1, 2].map(a => {
+        let s = 0;
+        for (let lv = 1; lv <= 99; lv++) s += computeLevelExpCost(lv, a);
+        return s;
+    });
+
+    function calculateLevelProgress(totalExp) {
+        let remaining = totalExp;
+        let atrophy = 0;
+        for (let a = 0; a < 3; a++) {
+            if (remaining < LEVEL_ATRO_BUDGETS[a]) { atrophy = a; break; }
+            remaining -= LEVEL_ATRO_BUDGETS[a];
+            atrophy = a + 1;
+        }
+        if (atrophy >= 3) return { atrophy: 2, level: 100, expInLevel: 0, expToNext: 0 };
+        let level = 1;
+        for (let lv = 1; lv <= 99; lv++) {
+            const cost = computeLevelExpCost(lv, atrophy);
+            if (remaining < cost) { level = lv; break; }
+            remaining -= cost;
+            level = lv + 1;
+        }
+        const expInLevel = level <= 99 ? remaining : 0;
+        const expToNext = level <= 99 ? computeLevelExpCost(level, atrophy) : 0;
+        return { atrophy, level, expInLevel, expToNext };
+    }
+
+    // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
+    // Continuous piecewise rate: 0.2 EXP/E up to Gold (1500E), then 0.6 EXP/E beyond.
+    // Reproduces all old milestone totals exactly (200 @ Green, 300 @ Gold, 600 @ Diamond).
+    function computeDailyLevelExp(eSpent, hasTrainLog) {
+        if (!hasTrainLog) return 0;
+        const base  = Math.min(eSpent, 1500) * 0.2;
+        const bonus = Math.max(eSpent - 1500, 0) * 0.6;
+        return Math.round(base + bonus);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+=======
+>>>>>>> parent of 2089245 (exp system)
     function getWeekKey(dateStr) {
         const d = Formatter.parse(dateStr);
         const dayIdx = d.getUTCDay();
