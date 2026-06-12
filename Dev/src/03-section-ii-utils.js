@@ -325,6 +325,7 @@
         };
     }
 
+<<<<<<< HEAD
     // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
     // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 1641 EXP
     // Atrophy multipliers: +15% and +30%
@@ -377,6 +378,8 @@
     }
     // ─────────────────────────────────────────────────────────────────────────
 
+=======
+>>>>>>> parent of 2089245 (exp system)
     function getWeekKey(dateStr) {
         const d = Formatter.parse(dateStr);
         const dayIdx = d.getUTCDay();

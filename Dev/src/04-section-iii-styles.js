@@ -4214,6 +4214,15 @@
 
                     #bbgl-panel:not(.bbgl-mode-page) .bbgl-grid-container {
                         padding: 0 !important;
+                        overflow: visible !important;
+                        height: auto !important;
+                        flex: none !important;
+                    }
+
+                    #bbgl-panel:not(.bbgl-mode-page) .calendar-wrapper {
+                        overflow: visible !important;
+                        height: auto !important;
+                        flex: none !important;
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-month-header {

@@ -12,7 +12,7 @@
 // @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/DevBranch/Dev/BBGLDev.js
 // ==/UserScript==
 
-(function() {
+(function () {
     'use strict';
     if (window.__BBGL_LOADED__) return;
     window.__BBGL_LOADED__ = true;
@@ -70,7 +70,7 @@
             if (!this._enabled()) return;
             try {
                 performance.mark('bbgl:' + n);
-            } catch (e) {}
+            } catch (e) { }
         },
         start(n) {
             this.mark(n + ':start');
@@ -80,7 +80,7 @@
             try {
                 performance.mark('bbgl:' + n + ':end');
                 performance.measure('bbgl:' + n, 'bbgl:' + n + ':start', 'bbgl:' + n + ':end');
-            } catch (e) {}
+            } catch (e) { }
         },
         async wrapAsync(n, fn) {
             this.start(n);
@@ -131,13 +131,10 @@
         WEEKLY_GOAL: 1000,
         POINTS_GREEN: 200,
         POINTS_GOLD: 300,
-        POINTS_DIAMOND: 600,
+        POINTS_DIAMOND: 500,
         POINTS_HJ_GREEN: 500,
         POINTS_HJ_GOLD: 500,
-        POINTS_HJ_DIAMOND: 600,
-        BONUS_WEEK_GREEN: 200,
-        BONUS_WEEK_GOLD: 300,
-        BONUS_WEEK_DIAMOND: 600,
+        POINTS_HJ_DIAMOND: 500,
         GOLD_WEEK_JUMPS: 3,
         DIAMOND_WEEK_JUMPS: 4,
         HJ_WINDOW_SECONDS: 300,
@@ -490,7 +487,7 @@
             ALLOWED_CONFIG_KEYS.forEach(k => {
                 if (parsed[k] !== undefined) userConfig[k] = parsed[k];
             });
-        } catch (e) {}
+        } catch (e) { }
     }
     if (localStorage.getItem(KEYS.DEMO) === '1') runtime.demoMode = true;
     if (sessionStorage.getItem(KEYS.DEV_MODE) === 'true') runtime.devMode = true;
@@ -781,7 +778,7 @@
         let totGreen = 0,
             totGold = 0,
             totDiamond = 0;
-            
+
         const jumpGold = hjCount === GAME.GOLD_WEEK_JUMPS;
         const jumpDiamond = hjCount >= GAME.DIAMOND_WEEK_JUMPS;
 
@@ -807,14 +804,14 @@
             if (e >= 2000) base = GAME.POINTS_DIAMOND;
             else if (e >= 1500) base = GAME.POINTS_GOLD;
             else if (e >= 1000) base = GAME.POINTS_GREEN;
-            
+
             if (base === 0) return;
-            
+
             if (base === GAME.POINTS_DIAMOND) totDiamond += base;
             else if (base === GAME.POINTS_GOLD) totGold += base;
             else totGreen += base;
         });
-        
+
         const total = totGreen + totGold + totDiamond;
         const goldOrBetter = totGold + totDiamond;
         return {
@@ -828,11 +825,11 @@
     }
 
     // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
-    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 1641 EXP
-    // Atrophy multipliers: +15% and +30%
+    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 2066 EXP
+    // Atrophy multipliers derived from 14 / 18 / 22 month ratios.
     const LEVEL_FLOOR = 200;
-    const LEVEL_P0_MAX = 1641;
-    const LEVEL_ATRO_MULT = [1, 1.15, 1.30];
+    const LEVEL_P0_MAX = 2066;
+    const LEVEL_ATRO_MULT = [1, 18 / 14, 22 / 14];
 
     function computeLevelExpCost(level, atrophy) {
         const t = (level - 1) / 98;
@@ -869,13 +866,15 @@
     }
 
     // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
-    // Continuous piecewise rate: 0.2 EXP/E up to Gold (1500E), then 0.6 EXP/E beyond.
-    // Reproduces all old milestone totals exactly (200 @ Green, 300 @ Gold, 600 @ Diamond).
+    // Requires at least one train-click; milestones stack on top of each other.
     function computeDailyLevelExp(eSpent, hasTrainLog) {
         if (!hasTrainLog) return 0;
-        const base  = Math.min(eSpent, 1500) * 0.2;
-        const bonus = Math.max(eSpent - 1500, 0) * 0.6;
-        return Math.round(base + bonus);
+        let exp = 50;                          // +50: clicked train
+        if (eSpent >= 500) exp += 50;         // +50: reached 500E  → 100 total
+        if (eSpent >= 1000) exp += 100;        // +100: reached Green → 200 total
+        if (eSpent >= 1500) exp += 100;        // +100: reached Gold  → 300 total
+        if (eSpent >= 2000) exp += 300;        // +300: reached Diamond → 600 total
+        return exp;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -5112,6 +5111,15 @@
 
                     #bbgl-panel:not(.bbgl-mode-page) .bbgl-grid-container {
                         padding: 0 !important;
+                        overflow: visible !important;
+                        height: auto !important;
+                        flex: none !important;
+                    }
+
+                    #bbgl-panel:not(.bbgl-mode-page) .calendar-wrapper {
+                        overflow: visible !important;
+                        height: auto !important;
+                        flex: none !important;
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-month-header {
@@ -6711,7 +6719,7 @@
             if (!this._db) {
                 try {
                     await this.initDB();
-                } catch (e) {}
+                } catch (e) { }
             }
             return this._db;
         },
@@ -7039,19 +7047,19 @@
             });
         } else {
             reqs = [{
-                    type: 'battlestats',
-                    url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    floorKey: 'trainEnergy',
-                    url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
-                },
-                {
-                    type: 'log',
-                    floorKey: 'statHappy',
-                    url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
-                }
+                type: 'battlestats',
+                url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
+            },
+            {
+                type: 'log',
+                floorKey: 'trainEnergy',
+                url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
+            },
+            {
+                type: 'log',
+                floorKey: 'statHappy',
+                url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
+            }
             ];
         }
 
@@ -7792,32 +7800,6 @@
                     _historyCache.meta.stickers = freshStates;
                 }
             }
-            // --- Career EXP Accumulation ---
-            // Sum all real-time daily EXP + end-of-week bonuses from the install date onward.
-            // Today's real-time contribution is added separately in renderExpBar.
-            let careerExp = 0;
-            if (!runtime.demoMode) {
-                Object.keys(weekMap).sort().forEach(wk => {
-                    if (wk >= todayWeekKey) return;
-                    if (installWeekKey && wk < installWeekKey) return;
-
-                    const days = weekMap[wk];
-                    days.forEach(d => {
-                        const e = d.eSpent ? d.eSpent.total : 0;
-                        const hasTrainLog = d.series && d.series.some(s => s.type === 'gym');
-                        careerExp += computeDailyLevelExp(e, hasTrainLog);
-                    });
-
-                    const { isCompleted, isGold, totDiamond } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
-                    if (isCompleted) {
-                        if (totDiamond >= GAME.WEEKLY_GOAL) careerExp += GAME.BONUS_WEEK_DIAMOND;
-                        else if (isGold)      careerExp += GAME.BONUS_WEEK_GOLD;
-                        else                  careerExp += GAME.BONUS_WEEK_GREEN;
-                    }
-                });
-                runtime.careerLevelExp = careerExp;
-            }
-
             return stickerMap;
         },
         getTimeline() {
@@ -8792,9 +8774,9 @@
             diamondDays = 0,
             trainingDays = 0;
         let maxEDay = {
-                value: 0,
-                date: null
-            },
+            value: 0,
+            date: null
+        },
             maxGainsDay = {
                 value: 0,
                 date: null
@@ -8810,11 +8792,11 @@
                 stat: null
             };
         const bestTrainByStat = {
-                str: null,
-                def: null,
-                spd: null,
-                dex: null
-            },
+            str: null,
+            def: null,
+            spd: null,
+            dex: null
+        },
             bestDayByStat = {
                 str: null,
                 def: null,
@@ -9655,7 +9637,7 @@
         const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
         const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
         let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
-        
+
         let helpersHTML = '';
         if (d.happyItemTotals) {
             const helpers = HAPPY_LOGS.map(id => {
@@ -9668,14 +9650,14 @@
                     happy: rec.happy
                 };
             }).filter(h => h.count > 0).sort((a, b) => b.count - a.count || b.happy - a.happy);
-            
+
             if (helpers.length > 0) {
                 const helperRow = (h) => {
                     const tip = `${achEsc(h.label)} | Happy Gained`;
                     const clipVal = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
                     return `<div class="bbgl-ach-row" data-tooltip="${achEsc(tip)}" data-ach-key="happy-helper-${h.id}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">${achEsc(h.label)}</span><span class="ach-title-short">${achEsc(h.short)}</span>:</span></div><div class="ach-v-wrap"><span class="ach-value">${Formatter.number(h.count)}</span><span class="ach-value ach-happy-col">+${achEsc(achFmtGain(h.happy))} Happy</span></div></div></div>`;
                 };
-                
+
                 const colCount = 2;
                 const rpc = Math.ceil(helpers.length / colCount);
                 const cols = [];
@@ -9691,7 +9673,7 @@
                 helpersHTML = `<div class="bbgl-ach-subsection-title" style="margin-top:2px" data-ach-section="happy-helpers" data-clip-section="${achEsc(clipHelpers)}" data-clip-title="Happy Helpers" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HELPERS</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
             }
         }
-        
+
         return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</div>${rowsHTML}${helpersHTML}</div>`;
     }
 
@@ -9852,7 +9834,7 @@
             def: 'Defense',
             spd: 'Speed',
             dex: 'Dexterity'
-        } [s] || s;
+        }[s] || s;
     }
 
     function achFmtGainsLine(g) {
@@ -10204,7 +10186,7 @@
                     'green-streak': ['Longest Green Streak (1,000 E+)', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd],
                     'gold-streak': ['Longest Gold Streak (1,500 E+)', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd],
                     'diamond-streak': ['Longest Diamond Streak (2,000 E+)', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd]
-                } [key];
+                }[key];
                 const label = SK[0],
                     len = SK[1] || 0,
                     gains = SK[2],
@@ -10488,15 +10470,15 @@
                 type: 'text/plain'
             });
             if (navigator.canShare && navigator.canShare({
-                    files: [f]
-                }) && window.innerWidth <= 800) {
+                files: [f]
+            }) && window.innerWidth <= 800) {
                 await navigator.share({
                     title: filename,
                     files: [f]
                 });
                 return;
             }
-        } catch (e) {}
+        } catch (e) { }
         const blob = new Blob([content], {
             type: 'application/json'
         });
@@ -10561,7 +10543,7 @@
                     if (typeof stickers === 'string') {
                         try {
                             stickers = JSON.parse(stickers);
-                        } catch (e) {}
+                        } catch (e) { }
                     }
                     if (!stickers) stickers = {};
                     j.storage.meta.stickers = stickers;
@@ -10596,7 +10578,7 @@
                             localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
                             syncChangelogNotif(true);
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                     DataController.invalidate();
                     calendarState.selectedData = null;
                     calendarState.selectedLabel = null;
@@ -10732,7 +10714,7 @@
                     f = f.return;
                     depth++;
                 }
-            } catch (e) {}
+            } catch (e) { }
             return null;
         },
         scanGyms() {
@@ -11105,7 +11087,7 @@
         let pctDiamond = Math.min(100, totDiamond / 10);
         let pctGold = Math.min(100 - pctDiamond, totGold / 10);
         let pctGreen = Math.min(100 - pctDiamond - pctGold, totGreen / 10);
-        
+
         let sum = pctGreen + pctGold + pctDiamond;
         if (goal && sum < 100) {
             const deficit = 100 - sum;
@@ -11144,7 +11126,7 @@
 
         let actualDLeft = dLeft;
         let gRight = pctGreen;
-        
+
         let greenTouchesNext = false;
         let goldTouchesPrev = false;
         if (pctDiamond > 0) {
@@ -11565,12 +11547,12 @@
         });
     }
     const SB_DESKTOP = {
-            target: '#nav-gym[class*="area-desktop"]',
-            container: 'area-desktop___vZLI8',
-            link: 'desktopLink___SG2RU',
-            row: 'area-row___iBD8N',
-            id: 'nav-gym-log-desktop'
-        },
+        target: '#nav-gym[class*="area-desktop"]',
+        container: 'area-desktop___vZLI8',
+        link: 'desktopLink___SG2RU',
+        row: 'area-row___iBD8N',
+        id: 'nav-gym-log-desktop'
+    },
         SB_MOBILE = {
             target: '#nav-gym[class*="area-mobile"]',
             container: 'area-mobile___sx8BQ',
@@ -11665,7 +11647,7 @@
             if (!next.has(w)) {
                 try {
                     runtime.layoutResizeObserver.unobserve(w);
-                } catch (_) {}
+                } catch (_) { }
                 prev.delete(w);
             }
         });
@@ -11788,7 +11770,7 @@
                 _syncLayoutResizeTargets();
                 handleLayout();
                 clearTimeout(runtime._layoutResyncTimer);
-                runtime._layoutResyncTimer = setTimeout(function() {
+                runtime._layoutResyncTimer = setTimeout(function () {
                     runtime._layoutResyncTimer = null;
                     _syncLayoutResizeTargets();
                 }, 350);
@@ -12138,7 +12120,7 @@
         });
     }
     const DOC_LOADING_HTML = `<div style="padding:20px; text-align:center; color:#888;">Loading...</div>`;
-    const DOC_ERROR_HTML   = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
+    const DOC_ERROR_HTML = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
 
     const PRIVACY_TEXT = {
         ACK_INTRO: `<div style="padding:0 0 8px 0; color:#bbb; font-size:12px;">By using this script, you acknowledge and agree to the following:</div>`,
@@ -12147,10 +12129,10 @@
 
     function buildPrivacyModalHTML(reviewMode) {
         const ackRows = PRIVACY_TEXT.ACK_ITEMS.map((txt, i) => {
-                const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
-                    label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
-                return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
-            }).join(''),
+            const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
+                label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
+            return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
+        }).join(''),
             discSection = buildSection('Privacy Disclosure', `<div class="bbgl-modal-scrollbox"><div id="bbgl-privacy-disc">${DOC_LOADING_HTML}</div></div>`, 'margin-bottom:5px;'),
             ackSection = buildSection('User Acknowledgement', `<div class="bbgl-modal-scrollbox">${PRIVACY_TEXT.ACK_INTRO}${ackRows}</div>`, 'margin-bottom:8px;'),
             footer = reviewMode ? '' : `<div style="display:flex; margin:0 10px 4px 10px;">${buildButton('bbgl-privacy-demo-btn', 'DEMO', 'purple', 'flex:2; border-radius:4px 0 0 4px; margin:0;')}<span class="bbgl-agree-wrap" style="flex:1; display:flex;" data-tooltip="${TOOLTIPS.AGREE_GATE}">${buildButton('bbgl-privacy-agree-btn', 'AGREE', 'green', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</span></div>`;
@@ -12254,7 +12236,7 @@
         refreshStartState();
         // Agreement is intentionally not persisted: starting the scan creates its own timers, which
         // are the record. The disclaimer is shown fresh on every manual start.
-        startBtn.onclick = function() {
+        startBtn.onclick = function () {
             if (startBtn.classList.contains('bbgl-btn-disabled')) return;
             this.blur();
             closeBackfillModal();
@@ -12298,12 +12280,12 @@
             };
             boxes.forEach(b => b.onchange = refreshAgreeState);
             refreshAgreeState();
-            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function() {
+            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function () {
                 this.blur();
                 enterDemo('privacy');
                 closePrivacyModal();
             };
-            agreeBtn.onclick = function() {
+            agreeBtn.onclick = function () {
                 if (agreeBtn.classList.contains('bbgl-btn-disabled')) return;
                 this.blur();
                 userConfig.privacyAgreed = new Date().toISOString();
@@ -12409,12 +12391,12 @@
         try {
             const raw = await fetchDoc('welcome');
             const parts = raw.split('<!--RETURNING-->');
-            introHTML     = parts[0] || DOC_ERROR_HTML;
+            introHTML = parts[0] || DOC_ERROR_HTML;
             returningHTML = parts[1] || DOC_ERROR_HTML;
-        } catch (e) {}
-        const introEl     = wv.querySelector('#bbgl-welcome-intro-text');
+        } catch (e) { }
+        const introEl = wv.querySelector('#bbgl-welcome-intro-text');
         const returningEl = wv.querySelector('#bbgl-welcome-returning-text');
-        if (introEl)     introEl.innerHTML = introHTML;
+        if (introEl) introEl.innerHTML = introHTML;
         if (returningEl) returningEl.innerHTML = returningHTML;
     }
 
@@ -12461,7 +12443,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-container"><span id="bbgl-level-num">Lv 1</span><div id="bbgl-level-track"><div id="bbgl-level-fill"></div></div></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
     }
 
     /**
@@ -12532,9 +12514,9 @@
                 tl = DataController.getTimeline(),
                 h = getActiveHistory();
             let sr = {
-                    ...ZERO_BREAKDOWN,
-                    total: 0
-                },
+                ...ZERO_BREAKDOWN,
+                total: 0
+            },
                 startTs = 0;
             if (vt === 'DAY') {
                 const _p = sl.date.split('-');
@@ -12586,8 +12568,8 @@
             };
             const _snapAt = (cutoffMs, d, baseVals, baseRates) => {
                 let vals = {
-                        ...baseVals
-                    },
+                    ...baseVals
+                },
                     rates = {
                         ...baseRates
                     };
@@ -12665,8 +12647,8 @@
                     };
                 };
                 let lr = {
-                        ...sr
-                    },
+                    ...sr
+                },
                     now = Date.now();
                 const BKT = 15 * 60 * 1000;
                 const sBkts = [];
@@ -13439,11 +13421,11 @@
                 return;
             }
             const dat = GraphController._transformData({
-                    selectedData: calendarState.selectedData,
-                    selectedLabel: calendarState.selectedLabel,
-                    year: calendarState.year,
-                    graphMode: graphState.mode
-                }),
+                selectedData: calendarState.selectedData,
+                selectedLabel: calendarState.selectedLabel,
+                year: calendarState.year,
+                graphMode: graphState.mode
+            }),
                 tr = dat.trends,
                 lbls = dat.labels,
                 vt = dat.viewType,
@@ -13553,9 +13535,9 @@
                 g.appendChild(t);
             }
             const gx = (v) => {
-                    const r = xp.max - xp.min;
-                    return r === 0 ? 0 : ((v - xp.min) / r) * cw;
-                },
+                const r = xp.max - xp.min;
+                return r === 0 ? 0 : ((v - xp.min) / r) * cw;
+            },
                 gy = (v) => chPlot - ((v - fMin) / fr) * chPlot;
             (function _drawTicks() {
                 const _addTick = (tx) => {
@@ -14129,8 +14111,8 @@
         if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
         requestAnimationFrame(animateViewer);
         const spdUp = () => {
-                runtime.viewerSpeed = 3;
-            },
+            runtime.viewerSpeed = 3;
+        },
             spdDn = () => {
                 runtime.viewerSpeed = 0.3;
             };
@@ -14784,13 +14766,13 @@
             runtime.viewerLoopId = null;
         }
         const gel = (m) => {
-                if (m === 'settings') return sp;
-                if (m === 'welcome') return wv;
-                if (m === 'graph') return dom.graphContainer;
-                if (m === 'stickers') return dom.stickerContainer;
-                if (m === 'achievements') return dom.achievementsContainer;
-                return dom.ledgerView;
-            },
+            if (m === 'settings') return sp;
+            if (m === 'welcome') return wv;
+            if (m === 'graph') return dom.graphContainer;
+            if (m === 'stickers') return dom.stickerContainer;
+            if (m === 'achievements') return dom.achievementsContainer;
+            return dom.ledgerView;
+        },
             cel = gel(cm),
             nel = gel(tgt);
         const app = () => {
@@ -14845,12 +14827,12 @@
                         iweekSel.onchange = () => onChangeWeekStart(iweekSel.value);
                     }
                     const ipb = wv.querySelector('#init-privacy-btn');
-                    if (ipb) ipb.onclick = function() {
+                    if (ipb) ipb.onclick = function () {
                         this.blur();
                         openPrivacyModal();
                     };
                     const isb = wv.querySelector('#init-start-btn');
-                    if (isb && iak) isb.onclick = async function() {
+                    if (isb && iak) isb.onclick = async function () {
                         this.blur();
                         const v = iak.value.trim();
                         if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -14887,13 +14869,13 @@
                         }
                     };
                     const cb = wv.querySelector('#init-create-api-btn');
-                    if (cb) cb.onclick = function() {
+                    if (cb) cb.onclick = function () {
                         this.blur();
                         window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
-                    if (rib && rif) rib.onclick = function() {
+                    if (rib && rif) rib.onclick = function () {
                         this.blur();
                         rif.click();
                     };
@@ -14903,12 +14885,12 @@
                     };
                     refreshInitMask(wv);
                 }
-                tp.style.setProperty('display', 'none', 'important');
-                bp.style.setProperty('display', 'none', 'important');
+                tp.style.display = 'none';
+                bp.style.display = 'none';
             } else if (tgt === 'settings') {
                 sp.classList.add('active-view');
-                tp.style.setProperty('display', 'none', 'important');
-                bp.style.setProperty('display', 'none', 'important');
+                tp.style.display = 'none';
+                bp.style.display = 'none';
                 const ki = document.getElementById('set-api-key');
                 if (ki) ki.value = userConfig.apiKey || '';
                 const at = document.getElementById('set-anim-toggle');
@@ -15237,7 +15219,7 @@
         if (ds && ds.lastResult === 'partial') {
             // Cooldown elapsed: stay in the resume state until the log is fully backfilled.
             btn.textContent = 'Partial Scan Complete! Resume?';
-            btn.onclick = function() {
+            btn.onclick = function () {
                 this.blur();
                 backfillLogs(this);
             };
@@ -15245,7 +15227,7 @@
         }
 
         btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>';
-        btn.onclick = function() {
+        btn.onclick = function () {
             this.blur();
             openBackfillModal();
         };
@@ -15521,7 +15503,7 @@
             }
         };
         const ub = get('updt-settings-btn');
-        if (ub && ai) ub.onclick = async function() {
+        if (ub && ai) ub.onclick = async function () {
             this.blur();
             const v = ai.value.trim();
             if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -15556,7 +15538,7 @@
             }
         };
         const cab = get('clear-api-btn');
-        if (cab && ai) cab.onclick = function() {
+        if (cab && ai) cab.onclick = function () {
             this.blur();
             userConfig.apiKey = '';
             saveConfig();
@@ -15572,23 +15554,23 @@
             }, 2000);
         };
         const crb = get('create-api-btn');
-        if (crb) crb.onclick = function() {
+        if (crb) crb.onclick = function () {
             this.blur();
             window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
         };
         const rb = get('refresh-log-btn');
-        if (rb) rb.onclick = function() {
+        if (rb) rb.onclick = function () {
             this.blur();
             if (checkRefreshCooldown(this)) return;
             syncWithFeedback('FULL_SYNC');
         };
         const eb = get('export-btn');
-        if (eb) eb.onclick = function() {
+        if (eb) eb.onclick = function () {
             this.blur();
             exportData();
         };
         const ib = get('import-btn');
-        if (ib) ib.onclick = function() {
+        if (ib) ib.onclick = function () {
             this.blur();
             get('import-file').click();
         };
@@ -15598,28 +15580,28 @@
         // so renderBackfillButton owns wiring its onclick for the current state.
         renderBackfillButton();
         const clb = get('clear-btn');
-        if (clb) clb.onclick = function() {
+        if (clb) clb.onclick = function () {
             this.blur();
             clearData();
         };
         const wb = get('show-welcome-btn');
-        if (wb) wb.onclick = function() {
+        if (wb) wb.onclick = function () {
             this.blur();
             runtime.welcomeReturn = 'settings';
             switchView('welcome');
         };
         const cl = get('settings-changelog-btn');
-        if (cl) cl.onclick = function() {
+        if (cl) cl.onclick = function () {
             this.blur();
             openChangelogModal();
         };
         const pl = get('settings-privacy-btn');
-        if (pl) pl.onclick = function() {
+        if (pl) pl.onclick = function () {
             this.blur();
             openPrivacyModal();
         };
         const sdemo = get('settings-demo-btn');
-        if (sdemo) sdemo.onclick = function() {
+        if (sdemo) sdemo.onclick = function () {
             this.blur();
             if (runtime.demoMode) {
                 const deb = document.getElementById('bbgl-demo-exit');
@@ -15629,17 +15611,17 @@
             }
         };
         const fgb = get('feature-guide-btn');
-        if (fgb) fgb.onclick = function() {
+        if (fgb) fgb.onclick = function () {
             this.blur();
             openFeatureGuideModal();
         };
         const sbb = get('settings-backfill-btn');
-        if (sbb) sbb.onclick = function() {
+        if (sbb) sbb.onclick = function () {
             this.blur();
             openBackfillModal();
         };
         const drb = get('dev-reset-btn');
-        if (drb) drb.onclick = function() {
+        if (drb) drb.onclick = function () {
             this.blur();
             devFactoryReset();
         };
@@ -15946,13 +15928,13 @@
         // fast-paths out when nothing has changed, so steady state stays lightweight.
         const _bbglRecheckNav = () => {
             [150, 600, 1500].forEach(ms => setTimeout(() => {
-                try { handleDomMutation(); } catch (e) {}
+                try { handleDomMutation(); } catch (e) { }
             }, ms));
         };
         ['pushState', 'replaceState'].forEach(name => {
             const orig = history[name];
             if (typeof orig !== 'function' || orig._bbglWrapped) return;
-            const wrapped = function() {
+            const wrapped = function () {
                 const r = orig.apply(this, arguments);
                 _bbglRecheckNav();
                 return r;
@@ -16196,7 +16178,7 @@
         }, {
             passive: false
         });
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (e.target.closest('#bbgl-gym-tab')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -16282,14 +16264,14 @@
                 if (!hit) return;
                 if (hit.id === 'nav-gym') handleNavGym();
                 else if (hit.id === 'notes_panel_button') handleNotesBtn(hit);
-            } catch (e) {}
+            } catch (e) { }
         }
-        Node.prototype.insertBefore = function(n, r) {
+        Node.prototype.insertBefore = function (n, r) {
             const res = _oI.call(this, n, r);
             check(n);
             return res;
         };
-        Node.prototype.appendChild = function(n) {
+        Node.prototype.appendChild = function (n) {
             const res = _oA.call(this, n);
             check(n);
             return res;
