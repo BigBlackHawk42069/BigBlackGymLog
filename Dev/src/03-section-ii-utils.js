@@ -1,4 +1,4 @@
-    /**
+﻿    /**
      *  [SECTION II] THE SUPPLEMENTS (Utility Belt)
      *  ========================================================================
      *  Your pre-workout, Xanax, and Creatine all in one section.
@@ -325,17 +325,16 @@
         };
     }
 
-<<<<<<< HEAD
     // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
-    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 1641 EXP
+    // Power 2.25 curve | Floor: 200 EXP | P0 Peak: 1900 EXP
     // Atrophy multipliers: +15% and +30%
     const LEVEL_FLOOR = 200;
-    const LEVEL_P0_MAX = 1641;
+    const LEVEL_P0_MAX = 1900;
     const LEVEL_ATRO_MULT = [1, 1.15, 1.30];
 
     function computeLevelExpCost(level, atrophy) {
         const t = (level - 1) / 98;
-        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.5));
+        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.25));
         return Math.round(base * LEVEL_ATRO_MULT[atrophy]);
     }
 
@@ -376,10 +375,15 @@
         const bonus = Math.max(eSpent - 1500, 0) * 0.6;
         return Math.round(base + bonus);
     }
+
+    function weeklyBonusExp(isCompleted, isGold, isDiamond) {
+        if (isDiamond) return 600;
+        if (isGold)    return 300;
+        if (isCompleted) return 200;
+        return 0;
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
-=======
->>>>>>> parent of 2089245 (exp system)
     function getWeekKey(dateStr) {
         const d = Formatter.parse(dateStr);
         const dayIdx = d.getUTCDay();

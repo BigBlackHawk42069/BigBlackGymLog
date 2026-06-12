@@ -136,6 +136,7 @@
             const featuredSet = new Set();
             let unlockedCount = 1;
             let rouletteCounter = 0;
+            let careerLevelExp = 0;
             // Reward gating: stickers (and their unlock progression) only count from the install
             // week onward. Pre-install weeks still render their bar/day counts elsewhere, but earn
             // no stickers here. Demo mode is exempt (keeps its 1-sticker showcase behavior).
@@ -144,12 +145,24 @@
                 if (wk >= todayWeekKey) return;
                 if (installWeekKey && wk < installWeekKey) return;
                 const days = weekMap[wk].sort((a, b) => a.date.localeCompare(b.date));
+                // Daily level EXP: all days regardless of sticker eligibility.
+                if (!runtime.demoMode) {
+                    days.forEach(day => {
+                        const e = day.eSpent ? (day.eSpent.total || 0) : 0;
+                        const hasTrainLog = day.series && day.series.some(s => s.type === 'gym');
+                        careerLevelExp += computeDailyLevelExp(e, hasTrainLog);
+                    });
+                }
                 const stickerworthyDays = days.filter(d => d.eSpent && d.eSpent.total >= 1000);
                 if (!stickerworthyDays.length) return;
                 const {
                     isCompleted,
-                    isGold
+                    isGold,
+                    totDiamond
                 } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
+                if (!runtime.demoMode) {
+                    careerLevelExp += weeklyBonusExp(isCompleted, isGold, totDiamond >= GAME.WEEKLY_GOAL);
+                }
                 const numFeatured = isGold ? 2 : (isCompleted ? 1 : 0);
                 const splitIdx = Math.max(0, stickerworthyDays.length - numFeatured);
                 const rouletteDays = stickerworthyDays.slice(0, splitIdx);
@@ -180,6 +193,7 @@
             this._cache.stickerMap = stickerMap;
             this._cache.featuredDays = featuredSet;
             this._cache.unlockedCount = unlockedCount;
+            runtime.careerLevelExp = careerLevelExp;
             if (!runtime.demoMode) {
                 const existingStates = (_historyCache && _historyCache.meta && _historyCache.meta.stickers) ? _historyCache.meta.stickers : {};
                 const freshStates = {};

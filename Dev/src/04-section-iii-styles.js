@@ -744,7 +744,7 @@
                         padding-left: clamp(4px, calc(4px + 3px * var(--bbgl-page-t)), 7px);
                         padding-right: clamp(16px, calc(16px + 16px * var(--bbgl-page-t)), 32px);
                         gap: clamp(8px, calc(8px + 8px * var(--bbgl-page-t)), 16px);
-                        padding-bottom: 6px;
+                        padding-bottom: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                     }
 
                     @container bbgl-panel (max-width:499px) {
@@ -2765,12 +2765,11 @@
                         padding: 0 8px 0 2px;
                         gap: 8px;
                         position: relative;
-                        margin-bottom: 1px;
+                        margin-bottom: 6px;
                         transition: margin-bottom .3s ease;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-month-header {
-                        margin-bottom: 6px;
                         gap: clamp(6px, 2.08cqi, 12px);
                     }
 
@@ -2827,7 +2826,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .title-stack {
-                        gap: clamp(6px, calc(6px + 4px * var(--bbgl-page-t)), 10px);
+                        gap: clamp(0px, calc(0px + 10px * var(--bbgl-page-t)), 10px);
                     }
 
                     .all-time-btn {
@@ -2862,8 +2861,9 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .all-time-btn {
-                        width: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
-                        height: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
+                        width: clamp(24px, calc(24px + 16px * var(--bbgl-page-t)), 40px);
+                        height: clamp(24px, calc(24px + 16px * var(--bbgl-page-t)), 40px);
+                        margin-top: clamp(2px, calc(2px + 2px * var(--bbgl-page-t)), 4px);
                     }
 
                     .header-row {
@@ -2871,6 +2871,10 @@
                         align-items: center;
                         gap: 6px;
                         position: relative;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page .header-row {
+                        gap: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                     }
 
                     #bbgl-panel:not(.bbgl-mode-page) .title-stack > .header-row:nth-child(2) {
@@ -2964,11 +2968,11 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page #year-trigger {
-                        font-size: clamp(14px, calc(14px + 6px * var(--bbgl-page-t)), 20px);
+                        font-size: clamp(11px, calc(11px + 9px * var(--bbgl-page-t)), 20px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #month-trigger {
-                        font-size: clamp(24px, calc(24px + 6px * var(--bbgl-page-t)), 30px);
+                        font-size: clamp(19px, calc(19px + 11px * var(--bbgl-page-t)), 30px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .stats-btn {
@@ -2977,7 +2981,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .arrow-btn {
-                        font-size: clamp(20px, calc(20px + 8px * var(--bbgl-page-t)), 28px);
+                        font-size: clamp(16px, calc(16px + 12px * var(--bbgl-page-t)), 28px);
                         margin-bottom: clamp(4px, calc(4px + 2px * var(--bbgl-page-t)), 6px);
                     }
 
@@ -3039,7 +3043,7 @@
                     }
 
                     .drop-item.active {
-                        background: #ff5722;
+                        background: #7b2fbe;
                         color: #fff;
                     }
 
@@ -3708,29 +3712,52 @@
                         justify-content: flex-end;
                         pointer-events: none;
                         z-index: 10;
+                        --dmnd-s: clamp(60px, 16cqi, 76px);
+                        --dmnd-b: calc(var(--dmnd-s) * -0.25);
+                    }
+
+                    #bbgl-level-container::before {
+                        content: '';
+                        position: absolute;
+                        bottom: var(--dmnd-b);
+                        left: 50%;
+                        transform-origin: 50% calc(100% + var(--dmnd-b));
+                        transform: translateX(-50%);
+                        width: var(--dmnd-s);
+                        height: var(--dmnd-s);
+                        clip-path: inset(0 0 calc(var(--dmnd-b) * -1) 0);
+                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/lvl-dmnd.png') center / contain no-repeat;
+                        z-index: 1;
+                        pointer-events: none;
                     }
 
                     #bbgl-level-num {
                         font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
-                        font-size: clamp(8px, 1.8cqi, 10px);
+                        font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
-                        color: rgba(230, 190, 255, 0.85);
-                        text-shadow: 0 0 4px rgba(140, 60, 200, 0.8), 0 1px 2px rgba(0, 0, 0, 1);
+                        color: #b3ffb3;
+                        text-shadow: 0 0 2px #33cc00, 0 0 6px #199900, 0 0 12px #199900;
                         letter-spacing: 0.5px;
                         line-height: 1;
-                        margin-bottom: 1px;
                         white-space: nowrap;
+                        position: relative;
+                        z-index: 3;
+                        flex-shrink: 0;
+                        margin-bottom: 7px;
+                        transform-origin: bottom center;
                     }
 
                     #bbgl-level-track {
                         position: relative;
+                        z-index: 2;
                         width: 100%;
-                        height: 8px;
+                        height: 6px;
+                        flex-shrink: 0;
                         border-radius: 0;
                         overflow: hidden;
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(0, 0, 0, .15) 1px, rgba(0, 0, 0, .15) 2px), linear-gradient(180deg, #1a0a2e 0%, #2d1550 30%, #3d1a6e 60%, #2d1550 70%, #0f0520 100%);
-                        box-shadow: inset 0 0 2px rgba(0, 0, 0, .5);
-                        border-top: 1px solid rgba(180, 100, 255, .15);
+                        background: linear-gradient(180deg, rgba(140, 80, 220, 0.25) 0%, rgba(90, 30, 160, 0.4) 30%, rgba(50, 15, 100, 0.5) 50%, rgba(80, 20, 140, 0.4) 70%, rgba(30, 5, 60, 0.8) 100%);
+                        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 2px rgba(255, 255, 255, 0.15), inset 0 -2px 4px rgba(0, 0, 0, 0.7);
+                        backdrop-filter: blur(2px);
                     }
 
                     #bbgl-level-fill {
@@ -3739,10 +3766,10 @@
                         left: 0;
                         height: 100%;
                         width: 0%;
-                        background: linear-gradient(180deg, #2d0a5e 0%, #7b2fd4 35%, #d9a0ff 45%, #d9a0ff 55%, #7b2fd4 65%, #2d0a5e 100%);
+                        background: linear-gradient(180deg, #512296 0%, #7b2fd4 35%, #d9a0ff 45%, #d9a0ff 55%, #7b2fd4 65%, #2d0a5e 100%);
                         border-top-right-radius: 10px;
                         border-bottom-right-radius: 10px;
-                        transition: width .4s cubic-bezier(.25, 1, .5, 1);
+                        transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
                     }
 
@@ -3751,24 +3778,64 @@
                         border-bottom-right-radius: 0;
                     }
 
+                    @keyframes bbgl-lvl-flash-dmnd {
+                        0% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
+                        20% { filter: brightness(1.4) drop-shadow(0 0 8px rgba(255,255,255,0.4)); transform: translateX(-50%) scale(1.15); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
+                    }
+
+                    @keyframes bbgl-lvl-flash-text {
+                        0% { transform: scale(1) translateY(0); }
+                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #66ff33, 0 0 60px #66ff33; transform: scale(1.4) translateY(-15%); }
+                        100% { transform: scale(1) translateY(0); }
+                    }
+
+                    @keyframes bbgl-lvl-flash-bar {
+                        0% { filter: brightness(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+                        20% { filter: brightness(1.5); box-shadow: 0 0 15px rgba(217, 160, 255, 0.8); }
+                        100% { filter: brightness(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+                    }
+
+                    .bbgl-level-up-flash::before {
+                        animation: bbgl-lvl-flash-dmnd 0.8s ease-out;
+                    }
+
+                    .bbgl-level-up-flash #bbgl-level-num {
+                        animation: bbgl-lvl-flash-text 0.8s ease-out;
+                    }
+
+                    .bbgl-level-up-flash #bbgl-level-fill {
+                        animation: bbgl-lvl-flash-bar 0.8s ease-out;
+                    }
+
+                    #bbgl-panel.bbgl-expanded #bbgl-level-container {
+                        height: 22px;
+                        --dmnd-s: clamp(70px, 19cqi, 88px);
+                        --dmnd-b: calc(var(--dmnd-s) * -0.23);
+                    }
+
                     #bbgl-panel.bbgl-expanded #bbgl-level-track {
-                        height: 10px;
+                        height: 9px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-num {
                         font-size: clamp(9px, 1.8cqi, 11px);
+                        margin-bottom: 10px;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-container {
                         height: clamp(18px, calc(18px + 8px * var(--bbgl-page-t)), 26px);
+                        --dmnd-s: calc(clamp(60px, 16cqi, 76px) + 28px * var(--bbgl-page-t));
+                        --dmnd-b: calc(var(--dmnd-s) * (-0.25 + 0.02 * var(--bbgl-page-t)));
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-track {
-                        height: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                        height: clamp(6px, calc(6px + 6px * var(--bbgl-page-t)), 12px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-num {
-                        font-size: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                        font-size: clamp(7px, calc(7px + 5px * var(--bbgl-page-t)), 12px);
+                        margin-bottom: clamp(7px, calc(7px + 2px * var(--bbgl-page-t)), 9px);
                     }
                     /* ─────────────────────────────────────────────────────── */
 

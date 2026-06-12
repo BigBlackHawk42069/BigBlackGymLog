@@ -304,7 +304,8 @@
         devMode: false,
         _achCache: null,
         _achPage: 0,
-        wasVersionWiped: false
+        wasVersionWiped: false,
+        careerLevelExp: 0
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;

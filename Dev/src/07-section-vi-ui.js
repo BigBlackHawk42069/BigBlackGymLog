@@ -108,10 +108,7 @@
         dom.monthTrigger.setAttribute('data-tooltip-html', generateRichTooltip(DataController.getSlice('MONTH', CONSTANTS.MONTHS[m], y)));
         yt.setAttribute('data-tooltip-html', generateRichTooltip(DataController.getSlice('YEAR', String(y))));
         Perf.end('renderPanel');
-<<<<<<< HEAD
         updateLevelBar();
-=======
->>>>>>> parent of 2089245 (exp system)
     }
 
     function renderCell(cont, y, m, d, g, rIdx, cIdx) {
@@ -380,10 +377,10 @@
     function updateLevelBar() {
         const numEl = document.getElementById('bbgl-level-num');
         const fillEl = document.getElementById('bbgl-level-fill');
-        if (!numEl || !fillEl) return;
-        // Base career EXP from completed past weeks (accumulated in getStickerMap).
+        const container = document.getElementById('bbgl-level-container');
+        if (!numEl || !fillEl || !container) return;
+        
         let totalExp = runtime.careerLevelExp || 0;
-        // Add real-time today EXP if not in demo mode.
         if (!runtime.demoMode) {
             const h = getActiveHistory();
             if (h && h.today) {
@@ -392,20 +389,81 @@
                 totalExp += computeDailyLevelExp(todayE, hasTrainLog);
             }
         }
-        const { level, expInLevel, expToNext } = calculateLevelProgress(totalExp);
-        const displayLevel = level;
-        numEl.textContent = 'Lv ' + displayLevel;
-        let pct = 0;
-        if (expToNext > 0) {
-            pct = Math.min(100, (expInLevel / expToNext) * 100);
-        } else if (level >= 100) {
-            pct = 100;
+        
+        // TEMPORARY TEST FUNCTION
+        if (!runtime._levelDebugInit) {
+            runtime._levelDebugInit = true;
+            numEl.style.cursor = 'pointer';
+            numEl.style.pointerEvents = 'auto'; // Fix for container pointer-events: none
+            numEl.addEventListener('click', () => {
+                const levelsToAdd = Math.floor(Math.random() * 10) + 1;
+                let simExp = runtime._lastLevelExp || totalExp;
+                for (let i = 0; i < levelsToAdd; i++) {
+                    const prog = calculateLevelProgress(simExp);
+                    simExp += (prog.expToNext - prog.expInLevel);
+                }
+                runtime.careerLevelExp = (runtime.careerLevelExp || 0) + (simExp - totalExp);
+                updateLevelBar();
+            });
         }
-        fillEl.style.width = pct.toFixed(2) + '%';
-        if (pct >= 99.9) {
-            fillEl.classList.add('level-full');
-        } else {
-            fillEl.classList.remove('level-full');
+
+        if (runtime._lastLevelExp === undefined) {
+            runtime._lastLevelExp = totalExp;
+            applyLevelState(totalExp);
+            return;
+        }
+
+        if (totalExp !== runtime._lastLevelExp) {
+            runtime._targetLevelExp = totalExp;
+            if (!runtime._isAnimatingLevel) {
+                runLevelAnimationQueue();
+            }
+        }
+
+        function applyLevelState(expVal) {
+            const { level, expInLevel, expToNext } = calculateLevelProgress(expVal);
+            numEl.textContent = 'Lv ' + level;
+            let pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
+            fillEl.style.width = pct.toFixed(2) + '%';
+            if (pct >= 99.9) fillEl.classList.add('level-full');
+            else fillEl.classList.remove('level-full');
+        }
+
+        async function runLevelAnimationQueue() {
+            runtime._isAnimatingLevel = true;
+            while (runtime._lastLevelExp < runtime._targetLevelExp) {
+                const currentProg = calculateLevelProgress(runtime._lastLevelExp);
+                const targetProg = calculateLevelProgress(runtime._targetLevelExp);
+
+                if (currentProg.level < targetProg.level) {
+                    let expNeededToFill = currentProg.expToNext - currentProg.expInLevel;
+                    fillEl.style.width = '100%';
+                    fillEl.classList.add('level-full');
+                    
+                    await new Promise(r => setTimeout(r, 850));
+                    container.classList.add('bbgl-level-up-flash');
+                    
+                    await new Promise(r => setTimeout(r, 200));
+                    numEl.textContent = 'Lv ' + (currentProg.level + 1);
+                    
+                    await new Promise(r => setTimeout(r, 650));
+                    container.classList.remove('bbgl-level-up-flash');
+                    
+                    fillEl.style.transition = 'none';
+                    fillEl.style.width = '0%';
+                    fillEl.classList.remove('level-full');
+                    void fillEl.offsetWidth; // force reflow
+                    fillEl.style.transition = '';
+                    
+                    runtime._lastLevelExp += expNeededToFill;
+                } else {
+                    runtime._lastLevelExp = runtime._targetLevelExp;
+                    applyLevelState(runtime._lastLevelExp);
+                    await new Promise(r => setTimeout(r, 850));
+                }
+            }
+            runtime._lastLevelExp = runtime._targetLevelExp;
+            runtime._isAnimatingLevel = false;
         }
     }
 
@@ -796,12 +854,13 @@
             _topCeilingTs = Date.now();
             return ceiling;
         }
+        const maxNavHeight = window.innerHeight * 0.4;
         for (const el of document.body.children) {
             if (el.id && el.id.startsWith('bbgl-')) continue;
             const style = window.getComputedStyle(el);
             if (style.position === 'fixed') {
                 const rect = el.getBoundingClientRect();
-                if (rect.top < 10 && rect.bottom > ceiling) ceiling = Math.ceil(rect.bottom);
+                if (rect.top < 10 && rect.bottom > ceiling && (rect.bottom - rect.top) < maxNavHeight) ceiling = Math.ceil(rect.bottom);
             }
         }
         _topCeilingCache = ceiling;
@@ -1628,11 +1687,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-<<<<<<< HEAD
         return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-container"><span id="bbgl-level-num">Lv 1</span><div id="bbgl-level-track"><div id="bbgl-level-fill"></div></div></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
-=======
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
->>>>>>> parent of 2089245 (exp system)
     }
 
     /**

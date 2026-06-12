@@ -289,6 +289,9 @@
             x.textContent = m;
             x.onclick = () => {
                 calendarState.month = i;
+                d.querySelectorAll('.drop-item').forEach(el => el.classList.remove('active'));
+                x.classList.add('active');
+                d.classList.remove('show');
                 renderPanelContent();
             };
             d.appendChild(x);
@@ -310,6 +313,9 @@
             x.textContent = y;
             x.onclick = () => {
                 calendarState.year = y;
+                d.querySelectorAll('.drop-item').forEach(el => el.classList.remove('active'));
+                x.classList.add('active');
+                d.classList.remove('show');
                 renderPanelContent();
             };
             d.appendChild(x);

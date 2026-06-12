@@ -12,7 +12,7 @@
 // @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/DevBranch/Dev/BBGLDev.js
 // ==/UserScript==
 
-(function () {
+(function() {
     'use strict';
     if (window.__BBGL_LOADED__) return;
     window.__BBGL_LOADED__ = true;
@@ -70,7 +70,7 @@
             if (!this._enabled()) return;
             try {
                 performance.mark('bbgl:' + n);
-            } catch (e) { }
+            } catch (e) {}
         },
         start(n) {
             this.mark(n + ':start');
@@ -80,7 +80,7 @@
             try {
                 performance.mark('bbgl:' + n + ':end');
                 performance.measure('bbgl:' + n, 'bbgl:' + n + ':start', 'bbgl:' + n + ':end');
-            } catch (e) { }
+            } catch (e) {}
         },
         async wrapAsync(n, fn) {
             this.start(n);
@@ -370,7 +370,8 @@
         devMode: false,
         _achCache: null,
         _achPage: 0,
-        wasVersionWiped: false
+        wasVersionWiped: false,
+        careerLevelExp: 0
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
@@ -487,7 +488,7 @@
             ALLOWED_CONFIG_KEYS.forEach(k => {
                 if (parsed[k] !== undefined) userConfig[k] = parsed[k];
             });
-        } catch (e) { }
+        } catch (e) {}
     }
     if (localStorage.getItem(KEYS.DEMO) === '1') runtime.demoMode = true;
     if (sessionStorage.getItem(KEYS.DEV_MODE) === 'true') runtime.devMode = true;
@@ -778,7 +779,7 @@
         let totGreen = 0,
             totGold = 0,
             totDiamond = 0;
-
+            
         const jumpGold = hjCount === GAME.GOLD_WEEK_JUMPS;
         const jumpDiamond = hjCount >= GAME.DIAMOND_WEEK_JUMPS;
 
@@ -804,14 +805,14 @@
             if (e >= 2000) base = GAME.POINTS_DIAMOND;
             else if (e >= 1500) base = GAME.POINTS_GOLD;
             else if (e >= 1000) base = GAME.POINTS_GREEN;
-
+            
             if (base === 0) return;
-
+            
             if (base === GAME.POINTS_DIAMOND) totDiamond += base;
             else if (base === GAME.POINTS_GOLD) totGold += base;
             else totGreen += base;
         });
-
+        
         const total = totGreen + totGold + totDiamond;
         const goldOrBetter = totGold + totDiamond;
         return {
@@ -825,15 +826,15 @@
     }
 
     // ─── LEVELING MATH ENGINE ────────────────────────────────────────────────
-    // Power 2.5 curve | Floor: 200 EXP | P0 Peak: 2066 EXP
-    // Atrophy multipliers derived from 14 / 18 / 22 month ratios.
+    // Power 2.25 curve | Floor: 200 EXP | P0 Peak: 1900 EXP
+    // Atrophy multipliers: +15% and +30%
     const LEVEL_FLOOR = 200;
-    const LEVEL_P0_MAX = 2066;
-    const LEVEL_ATRO_MULT = [1, 18 / 14, 22 / 14];
+    const LEVEL_P0_MAX = 1900;
+    const LEVEL_ATRO_MULT = [1, 1.15, 1.30];
 
     function computeLevelExpCost(level, atrophy) {
         const t = (level - 1) / 98;
-        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.5));
+        const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * Math.pow(t, 2.25));
         return Math.round(base * LEVEL_ATRO_MULT[atrophy]);
     }
 
@@ -866,15 +867,20 @@
     }
 
     // Real-time daily EXP for the leveling bar (NOT the weekly progress bar).
-    // Requires at least one train-click; milestones stack on top of each other.
+    // Continuous piecewise rate: 0.2 EXP/E up to Gold (1500E), then 0.6 EXP/E beyond.
+    // Reproduces all old milestone totals exactly (200 @ Green, 300 @ Gold, 600 @ Diamond).
     function computeDailyLevelExp(eSpent, hasTrainLog) {
         if (!hasTrainLog) return 0;
-        let exp = 50;                          // +50: clicked train
-        if (eSpent >= 500) exp += 50;         // +50: reached 500E  → 100 total
-        if (eSpent >= 1000) exp += 100;        // +100: reached Green → 200 total
-        if (eSpent >= 1500) exp += 100;        // +100: reached Gold  → 300 total
-        if (eSpent >= 2000) exp += 300;        // +300: reached Diamond → 600 total
-        return exp;
+        const base  = Math.min(eSpent, 1500) * 0.2;
+        const bonus = Math.max(eSpent - 1500, 0) * 0.6;
+        return Math.round(base + bonus);
+    }
+
+    function weeklyBonusExp(isCompleted, isGold, isDiamond) {
+        if (isDiamond) return 600;
+        if (isGold)    return 300;
+        if (isCompleted) return 200;
+        return 0;
     }
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -1641,7 +1647,7 @@
                         padding-left: clamp(4px, calc(4px + 3px * var(--bbgl-page-t)), 7px);
                         padding-right: clamp(16px, calc(16px + 16px * var(--bbgl-page-t)), 32px);
                         gap: clamp(8px, calc(8px + 8px * var(--bbgl-page-t)), 16px);
-                        padding-bottom: 6px;
+                        padding-bottom: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                     }
 
                     @container bbgl-panel (max-width:499px) {
@@ -3662,12 +3668,11 @@
                         padding: 0 8px 0 2px;
                         gap: 8px;
                         position: relative;
-                        margin-bottom: 1px;
+                        margin-bottom: 6px;
                         transition: margin-bottom .3s ease;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-month-header {
-                        margin-bottom: 6px;
                         gap: clamp(6px, 2.08cqi, 12px);
                     }
 
@@ -3724,7 +3729,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .title-stack {
-                        gap: clamp(6px, calc(6px + 4px * var(--bbgl-page-t)), 10px);
+                        gap: clamp(0px, calc(0px + 10px * var(--bbgl-page-t)), 10px);
                     }
 
                     .all-time-btn {
@@ -3759,8 +3764,9 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .all-time-btn {
-                        width: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
-                        height: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
+                        width: clamp(24px, calc(24px + 16px * var(--bbgl-page-t)), 40px);
+                        height: clamp(24px, calc(24px + 16px * var(--bbgl-page-t)), 40px);
+                        margin-top: clamp(2px, calc(2px + 2px * var(--bbgl-page-t)), 4px);
                     }
 
                     .header-row {
@@ -3768,6 +3774,10 @@
                         align-items: center;
                         gap: 6px;
                         position: relative;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page .header-row {
+                        gap: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                     }
 
                     #bbgl-panel:not(.bbgl-mode-page) .title-stack > .header-row:nth-child(2) {
@@ -3861,11 +3871,11 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page #year-trigger {
-                        font-size: clamp(14px, calc(14px + 6px * var(--bbgl-page-t)), 20px);
+                        font-size: clamp(11px, calc(11px + 9px * var(--bbgl-page-t)), 20px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #month-trigger {
-                        font-size: clamp(24px, calc(24px + 6px * var(--bbgl-page-t)), 30px);
+                        font-size: clamp(19px, calc(19px + 11px * var(--bbgl-page-t)), 30px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .stats-btn {
@@ -3874,7 +3884,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .arrow-btn {
-                        font-size: clamp(20px, calc(20px + 8px * var(--bbgl-page-t)), 28px);
+                        font-size: clamp(16px, calc(16px + 12px * var(--bbgl-page-t)), 28px);
                         margin-bottom: clamp(4px, calc(4px + 2px * var(--bbgl-page-t)), 6px);
                     }
 
@@ -3936,7 +3946,7 @@
                     }
 
                     .drop-item.active {
-                        background: #ff5722;
+                        background: #7b2fbe;
                         color: #fff;
                     }
 
@@ -4605,29 +4615,52 @@
                         justify-content: flex-end;
                         pointer-events: none;
                         z-index: 10;
+                        --dmnd-s: clamp(60px, 16cqi, 76px);
+                        --dmnd-b: calc(var(--dmnd-s) * -0.25);
+                    }
+
+                    #bbgl-level-container::before {
+                        content: '';
+                        position: absolute;
+                        bottom: var(--dmnd-b);
+                        left: 50%;
+                        transform-origin: 50% calc(100% + var(--dmnd-b));
+                        transform: translateX(-50%);
+                        width: var(--dmnd-s);
+                        height: var(--dmnd-s);
+                        clip-path: inset(0 0 calc(var(--dmnd-b) * -1) 0);
+                        background: url('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/lvl-dmnd.png') center / contain no-repeat;
+                        z-index: 1;
+                        pointer-events: none;
                     }
 
                     #bbgl-level-num {
                         font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
-                        font-size: clamp(8px, 1.8cqi, 10px);
+                        font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
-                        color: rgba(230, 190, 255, 0.85);
-                        text-shadow: 0 0 4px rgba(140, 60, 200, 0.8), 0 1px 2px rgba(0, 0, 0, 1);
+                        color: #b3ffb3;
+                        text-shadow: 0 0 2px #33cc00, 0 0 6px #199900, 0 0 12px #199900;
                         letter-spacing: 0.5px;
                         line-height: 1;
-                        margin-bottom: 1px;
                         white-space: nowrap;
+                        position: relative;
+                        z-index: 3;
+                        flex-shrink: 0;
+                        margin-bottom: 7px;
+                        transform-origin: bottom center;
                     }
 
                     #bbgl-level-track {
                         position: relative;
+                        z-index: 2;
                         width: 100%;
-                        height: 8px;
+                        height: 6px;
+                        flex-shrink: 0;
                         border-radius: 0;
                         overflow: hidden;
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(0, 0, 0, .15) 1px, rgba(0, 0, 0, .15) 2px), linear-gradient(180deg, #1a0a2e 0%, #2d1550 30%, #3d1a6e 60%, #2d1550 70%, #0f0520 100%);
-                        box-shadow: inset 0 0 2px rgba(0, 0, 0, .5);
-                        border-top: 1px solid rgba(180, 100, 255, .15);
+                        background: linear-gradient(180deg, rgba(140, 80, 220, 0.25) 0%, rgba(90, 30, 160, 0.4) 30%, rgba(50, 15, 100, 0.5) 50%, rgba(80, 20, 140, 0.4) 70%, rgba(30, 5, 60, 0.8) 100%);
+                        box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2), inset 0 -1px 2px rgba(255, 255, 255, 0.15), inset 0 -2px 4px rgba(0, 0, 0, 0.7);
+                        backdrop-filter: blur(2px);
                     }
 
                     #bbgl-level-fill {
@@ -4636,10 +4669,10 @@
                         left: 0;
                         height: 100%;
                         width: 0%;
-                        background: linear-gradient(180deg, #2d0a5e 0%, #7b2fd4 35%, #d9a0ff 45%, #d9a0ff 55%, #7b2fd4 65%, #2d0a5e 100%);
+                        background: linear-gradient(180deg, #512296 0%, #7b2fd4 35%, #d9a0ff 45%, #d9a0ff 55%, #7b2fd4 65%, #2d0a5e 100%);
                         border-top-right-radius: 10px;
                         border-bottom-right-radius: 10px;
-                        transition: width .4s cubic-bezier(.25, 1, .5, 1);
+                        transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
                     }
 
@@ -4648,24 +4681,64 @@
                         border-bottom-right-radius: 0;
                     }
 
+                    @keyframes bbgl-lvl-flash-dmnd {
+                        0% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
+                        20% { filter: brightness(1.4) drop-shadow(0 0 8px rgba(255,255,255,0.4)); transform: translateX(-50%) scale(1.15); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
+                    }
+
+                    @keyframes bbgl-lvl-flash-text {
+                        0% { transform: scale(1) translateY(0); }
+                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #66ff33, 0 0 60px #66ff33; transform: scale(1.4) translateY(-15%); }
+                        100% { transform: scale(1) translateY(0); }
+                    }
+
+                    @keyframes bbgl-lvl-flash-bar {
+                        0% { filter: brightness(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+                        20% { filter: brightness(1.5); box-shadow: 0 0 15px rgba(217, 160, 255, 0.8); }
+                        100% { filter: brightness(1); box-shadow: 0 0 0 rgba(255,255,255,0); }
+                    }
+
+                    .bbgl-level-up-flash::before {
+                        animation: bbgl-lvl-flash-dmnd 0.8s ease-out;
+                    }
+
+                    .bbgl-level-up-flash #bbgl-level-num {
+                        animation: bbgl-lvl-flash-text 0.8s ease-out;
+                    }
+
+                    .bbgl-level-up-flash #bbgl-level-fill {
+                        animation: bbgl-lvl-flash-bar 0.8s ease-out;
+                    }
+
+                    #bbgl-panel.bbgl-expanded #bbgl-level-container {
+                        height: 22px;
+                        --dmnd-s: clamp(70px, 19cqi, 88px);
+                        --dmnd-b: calc(var(--dmnd-s) * -0.23);
+                    }
+
                     #bbgl-panel.bbgl-expanded #bbgl-level-track {
-                        height: 10px;
+                        height: 9px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-num {
                         font-size: clamp(9px, 1.8cqi, 11px);
+                        margin-bottom: 10px;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-container {
                         height: clamp(18px, calc(18px + 8px * var(--bbgl-page-t)), 26px);
+                        --dmnd-s: calc(clamp(60px, 16cqi, 76px) + 28px * var(--bbgl-page-t));
+                        --dmnd-b: calc(var(--dmnd-s) * (-0.25 + 0.02 * var(--bbgl-page-t)));
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-track {
-                        height: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                        height: clamp(6px, calc(6px + 6px * var(--bbgl-page-t)), 12px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-num {
-                        font-size: clamp(8px, calc(8px + 4px * var(--bbgl-page-t)), 12px);
+                        font-size: clamp(7px, calc(7px + 5px * var(--bbgl-page-t)), 12px);
+                        margin-bottom: clamp(7px, calc(7px + 2px * var(--bbgl-page-t)), 9px);
                     }
                     /* ─────────────────────────────────────────────────────── */
 
@@ -6719,7 +6792,7 @@
             if (!this._db) {
                 try {
                     await this.initDB();
-                } catch (e) { }
+                } catch (e) {}
             }
             return this._db;
         },
@@ -7047,19 +7120,19 @@
             });
         } else {
             reqs = [{
-                type: 'battlestats',
-                url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
-            },
-            {
-                type: 'log',
-                floorKey: 'trainEnergy',
-                url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
-            },
-            {
-                type: 'log',
-                floorKey: 'statHappy',
-                url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
-            }
+                    type: 'battlestats',
+                    url: `https://api.torn.com/user/?selections=battlestats&key=${userConfig.apiKey}&timestamp=${ts}`
+                },
+                {
+                    type: 'log',
+                    floorKey: 'trainEnergy',
+                    url: `https://api.torn.com/user/?selections=log&log=${TRAIN_ENERGY_PARAM}&key=${userConfig.apiKey}${fromFor('trainEnergy')}&timestamp=${ts}`
+                },
+                {
+                    type: 'log',
+                    floorKey: 'statHappy',
+                    url: `https://api.torn.com/user/?selections=log&log=${STAT_HAPPY_PARAM}&key=${userConfig.apiKey}${fromFor('statHappy')}&timestamp=${ts}`
+                }
             ];
         }
 
@@ -7743,6 +7816,7 @@
             const featuredSet = new Set();
             let unlockedCount = 1;
             let rouletteCounter = 0;
+            let careerLevelExp = 0;
             // Reward gating: stickers (and their unlock progression) only count from the install
             // week onward. Pre-install weeks still render their bar/day counts elsewhere, but earn
             // no stickers here. Demo mode is exempt (keeps its 1-sticker showcase behavior).
@@ -7751,12 +7825,24 @@
                 if (wk >= todayWeekKey) return;
                 if (installWeekKey && wk < installWeekKey) return;
                 const days = weekMap[wk].sort((a, b) => a.date.localeCompare(b.date));
+                // Daily level EXP: all days regardless of sticker eligibility.
+                if (!runtime.demoMode) {
+                    days.forEach(day => {
+                        const e = day.eSpent ? (day.eSpent.total || 0) : 0;
+                        const hasTrainLog = day.series && day.series.some(s => s.type === 'gym');
+                        careerLevelExp += computeDailyLevelExp(e, hasTrainLog);
+                    });
+                }
                 const stickerworthyDays = days.filter(d => d.eSpent && d.eSpent.total >= 1000);
                 if (!stickerworthyDays.length) return;
                 const {
                     isCompleted,
-                    isGold
+                    isGold,
+                    totDiamond
                 } = computeWeekCompletion(days, hjDaySet, hjWeek[wk] || 0, dHjDaySet);
+                if (!runtime.demoMode) {
+                    careerLevelExp += weeklyBonusExp(isCompleted, isGold, totDiamond >= GAME.WEEKLY_GOAL);
+                }
                 const numFeatured = isGold ? 2 : (isCompleted ? 1 : 0);
                 const splitIdx = Math.max(0, stickerworthyDays.length - numFeatured);
                 const rouletteDays = stickerworthyDays.slice(0, splitIdx);
@@ -7787,6 +7873,7 @@
             this._cache.stickerMap = stickerMap;
             this._cache.featuredDays = featuredSet;
             this._cache.unlockedCount = unlockedCount;
+            runtime.careerLevelExp = careerLevelExp;
             if (!runtime.demoMode) {
                 const existingStates = (_historyCache && _historyCache.meta && _historyCache.meta.stickers) ? _historyCache.meta.stickers : {};
                 const freshStates = {};
@@ -8774,9 +8861,9 @@
             diamondDays = 0,
             trainingDays = 0;
         let maxEDay = {
-            value: 0,
-            date: null
-        },
+                value: 0,
+                date: null
+            },
             maxGainsDay = {
                 value: 0,
                 date: null
@@ -8792,11 +8879,11 @@
                 stat: null
             };
         const bestTrainByStat = {
-            str: null,
-            def: null,
-            spd: null,
-            dex: null
-        },
+                str: null,
+                def: null,
+                spd: null,
+                dex: null
+            },
             bestDayByStat = {
                 str: null,
                 def: null,
@@ -9637,7 +9724,7 @@
         const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
         const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
         let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
-
+        
         let helpersHTML = '';
         if (d.happyItemTotals) {
             const helpers = HAPPY_LOGS.map(id => {
@@ -9650,14 +9737,14 @@
                     happy: rec.happy
                 };
             }).filter(h => h.count > 0).sort((a, b) => b.count - a.count || b.happy - a.happy);
-
+            
             if (helpers.length > 0) {
                 const helperRow = (h) => {
                     const tip = `${achEsc(h.label)} | Happy Gained`;
                     const clipVal = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
                     return `<div class="bbgl-ach-row" data-tooltip="${achEsc(tip)}" data-ach-key="happy-helper-${h.id}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">${achEsc(h.label)}</span><span class="ach-title-short">${achEsc(h.short)}</span>:</span></div><div class="ach-v-wrap"><span class="ach-value">${Formatter.number(h.count)}</span><span class="ach-value ach-happy-col">+${achEsc(achFmtGain(h.happy))} Happy</span></div></div></div>`;
                 };
-
+                
                 const colCount = 2;
                 const rpc = Math.ceil(helpers.length / colCount);
                 const cols = [];
@@ -9673,7 +9760,7 @@
                 helpersHTML = `<div class="bbgl-ach-subsection-title" style="margin-top:2px" data-ach-section="happy-helpers" data-clip-section="${achEsc(clipHelpers)}" data-clip-title="Happy Helpers" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HELPERS</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
             }
         }
-
+        
         return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</div>${rowsHTML}${helpersHTML}</div>`;
     }
 
@@ -9834,7 +9921,7 @@
             def: 'Defense',
             spd: 'Speed',
             dex: 'Dexterity'
-        }[s] || s;
+        } [s] || s;
     }
 
     function achFmtGainsLine(g) {
@@ -10186,7 +10273,7 @@
                     'green-streak': ['Longest Green Streak (1,000 E+)', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd],
                     'gold-streak': ['Longest Gold Streak (1,500 E+)', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd],
                     'diamond-streak': ['Longest Diamond Streak (2,000 E+)', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd]
-                }[key];
+                } [key];
                 const label = SK[0],
                     len = SK[1] || 0,
                     gains = SK[2],
@@ -10470,15 +10557,15 @@
                 type: 'text/plain'
             });
             if (navigator.canShare && navigator.canShare({
-                files: [f]
-            }) && window.innerWidth <= 800) {
+                    files: [f]
+                }) && window.innerWidth <= 800) {
                 await navigator.share({
                     title: filename,
                     files: [f]
                 });
                 return;
             }
-        } catch (e) { }
+        } catch (e) {}
         const blob = new Blob([content], {
             type: 'application/json'
         });
@@ -10543,7 +10630,7 @@
                     if (typeof stickers === 'string') {
                         try {
                             stickers = JSON.parse(stickers);
-                        } catch (e) { }
+                        } catch (e) {}
                     }
                     if (!stickers) stickers = {};
                     j.storage.meta.stickers = stickers;
@@ -10578,7 +10665,7 @@
                             localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
                             syncChangelogNotif(true);
                         }
-                    } catch (e) { }
+                    } catch (e) {}
                     DataController.invalidate();
                     calendarState.selectedData = null;
                     calendarState.selectedLabel = null;
@@ -10714,7 +10801,7 @@
                     f = f.return;
                     depth++;
                 }
-            } catch (e) { }
+            } catch (e) {}
             return null;
         },
         scanGyms() {
@@ -11087,7 +11174,7 @@
         let pctDiamond = Math.min(100, totDiamond / 10);
         let pctGold = Math.min(100 - pctDiamond, totGold / 10);
         let pctGreen = Math.min(100 - pctDiamond - pctGold, totGreen / 10);
-
+        
         let sum = pctGreen + pctGold + pctDiamond;
         if (goal && sum < 100) {
             const deficit = 100 - sum;
@@ -11126,7 +11213,7 @@
 
         let actualDLeft = dLeft;
         let gRight = pctGreen;
-
+        
         let greenTouchesNext = false;
         let goldTouchesPrev = false;
         if (pctDiamond > 0) {
@@ -11195,10 +11282,10 @@
     function updateLevelBar() {
         const numEl = document.getElementById('bbgl-level-num');
         const fillEl = document.getElementById('bbgl-level-fill');
-        if (!numEl || !fillEl) return;
-        // Base career EXP from completed past weeks (accumulated in getStickerMap).
+        const container = document.getElementById('bbgl-level-container');
+        if (!numEl || !fillEl || !container) return;
+        
         let totalExp = runtime.careerLevelExp || 0;
-        // Add real-time today EXP if not in demo mode.
         if (!runtime.demoMode) {
             const h = getActiveHistory();
             if (h && h.today) {
@@ -11207,20 +11294,81 @@
                 totalExp += computeDailyLevelExp(todayE, hasTrainLog);
             }
         }
-        const { level, expInLevel, expToNext } = calculateLevelProgress(totalExp);
-        const displayLevel = level;
-        numEl.textContent = 'Lv ' + displayLevel;
-        let pct = 0;
-        if (expToNext > 0) {
-            pct = Math.min(100, (expInLevel / expToNext) * 100);
-        } else if (level >= 100) {
-            pct = 100;
+        
+        // TEMPORARY TEST FUNCTION
+        if (!runtime._levelDebugInit) {
+            runtime._levelDebugInit = true;
+            numEl.style.cursor = 'pointer';
+            numEl.style.pointerEvents = 'auto'; // Fix for container pointer-events: none
+            numEl.addEventListener('click', () => {
+                const levelsToAdd = Math.floor(Math.random() * 10) + 1;
+                let simExp = runtime._lastLevelExp || totalExp;
+                for (let i = 0; i < levelsToAdd; i++) {
+                    const prog = calculateLevelProgress(simExp);
+                    simExp += (prog.expToNext - prog.expInLevel);
+                }
+                runtime.careerLevelExp = (runtime.careerLevelExp || 0) + (simExp - totalExp);
+                updateLevelBar();
+            });
         }
-        fillEl.style.width = pct.toFixed(2) + '%';
-        if (pct >= 99.9) {
-            fillEl.classList.add('level-full');
-        } else {
-            fillEl.classList.remove('level-full');
+
+        if (runtime._lastLevelExp === undefined) {
+            runtime._lastLevelExp = totalExp;
+            applyLevelState(totalExp);
+            return;
+        }
+
+        if (totalExp !== runtime._lastLevelExp) {
+            runtime._targetLevelExp = totalExp;
+            if (!runtime._isAnimatingLevel) {
+                runLevelAnimationQueue();
+            }
+        }
+
+        function applyLevelState(expVal) {
+            const { level, expInLevel, expToNext } = calculateLevelProgress(expVal);
+            numEl.textContent = 'Lv ' + level;
+            let pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
+            fillEl.style.width = pct.toFixed(2) + '%';
+            if (pct >= 99.9) fillEl.classList.add('level-full');
+            else fillEl.classList.remove('level-full');
+        }
+
+        async function runLevelAnimationQueue() {
+            runtime._isAnimatingLevel = true;
+            while (runtime._lastLevelExp < runtime._targetLevelExp) {
+                const currentProg = calculateLevelProgress(runtime._lastLevelExp);
+                const targetProg = calculateLevelProgress(runtime._targetLevelExp);
+
+                if (currentProg.level < targetProg.level) {
+                    let expNeededToFill = currentProg.expToNext - currentProg.expInLevel;
+                    fillEl.style.width = '100%';
+                    fillEl.classList.add('level-full');
+                    
+                    await new Promise(r => setTimeout(r, 850));
+                    container.classList.add('bbgl-level-up-flash');
+                    
+                    await new Promise(r => setTimeout(r, 200));
+                    numEl.textContent = 'Lv ' + (currentProg.level + 1);
+                    
+                    await new Promise(r => setTimeout(r, 650));
+                    container.classList.remove('bbgl-level-up-flash');
+                    
+                    fillEl.style.transition = 'none';
+                    fillEl.style.width = '0%';
+                    fillEl.classList.remove('level-full');
+                    void fillEl.offsetWidth; // force reflow
+                    fillEl.style.transition = '';
+                    
+                    runtime._lastLevelExp += expNeededToFill;
+                } else {
+                    runtime._lastLevelExp = runtime._targetLevelExp;
+                    applyLevelState(runtime._lastLevelExp);
+                    await new Promise(r => setTimeout(r, 850));
+                }
+            }
+            runtime._lastLevelExp = runtime._targetLevelExp;
+            runtime._isAnimatingLevel = false;
         }
     }
 
@@ -11547,12 +11695,12 @@
         });
     }
     const SB_DESKTOP = {
-        target: '#nav-gym[class*="area-desktop"]',
-        container: 'area-desktop___vZLI8',
-        link: 'desktopLink___SG2RU',
-        row: 'area-row___iBD8N',
-        id: 'nav-gym-log-desktop'
-    },
+            target: '#nav-gym[class*="area-desktop"]',
+            container: 'area-desktop___vZLI8',
+            link: 'desktopLink___SG2RU',
+            row: 'area-row___iBD8N',
+            id: 'nav-gym-log-desktop'
+        },
         SB_MOBILE = {
             target: '#nav-gym[class*="area-mobile"]',
             container: 'area-mobile___sx8BQ',
@@ -11611,12 +11759,13 @@
             _topCeilingTs = Date.now();
             return ceiling;
         }
+        const maxNavHeight = window.innerHeight * 0.4;
         for (const el of document.body.children) {
             if (el.id && el.id.startsWith('bbgl-')) continue;
             const style = window.getComputedStyle(el);
             if (style.position === 'fixed') {
                 const rect = el.getBoundingClientRect();
-                if (rect.top < 10 && rect.bottom > ceiling) ceiling = Math.ceil(rect.bottom);
+                if (rect.top < 10 && rect.bottom > ceiling && (rect.bottom - rect.top) < maxNavHeight) ceiling = Math.ceil(rect.bottom);
             }
         }
         _topCeilingCache = ceiling;
@@ -11647,7 +11796,7 @@
             if (!next.has(w)) {
                 try {
                     runtime.layoutResizeObserver.unobserve(w);
-                } catch (_) { }
+                } catch (_) {}
                 prev.delete(w);
             }
         });
@@ -11770,7 +11919,7 @@
                 _syncLayoutResizeTargets();
                 handleLayout();
                 clearTimeout(runtime._layoutResyncTimer);
-                runtime._layoutResyncTimer = setTimeout(function () {
+                runtime._layoutResyncTimer = setTimeout(function() {
                     runtime._layoutResyncTimer = null;
                     _syncLayoutResizeTargets();
                 }, 350);
@@ -12120,7 +12269,7 @@
         });
     }
     const DOC_LOADING_HTML = `<div style="padding:20px; text-align:center; color:#888;">Loading...</div>`;
-    const DOC_ERROR_HTML = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
+    const DOC_ERROR_HTML   = `<div style="padding:20px; text-align:center; color:#888;">Could not load document. Check your connection.</div>`;
 
     const PRIVACY_TEXT = {
         ACK_INTRO: `<div style="padding:0 0 8px 0; color:#bbb; font-size:12px;">By using this script, you acknowledge and agree to the following:</div>`,
@@ -12129,10 +12278,10 @@
 
     function buildPrivacyModalHTML(reviewMode) {
         const ackRows = PRIVACY_TEXT.ACK_ITEMS.map((txt, i) => {
-            const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
-                label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
-            return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
-        }).join(''),
+                const ctrl = reviewMode ? `<span class="bbgl-ack-check">${ICONS.CHECK}</span>` : `<input type="checkbox" id="bbgl-ack-${i + 1}">`,
+                    label = reviewMode ? `<span>${txt}</span>` : `<label for="bbgl-ack-${i + 1}">${txt}</label>`;
+                return `<div class="bbgl-ack-row">${ctrl}${label}</div>`;
+            }).join(''),
             discSection = buildSection('Privacy Disclosure', `<div class="bbgl-modal-scrollbox"><div id="bbgl-privacy-disc">${DOC_LOADING_HTML}</div></div>`, 'margin-bottom:5px;'),
             ackSection = buildSection('User Acknowledgement', `<div class="bbgl-modal-scrollbox">${PRIVACY_TEXT.ACK_INTRO}${ackRows}</div>`, 'margin-bottom:8px;'),
             footer = reviewMode ? '' : `<div style="display:flex; margin:0 10px 4px 10px;">${buildButton('bbgl-privacy-demo-btn', 'DEMO', 'purple', 'flex:2; border-radius:4px 0 0 4px; margin:0;')}<span class="bbgl-agree-wrap" style="flex:1; display:flex;" data-tooltip="${TOOLTIPS.AGREE_GATE}">${buildButton('bbgl-privacy-agree-btn', 'AGREE', 'green', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</span></div>`;
@@ -12236,7 +12385,7 @@
         refreshStartState();
         // Agreement is intentionally not persisted: starting the scan creates its own timers, which
         // are the record. The disclaimer is shown fresh on every manual start.
-        startBtn.onclick = function () {
+        startBtn.onclick = function() {
             if (startBtn.classList.contains('bbgl-btn-disabled')) return;
             this.blur();
             closeBackfillModal();
@@ -12280,12 +12429,12 @@
             };
             boxes.forEach(b => b.onchange = refreshAgreeState);
             refreshAgreeState();
-            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function () {
+            modal.querySelector('#bbgl-privacy-demo-btn').onclick = function() {
                 this.blur();
                 enterDemo('privacy');
                 closePrivacyModal();
             };
-            agreeBtn.onclick = function () {
+            agreeBtn.onclick = function() {
                 if (agreeBtn.classList.contains('bbgl-btn-disabled')) return;
                 this.blur();
                 userConfig.privacyAgreed = new Date().toISOString();
@@ -12391,12 +12540,12 @@
         try {
             const raw = await fetchDoc('welcome');
             const parts = raw.split('<!--RETURNING-->');
-            introHTML = parts[0] || DOC_ERROR_HTML;
+            introHTML     = parts[0] || DOC_ERROR_HTML;
             returningHTML = parts[1] || DOC_ERROR_HTML;
-        } catch (e) { }
-        const introEl = wv.querySelector('#bbgl-welcome-intro-text');
+        } catch (e) {}
+        const introEl     = wv.querySelector('#bbgl-welcome-intro-text');
         const returningEl = wv.querySelector('#bbgl-welcome-returning-text');
-        if (introEl) introEl.innerHTML = introHTML;
+        if (introEl)     introEl.innerHTML = introHTML;
         if (returningEl) returningEl.innerHTML = returningHTML;
     }
 
@@ -12443,7 +12592,7 @@
         const CROWN = `<svg viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>`;
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-tall-toggle">${viewState.isTall ? '–' : '+'}</div><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><div class="g-hud"><div class="g-toggles"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div><div class="g-toggles"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"><div class="bbgl-ach-scroll"><div id="bbgl-ach-pages"></div></div><div id="bbgl-ach-footer" class="bbgl-ach-footer"><div class="bbgl-ach-footer-side bbgl-ach-footer-left"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">\u276e</button></div><div id="bbgl-ach-pageindicator"></div><div class="bbgl-ach-footer-side bbgl-ach-footer-right"><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">\u276f</button></div></div></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-sponsor-btn" class="sticker-nav-btn disabled">❮</div><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div><div id="bbgl-sticker-pagination"></div></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div id="all-time-btn" class="all-time-btn" data-tooltip="${TOOLTIPS.ALL_TIME_SUMMARY}">${CROWN}</div><div class="header-row"><div class="header-trigger" id="year-trigger"></div><div class="stats-btn" id="year-stats-btn" data-tooltip="${TOOLTIPS.YEARLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row"><div class="header-trigger" id="month-trigger"></div><div class="stats-btn" id="month-stats-btn" data-tooltip="${TOOLTIPS.MONTHLY_SUMMARY}">${ICONS.CHART}</div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-container"><span id="bbgl-level-num">Lv 1</span><div id="bbgl-level-track"><div id="bbgl-level-fill"></div></div></div></div><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div>`;
     }
 
     /**
@@ -12514,9 +12663,9 @@
                 tl = DataController.getTimeline(),
                 h = getActiveHistory();
             let sr = {
-                ...ZERO_BREAKDOWN,
-                total: 0
-            },
+                    ...ZERO_BREAKDOWN,
+                    total: 0
+                },
                 startTs = 0;
             if (vt === 'DAY') {
                 const _p = sl.date.split('-');
@@ -12568,8 +12717,8 @@
             };
             const _snapAt = (cutoffMs, d, baseVals, baseRates) => {
                 let vals = {
-                    ...baseVals
-                },
+                        ...baseVals
+                    },
                     rates = {
                         ...baseRates
                     };
@@ -12647,8 +12796,8 @@
                     };
                 };
                 let lr = {
-                    ...sr
-                },
+                        ...sr
+                    },
                     now = Date.now();
                 const BKT = 15 * 60 * 1000;
                 const sBkts = [];
@@ -13421,11 +13570,11 @@
                 return;
             }
             const dat = GraphController._transformData({
-                selectedData: calendarState.selectedData,
-                selectedLabel: calendarState.selectedLabel,
-                year: calendarState.year,
-                graphMode: graphState.mode
-            }),
+                    selectedData: calendarState.selectedData,
+                    selectedLabel: calendarState.selectedLabel,
+                    year: calendarState.year,
+                    graphMode: graphState.mode
+                }),
                 tr = dat.trends,
                 lbls = dat.labels,
                 vt = dat.viewType,
@@ -13535,9 +13684,9 @@
                 g.appendChild(t);
             }
             const gx = (v) => {
-                const r = xp.max - xp.min;
-                return r === 0 ? 0 : ((v - xp.min) / r) * cw;
-            },
+                    const r = xp.max - xp.min;
+                    return r === 0 ? 0 : ((v - xp.min) / r) * cw;
+                },
                 gy = (v) => chPlot - ((v - fMin) / fr) * chPlot;
             (function _drawTicks() {
                 const _addTick = (tx) => {
@@ -14111,8 +14260,8 @@
         if (runtime.viewerLoopId) cancelAnimationFrame(runtime.viewerLoopId);
         requestAnimationFrame(animateViewer);
         const spdUp = () => {
-            runtime.viewerSpeed = 3;
-        },
+                runtime.viewerSpeed = 3;
+            },
             spdDn = () => {
                 runtime.viewerSpeed = 0.3;
             };
@@ -14523,6 +14672,9 @@
             x.textContent = m;
             x.onclick = () => {
                 calendarState.month = i;
+                d.querySelectorAll('.drop-item').forEach(el => el.classList.remove('active'));
+                x.classList.add('active');
+                d.classList.remove('show');
                 renderPanelContent();
             };
             d.appendChild(x);
@@ -14544,6 +14696,9 @@
             x.textContent = y;
             x.onclick = () => {
                 calendarState.year = y;
+                d.querySelectorAll('.drop-item').forEach(el => el.classList.remove('active'));
+                x.classList.add('active');
+                d.classList.remove('show');
                 renderPanelContent();
             };
             d.appendChild(x);
@@ -14766,21 +14921,20 @@
             runtime.viewerLoopId = null;
         }
         const gel = (m) => {
-            if (m === 'settings') return sp;
-            if (m === 'welcome') return wv;
-            if (m === 'graph') return dom.graphContainer;
-            if (m === 'stickers') return dom.stickerContainer;
-            if (m === 'achievements') return dom.achievementsContainer;
-            return dom.ledgerView;
-        },
+                if (m === 'settings') return sp;
+                if (m === 'welcome') return wv;
+                if (m === 'graph') return dom.graphContainer;
+                if (m === 'stickers') return dom.stickerContainer;
+                if (m === 'achievements') return dom.achievementsContainer;
+                return dom.ledgerView;
+            },
             cel = gel(cm),
             nel = gel(tgt);
         const app = () => {
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
-            tp.style.removeProperty('display');
-            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
+            tp.style.display = 'flex';
             if (!(tgt === 'stickers' && viewState.activeItemId)) {
                 bp.style.removeProperty('display');
                 if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
@@ -14827,12 +14981,12 @@
                         iweekSel.onchange = () => onChangeWeekStart(iweekSel.value);
                     }
                     const ipb = wv.querySelector('#init-privacy-btn');
-                    if (ipb) ipb.onclick = function () {
+                    if (ipb) ipb.onclick = function() {
                         this.blur();
                         openPrivacyModal();
                     };
                     const isb = wv.querySelector('#init-start-btn');
-                    if (isb && iak) isb.onclick = async function () {
+                    if (isb && iak) isb.onclick = async function() {
                         this.blur();
                         const v = iak.value.trim();
                         if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -14869,13 +15023,13 @@
                         }
                     };
                     const cb = wv.querySelector('#init-create-api-btn');
-                    if (cb) cb.onclick = function () {
+                    if (cb) cb.onclick = function() {
                         this.blur();
                         window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
-                    if (rib && rif) rib.onclick = function () {
+                    if (rib && rif) rib.onclick = function() {
                         this.blur();
                         rif.click();
                     };
@@ -15001,14 +15155,10 @@
         if (sp) sp.classList.remove('active-view');
         if (wv) wv.classList.remove('active-view');
         if (tp) {
-            tp.style.removeProperty('display');
-            if (getComputedStyle(tp).display === 'none') tp.style.display = 'flex';
+            tp.style.display = 'flex';
             tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
         }
-        if (bp) {
-            bp.style.removeProperty('display');
-            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
-        }
+        if (bp) bp.style.display = 'flex';
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
@@ -15219,7 +15369,7 @@
         if (ds && ds.lastResult === 'partial') {
             // Cooldown elapsed: stay in the resume state until the log is fully backfilled.
             btn.textContent = 'Partial Scan Complete! Resume?';
-            btn.onclick = function () {
+            btn.onclick = function() {
                 this.blur();
                 backfillLogs(this);
             };
@@ -15227,7 +15377,7 @@
         }
 
         btn.innerHTML = '<span class="view-std">BB Backfill</span><span class="view-exp">Big Black Backfill</span>';
-        btn.onclick = function () {
+        btn.onclick = function() {
             this.blur();
             openBackfillModal();
         };
@@ -15503,7 +15653,7 @@
             }
         };
         const ub = get('updt-settings-btn');
-        if (ub && ai) ub.onclick = async function () {
+        if (ub && ai) ub.onclick = async function() {
             this.blur();
             const v = ai.value.trim();
             if (!/^[a-zA-Z0-9]{16}$/.test(v)) {
@@ -15538,7 +15688,7 @@
             }
         };
         const cab = get('clear-api-btn');
-        if (cab && ai) cab.onclick = function () {
+        if (cab && ai) cab.onclick = function() {
             this.blur();
             userConfig.apiKey = '';
             saveConfig();
@@ -15554,23 +15704,23 @@
             }, 2000);
         };
         const crb = get('create-api-btn');
-        if (crb) crb.onclick = function () {
+        if (crb) crb.onclick = function() {
             this.blur();
             window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=battlestats,log&=,,,,&logIds=56,52,54,50,23,6&title=Big%20Black%20Gym%20Log', '_blank');
         };
         const rb = get('refresh-log-btn');
-        if (rb) rb.onclick = function () {
+        if (rb) rb.onclick = function() {
             this.blur();
             if (checkRefreshCooldown(this)) return;
             syncWithFeedback('FULL_SYNC');
         };
         const eb = get('export-btn');
-        if (eb) eb.onclick = function () {
+        if (eb) eb.onclick = function() {
             this.blur();
             exportData();
         };
         const ib = get('import-btn');
-        if (ib) ib.onclick = function () {
+        if (ib) ib.onclick = function() {
             this.blur();
             get('import-file').click();
         };
@@ -15580,28 +15730,28 @@
         // so renderBackfillButton owns wiring its onclick for the current state.
         renderBackfillButton();
         const clb = get('clear-btn');
-        if (clb) clb.onclick = function () {
+        if (clb) clb.onclick = function() {
             this.blur();
             clearData();
         };
         const wb = get('show-welcome-btn');
-        if (wb) wb.onclick = function () {
+        if (wb) wb.onclick = function() {
             this.blur();
             runtime.welcomeReturn = 'settings';
             switchView('welcome');
         };
         const cl = get('settings-changelog-btn');
-        if (cl) cl.onclick = function () {
+        if (cl) cl.onclick = function() {
             this.blur();
             openChangelogModal();
         };
         const pl = get('settings-privacy-btn');
-        if (pl) pl.onclick = function () {
+        if (pl) pl.onclick = function() {
             this.blur();
             openPrivacyModal();
         };
         const sdemo = get('settings-demo-btn');
-        if (sdemo) sdemo.onclick = function () {
+        if (sdemo) sdemo.onclick = function() {
             this.blur();
             if (runtime.demoMode) {
                 const deb = document.getElementById('bbgl-demo-exit');
@@ -15611,17 +15761,17 @@
             }
         };
         const fgb = get('feature-guide-btn');
-        if (fgb) fgb.onclick = function () {
+        if (fgb) fgb.onclick = function() {
             this.blur();
             openFeatureGuideModal();
         };
         const sbb = get('settings-backfill-btn');
-        if (sbb) sbb.onclick = function () {
+        if (sbb) sbb.onclick = function() {
             this.blur();
             openBackfillModal();
         };
         const drb = get('dev-reset-btn');
-        if (drb) drb.onclick = function () {
+        if (drb) drb.onclick = function() {
             this.blur();
             devFactoryReset();
         };
@@ -15928,13 +16078,13 @@
         // fast-paths out when nothing has changed, so steady state stays lightweight.
         const _bbglRecheckNav = () => {
             [150, 600, 1500].forEach(ms => setTimeout(() => {
-                try { handleDomMutation(); } catch (e) { }
+                try { handleDomMutation(); } catch (e) {}
             }, ms));
         };
         ['pushState', 'replaceState'].forEach(name => {
             const orig = history[name];
             if (typeof orig !== 'function' || orig._bbglWrapped) return;
-            const wrapped = function () {
+            const wrapped = function() {
                 const r = orig.apply(this, arguments);
                 _bbglRecheckNav();
                 return r;
@@ -16178,7 +16328,7 @@
         }, {
             passive: false
         });
-        document.addEventListener('click', function (e) {
+        document.addEventListener('click', function(e) {
             if (e.target.closest('#bbgl-gym-tab')) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -16264,14 +16414,14 @@
                 if (!hit) return;
                 if (hit.id === 'nav-gym') handleNavGym();
                 else if (hit.id === 'notes_panel_button') handleNotesBtn(hit);
-            } catch (e) { }
+            } catch (e) {}
         }
-        Node.prototype.insertBefore = function (n, r) {
+        Node.prototype.insertBefore = function(n, r) {
             const res = _oI.call(this, n, r);
             check(n);
             return res;
         };
-        Node.prototype.appendChild = function (n) {
+        Node.prototype.appendChild = function(n) {
             const res = _oA.call(this, n);
             check(n);
             return res;
