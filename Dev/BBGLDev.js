@@ -11336,16 +11336,24 @@
 
         async function runLevelAnimationQueue() {
             runtime._isAnimatingLevel = true;
+            const BASE_SPEED_MS = 1000; // 1 second for a full 100% bar
+
             while (runtime._lastLevelExp < runtime._targetLevelExp) {
                 const currentProg = calculateLevelProgress(runtime._lastLevelExp);
                 const targetProg = calculateLevelProgress(runtime._targetLevelExp);
 
                 if (currentProg.level < targetProg.level) {
                     let expNeededToFill = currentProg.expToNext - currentProg.expInLevel;
+                    
+                    let currentPct = parseFloat(fillEl.style.width) || 0;
+                    let travelPct = 100 - currentPct;
+                    let durationMs = Math.max(150, (travelPct / 100) * BASE_SPEED_MS);
+                    
+                    fillEl.style.transitionDuration = durationMs + 'ms';
                     fillEl.style.width = '100%';
                     fillEl.classList.add('level-full');
                     
-                    await new Promise(r => setTimeout(r, 850));
+                    await new Promise(r => setTimeout(r, durationMs + 50));
                     container.classList.add('bbgl-level-up-flash');
                     
                     await new Promise(r => setTimeout(r, 200));
@@ -11363,10 +11371,21 @@
                     runtime._lastLevelExp += expNeededToFill;
                 } else {
                     runtime._lastLevelExp = runtime._targetLevelExp;
+                    
+                    let currentPct = parseFloat(fillEl.style.width) || 0;
+                    const { level, expInLevel, expToNext } = calculateLevelProgress(runtime._lastLevelExp);
+                    let targetPct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
+                    let travelPct = Math.abs(targetPct - currentPct);
+                    let durationMs = Math.max(150, (travelPct / 100) * BASE_SPEED_MS);
+                    
+                    fillEl.style.transitionDuration = durationMs + 'ms';
                     applyLevelState(runtime._lastLevelExp);
-                    await new Promise(r => setTimeout(r, 850));
+                    
+                    await new Promise(r => setTimeout(r, durationMs + 50));
                 }
             }
+            
+            fillEl.style.transitionDuration = '';
             runtime._lastLevelExp = runtime._targetLevelExp;
             runtime._isAnimatingLevel = false;
         }
