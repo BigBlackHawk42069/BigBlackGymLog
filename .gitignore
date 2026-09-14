@@ -2,3 +2,7 @@ Dev/LEVELING_PLAN.md
 CLAUDE.md
 AGENTS.md
 /Build Tools
+Dev/full-release-build.bat
+Dev/release-build.bat
+Dev/dev-build.bat
+.vscode/tasks.json
