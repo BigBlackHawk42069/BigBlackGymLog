@@ -761,7 +761,7 @@
     // One evolving noun+adjective ladder per stat, indexed by phase (0-9).
     const STAT_TITLE_WORDS = {
         str: [
-            { noun: 'Noodle', adj: 'Limp' },
+            { noun: 'Weenie', adj: 'Limp' },
             { noun: 'Noodle', adj: 'Flimsy' },
             { noun: 'Grower', adj: 'Growing' },
             { noun: 'Grip', adj: 'Gripping' },
