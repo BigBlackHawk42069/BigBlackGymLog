@@ -144,10 +144,46 @@
             return `${CONSTANTS.MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
         }
     };
+    // How long the pointer has to rest on something before its hover effects start — tooltips, the
+    // calendar cells' shine/post-it peel/day-number highlight, and the weekly bar's handle/sweep. Fast
+    // sweeps across the grid cross each cell in well under this, so they trigger none of that work.
+    const HOVER_INTENT_MS = 60;
+
+    // Mouse hover with intent: onIntent runs once the pointer has stayed inside el for HOVER_INTENT_MS;
+    // onLeave runs on mouseleave (always, so an effect that never started is simply a no-op to undo).
+    function bindHoverIntent(el, onIntent, onLeave) {
+        let timer = null;
+        el.addEventListener('mouseenter', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                onIntent();
+            }, HOVER_INTENT_MS);
+        });
+        el.addEventListener('mouseleave', () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            onLeave();
+        });
+    }
+
     const TooltipController = {
         el: null,
         arrow: null,
         currentTarget: null,
+        // The HTML currently inside the tooltip, so re-showing identical content skips the rebuild.
+        _html: null,
+        // Measured size per tooltip HTML: { width (the px string written to style.width), w, h, vw }.
+        // show() otherwise forces two synchronous layouts per new target just to size the box, and
+        // mousing across the calendar/graph revisits the same few tooltips constantly. Only valid
+        // for the viewport width it was measured at, and cleared whenever something that feeds the
+        // tooltip's size changes (viewport resize, web fonts finishing, --bbgl-tip-title-fs).
+        _sizeCache: new Map(),
+        clearSizeCache() {
+            this._sizeCache.clear();
+        },
         init() {
             if (this.el) return;
             this.el = document.createElement('div');
@@ -156,8 +192,11 @@
             this.arrow.id = 'bbgl-tooltip-arrow';
             this.el.appendChild(this.arrow);
             document.body.appendChild(this.el);
+            window.addEventListener('resize', () => this.clearSizeCache(), { passive: true });
+            if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => this.clearSizeCache());
         },
         hide() {
+            this._cancelIntent();
             if (this.el) {
                 this.el.style.display = 'none';
                 this.currentTarget = null;
@@ -165,13 +204,16 @@
         },
         show(html, rect, forceSide) {
             if (!this.el) this.init();
-            this.el.innerHTML = html;
-            this.el.appendChild(this.arrow);
+            if (this._html !== html) {
+                this.el.innerHTML = html;
+                this.el.appendChild(this.arrow);
+                this._html = html;
+            }
             this.el.style.display = 'block';
             this.el.className = '';
-            this.el.style.left = '0px';
-            this.el.style.top = '0px';
-            this.el.style.width = '';
+            // Stands in for #bbgl-tooltip:has(.bbgl-level-title-tooltip): set before measuring, since
+            // those rules size the box. A class is cheaper than a :has() re-check on every content swap.
+            if (html.includes('bbgl-level-title-tooltip')) this.el.classList.add('is-level-title');
             const gap = 12,
                 edge = 5,
                 view = {
@@ -179,9 +221,28 @@
                     h: window.innerHeight
                 },
                 targetRight = Number.isFinite(rect.right) ? rect.right : rect.left + rect.width;
-            let ttRect = this.el.getBoundingClientRect();
-            this.el.style.width = Math.min(Math.ceil(ttRect.width), view.w - edge * 2) + 'px';
-            ttRect = this.el.getBoundingClientRect();
+            let ttRect;
+            const cached = this._sizeCache.get(html);
+            if (cached && cached.vw === view.w) {
+                // Same content at the same viewport width: the same width is written and the size the
+                // measurement below would return is reused, so nothing forces a layout here.
+                this.el.style.width = cached.width;
+                ttRect = { width: cached.w, height: cached.h };
+            } else {
+                this.el.style.left = '0px';
+                this.el.style.top = '0px';
+                this.el.style.width = '';
+                ttRect = this.el.getBoundingClientRect();
+                this.el.style.width = Math.min(Math.ceil(ttRect.width), view.w - edge * 2) + 'px';
+                ttRect = this.el.getBoundingClientRect();
+                // An image still loading measures smaller than it will render; leave that content
+                // uncached so the next show measures it again, exactly as before.
+                const pendingImg = Array.prototype.some.call(this.el.querySelectorAll('img'), img => !img.complete);
+                if (!pendingImg) {
+                    if (this._sizeCache.size >= 300) this._sizeCache.clear();
+                    this._sizeCache.set(html, { width: this.el.style.width, w: ttRect.width, h: ttRect.height, vw: view.w });
+                }
+            }
             const placements = {
                 top: {
                     x: rect.left + rect.width / 2 - ttRect.width / 2,
@@ -270,13 +331,39 @@
         hasHtml(el) {
             return !!(el && (el.getAttribute('data-tooltip-html') || typeof el._bbglTip === 'function'));
         },
+        // Hover intent (see HOVER_INTENT_MS): a new target's tooltip only appears once the pointer has
+        // stayed on it that long. Sweeping across the calendar/ranks page used to rebuild, measure and
+        // reposition the tooltip for every element the pointer merely crossed. The tooltip already
+        // showing stays up while passing over other targets (no flicker between neighbours), and moving
+        // onto nothing still hides it immediately.
+        _intentTarget: null,
+        _intentTimer: null,
+        _cancelIntent() {
+            if (this._intentTimer) clearTimeout(this._intentTimer);
+            this._intentTimer = null;
+            this._intentTarget = null;
+        },
         handleHover(e) {
             const t = this.resolve(e.target);
             if (!t) {
+                this._cancelIntent();
                 if (this.currentTarget) this.hide();
                 return;
             }
-            if (this.currentTarget === t) return;
+            if (this.currentTarget === t) {
+                this._cancelIntent();
+                return;
+            }
+            if (this._intentTarget === t) return;
+            this._cancelIntent();
+            this._intentTarget = t;
+            this._intentTimer = setTimeout(() => {
+                this._intentTimer = null;
+                this._intentTarget = null;
+                if (t.isConnected) this.showFor(t);
+            }, HOVER_INTENT_MS);
+        },
+        showFor(t) {
             this.currentTarget = t;
             const h = this.htmlFor(t),
                 txt = t.getAttribute('data-tooltip');
@@ -674,7 +761,7 @@
     // One evolving noun+adjective ladder per stat, indexed by phase (0-9).
     const STAT_TITLE_WORDS = {
         str: [
-            { noun: 'Weenie', adj: 'Limp' },
+            { noun: 'Noodle', adj: 'Limp' },
             { noun: 'Noodle', adj: 'Flimsy' },
             { noun: 'Grower', adj: 'Growing' },
             { noun: 'Grip', adj: 'Gripping' },

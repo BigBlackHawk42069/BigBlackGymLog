@@ -1781,13 +1781,16 @@ function resetTitlesPageAnimationClock(container) {
     }
 }
 
-function syncTitlesPageAnimationClock(container) {
+// `targets` (default: the container) are the elements the two delay vars are stamped on. A full
+// rebuild stamps the container, since every node under it is new. A partial patch passes just the
+// subtrees it replaced: re-stamping the container would restyle the whole page and re-time every
+// animation already running on it, when only the new nodes need the current elapsed time.
+function syncTitlesPageAnimationClock(container, targets = [container]) {
     const now = performance.now();
     if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) {
         runtime._titlesPageAnimationStartedAt = now;
     }
     const elapsed = Math.max(0, now - runtime._titlesPageAnimationStartedAt);
-    container.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`);
     const { atrophy, level } = liveRankState();
     const unlocked = !!levelRankBrackets(atrophy, level)[1]?.unlocked;
     let lightbox = runtime._rankLightboxAnimation;
@@ -1795,7 +1798,11 @@ function syncTitlesPageAnimationClock(container) {
         lightbox = runtime._rankLightboxAnimation = { atrophy, unlocked, startedAt: now };
     }
     // The one-shot ignition starts at unlock; routine rebuilds retain its elapsed time.
-    container.style.setProperty('--bbgl-rank-lightbox-delay', `${-Math.max(0, now - lightbox.startedAt)}ms`);
+    const lightboxDelay = `${-Math.max(0, now - lightbox.startedAt)}ms`;
+    targets.forEach(el => {
+        el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`);
+        el.style.setProperty('--bbgl-rank-lightbox-delay', lightboxDelay);
+    });
 }
 
 function achRefreshPageDom() {
@@ -2422,51 +2429,18 @@ function achTitleStarHTML(stat, phase, unlockedPhase, statE, role) {
         `</div>`;
 }
 
-function achBuildPageTitles() {
-    const totalExp = getLiveLevelExp();
-    const { atrophy, level } = calculateLevelProgress(totalExp);
-    const currentRank = achCurrentRankPlaqueData(atrophy, level);
+// Which highlight a title star carries: '', 'primary', 'secondary' or 'both'. Shared by the full
+// titles-page build and renderTitlePickLive()'s in-place patch (07-section-vi-ui.js).
+function achTitleStarRole(sel, pending, stat, phase) {
+    if (pending) return (pending.stat === stat && pending.phase === phase) ? 'secondary' : '';
+    const isP = sel.primary && sel.primary.stat === stat && sel.primary.phase === phase;
+    const isS = sel.secondary && sel.secondary.stat === stat && sel.secondary.phase === phase;
+    return isP && isS ? 'both' : (isP ? 'primary' : (isS ? 'secondary' : ''));
+}
 
-    const eByStat = getLiveStatTitleE();
-    const sel = getLiveStatTitleSelection();
-    const phases = sel.phases;
-
-    // A pick in progress (one word placed, waiting on the second) owns the highlight outright: the
-    // committed pair is cleared the moment the first star is clicked, so only that star lights up.
-    // It takes the 'secondary' highlight because the first word IS the adjective slot.
-    const pending = runtime._titlePick;
-    const roleFor = (stat, phase) => {
-        if (pending) return (pending.stat === stat && pending.phase === phase) ? 'secondary' : '';
-        const isP = sel.primary && sel.primary.stat === stat && sel.primary.phase === phase;
-        const isS = sel.secondary && sel.secondary.stat === stat && sel.secondary.phase === phase;
-        return isP && isS ? 'both' : (isP ? 'primary' : (isS ? 'secondary' : ''));
-    };
-
-    // One block per stat: 10 tier stars split 5 over 5, two even rows (.bbgl-title-star-row,
-    // 04-section-iii-styles.js), grouped into two corner columns (str+spd left, def+dex right)
-    // pinned to top/bottom around the centred identity card.
-    //
-    // The stat-name label stays first in the markup (it names the group) but renders straddling the
-    // block's top border as cursive neon text via CSS, not DOM position. The frame is a real inline
-    // SVG (.bbgl-title-block-frame, first child) — a 1x1 placeholder here, filled in with a
-    // rounded-rect-with-a-gap path sized to the label's rendered width by layoutTitleBlockFrames()
-    // (07-section-vi-ui.js), so the tube looks like it terminates into the label text.
-    //
-    // ach-stat-${k} sets --bbgl-t-win-color on the block itself; the frame and label both inherit
-    // it, so the stat's colour is declared in exactly one place.
-    const titleBlockHTML = k => {
-        const star = i => achTitleStarHTML(k, i, phases[k], eByStat[k] || 0, roleFor(k, i));
-        const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
-        const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
-        return `<div class="bbgl-title-block ach-stat-${k}">` +
-            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +
-            `<svg class="bbgl-title-block-frame" viewBox="0 0 1 1"><path d=""/></svg>` +
-            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
-            `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
-    };
-    const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
-    const rightCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('def')}${titleBlockHTML('dex')}</div>`;
-
+// The identity card's title text (titleValue) and what follows "The" in its label (labelExtra: the
+// reset arrow, or nothing). Shared by the full build and renderTitlePickLive().
+function achTitleCardTitleParts(sel, pending) {
     // Mid-pick the card previews the single word placed so far; otherwise it's the committed pair.
     const titleHtml = pending ? statTitlePickPreviewHTML(pending) : composeStatTitleHTML(sel);
 
@@ -2480,7 +2454,47 @@ function achBuildPageTitles() {
     const titleValue = titleHtml
         ? `<i class="bbgl-lvl-title bbgl-titles-title">${titleHtml}</i>`
         : `<span class="bbgl-title-card-empty">Unequipped</span>`;
-    const head = achTitleIdentityHTML(currentRank, titleValue, titleHtml ? resetBtn : '');
+    return { titleValue, labelExtra: titleHtml ? resetBtn : '' };
+}
+
+function achBuildPageTitles() {
+    const totalExp = getLiveLevelExp();
+    const { atrophy, level } = calculateLevelProgress(totalExp);
+    const currentRank = achCurrentRankPlaqueData(atrophy, level);
+
+    const eByStat = getLiveStatTitleE();
+    const sel = getLiveStatTitleSelection();
+    const phases = sel.phases;
+
+    // A pick in progress (one word placed, waiting on the second) owns the highlight outright: the
+    // committed pair is cleared the moment the first star is clicked, so only that star lights up.
+    // It takes the 'secondary' highlight because the first word IS the adjective slot.
+    const pending = runtime._titlePick;
+    const roleFor = (stat, phase) => achTitleStarRole(sel, pending, stat, phase);
+
+    // One block per stat: 10 tier stars split 5 over 5, two even rows (.bbgl-title-star-row,
+    // 04-section-iii-styles.js), grouped into two corner columns (str+spd left, def+dex right)
+    // pinned to top/bottom around the centred identity card.
+    //
+    // The stat-name label stays first in the markup (it names the group) but renders straddling the
+    // block's top border as cursive neon text via CSS, not DOM position. The outline is the static
+    // .bbgl-plate-neon SVG (first child), whose own shape leaves the notch for the label.
+    //
+    // ach-stat-${k} sets --bbgl-t-win-color on the block itself; the outline and label both inherit
+    // it, so the stat's colour is declared in exactly one place.
+    const titleBlockHTML = k => {
+        const star = i => achTitleStarHTML(k, i, phases[k], eByStat[k] || 0, roleFor(k, i));
+        const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
+        const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
+        return `<div class="bbgl-title-block ach-stat-${k}">` +
+            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
+            `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
+    };
+    const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
+    const rightCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('def')}${titleBlockHTML('dex')}</div>`;
+
+    const { titleValue, labelExtra } = achTitleCardTitleParts(sel, pending);
+    const head = achTitleIdentityHTML(currentRank, titleValue, labelExtra);
 
     // Engraved rank scale: no shared backing plate. The thin groove is cut directly into the panel;
     // the live level rides the channel as the low-profile slider knob. rankBarProgressCSS()

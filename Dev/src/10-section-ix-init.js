@@ -1280,8 +1280,8 @@
             e.stopPropagation();
             if (dom.panel.classList.contains('bbgl-mode-page')) return;
             const p = dom.panel;
-            const animate = userConfig.animations && !p.classList.contains('bbgl-no-animations');
-            if (animate) markPanelResizing(p); // suppresses backdrop-filter for the width/height transition
+            // Compact <-> expanded snaps instantly, no animation: every --bbgl-dock-t size inside the panel
+            // reads the panel's width, so any animated resize re-laid-out the whole panel every frame.
             viewState.expanded = !viewState.expanded;
             if (viewState.expanded) {
                 p.classList.add('bbgl-expanded');
@@ -1295,10 +1295,7 @@
             saveViewState();
             handleLayout();
             renderPanelContent();
-            if (dom.topPanel.classList.contains('viewing-graph')) {
-                GraphController.draw();
-                setTimeout(GraphController.draw, 320);
-            }
+            if (dom.topPanel.classList.contains('viewing-graph')) GraphController.draw();
         };
         const lt = get('bbgl-ledger-toggle');
         if (lt) lt.onclick = toggleLedgerView;
@@ -1949,8 +1946,11 @@
         });
         updateLevelBar(); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
-        const domObs = new MutationObserver(function onDomMutationBatch() {
+        const domObs = new MutationObserver(function onDomMutationBatch(muts) {
             if (_domRaf) return;
+            // Changes confined to BBGL's own tooltip/panel can't be Torn moving anything we inject
+            // into — see _bbglMutationsAreOwn() (07-section-vi-ui.js).
+            if (_bbglMutationsAreOwn(muts)) return;
             _domRaf = requestAnimationFrame(function onDomMutationFrame() {
                 _domRaf = null;
                 handleDomMutation();

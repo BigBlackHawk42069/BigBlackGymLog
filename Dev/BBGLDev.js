@@ -725,10 +725,46 @@
             return `${CONSTANTS.MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
         }
     };
+    // How long the pointer has to rest on something before its hover effects start — tooltips, the
+    // calendar cells' shine/post-it peel/day-number highlight, and the weekly bar's handle/sweep. Fast
+    // sweeps across the grid cross each cell in well under this, so they trigger none of that work.
+    const HOVER_INTENT_MS = 60;
+
+    // Mouse hover with intent: onIntent runs once the pointer has stayed inside el for HOVER_INTENT_MS;
+    // onLeave runs on mouseleave (always, so an effect that never started is simply a no-op to undo).
+    function bindHoverIntent(el, onIntent, onLeave) {
+        let timer = null;
+        el.addEventListener('mouseenter', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                timer = null;
+                onIntent();
+            }, HOVER_INTENT_MS);
+        });
+        el.addEventListener('mouseleave', () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            onLeave();
+        });
+    }
+
     const TooltipController = {
         el: null,
         arrow: null,
         currentTarget: null,
+        // The HTML currently inside the tooltip, so re-showing identical content skips the rebuild.
+        _html: null,
+        // Measured size per tooltip HTML: { width (the px string written to style.width), w, h, vw }.
+        // show() otherwise forces two synchronous layouts per new target just to size the box, and
+        // mousing across the calendar/graph revisits the same few tooltips constantly. Only valid
+        // for the viewport width it was measured at, and cleared whenever something that feeds the
+        // tooltip's size changes (viewport resize, web fonts finishing, --bbgl-tip-title-fs).
+        _sizeCache: new Map(),
+        clearSizeCache() {
+            this._sizeCache.clear();
+        },
         init() {
             if (this.el) return;
             this.el = document.createElement('div');
@@ -737,8 +773,11 @@
             this.arrow.id = 'bbgl-tooltip-arrow';
             this.el.appendChild(this.arrow);
             document.body.appendChild(this.el);
+            window.addEventListener('resize', () => this.clearSizeCache(), { passive: true });
+            if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => this.clearSizeCache());
         },
         hide() {
+            this._cancelIntent();
             if (this.el) {
                 this.el.style.display = 'none';
                 this.currentTarget = null;
@@ -746,13 +785,16 @@
         },
         show(html, rect, forceSide) {
             if (!this.el) this.init();
-            this.el.innerHTML = html;
-            this.el.appendChild(this.arrow);
+            if (this._html !== html) {
+                this.el.innerHTML = html;
+                this.el.appendChild(this.arrow);
+                this._html = html;
+            }
             this.el.style.display = 'block';
             this.el.className = '';
-            this.el.style.left = '0px';
-            this.el.style.top = '0px';
-            this.el.style.width = '';
+            // Stands in for #bbgl-tooltip:has(.bbgl-level-title-tooltip): set before measuring, since
+            // those rules size the box. A class is cheaper than a :has() re-check on every content swap.
+            if (html.includes('bbgl-level-title-tooltip')) this.el.classList.add('is-level-title');
             const gap = 12,
                 edge = 5,
                 view = {
@@ -760,9 +802,28 @@
                     h: window.innerHeight
                 },
                 targetRight = Number.isFinite(rect.right) ? rect.right : rect.left + rect.width;
-            let ttRect = this.el.getBoundingClientRect();
-            this.el.style.width = Math.min(Math.ceil(ttRect.width), view.w - edge * 2) + 'px';
-            ttRect = this.el.getBoundingClientRect();
+            let ttRect;
+            const cached = this._sizeCache.get(html);
+            if (cached && cached.vw === view.w) {
+                // Same content at the same viewport width: the same width is written and the size the
+                // measurement below would return is reused, so nothing forces a layout here.
+                this.el.style.width = cached.width;
+                ttRect = { width: cached.w, height: cached.h };
+            } else {
+                this.el.style.left = '0px';
+                this.el.style.top = '0px';
+                this.el.style.width = '';
+                ttRect = this.el.getBoundingClientRect();
+                this.el.style.width = Math.min(Math.ceil(ttRect.width), view.w - edge * 2) + 'px';
+                ttRect = this.el.getBoundingClientRect();
+                // An image still loading measures smaller than it will render; leave that content
+                // uncached so the next show measures it again, exactly as before.
+                const pendingImg = Array.prototype.some.call(this.el.querySelectorAll('img'), img => !img.complete);
+                if (!pendingImg) {
+                    if (this._sizeCache.size >= 300) this._sizeCache.clear();
+                    this._sizeCache.set(html, { width: this.el.style.width, w: ttRect.width, h: ttRect.height, vw: view.w });
+                }
+            }
             const placements = {
                 top: {
                     x: rect.left + rect.width / 2 - ttRect.width / 2,
@@ -851,13 +912,39 @@
         hasHtml(el) {
             return !!(el && (el.getAttribute('data-tooltip-html') || typeof el._bbglTip === 'function'));
         },
+        // Hover intent (see HOVER_INTENT_MS): a new target's tooltip only appears once the pointer has
+        // stayed on it that long. Sweeping across the calendar/ranks page used to rebuild, measure and
+        // reposition the tooltip for every element the pointer merely crossed. The tooltip already
+        // showing stays up while passing over other targets (no flicker between neighbours), and moving
+        // onto nothing still hides it immediately.
+        _intentTarget: null,
+        _intentTimer: null,
+        _cancelIntent() {
+            if (this._intentTimer) clearTimeout(this._intentTimer);
+            this._intentTimer = null;
+            this._intentTarget = null;
+        },
         handleHover(e) {
             const t = this.resolve(e.target);
             if (!t) {
+                this._cancelIntent();
                 if (this.currentTarget) this.hide();
                 return;
             }
-            if (this.currentTarget === t) return;
+            if (this.currentTarget === t) {
+                this._cancelIntent();
+                return;
+            }
+            if (this._intentTarget === t) return;
+            this._cancelIntent();
+            this._intentTarget = t;
+            this._intentTimer = setTimeout(() => {
+                this._intentTimer = null;
+                this._intentTarget = null;
+                if (t.isConnected) this.showFor(t);
+            }, HOVER_INTENT_MS);
+        },
+        showFor(t) {
             this.currentTarget = t;
             const h = this.htmlFor(t),
                 txt = t.getAttribute('data-tooltip');
@@ -1255,7 +1342,7 @@
     // One evolving noun+adjective ladder per stat, indexed by phase (0-9).
     const STAT_TITLE_WORDS = {
         str: [
-            { noun: 'Weenie', adj: 'Limp' },
+            { noun: 'Noodle', adj: 'Limp' },
             { noun: 'Noodle', adj: 'Flimsy' },
             { noun: 'Grower', adj: 'Growing' },
             { noun: 'Grip', adj: 'Gripping' },
@@ -2255,7 +2342,7 @@
                         max-height: calc(100vh - 50px) !important;
                         overflow-y: auto;
                         overflow-x: hidden;
-                        transition: width .3s cubic-bezier(.25, 1, .5, 1), height .3s cubic-bezier(.25, 1, .5, 1);
+                        /* No width/height transition: every --bbgl-dock-t size inside the panel reads the panel's width, so animating it re-laid-out the whole panel every frame. Size snaps. */
                     }
 
                     #bbgl-panel.bbgl-expanded {
@@ -2760,6 +2847,10 @@
                         filter: drop-shadow(0 0 1px rgba(0, 0, 0, .5));
                         z-index: 1000000;
                         pointer-events: none;
+                        /* Own compositor layer: without it every show/move/hide as the mouse crosses the
+                           grid also repainted the panel content under the tooltip's box (scaled
+                           calendar JPGs, stickers, week bars), not just the tooltip itself. */
+                        will-change: transform;
                         display: none;
                         white-space: normal;
                         box-sizing: border-box;
@@ -2783,7 +2874,7 @@
                         font-weight: 400;
                     }
 
-                    #bbgl-tooltip:has(.bbgl-level-title-tooltip) {
+                    #bbgl-tooltip.is-level-title {
                         background: none;
                         padding: 0;
                         border-radius: 0;
@@ -2791,7 +2882,7 @@
                         max-width: 268px;
                     }
 
-                    #bbgl-tooltip:has(.bbgl-level-title-tooltip) #bbgl-tooltip-arrow {
+                    #bbgl-tooltip.is-level-title #bbgl-tooltip-arrow {
                         display: none;
                     }
 
@@ -3215,7 +3306,6 @@
                         flex-direction: column;
                         padding-top: var(--bbgl-top-pt, 2px);
                         padding-bottom: 0px;
-                        transition: height .3s, padding-top .3s;
                         z-index: 25;
                     }
 
@@ -3247,7 +3337,6 @@
                         right: 0;
                         bottom: 0;
                         height: auto;
-                        transition: top .3s;
                     }
 
                     /* Dedicated box for the SVG toolbar row (view-switcher icons, item counters,
@@ -3537,7 +3626,6 @@
                         font-weight: 400;
                         pointer-events: none;
                         z-index: 50;
-                        transition: font-size .3s;
                     }
 
                     #bbgl-ledger-footer {
@@ -3723,7 +3811,6 @@
                         max-height: var(--bbgl-col-gap);
                         min-height: 0;
                         width: 100%;
-                        transition: max-height .3s, flex-basis .3s;
                     }
 
                     .cell-stack {
@@ -3795,7 +3882,6 @@
                         justify-content: center;
                         white-space: nowrap;
                         letter-spacing: -.5px;
-                        transition: font-size .3s;
                     }
 
                     .l-bot {
@@ -3807,7 +3893,6 @@
                         align-items: center;
                         justify-content: center;
                         white-space: nowrap;
-                        transition: font-size .3s;
                     }
 
                     .c-label {
@@ -3816,7 +3901,6 @@
                         font-size: var(--bbgl-f-label);
                         text-transform: var(--bbgl-label-case);
                         letter-spacing: 0;
-                        transition: font-size .3s;
                     }
 
                     .c-gain .l-top {
@@ -4085,9 +4169,12 @@
                         letter-spacing: .005em;
                     }
 
+                    /* No opacity transition on purpose: each 0.1s fade was an animation starting on an
+                       SVG shape, which Chrome layerizes — and everything the graph draws after that
+                       point (the later series' lines and points) got regrouped and repainted on every
+                       step of a scrub. The dot now simply shows/hides with .active. */
                     .g-point-group .g-point-visual {
                         opacity: 0;
-                        transition: opacity .1s;
                         stroke-width: 1.5;
                         pointer-events: none;
                     }
@@ -4952,7 +5039,6 @@
                         display: flex;
                         flex-direction: column;
                         justify-content: flex-end;
-                        transition: flex .3s cubic-bezier(.25, 1, .5, 1);
                     }
 
                     .bbgl-header-wrapper::before {
@@ -4986,7 +5072,6 @@
                         gap: 8px;
                         position: relative;
                         margin-bottom: 4px;
-                        transition: margin-bottom .3s ease;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-month-header {
@@ -5008,6 +5093,7 @@
                         align-self: flex-end;
                         margin-bottom: 4px;
                         transition: transform .2s, text-shadow .2s;
+                        will-change: transform; /* same reason as .stats-btn / .header-trigger */
                     }
 
                     @media (hover: hover) {
@@ -5183,6 +5269,10 @@
                         align-self: flex-end;
                         transform-origin: center bottom;
                         transform: translate(-5px, calc(-6px + var(--btn-lift, 0px)));
+                        /* Permanent layer: the hover jump/scale and glow (transform + filter transitions)
+                           otherwise got a layer created at hover start and dropped at the end, regrouping
+                           and repainting the header content drawn around and after the button. */
+                        will-change: transform, filter;
                     }
 
                     /* Hover jump is a per-mode absolute (not a delta from rest):
@@ -5224,9 +5314,13 @@
                         text-transform: capitalize;
                         user-select: none;
                         text-shadow: 0 2px 4px #000;
-                        transition: font-size .3s;
                         line-height: 1;
                         transform: translateY(calc(-6px + var(--trigger-lift, 0px)));
+                        /* Own layer, like .stats-btn: the triggers paint after the chart buttons and sit
+                           inside their hover glow, so a button's hover otherwise regrouped and repainted
+                           them. (Rows aren't isolated instead: that would trap each dropdown's z-index
+                           inside its row, under the rows painted after it.) */
+                        will-change: transform;
                     }
 
                     .header-trigger:hover {
@@ -5367,7 +5461,6 @@
                         min-height: 0;
                         position: relative;
                         z-index: 1;
-                        transition: padding .3s ease;
                     }
 
                     .bbgl-week-row {
@@ -5422,6 +5515,20 @@
                         border-left: 1px solid rgba(255, 255, 255, .05);
                     }
 
+                    /* One calendar week: its row of day cells and the weekly bar under it. Its own
+                       stacking context, so the bar's z-index:20 (and the handle growing up into the
+                       row) only ranks above this week's cells, not every cell in the grid, and a
+                       layer appearing on hover is only overlap-checked against this week. Plain
+                       block stacking row-then-bar, so layout is unchanged. */
+                    .bbgl-week {
+                        isolation: isolate;
+                        /* Each week permanently on its own layer, for the same reason as the day cells:
+                           weeks paint top to bottom, and the week bar's hover changes (sweeps starting,
+                           handle growing, its shadows reaching a few px past the week's bottom edge) made
+                           the browser regroup the week painted after it into a new layer and repaint it. */
+                        will-change: transform;
+                    }
+
                     .bbgl-row-slice {
                         display: flex;
                         width: 100%;
@@ -5443,6 +5550,19 @@
                         border-right: 1px solid rgba(255, 255, 255, .05);
                         transition: transform .1s;
                         overflow: hidden;
+                        /* Own stacking context, so the z-indexes inside (sticker 15, post-its 17, day
+                           number 20) order only this cell's contents instead of competing across the
+                           whole grid. Without it, a post-it peel or shine starting in one cell made the
+                           browser treat every later day number/sticker/handle in the grid as possibly
+                           overlapping it, and re-layer + repaint them all. overflow:hidden already
+                           keeps everything inside the cell, so nothing changes visually. */
+                        isolation: isolate;
+                        /* Every cell permanently on its own layer. Cells paint in order within a week,
+                           so a layer appearing inside one hovered cell forced every cell painted after
+                           it (to the end of the week) to be regrouped into a new layer above it. With
+                           each cell already a separate layer in the right order, there's nothing left
+                           to regroup and a hovered cell only repaints itself. */
+                        will-change: transform;
                         user-select: none;
                         -webkit-user-select: none;
                     }
@@ -5473,9 +5593,9 @@
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
                        topmost note (the one covering everything) leaves with zero delay the
                        moment you hover, while notes further down follow in sequence behind it. */
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):has(.sticker-wrapper):hover .bbgl-event-post-it,
-                    .bbgl-day-cell.is-scrub-hovered:has(.sticker-wrapper) .bbgl-event-post-it,
-                    .bbgl-day-cell.is-viewing:has(.sticker-wrapper) .bbgl-event-post-it {
+                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty).is-hover-intent .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-scrub-hovered .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                         transition-delay: calc(((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.15s);
@@ -5485,9 +5605,9 @@
                        .bbgl-event-post-it-top, only ever added when there's more than one note)
                        peels away, revealing whatever's fanned out underneath. A lone post-it with
                        no sticker underneath never moves. */
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(:has(.sticker-wrapper)):hover .bbgl-event-post-it-top,
-                    .bbgl-day-cell.is-scrub-hovered:not(:has(.sticker-wrapper)) .bbgl-event-post-it-top,
-                    .bbgl-day-cell.is-viewing:not(:has(.sticker-wrapper)) .bbgl-event-post-it-top {
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty).is-hover-intent:not(.has-sticker) .bbgl-event-post-it-top,
+                    .bbgl-day-cell.is-scrub-hovered:not(.has-sticker) .bbgl-event-post-it-top,
+                    .bbgl-day-cell.is-viewing:not(.has-sticker) .bbgl-event-post-it-top {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                     }
@@ -5535,9 +5655,11 @@
                         mask-position: center;
                     }
 
-                    @keyframes gold-roll {
+                    /* gold-roll, split in two: the fade stays on .jewel-shine, the travel moves to
+                       .jewel-shine-band as a transform. Both run with the same duration and easing, so
+                       each property eases over the same keyframe segments as the combined original. */
+                    @keyframes gold-roll-fade {
                         0% {
-                            background-position: 200% 0%;
                             opacity: 0
                         }
 
@@ -5546,8 +5668,17 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: 1
+                        }
+                    }
+
+                    @keyframes gold-roll-band {
+                        0% {
+                            transform: translateX(-62.5%)
+                        }
+
+                        100% {
+                            transform: translateX(-15.625%)
                         }
                     }
 
@@ -5557,14 +5688,35 @@
                         -webkit-backface-visibility: hidden;
                     }
 
+                    /* The moving gradient lives on an inner band (.jewel-shine-band) that slides with
+                       transform, instead of animating this element's background-position. That
+                       repainted the gradient through the mask + blend every frame; now the band is
+                       rasterized once and only moved. overflow:hidden limits the band to this box,
+                       which is exactly where the background used to paint. */
                     .jewel-type-gold .jewel-shine {
                         transform: scale(1.2);
                         filter: brightness(1.2);
-                        background: linear-gradient(135deg, transparent 25%, rgba(255, 240, 180, 1) 45%, rgba(255, 255, 255, 1.0) 50%, rgba(255, 240, 180, 1) 55%, transparent 75%);
-                        background-size: 200% auto;
+                        overflow: hidden;
                         mix-blend-mode: soft-light;
                         opacity: 0;
                         transition: opacity .2s;
+                    }
+
+                    /* Geometry mirrors the old background exactly: one gradient tile was 200% x 100%
+                       of the box (2 box widths), repeating, travelling from background-position 200%
+                       (offset -2 widths, = 0% one tile over) to 50% (offset -0.5 widths). Covering the
+                       box across that range needs a band 3 widths wide; it is 3.2 for a sliver of
+                       margin, and kept that small because the whole band is rasterized when the shine
+                       starts. In its own width: tile = 2/3.2, -2 widths = -62.5%, -0.5 = -15.625%. */
+                    .jewel-type-gold .jewel-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 320%;
+                        height: 100%;
+                        background: linear-gradient(135deg, transparent 25%, rgba(255, 240, 180, 1) 45%, rgba(255, 255, 255, 1.0) 50%, rgba(255, 240, 180, 1) 55%, transparent 75%);
+                        background-size: 62.5% 100%;
+                        transform: translateX(-62.5%);
                     }
 
                     .jewel-type-green .jewel-asset {
@@ -5575,12 +5727,38 @@
 
                     /* Green and diamond jewels share the same shine gradients; only the
                        transforms differ per type. */
+                    /* Same inner-band technique as gold (see .jewel-type-gold .jewel-shine): the
+                       gradients below now live on each element's .jewel-shine-band child, which slides
+                       with transform, and the element itself clips it (overflow:hidden) and keeps the
+                       mask, blend mode and per-type transform. */
                     .jewel-type-green .jewel-shine,
                     .jewel-type-diamond .jewel-shine {
-                        background: linear-gradient(120deg, transparent 10%, rgba(0, 220, 110, .4) 28%, rgba(180, 255, 210, .95) 40%, rgba(255, 255, 255, 1.0) 50%, rgba(180, 255, 210, .95) 60%, rgba(0, 220, 110, .4) 72%, transparent 90%);
-                        background-size: 300% auto;
+                        overflow: hidden;
                         mix-blend-mode: screen;
                         opacity: 0;
+                    }
+
+                    /* Old background: 300% x 100% tiles, repeating, animated from background-position
+                       250% to 50% (an offset of -5 to -1 box widths, i.e. more than one whole tile of
+                       travel). A two-tile (600%) band covers the box across that whole range:
+                       translateX(-5/6) and translateX(-1/6) of the band's own width are exactly those
+                       two offsets. At rest it sits at -50% (one whole tile = position 0%). */
+                    :is(.jewel-type-green, .jewel-type-diamond) :is(.jewel-shine, .jewel-shine-over) > .jewel-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 600%;
+                        height: 100%;
+                        background-size: 50% 100%;
+                        transform: translateX(-50%);
+                    }
+
+                    :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine > .jewel-shine-band {
+                        background-image: linear-gradient(120deg, transparent 10%, rgba(0, 220, 110, .4) 28%, rgba(180, 255, 210, .95) 40%, rgba(255, 255, 255, 1.0) 50%, rgba(180, 255, 210, .95) 60%, rgba(0, 220, 110, .4) 72%, transparent 90%);
+                    }
+
+                    :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine-over > .jewel-shine-band {
+                        background-image: linear-gradient(120deg, transparent 0%, rgba(120, 255, 180, .5) 41%, rgba(255, 255, 255, .7) 50%, rgba(120, 255, 180, .5) 59%, transparent 100%);
                     }
 
                     .jewel-type-green .jewel-shine-over,
@@ -5589,8 +5767,7 @@
                         z-index: 3;
                         width: 100%;
                         height: 100%;
-                        background: linear-gradient(120deg, transparent 0%, rgba(120, 255, 180, .5) 41%, rgba(255, 255, 255, .7) 50%, rgba(120, 255, 180, .5) 59%, transparent 100%);
-                        background-size: 300% auto;
+                        overflow: hidden;
                         mix-blend-mode: soft-light;
                         opacity: 0;
                         -webkit-mask-image: var(--jewel-mask);
@@ -5624,9 +5801,11 @@
                         transform: translate(-3%, 3%) scale(1.02, 1.00);
                     }
 
-                    @keyframes green-flash {
+                    /* green-flash / green-flash-over, split like gold-roll: the fades stay on the
+                       elements, the shared travel moves to their bands. Same 1.7s ease-out on all of
+                       them, so each property eases over the same keyframe segments as before. */
+                    @keyframes green-flash-fade {
                         0% {
-                            background-position: 250% 0%;
                             opacity: 0
                         }
 
@@ -5635,14 +5814,12 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: .75
                         }
                     }
 
-                    @keyframes green-flash-over {
+                    @keyframes green-flash-over-fade {
                         0% {
-                            background-position: 250% 0%;
                             opacity: 0
                         }
 
@@ -5651,8 +5828,17 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: .95
+                        }
+                    }
+
+                    @keyframes green-flash-band {
+                        0% {
+                            transform: translateX(calc(-100% * 5 / 6))
+                        }
+
+                        100% {
+                            transform: translateX(calc(-100% / 6))
                         }
                     }
 
@@ -5696,12 +5882,14 @@
                         pointer-events: none;
                     }
 
+                    /* Same inner-band technique as the jewel shines: the gradient (set inline per tier by
+                       buildShine, 07-section-vi-ui.js) lives on .sticker-shine-band, which slides with
+                       transform. This element keeps the mask, blend mode, brightness filter and rounded
+                       corners, and clips the band (overflow:hidden). */
                     .sticker-shine {
                         position: absolute;
                         inset: 0;
-                        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(200, 250, 255, .001) 30%, rgba(255, 255, 255, .01) 50%, rgba(255, 200, 220, .001) 70%, rgba(255, 255, 255, 0) 100%);
-                        background-size: 400% 400%;
-                        background-position: var(--bg-x, 50%) var(--bg-y, 50%);
+                        overflow: hidden;
                         mix-blend-mode: overlay;
                         opacity: 0;
                         border-radius: 4px;
@@ -5715,15 +5903,32 @@
                         mask-position: center;
                     }
 
-                    @keyframes bbgl-auto-shimmer {
+                    /* Old background: 400% x 400% tiles, repeating, animated diagonally from
+                       background-position 0% 0% to 100% 100% (an offset of 0 to -3 box widths/heights),
+                       resting at 50% 50%. Covering the box across that range needs 4 box sizes each way;
+                       the band is 4.5 for a little margin, and no bigger because the whole band is
+                       rasterized when the shine starts (an 8x8 band was 64x the sticker's pixels). In its
+                       own size: tile = 4/4.5, -3 = -66.667%, the 50% rest (-1.5) = -33.333%. */
+                    .sticker-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 450%;
+                        height: 450%;
+                        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(200, 250, 255, .001) 30%, rgba(255, 255, 255, .01) 50%, rgba(255, 200, 220, .001) 70%, rgba(255, 255, 255, 0) 100%);
+                        background-size: calc(100% * 4 / 4.5) calc(100% * 4 / 4.5);
+                        transform: translate(calc(-100% / 3), calc(-100% / 3));
+                    }
+
+                    /* The old keyframes held opacity at .85 at both ends, i.e. a constant — so the
+                       outer element now just sits at .85 while active, and only the band animates. */
+                    @keyframes bbgl-auto-shimmer-band {
                         0% {
-                            opacity: .85;
-                            background-position: 0% 0%
+                            transform: translate(0, 0)
                         }
 
                         100% {
-                            opacity: .85;
-                            background-position: 100% 100%
+                            transform: translate(calc(-100% * 2 / 3), calc(-100% * 2 / 3))
                         }
                     }
 
@@ -5778,22 +5983,33 @@
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine {
                         opacity: 1;
-                        animation: gold-roll 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
+                        animation: gold-roll-fade 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine-band {
+                        animation: gold-roll-band 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine {
                         opacity: 1;
-                        animation: green-flash 1.7s ease-out 1 forwards;
+                        animation: green-flash-fade 1.7s ease-out 1 forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine-over {
                         opacity: 1;
-                        animation: green-flash-over 1.7s ease-out 1 forwards;
+                        animation: green-flash-over-fade 1.7s ease-out 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) :is(.jewel-shine, .jewel-shine-over) > .jewel-shine-band {
+                        animation: green-flash-band 1.7s ease-out 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) .sticker-shine-band {
+                        animation: bbgl-auto-shimmer-band 2.4s cubic-bezier(.3, 0, .55, 1) 2 alternate forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .sticker-shine {
-                        animation: bbgl-auto-shimmer 2.4s cubic-bezier(.3, 0, .55, 1) 2 alternate forwards;
-                        opacity: 1;
+                        opacity: .85;
                     }
 
                     .day-num {
@@ -5812,7 +6028,11 @@
                         align-items: center;
                         justify-content: center;
                         border-radius: 50%;
-                        transition: all .2s;
+                        /* Explicit list instead of "all": hover flips transform between none and
+                           scale(1), which look identical but still started a transform transition (and
+                           a re-layering) on every cell hover. Everything that visibly changes across
+                           the day-number states is still listed. */
+                        transition: color .2s, background .2s, font-size .2s, width .2s, height .2s, top .2s, left .2s, z-index .2s;
                         z-index: 20;
                     }
 
@@ -5820,7 +6040,7 @@
                         color: #999;
                     }
 
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(.is-viewing):hover .day-num,
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(.is-viewing).is-hover-intent .day-num,
                     .bbgl-day-cell:not(.empty):not(.is-viewing).is-scrub-hovered .day-num {
                         color: #fff;
                         background: #555;
@@ -5868,6 +6088,11 @@
                         cursor: pointer;
                         border-radius: 0 4px 4px 0;
                         overflow: hidden;
+                        /* Contains the sweep animations that start on hover, so the browser's overlap
+                           check treats the track as one clipped group rather than re-layering (and
+                           repainting) everything painted after it in the calendar. overflow:hidden
+                           already clips the sweeps to the track, so nothing changes visually. */
+                        isolation: isolate;
                         pointer-events: auto;
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                         box-shadow: inset 0 2px 5px rgba(0, 0, 0, .8), inset 0 -1px 0 rgba(255, 255, 255, .05);
@@ -5885,7 +6110,7 @@
                         box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine) {
+                    #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-shine-band, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine, .sticker-shine-band) {
                         animation: none !important;
                         opacity: 0 !important;
                     }
@@ -5918,12 +6143,13 @@
                         opacity: 0;
                     }
 
-                    /* Only animate while the row is actually being looked at — hovered, the
+                    /* Only animate while the row is actually being looked at — hover intent, the
                        currently-viewed week, or touch-scrubbed. At rest the sweep is an inert,
-                       non-animating opacity:0 div (near-zero cost); this cuts the number of
-                       simultaneously-animating sweeps from "every completed week on screen" down
-                       to "at most the one row the mouse is on". */
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep,
+                       non-animating opacity:0 div with no layer of its own, which keeps dozens of idle
+                       sweep layers out of every frame the compositor draws. The layer is only built when
+                       a row becomes active; with hover intent gating that, it no longer happens for every
+                       row the mouse merely crosses. */
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep {
                         will-change: transform, opacity;
@@ -5933,14 +6159,14 @@
                        buildCapsuleBar) instead of one capsule-local bounce — that's what makes the
                        whole bar read as one band traveling to the far end and back, rather than
                        each capsule bouncing on its own. */
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep-pass-fwd,
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep-pass-fwd,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep-pass-fwd,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep-pass-fwd {
                         animation: bbgl-cap-sweep-move-fwd-kf 4s cubic-bezier(.3, 0, .7, 1) infinite,
                                    bbgl-cap-sweep-fade-pass-kf 4s linear infinite;
                     }
 
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep-pass-bwd,
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep-pass-bwd,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep-pass-bwd,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep-pass-bwd {
                         animation: bbgl-cap-sweep-move-bwd-kf 4s cubic-bezier(.3, 0, .7, 1) infinite,
@@ -6070,19 +6296,19 @@
                         height: clamp(22px, calc(22px + 4px * var(--bbgl-page-t)), 26px);
                     }
 
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 32px;
                         --bbgl-handle-active-h: 32px;
                         box-shadow: inset 0 1px 0 rgba(255,255,255,.38), inset 1px 0 0 rgba(255,255,255,.25);
                     }
 
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover ~ .bbgl-bar-handle::before,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before,
                     .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle::before,
                     .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle::before,
-                    body:not(.is-touch-device) .bbgl-bar-handle:hover::before {
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before {
                         opacity: 1;
                     }
 
@@ -6102,7 +6328,7 @@
                     }
 
                     /* Left-edge glow on the track bleeds from the tab on hover — both sides light up together */
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent,
                     .bbgl-weekly-track.is-scrub-hovered,
                     .bbgl-weekly-track.is-viewing {
                         background: linear-gradient(90deg, rgba(255,255,255,.08) 0%, transparent 12%),
@@ -6110,26 +6336,26 @@
                                     linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 26px;
                         --bbgl-handle-active-h: 26px;
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
                         --bbgl-handle-active-h: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: clamp(30px, calc(30px + 6px * var(--bbgl-page-t)), 36px);
                         --bbgl-handle-active-h: clamp(30px, calc(30px + 6px * var(--bbgl-page-t)), 36px);
                     }
@@ -6154,6 +6380,10 @@
                         justify-content: flex-end;
                         pointer-events: none;
                         z-index: 10;
+                        /* Own layer: this full-width bar paints after the whole title group and overlaps
+                           the month row's chart-button glow, so every header button hover regrouped and
+                           repainted it — badge, crown and level number included. */
+                        will-change: transform;
                     }
 
                     /* Sibling of #bbgl-level-container, painted behind it, holding the housing
@@ -6165,6 +6395,7 @@
                         right: 0;
                         height: 9px;
                         pointer-events: none;
+                        will-change: transform; /* same reason as #bbgl-level-container */
                     }
 
                     /* Wraps the tucking badge — both the text flag (#bbgl-level-num) and, for
@@ -11043,36 +11274,15 @@
                         padding-bottom: var(--bbgl-t-win-pad-y);
                     }
 
-                    /* The frame for each stat block: a real inline SVG (first child of
-                       .bbgl-title-block, see titleBlockHTML() in 06-section-v-logic.js), its <path
-                       d="..."> generated fresh every layout pass by layoutTitleBlockFrames()
-                       (07-section-vi-ui.js) from the block's own live pixel size — viewBox is set
-                       to match that size exactly (0 0 <w> <h>), so stroke-width:1px here maps 1:1
-                       to on-screen px with no scale-correcting calc() needed, unlike the star
-                       crown's fixed-size icon. Same line-colour/glow recipe as the identity card's
-                       border above and the star trace, so all three read as one light source per
-                       stat. z-index:-1 + inset:0 for the same reason the old pseudo-element used
-                       them — paints behind the star rows/label, not over them. */
-                    .bbgl-title-block-frame {
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        width: 100%;
-                        height: 100%;
-                        pointer-events: none;
-                        overflow: visible;
-                    }
-
-                    .bbgl-title-block-frame path {
-                        fill: none;
-                        stroke: color-mix(in srgb, var(--bbgl-t-win-color) 42%, rgba(255, 255, 255, .92));
-                        stroke-width: 1px;
-                        filter:
-                            drop-shadow(0 0 1px color-mix(in srgb, var(--bbgl-t-win-color) 55%, #fff))
-                            drop-shadow(0 0 calc(4px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 55%, transparent))
-                            drop-shadow(0 0 calc(11px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 26%, transparent));
-                        animation: bbgl-neon-hum var(--bbgl-t-win-hum, 8s) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    /* Animated rank names (emerald/bright-silver, gold, diamond) on their own layer. Their
+                       shine can't be moved to a transform — it's a gradient clipped to the letters with
+                       background-clip:text, plus a blurred glow copy — so it repaints every frame no matter
+                       what. On its own layer only the name itself is redrawn, instead of everything under
+                       its glow reach (plaque grain, rivets, frame bands, the rank track). The line is
+                       already a stacking context (position:relative; z-index:2 below), so its ::before glow
+                       still stacks exactly as before. */
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-bright-silver, .material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
+                        will-change: transform;
                     }
 
                     /* The lit glass inside it. inset:1px keeps the texture off the tube's own line so
@@ -11101,17 +11311,14 @@
                     }
 
                     #bbgl-panel.bbgl-no-animations .bbgl-title-card::before,
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-block-frame path,
                     #bbgl-panel.bbgl-no-animations .bbgl-titles-name {
                         animation: none;
                     }
 
                     /* ─── Stat-name label ────────────────────────────────────────────
                        Straddles the block's own top border line directly — no plate, no wires. The
-                       frame's path (.bbgl-title-block-frame) leaves a literal gap in the top edge
-                       exactly as wide as this label's rendered text (computed by
-                       layoutTitleBlockFrames(), 07-section-vi-ui.js), so the tube reads as
-                       terminating right into the letters rather than running behind/through them —
+                       outline (.bbgl-plate-neon) leaves a notch in its top edge for this label, so the
+                       tube reads as terminating right into the letters rather than running behind/through them —
                        replaces the old hanging-plate sign, which was a deliberately opposite,
                        occluding read next to an open frame; this instead reads as ONE continuous
                        neon object, tube and text alike, cursive text being the natural "handwritten
@@ -11612,10 +11819,6 @@
                             inset 1px 0 0 #9aa6ad38,
                             inset -1px 0 0 #10161980,
                             inset 0 -1px 0 #c4cdd16b;
-                    }
-
-                    .bbgl-title-block-frame {
-                        display: none;
                     }
 
                     .bbgl-plate-neon {
@@ -15810,13 +16013,16 @@ function resetTitlesPageAnimationClock(container) {
     }
 }
 
-function syncTitlesPageAnimationClock(container) {
+// `targets` (default: the container) are the elements the two delay vars are stamped on. A full
+// rebuild stamps the container, since every node under it is new. A partial patch passes just the
+// subtrees it replaced: re-stamping the container would restyle the whole page and re-time every
+// animation already running on it, when only the new nodes need the current elapsed time.
+function syncTitlesPageAnimationClock(container, targets = [container]) {
     const now = performance.now();
     if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) {
         runtime._titlesPageAnimationStartedAt = now;
     }
     const elapsed = Math.max(0, now - runtime._titlesPageAnimationStartedAt);
-    container.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`);
     const { atrophy, level } = liveRankState();
     const unlocked = !!levelRankBrackets(atrophy, level)[1]?.unlocked;
     let lightbox = runtime._rankLightboxAnimation;
@@ -15824,7 +16030,11 @@ function syncTitlesPageAnimationClock(container) {
         lightbox = runtime._rankLightboxAnimation = { atrophy, unlocked, startedAt: now };
     }
     // The one-shot ignition starts at unlock; routine rebuilds retain its elapsed time.
-    container.style.setProperty('--bbgl-rank-lightbox-delay', `${-Math.max(0, now - lightbox.startedAt)}ms`);
+    const lightboxDelay = `${-Math.max(0, now - lightbox.startedAt)}ms`;
+    targets.forEach(el => {
+        el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`);
+        el.style.setProperty('--bbgl-rank-lightbox-delay', lightboxDelay);
+    });
 }
 
 function achRefreshPageDom() {
@@ -16451,51 +16661,18 @@ function achTitleStarHTML(stat, phase, unlockedPhase, statE, role) {
         `</div>`;
 }
 
-function achBuildPageTitles() {
-    const totalExp = getLiveLevelExp();
-    const { atrophy, level } = calculateLevelProgress(totalExp);
-    const currentRank = achCurrentRankPlaqueData(atrophy, level);
+// Which highlight a title star carries: '', 'primary', 'secondary' or 'both'. Shared by the full
+// titles-page build and renderTitlePickLive()'s in-place patch (07-section-vi-ui.js).
+function achTitleStarRole(sel, pending, stat, phase) {
+    if (pending) return (pending.stat === stat && pending.phase === phase) ? 'secondary' : '';
+    const isP = sel.primary && sel.primary.stat === stat && sel.primary.phase === phase;
+    const isS = sel.secondary && sel.secondary.stat === stat && sel.secondary.phase === phase;
+    return isP && isS ? 'both' : (isP ? 'primary' : (isS ? 'secondary' : ''));
+}
 
-    const eByStat = getLiveStatTitleE();
-    const sel = getLiveStatTitleSelection();
-    const phases = sel.phases;
-
-    // A pick in progress (one word placed, waiting on the second) owns the highlight outright: the
-    // committed pair is cleared the moment the first star is clicked, so only that star lights up.
-    // It takes the 'secondary' highlight because the first word IS the adjective slot.
-    const pending = runtime._titlePick;
-    const roleFor = (stat, phase) => {
-        if (pending) return (pending.stat === stat && pending.phase === phase) ? 'secondary' : '';
-        const isP = sel.primary && sel.primary.stat === stat && sel.primary.phase === phase;
-        const isS = sel.secondary && sel.secondary.stat === stat && sel.secondary.phase === phase;
-        return isP && isS ? 'both' : (isP ? 'primary' : (isS ? 'secondary' : ''));
-    };
-
-    // One block per stat: 10 tier stars split 5 over 5, two even rows (.bbgl-title-star-row,
-    // 04-section-iii-styles.js), grouped into two corner columns (str+spd left, def+dex right)
-    // pinned to top/bottom around the centred identity card.
-    //
-    // The stat-name label stays first in the markup (it names the group) but renders straddling the
-    // block's top border as cursive neon text via CSS, not DOM position. The frame is a real inline
-    // SVG (.bbgl-title-block-frame, first child) — a 1x1 placeholder here, filled in with a
-    // rounded-rect-with-a-gap path sized to the label's rendered width by layoutTitleBlockFrames()
-    // (07-section-vi-ui.js), so the tube looks like it terminates into the label text.
-    //
-    // ach-stat-${k} sets --bbgl-t-win-color on the block itself; the frame and label both inherit
-    // it, so the stat's colour is declared in exactly one place.
-    const titleBlockHTML = k => {
-        const star = i => achTitleStarHTML(k, i, phases[k], eByStat[k] || 0, roleFor(k, i));
-        const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
-        const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
-        return `<div class="bbgl-title-block ach-stat-${k}">` +
-            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +
-            `<svg class="bbgl-title-block-frame" viewBox="0 0 1 1"><path d=""/></svg>` +
-            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
-            `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
-    };
-    const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
-    const rightCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('def')}${titleBlockHTML('dex')}</div>`;
-
+// The identity card's title text (titleValue) and what follows "The" in its label (labelExtra: the
+// reset arrow, or nothing). Shared by the full build and renderTitlePickLive().
+function achTitleCardTitleParts(sel, pending) {
     // Mid-pick the card previews the single word placed so far; otherwise it's the committed pair.
     const titleHtml = pending ? statTitlePickPreviewHTML(pending) : composeStatTitleHTML(sel);
 
@@ -16509,7 +16686,47 @@ function achBuildPageTitles() {
     const titleValue = titleHtml
         ? `<i class="bbgl-lvl-title bbgl-titles-title">${titleHtml}</i>`
         : `<span class="bbgl-title-card-empty">Unequipped</span>`;
-    const head = achTitleIdentityHTML(currentRank, titleValue, titleHtml ? resetBtn : '');
+    return { titleValue, labelExtra: titleHtml ? resetBtn : '' };
+}
+
+function achBuildPageTitles() {
+    const totalExp = getLiveLevelExp();
+    const { atrophy, level } = calculateLevelProgress(totalExp);
+    const currentRank = achCurrentRankPlaqueData(atrophy, level);
+
+    const eByStat = getLiveStatTitleE();
+    const sel = getLiveStatTitleSelection();
+    const phases = sel.phases;
+
+    // A pick in progress (one word placed, waiting on the second) owns the highlight outright: the
+    // committed pair is cleared the moment the first star is clicked, so only that star lights up.
+    // It takes the 'secondary' highlight because the first word IS the adjective slot.
+    const pending = runtime._titlePick;
+    const roleFor = (stat, phase) => achTitleStarRole(sel, pending, stat, phase);
+
+    // One block per stat: 10 tier stars split 5 over 5, two even rows (.bbgl-title-star-row,
+    // 04-section-iii-styles.js), grouped into two corner columns (str+spd left, def+dex right)
+    // pinned to top/bottom around the centred identity card.
+    //
+    // The stat-name label stays first in the markup (it names the group) but renders straddling the
+    // block's top border as cursive neon text via CSS, not DOM position. The outline is the static
+    // .bbgl-plate-neon SVG (first child), whose own shape leaves the notch for the label.
+    //
+    // ach-stat-${k} sets --bbgl-t-win-color on the block itself; the outline and label both inherit
+    // it, so the stat's colour is declared in exactly one place.
+    const titleBlockHTML = k => {
+        const star = i => achTitleStarHTML(k, i, phases[k], eByStat[k] || 0, roleFor(k, i));
+        const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
+        const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
+        return `<div class="bbgl-title-block ach-stat-${k}">` +
+            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
+            `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
+    };
+    const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
+    const rightCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('def')}${titleBlockHTML('dex')}</div>`;
+
+    const { titleValue, labelExtra } = achTitleCardTitleParts(sel, pending);
+    const head = achTitleIdentityHTML(currentRank, titleValue, labelExtra);
 
     // Engraved rank scale: no shared backing plate. The thin groove is cut directly into the panel;
     // the live level rides the channel as the low-profile slider knob. rankBarProgressCSS()
@@ -18456,8 +18673,13 @@ const BestGymController = {
                         data: i.p
                     });
                 });
-                frag.appendChild(rd);
-                injectWeeklyBar(frag, wdb);
+                // One .bbgl-week per row + its weekly bar, isolated (see .bbgl-week in CSS_STYLES) so
+                // the bar's z-index and any hover layer stay inside this week.
+                const wk = document.createElement('div');
+                wk.className = 'bbgl-week';
+                wk.appendChild(rd);
+                injectWeeklyBar(wk, wdb);
+                frag.appendChild(wk);
                 batch = [];
                 ridx++;
             }
@@ -18558,13 +18780,18 @@ const BestGymController = {
         // touch-scrub tooltip handler in 10-section-ix-init.js) calls cell._buildShine. No
         // teardown is needed — month navigation rebuilds the whole grid via innerHTML anyway.
         let buildShine = null;
-        cell.addEventListener('mouseenter', () => {
+        // Hover effects wait for hover intent (bindHoverIntent, 03-section-ii-utils.js):
+        // .is-hover-intent stands in for :hover in the cell's CSS (post-it peel, day-number
+        // highlight), and the shine starts at the same moment — so a fast sweep across the grid
+        // starts none of it.
+        bindHoverIntent(cell, () => {
+            cell.classList.add('is-hover-intent');
             if (userConfig.animations) {
                 cell.classList.add('shimmer-active');
                 if (buildShine) buildShine();
             }
-        });
-        cell.addEventListener('mouseleave', () => {
+        }, () => {
+            cell.classList.remove('is-hover-intent');
             if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active');
         });
         const isToday = (ds === ctx.today);
@@ -18600,6 +18827,13 @@ const BestGymController = {
                 sh.className = 'jewel-shine';
                 sh.style.maskImage = `url("${url}")`;
                 sh.style.webkitMaskImage = `url("${url}")`;
+                // Every shine's gradient rides an inner band moved by transform (see .jewel-shine-band).
+                const addBand = el => {
+                    const band = document.createElement('div');
+                    band.className = 'jewel-shine-band';
+                    el.appendChild(band);
+                };
+                addBand(sh);
                 if (sl.meta.tier === 2) {
                     wrap.appendChild(sh);
                 } else {
@@ -18607,6 +18841,7 @@ const BestGymController = {
                     const so = document.createElement('div');
                     so.className = 'jewel-shine-over';
                     so.style.setProperty('--jewel-mask', `url("${url}")`);
+                    addBand(so);
                     wrap.appendChild(so);
                 }
             };
@@ -18645,6 +18880,9 @@ const BestGymController = {
                 si.className = 'cell-sticker-deco';
                 sw.appendChild(si);
                 cell.appendChild(sw);
+                // Stands in for :has(.sticker-wrapper) in the post-it peel CSS: a plain class check is far
+                // cheaper for the browser to re-evaluate on every hover change than a :has() lookup.
+                cell.classList.add('has-sticker');
                 buildShine = () => {
                     if (sw.querySelector('.sticker-shine')) return;
                     const ss = document.createElement('div');
@@ -18654,7 +18892,11 @@ const BestGymController = {
                     let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                     if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                     else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
-                    ss.style.backgroundImage = grad;
+                    // The gradient rides an inner band moved by transform (see .sticker-shine-band).
+                    const band = document.createElement('div');
+                    band.className = 'sticker-shine-band';
+                    band.style.backgroundImage = grad;
+                    ss.appendChild(band);
                     ss.style.mixBlendMode = "overlay";
                     if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
                     sw.appendChild(ss);
@@ -18724,6 +18966,11 @@ const BestGymController = {
         tr.dataset.label = sl.label;
         tr.onclick = (e) => { e.stopPropagation(); openHistory(sl, sl.label); };
         if (calendarState.selectedLabel === sl.label) tr.classList.add('is-viewing');
+        // One hover-intent binding on the anchor covers both the track and its handle tab (mouseenter/
+        // mouseleave follow DOM containment, so crossing from one to the other doesn't leave the
+        // anchor). .is-hover-intent on the track stands in for the old track:hover / handle:hover CSS:
+        // sweeps, the handle growing, the glow — and replaces the tab's instant is-scrub-hovered.
+        bindHoverIntent(anchor, () => tr.classList.add('is-hover-intent'), () => tr.classList.remove('is-hover-intent'));
         const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
         const addCenterTab = (slice) => {
             const tab = document.createElement('div');
@@ -18735,8 +18982,6 @@ const BestGymController = {
             tr.setAttribute('data-tooltip-html', tooltipHtml);
             tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle');
             tab.onclick = (e) => { e.stopPropagation(); openHistory(slice, slice.label); };
-            tab.addEventListener('mouseenter', () => tr.classList.add('is-scrub-hovered'));
-            tab.addEventListener('mouseleave', () => tr.classList.remove('is-scrub-hovered'));
             tab.innerHTML = buildChartSVG(slice);
             anchor.appendChild(tab);
         };
@@ -18831,7 +19076,48 @@ const BestGymController = {
     function refreshStatTitleUI() {
         const total = (runtime._lastLevelExp !== undefined) ? runtime._lastLevelExp : getLiveLevelExp();
         getLevelBars().forEach(b => renderLevelBar(b, total));
-        if (runtime._achPage === 0) achRefreshPageDom();
+        if (runtime._achPage === 0 && !renderTitlePickLive()) achRefreshPageDom();
+    }
+
+    // Patches a title pick (star click, the reset arrow, the dev title override) into the titles page
+    // in place: the stars' highlight classes and the identity card's title text + reset arrow, which
+    // is everything a pick changes. Replaces achRefreshPageDom()'s full innerHTML rebuild and
+    // geometry pass on every click. Returns false (caller does the real rebuild) when the page isn't
+    // built yet or anything besides the pick differs from the last real build — stat E, the
+    // enhancements period toggle, or which stars are unlocked.
+    function renderTitlePickLive() {
+        const container = document.getElementById('bbgl-achievements-container');
+        const page = container && container.querySelector('.bbgl-titles-page');
+        const label = page && page.querySelector('.bbgl-title-card-title-label');
+        const value = page && page.querySelector('.bbgl-title-card-value');
+        const prevFingerprint = runtime._achLiveFingerprint;
+        if (!label || !value || !runtime._achCache || !prevFingerprint) return false;
+        // Fingerprint is `E | selection | pending pick | period toggle` (achLiveInputsFingerprint()).
+        // Only the two middle, pick-owned segments may have moved.
+        const fingerprint = achLiveInputsFingerprint();
+        const nonPick = fp => { const parts = fp.split('|'); return parts[0] + '|' + parts[3]; };
+        if (nonPick(fingerprint) !== nonPick(prevFingerprint)) return false;
+
+        const sel = getLiveStatTitleSelection();
+        const pending = runtime._titlePick;
+        const stars = Array.from(page.querySelectorAll('.bbgl-title-star'));
+        // Same unlocked test achTitleStarHTML() builds with, checked before any write so a mismatch
+        // can still fall back cleanly.
+        const starPhase = star => parseInt(star.dataset.titlePhaseIdx, 10);
+        if (stars.some(star => (starPhase(star) <= sel.phases[star.dataset.titleStat]) !== star.classList.contains('is-unlocked'))) return false;
+
+        stars.forEach(star => {
+            const role = achTitleStarRole(sel, pending, star.dataset.titleStat, starPhase(star));
+            ['primary', 'secondary', 'both'].forEach(r => star.classList.toggle('is-' + r, role === r));
+        });
+        const { titleValue, labelExtra } = achTitleCardTitleParts(sel, pending);
+        label.innerHTML = `The${labelExtra}`;
+        value.innerHTML = titleValue;
+        runtime._achLiveFingerprint = fingerprint;
+        // A different title can change the sign's text size, which layoutTitleBlockFrames() mirrors
+        // into --bbgl-tip-title-fs; everything unchanged writes nothing (setStyleVarIfChanged()).
+        layoutTitlesPageGeometry();
+        return true;
     }
 
     // Fingerprint of every titles-page input EXCEPT the live level/rank — stat E, the composed
@@ -18900,7 +19186,18 @@ const BestGymController = {
         // running and restamps --bbgl-titles-animation-delay to the (more negative) elapsed time BEFORE
         // the titles below are replaced, so the freshly-created nodes resume the page's existing
         // animation timeline instead of restarting their reveal/shimmer from 0.
-        syncTitlesPageAnimationClock(container);
+        //
+        // Stamped only on the two subtrees replaced below, not the whole container: that restyled
+        // every element on this heavy page and re-timed every running animation. The exception is a
+        // bricked or card finish/material flip — those switch animations on for EXISTING nodes
+        // outside the replaced subtrees (the line's own is-bricked styling, the card's finish rules),
+        // which need the current clock too, so they still take the container-wide stamp. The two
+        // subtrees are stamped either way: a value left on them by an earlier patch would otherwise
+        // shadow the container's fresh one for the nodes created inside them.
+        const crossesSubtrees = line.classList.contains('is-bricked') !== bricked ||
+            card.dataset.rankFinish !== currentRank.finish ||
+            card.dataset.rankMaterial !== currentRank.material;
+        syncTitlesPageAnimationClock(container, crossesSubtrees ? [container, titles, cardRank] : [titles, cardRank]);
 
         track.style.cssText = rankBarProgressCSS(atrophy, level);
         line.classList.toggle('is-bricked', bricked);
@@ -18953,41 +19250,24 @@ const BestGymController = {
         runtime._titlePick = null;
     }
 
-    // Open rounded-rect outline, w x h, corner radius r, with a gap centred at gapCenterX on the
-    // TOP edge only, gapW wide — starts just past the gap going clockwise through all 4 corners,
-    // ending just before the gap on the other side (no closing Z: the two open ends are where the
-    // stat-name label straddles the line, see .bbgl-title-block-label/-frame in 04-section-iii-styles.js).
-    // Always fully stroked and regenerated fresh from the block's live pixel size every layout pass
-    // (layoutTitleBlockFrames() below), so there's nothing to re-measure if the shape changes.
-    function roundedRectGapPathD(w, h, r, gapCenterX, gapW) {
-        r = Math.max(0, Math.min(r, w / 2, h / 2));
-        const topRun = Math.max(0, w - 2 * r);
-        // Defensive clamp: the gap can never eat the whole straight top run — always leaves >=1px
-        // of real line on each side so the arcs have something to join, even at compact's
-        // smallest, most-rounded blocks with a wide label.
-        const maxGap = Math.max(0, topRun - 2);
-        let gw = Math.min(Math.max(gapW, 0), maxGap);
-        let gx0 = gapCenterX - gw / 2, gx1 = gapCenterX + gw / 2;
-        if (gx0 < r) { gx1 += (r - gx0); gx0 = r; }
-        if (gx1 > w - r) { gx0 -= (gx1 - (w - r)); gx1 = w - r; }
-        gx0 = Math.max(r, gx0);
-        gx1 = Math.min(w - r, gx1);
-        return [
-            `M ${gx1} 0`,
-            `L ${w - r} 0`, `A ${r} ${r} 0 0 1 ${w} ${r}`,
-            `L ${w} ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
-            `L ${r} ${h}`, `A ${r} ${r} 0 0 1 0 ${h - r}`,
-            `L 0 ${r}`, `A ${r} ${r} 0 0 1 ${r} 0`,
-            `L ${gx0} 0`
-        ].join(' ');
+    // Writes for the titles-page geometry passes below only land when the value actually changed.
+    // Even a same-value setProperty invalidates style for the element's whole subtree (for the
+    // --bbgl-tip-title-fs write on <html>, the entire Torn document), makes the next offset*/client*
+    // read force a full recalc + layout of this very heavy page, and can re-fire
+    // titleFrameResizeObserver for a pass that had nothing to change.
+    function setStyleVarIfChanged(el, name, value) {
+        if (el.style.getPropertyValue(name) === value) return false;
+        el.style.setProperty(name, value);
+        return true;
     }
 
-    // Measures every stat block's live pixel size and its label's rendered width, then redraws
-    // that block's neon frame (.bbgl-title-block-frame) with a gap sized to fit the label. Reads
-    // are batched before any writes. Called after the titles page DOM is (re)built
+    // Sizes the titles page's measured pieces: the toolbar clearance, the identity card's title
+    // width/height trim, each stat column's star size, and the level-bar tooltip's title size.
+    // Reads are batched before writes. Called after the titles page DOM is (re)built
     // (achRefreshPageDom(), 06-section-v-logic.js) and on every resize (observeTitleBlockFrames()
-    // below). Returns false if any block was still 0x0 (layout not settled yet) so the caller can
-    // retry next frame instead of guessing a delay.
+    // below). Returns false if any stat block was still 0x0 (layout not settled yet) so the caller
+    // can retry next frame instead of guessing a delay. (It used to also redraw a per-block SVG neon
+    // frame; that frame was replaced by .bbgl-plate-neon and has been removed.)
     //
     // Uses offsetWidth/offsetHeight, NOT getBoundingClientRect(): this page runs a CRT-style scale
     // transform on navigation (bbgl-crt-out/-in), and getBoundingClientRect() reports the visually
@@ -19004,42 +19284,51 @@ const BestGymController = {
                 const tallest = Math.max(...icons.map(el => el.offsetHeight));
                 const topPad = Math.max(0, (toolbar.offsetHeight - tallest) / 2);
                 // Keep the toolbar icons' top clearance.
-                titlesContainer.style.setProperty('--bbgl-t-toolbar-bottom', `${toolbar.offsetTop + tallest + topPad}px`);
+                setStyleVarIfChanged(titlesContainer, '--bbgl-t-toolbar-bottom', `${toolbar.offsetTop + tallest + topPad}px`);
             }
         }
         const main = document.querySelector('.bbgl-titles-main');
         if (main) {
             const height = main.clientHeight;
+            const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
             // Tooltip card: (176px outer width - 18px border/padding) * .86 by 132px.
-            main.style.setProperty('--bbgl-title-max-width', `${height * (158 * .86 / 132)}px`);
+            setStyleVarIfChanged(main, '--bbgl-title-max-width', `${height * (158 * .86 / 132)}px`);
             const center = main.querySelector('.bbgl-titles-center');
             let cardHeight = height;
+            // The two per-column spacing vars are only ever set here, on .bbgl-titles-main, and
+            // inherited by the columns — so the columns use the values just computed instead of
+            // reading them back through getComputedStyle (which forced a recalc after the writes).
+            let paddingY = null, rowExtra = null;
             if (center) {
                 const widthLoss = Math.max(0, height * .85 - center.clientWidth);
-                const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
                 const heightTrim = expanded
                     ? Math.min(42, height * .27, widthLoss * .55)
                     : Math.min(38, height * .24, widthLoss * .5);
-                main.style.setProperty('--bbgl-title-height-trim', `${heightTrim}px`);
-                main.style.setProperty('--bbgl-stat-padding-y', `${Math.min(3, heightTrim * .1)}px`);
-                main.style.setProperty('--bbgl-stat-row-extra', `${Math.min(3, heightTrim * .1)}px`);
+                paddingY = rowExtra = Math.min(3, heightTrim * .1);
+                setStyleVarIfChanged(main, '--bbgl-title-height-trim', `${heightTrim}px`);
+                setStyleVarIfChanged(main, '--bbgl-stat-padding-y', `${paddingY}px`);
+                setStyleVarIfChanged(main, '--bbgl-stat-row-extra', `${rowExtra}px`);
                 cardHeight -= heightTrim;
             }
+            // Measure every column first, then write every --bbgl-t-star. Interleaving them made each
+            // column's reads force a full recalc + layout for the previous column's write.
+            const starSizes = [];
             main.querySelectorAll('.bbgl-titles-corner-col').forEach(col => {
                 const label = col.querySelector('.bbgl-title-block-label');
                 const row = col.querySelector('.bbgl-title-star-row');
                 if (!label || !row) return;
                 const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
                 const labelHeight = label.offsetHeight;
-                const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
-                const paddingY = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-stat-padding-y')) || 0;
-                const rowExtra = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-stat-row-extra')) || 0;
-                const vertical = (cardHeight - labelHeight * 2 - 7 - paddingY * 4 - rowExtra * 2) / (expanded ? 3.8 : 4);
-                const emblemScale = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-t-emblem-scale')) || 1.12;
+                const colStyle = getComputedStyle(col);
+                const padY = paddingY !== null ? paddingY : (parseFloat(colStyle.getPropertyValue('--bbgl-stat-padding-y')) || 0);
+                const extra = rowExtra !== null ? rowExtra : (parseFloat(colStyle.getPropertyValue('--bbgl-stat-row-extra')) || 0);
+                const vertical = (cardHeight - labelHeight * 2 - 7 - padY * 4 - extra * 2) / (expanded ? 3.8 : 4);
+                const emblemScale = parseFloat(colStyle.getPropertyValue('--bbgl-t-emblem-scale')) || 1.12;
                 // The grid reserves clearance outside the plate's 3px overhang.
                 const horizontal = (col.clientWidth - gap * 4) / (5 * emblemScale);
-                col.style.setProperty('--bbgl-t-star', `${Math.max(1, Math.min(vertical, horizontal))}px`);
+                starSizes.push([col, `${Math.max(1, Math.min(vertical, horizontal))}px`]);
             });
+            starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
             // The level-bar tooltip's title text copies the expanded page's size. That text is
             // min(14cqw, 25cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
             // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
@@ -19048,38 +19337,16 @@ const BestGymController = {
             const sign = main.closest('#bbgl-panel.bbgl-expanded') && main.querySelector('.bbgl-title-card-sign');
             if (sign && sign.clientWidth > 0 && sign.clientHeight > 0) {
                 const fs = Math.min(sign.clientWidth * .14, sign.clientHeight * .25);
-                document.documentElement.style.setProperty('--bbgl-tip-title-fs', `${fs.toFixed(2)}px`);
+                // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
+                if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
             }
         }
-        const blocks = document.querySelectorAll('.bbgl-title-block');
-        if (!blocks.length) return true;
-        const measurements = [];
-        let allMeasured = true;
-        blocks.forEach(block => {
-            const svg = block.querySelector(':scope > .bbgl-title-block-frame');
-            const label = block.querySelector(':scope > .bbgl-title-block-label');
-            if (!svg || !label) return;
-            const w = block.offsetWidth, h = block.offsetHeight;
-            const labelW = label.offsetWidth;
-            if (!(w > 0) || !(h > 0)) { allMeasured = false; return; }
-            // getComputedStyle here resolves the actual clamp()'d --bbgl-t-win-radius into a
-            // usable px number — reading the custom property directly would return the
-            // unresolved clamp() string.
-            const radius = parseFloat(getComputedStyle(block).borderRadius) || 0;
-            // Flat, small breathing room rather than a share of the block's own width — the old
-            // w*0.03 term grew the gap with block size for no reason tied to the label itself,
-            // leaving the line stranded well off the first/last letter on wider blocks. Dancing
-            // Script's italic slant already bakes a little whitespace into its own offsetWidth, so
-            // this only needs to cover the stroke's own glow bleeding onto the glyph, not a real gap.
-            const pad = 0.5;
-            measurements.push({ svg, w, h, radius, gapW: labelW + pad * 2 });
-        });
-        measurements.forEach(({ svg, w, h, radius, gapW }) => {
-            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-            const path = svg.querySelector('path');
-            if (path) path.setAttribute('d', roundedRectGapPathD(w, h, radius, w / 2, gapW));
-        });
-        return allMeasured;
+        // Not settled yet if any stat block still measures 0x0 — achRefreshPageDom()'s retry loop
+        // keys off this to re-run the pass on the next frame.
+        for (const block of document.querySelectorAll('.bbgl-title-block')) {
+            if (!(block.offsetWidth > 0) || !(block.offsetHeight > 0)) return false;
+        }
+        return true;
     }
 
     // Returns an element's untransformed layout top in ancestor-local coordinates. offsetTop is
@@ -19235,7 +19502,7 @@ const BestGymController = {
         drop = Math.min(drop, availableBottom - assemblyFloor - blockBottom);
 
         const localY = lineCenter - scaleTop + drop;
-        scale.style.setProperty('--bbgl-t-rank-line-y', `${localY.toFixed(3)}px`);
+        const labelDrop = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-label-drop')) || 0;
 
         // Snap the groove to whole device pixels. localY is fractional, and the line then shifts
         // by its own -50% (half of a 1px bar) and --bbgl-rank-visual-drop, so its 1px edge usually
@@ -19250,12 +19517,34 @@ const BestGymController = {
         // Windows' 125%/130% a 1px CSS line is 1.25-1.3 device px, which pixel snapping rounds to 1
         // or 2 depending on where each line lands — so identical ticks came out at two different
         // thicknesses. The groove reads this for its thickness (see .bbgl-rank-line).
-        scale.style.setProperty('--bbgl-t-hair', `${(Math.max(1, Math.round(dpr)) / dpr).toFixed(4)}px`);
-        const lineRect = line.getBoundingClientRect();
-        const lineCssW = parseFloat(getComputedStyle(line).width);
-        const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
-        const snapOff = (Math.round(lineRect.top * dpr) / dpr - lineRect.top) / (lineScale || 1);
-        if (Math.abs(snapOff) > .001) scale.style.setProperty('--bbgl-t-rank-line-y', `${(localY + snapOff).toFixed(3)}px`);
+        const hairChanged = setStyleVarIfChanged(scale, '--bbgl-t-hair', `${(Math.max(1, Math.round(dpr)) / dpr).toFixed(4)}px`);
+        const prevY = parseFloat(scale.style.getPropertyValue('--bbgl-t-rank-line-y'));
+        const snapOffAt = (top, lineScale) => (Math.round(top * dpr) / dpr - top) / (lineScale || 1);
+        let finalY = localY;
+        let lineHeight;
+        if (!hairChanged && Number.isFinite(prevY)) {
+            // Nothing that moves or resizes the groove has been written yet this pass, so its current
+            // on-screen box is the layout the reads above already paid for. Predict where localY puts
+            // it and snap in one write, instead of writing localY, forcing a second full layout just
+            // to read it back, then writing the snapped value over it.
+            const lineRect = line.getBoundingClientRect();
+            const lineCssW = parseFloat(getComputedStyle(line).width);
+            const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
+            const snapOff = snapOffAt(lineRect.top + (localY - prevY) * lineScale, lineScale);
+            if (Math.abs(snapOff) > .001) finalY = localY + snapOff;
+            lineHeight = line.offsetHeight;
+        } else {
+            // First pass (still on the 50% CSS fallback) or a DPR change resized the groove: nothing
+            // to predict from, so place it and measure where it really landed.
+            scale.style.setProperty('--bbgl-t-rank-line-y', `${localY.toFixed(3)}px`);
+            const lineRect = line.getBoundingClientRect();
+            const lineCssW = parseFloat(getComputedStyle(line).width);
+            const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
+            const snapOff = snapOffAt(lineRect.top, lineScale);
+            if (Math.abs(snapOff) > .001) finalY = localY + snapOff;
+            lineHeight = line.offsetHeight;
+        }
+        setStyleVarIfChanged(scale, '--bbgl-t-rank-line-y', `${finalY.toFixed(3)}px`);
 
         // labelGap above the groove, frozen in pass 1 — expressed relative to the groove itself so
         // every later shift carries the labels along unchanged. Measured from .bbgl-rank-LINE's own
@@ -19263,9 +19552,8 @@ const BestGymController = {
         // containing block — anything scale-relative would pin to the groove regardless of the
         // value given. Negative because the labels sit entirely above the line.
         // Apply label tightening after centring so it cannot move the slider.
-        const labelDrop = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-label-drop')) || 0;
-        const titlesY = line.offsetHeight / 2 - labelGap + labelDrop;
-        scale.style.setProperty('--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
+        const titlesY = lineHeight / 2 - labelGap + labelDrop;
+        setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         return true;
     }
 
@@ -19284,8 +19572,18 @@ const BestGymController = {
     // repeated calls safe without the caller having to remember to tear down first.
     function observeTitleBlockFrames() {
         if (runtime.titleFrameResizeObserver) runtime.titleFrameResizeObserver.disconnect();
+        // observe() always delivers one initial notification. It is deliberately NOT skipped even though
+        // achRefreshPageDom() just ran a synchronous pass: a web font finishing (or that pass's own
+        // --bbgl-t-star writes resizing a block) before the first delivery is only reported by it.
+        // It stays cheap because setStyleVarIfChanged() makes a pass with nothing new write nothing,
+        // so its layout reads hit an already-clean layout.
         runtime.titleFrameResizeObserver = new ResizeObserver(() => {
-            window.requestAnimationFrame(layoutTitlesPageGeometry);
+            // Coalesce: several deliveries before the next frame still get one geometry pass.
+            if (runtime._titleGeometryRafId) return;
+            runtime._titleGeometryRafId = window.requestAnimationFrame(() => {
+                runtime._titleGeometryRafId = null;
+                layoutTitlesPageGeometry();
+            });
         });
         document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob')
             .forEach(el => runtime.titleFrameResizeObserver.observe(el));
@@ -20208,6 +20506,22 @@ const BestGymController = {
         p._bbglResizingCancel = finish;
     }
 
+    // True when every record in a MutationObserver batch happened inside BBGL's own tooltip or panel.
+    // The document.body-subtree observers (domObs in 10-section-ix-init.js, watchLayoutLifecycle below)
+    // exist to notice Torn rebuilding its page, but they also fired on the script's own churn — the
+    // tooltip's content swap on every new hover target, shine elements built on first hover, calendar
+    // and graph re-renders — and ran their checks again each time. A record's target is the node
+    // whose children changed, so BBGL's own elements being added/removed by Torn (target = Torn's
+    // parent) never count as "own" and still get handled.
+    function _bbglMutationsAreOwn(muts) {
+        for (const m of muts) {
+            const t = m.target;
+            const el = t && (t.nodeType === 1 ? t : t.parentElement);
+            if (!el || !el.closest('#bbgl-tooltip, #bbgl-panel')) return false;
+        }
+        return true;
+    }
+
     function _bbglGetChatRoot() {
         return document.getElementById('chatRoot');
     }
@@ -20298,6 +20612,7 @@ const BestGymController = {
                 // re-scanning every record after the first was real wasted work. Nothing is missed:
                 // the queued frame reads live DOM state when it runs, not a snapshot.
                 if (runtime.layoutRafId) return;
+                if (_bbglMutationsAreOwn(muts)) return;
                 for (const m of muts) {
                     if (m.type !== 'childList') continue;
                     if (_containsLayoutWindow(m.addedNodes) || _containsLayoutWindow(m.removedNodes)) {
@@ -24359,8 +24674,8 @@ const BestGymController = {
             e.stopPropagation();
             if (dom.panel.classList.contains('bbgl-mode-page')) return;
             const p = dom.panel;
-            const animate = userConfig.animations && !p.classList.contains('bbgl-no-animations');
-            if (animate) markPanelResizing(p); // suppresses backdrop-filter for the width/height transition
+            // Compact <-> expanded snaps instantly, no animation: every --bbgl-dock-t size inside the panel
+            // reads the panel's width, so any animated resize re-laid-out the whole panel every frame.
             viewState.expanded = !viewState.expanded;
             if (viewState.expanded) {
                 p.classList.add('bbgl-expanded');
@@ -24374,10 +24689,7 @@ const BestGymController = {
             saveViewState();
             handleLayout();
             renderPanelContent();
-            if (dom.topPanel.classList.contains('viewing-graph')) {
-                GraphController.draw();
-                setTimeout(GraphController.draw, 320);
-            }
+            if (dom.topPanel.classList.contains('viewing-graph')) GraphController.draw();
         };
         const lt = get('bbgl-ledger-toggle');
         if (lt) lt.onclick = toggleLedgerView;
@@ -25028,8 +25340,11 @@ const BestGymController = {
         });
         updateLevelBar(); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
-        const domObs = new MutationObserver(function onDomMutationBatch() {
+        const domObs = new MutationObserver(function onDomMutationBatch(muts) {
             if (_domRaf) return;
+            // Changes confined to BBGL's own tooltip/panel can't be Torn moving anything we inject
+            // into — see _bbglMutationsAreOwn() (07-section-vi-ui.js).
+            if (_bbglMutationsAreOwn(muts)) return;
             _domRaf = requestAnimationFrame(function onDomMutationFrame() {
                 _domRaf = null;
                 handleDomMutation();

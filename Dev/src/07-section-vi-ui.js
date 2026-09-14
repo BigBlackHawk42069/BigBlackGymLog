@@ -331,8 +331,13 @@
                         data: i.p
                     });
                 });
-                frag.appendChild(rd);
-                injectWeeklyBar(frag, wdb);
+                // One .bbgl-week per row + its weekly bar, isolated (see .bbgl-week in CSS_STYLES) so
+                // the bar's z-index and any hover layer stay inside this week.
+                const wk = document.createElement('div');
+                wk.className = 'bbgl-week';
+                wk.appendChild(rd);
+                injectWeeklyBar(wk, wdb);
+                frag.appendChild(wk);
                 batch = [];
                 ridx++;
             }
@@ -433,13 +438,18 @@
         // touch-scrub tooltip handler in 10-section-ix-init.js) calls cell._buildShine. No
         // teardown is needed — month navigation rebuilds the whole grid via innerHTML anyway.
         let buildShine = null;
-        cell.addEventListener('mouseenter', () => {
+        // Hover effects wait for hover intent (bindHoverIntent, 03-section-ii-utils.js):
+        // .is-hover-intent stands in for :hover in the cell's CSS (post-it peel, day-number
+        // highlight), and the shine starts at the same moment — so a fast sweep across the grid
+        // starts none of it.
+        bindHoverIntent(cell, () => {
+            cell.classList.add('is-hover-intent');
             if (userConfig.animations) {
                 cell.classList.add('shimmer-active');
                 if (buildShine) buildShine();
             }
-        });
-        cell.addEventListener('mouseleave', () => {
+        }, () => {
+            cell.classList.remove('is-hover-intent');
             if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active');
         });
         const isToday = (ds === ctx.today);
@@ -475,6 +485,13 @@
                 sh.className = 'jewel-shine';
                 sh.style.maskImage = `url("${url}")`;
                 sh.style.webkitMaskImage = `url("${url}")`;
+                // Every shine's gradient rides an inner band moved by transform (see .jewel-shine-band).
+                const addBand = el => {
+                    const band = document.createElement('div');
+                    band.className = 'jewel-shine-band';
+                    el.appendChild(band);
+                };
+                addBand(sh);
                 if (sl.meta.tier === 2) {
                     wrap.appendChild(sh);
                 } else {
@@ -482,6 +499,7 @@
                     const so = document.createElement('div');
                     so.className = 'jewel-shine-over';
                     so.style.setProperty('--jewel-mask', `url("${url}")`);
+                    addBand(so);
                     wrap.appendChild(so);
                 }
             };
@@ -520,6 +538,9 @@
                 si.className = 'cell-sticker-deco';
                 sw.appendChild(si);
                 cell.appendChild(sw);
+                // Stands in for :has(.sticker-wrapper) in the post-it peel CSS: a plain class check is far
+                // cheaper for the browser to re-evaluate on every hover change than a :has() lookup.
+                cell.classList.add('has-sticker');
                 buildShine = () => {
                     if (sw.querySelector('.sticker-shine')) return;
                     const ss = document.createElement('div');
@@ -529,7 +550,11 @@
                     let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                     if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                     else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
-                    ss.style.backgroundImage = grad;
+                    // The gradient rides an inner band moved by transform (see .sticker-shine-band).
+                    const band = document.createElement('div');
+                    band.className = 'sticker-shine-band';
+                    band.style.backgroundImage = grad;
+                    ss.appendChild(band);
                     ss.style.mixBlendMode = "overlay";
                     if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
                     sw.appendChild(ss);
@@ -599,6 +624,11 @@
         tr.dataset.label = sl.label;
         tr.onclick = (e) => { e.stopPropagation(); openHistory(sl, sl.label); };
         if (calendarState.selectedLabel === sl.label) tr.classList.add('is-viewing');
+        // One hover-intent binding on the anchor covers both the track and its handle tab (mouseenter/
+        // mouseleave follow DOM containment, so crossing from one to the other doesn't leave the
+        // anchor). .is-hover-intent on the track stands in for the old track:hover / handle:hover CSS:
+        // sweeps, the handle growing, the glow — and replaces the tab's instant is-scrub-hovered.
+        bindHoverIntent(anchor, () => tr.classList.add('is-hover-intent'), () => tr.classList.remove('is-hover-intent'));
         const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
         const addCenterTab = (slice) => {
             const tab = document.createElement('div');
@@ -610,8 +640,6 @@
             tr.setAttribute('data-tooltip-html', tooltipHtml);
             tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle');
             tab.onclick = (e) => { e.stopPropagation(); openHistory(slice, slice.label); };
-            tab.addEventListener('mouseenter', () => tr.classList.add('is-scrub-hovered'));
-            tab.addEventListener('mouseleave', () => tr.classList.remove('is-scrub-hovered'));
             tab.innerHTML = buildChartSVG(slice);
             anchor.appendChild(tab);
         };
@@ -706,7 +734,48 @@
     function refreshStatTitleUI() {
         const total = (runtime._lastLevelExp !== undefined) ? runtime._lastLevelExp : getLiveLevelExp();
         getLevelBars().forEach(b => renderLevelBar(b, total));
-        if (runtime._achPage === 0) achRefreshPageDom();
+        if (runtime._achPage === 0 && !renderTitlePickLive()) achRefreshPageDom();
+    }
+
+    // Patches a title pick (star click, the reset arrow, the dev title override) into the titles page
+    // in place: the stars' highlight classes and the identity card's title text + reset arrow, which
+    // is everything a pick changes. Replaces achRefreshPageDom()'s full innerHTML rebuild and
+    // geometry pass on every click. Returns false (caller does the real rebuild) when the page isn't
+    // built yet or anything besides the pick differs from the last real build — stat E, the
+    // enhancements period toggle, or which stars are unlocked.
+    function renderTitlePickLive() {
+        const container = document.getElementById('bbgl-achievements-container');
+        const page = container && container.querySelector('.bbgl-titles-page');
+        const label = page && page.querySelector('.bbgl-title-card-title-label');
+        const value = page && page.querySelector('.bbgl-title-card-value');
+        const prevFingerprint = runtime._achLiveFingerprint;
+        if (!label || !value || !runtime._achCache || !prevFingerprint) return false;
+        // Fingerprint is `E | selection | pending pick | period toggle` (achLiveInputsFingerprint()).
+        // Only the two middle, pick-owned segments may have moved.
+        const fingerprint = achLiveInputsFingerprint();
+        const nonPick = fp => { const parts = fp.split('|'); return parts[0] + '|' + parts[3]; };
+        if (nonPick(fingerprint) !== nonPick(prevFingerprint)) return false;
+
+        const sel = getLiveStatTitleSelection();
+        const pending = runtime._titlePick;
+        const stars = Array.from(page.querySelectorAll('.bbgl-title-star'));
+        // Same unlocked test achTitleStarHTML() builds with, checked before any write so a mismatch
+        // can still fall back cleanly.
+        const starPhase = star => parseInt(star.dataset.titlePhaseIdx, 10);
+        if (stars.some(star => (starPhase(star) <= sel.phases[star.dataset.titleStat]) !== star.classList.contains('is-unlocked'))) return false;
+
+        stars.forEach(star => {
+            const role = achTitleStarRole(sel, pending, star.dataset.titleStat, starPhase(star));
+            ['primary', 'secondary', 'both'].forEach(r => star.classList.toggle('is-' + r, role === r));
+        });
+        const { titleValue, labelExtra } = achTitleCardTitleParts(sel, pending);
+        label.innerHTML = `The${labelExtra}`;
+        value.innerHTML = titleValue;
+        runtime._achLiveFingerprint = fingerprint;
+        // A different title can change the sign's text size, which layoutTitleBlockFrames() mirrors
+        // into --bbgl-tip-title-fs; everything unchanged writes nothing (setStyleVarIfChanged()).
+        layoutTitlesPageGeometry();
+        return true;
     }
 
     // Fingerprint of every titles-page input EXCEPT the live level/rank — stat E, the composed
@@ -775,7 +844,18 @@
         // running and restamps --bbgl-titles-animation-delay to the (more negative) elapsed time BEFORE
         // the titles below are replaced, so the freshly-created nodes resume the page's existing
         // animation timeline instead of restarting their reveal/shimmer from 0.
-        syncTitlesPageAnimationClock(container);
+        //
+        // Stamped only on the two subtrees replaced below, not the whole container: that restyled
+        // every element on this heavy page and re-timed every running animation. The exception is a
+        // bricked or card finish/material flip — those switch animations on for EXISTING nodes
+        // outside the replaced subtrees (the line's own is-bricked styling, the card's finish rules),
+        // which need the current clock too, so they still take the container-wide stamp. The two
+        // subtrees are stamped either way: a value left on them by an earlier patch would otherwise
+        // shadow the container's fresh one for the nodes created inside them.
+        const crossesSubtrees = line.classList.contains('is-bricked') !== bricked ||
+            card.dataset.rankFinish !== currentRank.finish ||
+            card.dataset.rankMaterial !== currentRank.material;
+        syncTitlesPageAnimationClock(container, crossesSubtrees ? [container, titles, cardRank] : [titles, cardRank]);
 
         track.style.cssText = rankBarProgressCSS(atrophy, level);
         line.classList.toggle('is-bricked', bricked);
@@ -828,41 +908,24 @@
         runtime._titlePick = null;
     }
 
-    // Open rounded-rect outline, w x h, corner radius r, with a gap centred at gapCenterX on the
-    // TOP edge only, gapW wide — starts just past the gap going clockwise through all 4 corners,
-    // ending just before the gap on the other side (no closing Z: the two open ends are where the
-    // stat-name label straddles the line, see .bbgl-title-block-label/-frame in 04-section-iii-styles.js).
-    // Always fully stroked and regenerated fresh from the block's live pixel size every layout pass
-    // (layoutTitleBlockFrames() below), so there's nothing to re-measure if the shape changes.
-    function roundedRectGapPathD(w, h, r, gapCenterX, gapW) {
-        r = Math.max(0, Math.min(r, w / 2, h / 2));
-        const topRun = Math.max(0, w - 2 * r);
-        // Defensive clamp: the gap can never eat the whole straight top run — always leaves >=1px
-        // of real line on each side so the arcs have something to join, even at compact's
-        // smallest, most-rounded blocks with a wide label.
-        const maxGap = Math.max(0, topRun - 2);
-        let gw = Math.min(Math.max(gapW, 0), maxGap);
-        let gx0 = gapCenterX - gw / 2, gx1 = gapCenterX + gw / 2;
-        if (gx0 < r) { gx1 += (r - gx0); gx0 = r; }
-        if (gx1 > w - r) { gx0 -= (gx1 - (w - r)); gx1 = w - r; }
-        gx0 = Math.max(r, gx0);
-        gx1 = Math.min(w - r, gx1);
-        return [
-            `M ${gx1} 0`,
-            `L ${w - r} 0`, `A ${r} ${r} 0 0 1 ${w} ${r}`,
-            `L ${w} ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`,
-            `L ${r} ${h}`, `A ${r} ${r} 0 0 1 0 ${h - r}`,
-            `L 0 ${r}`, `A ${r} ${r} 0 0 1 ${r} 0`,
-            `L ${gx0} 0`
-        ].join(' ');
+    // Writes for the titles-page geometry passes below only land when the value actually changed.
+    // Even a same-value setProperty invalidates style for the element's whole subtree (for the
+    // --bbgl-tip-title-fs write on <html>, the entire Torn document), makes the next offset*/client*
+    // read force a full recalc + layout of this very heavy page, and can re-fire
+    // titleFrameResizeObserver for a pass that had nothing to change.
+    function setStyleVarIfChanged(el, name, value) {
+        if (el.style.getPropertyValue(name) === value) return false;
+        el.style.setProperty(name, value);
+        return true;
     }
 
-    // Measures every stat block's live pixel size and its label's rendered width, then redraws
-    // that block's neon frame (.bbgl-title-block-frame) with a gap sized to fit the label. Reads
-    // are batched before any writes. Called after the titles page DOM is (re)built
+    // Sizes the titles page's measured pieces: the toolbar clearance, the identity card's title
+    // width/height trim, each stat column's star size, and the level-bar tooltip's title size.
+    // Reads are batched before writes. Called after the titles page DOM is (re)built
     // (achRefreshPageDom(), 06-section-v-logic.js) and on every resize (observeTitleBlockFrames()
-    // below). Returns false if any block was still 0x0 (layout not settled yet) so the caller can
-    // retry next frame instead of guessing a delay.
+    // below). Returns false if any stat block was still 0x0 (layout not settled yet) so the caller
+    // can retry next frame instead of guessing a delay. (It used to also redraw a per-block SVG neon
+    // frame; that frame was replaced by .bbgl-plate-neon and has been removed.)
     //
     // Uses offsetWidth/offsetHeight, NOT getBoundingClientRect(): this page runs a CRT-style scale
     // transform on navigation (bbgl-crt-out/-in), and getBoundingClientRect() reports the visually
@@ -879,42 +942,51 @@
                 const tallest = Math.max(...icons.map(el => el.offsetHeight));
                 const topPad = Math.max(0, (toolbar.offsetHeight - tallest) / 2);
                 // Keep the toolbar icons' top clearance.
-                titlesContainer.style.setProperty('--bbgl-t-toolbar-bottom', `${toolbar.offsetTop + tallest + topPad}px`);
+                setStyleVarIfChanged(titlesContainer, '--bbgl-t-toolbar-bottom', `${toolbar.offsetTop + tallest + topPad}px`);
             }
         }
         const main = document.querySelector('.bbgl-titles-main');
         if (main) {
             const height = main.clientHeight;
+            const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
             // Tooltip card: (176px outer width - 18px border/padding) * .86 by 132px.
-            main.style.setProperty('--bbgl-title-max-width', `${height * (158 * .86 / 132)}px`);
+            setStyleVarIfChanged(main, '--bbgl-title-max-width', `${height * (158 * .86 / 132)}px`);
             const center = main.querySelector('.bbgl-titles-center');
             let cardHeight = height;
+            // The two per-column spacing vars are only ever set here, on .bbgl-titles-main, and
+            // inherited by the columns — so the columns use the values just computed instead of
+            // reading them back through getComputedStyle (which forced a recalc after the writes).
+            let paddingY = null, rowExtra = null;
             if (center) {
                 const widthLoss = Math.max(0, height * .85 - center.clientWidth);
-                const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
                 const heightTrim = expanded
                     ? Math.min(42, height * .27, widthLoss * .55)
                     : Math.min(38, height * .24, widthLoss * .5);
-                main.style.setProperty('--bbgl-title-height-trim', `${heightTrim}px`);
-                main.style.setProperty('--bbgl-stat-padding-y', `${Math.min(3, heightTrim * .1)}px`);
-                main.style.setProperty('--bbgl-stat-row-extra', `${Math.min(3, heightTrim * .1)}px`);
+                paddingY = rowExtra = Math.min(3, heightTrim * .1);
+                setStyleVarIfChanged(main, '--bbgl-title-height-trim', `${heightTrim}px`);
+                setStyleVarIfChanged(main, '--bbgl-stat-padding-y', `${paddingY}px`);
+                setStyleVarIfChanged(main, '--bbgl-stat-row-extra', `${rowExtra}px`);
                 cardHeight -= heightTrim;
             }
+            // Measure every column first, then write every --bbgl-t-star. Interleaving them made each
+            // column's reads force a full recalc + layout for the previous column's write.
+            const starSizes = [];
             main.querySelectorAll('.bbgl-titles-corner-col').forEach(col => {
                 const label = col.querySelector('.bbgl-title-block-label');
                 const row = col.querySelector('.bbgl-title-star-row');
                 if (!label || !row) return;
                 const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
                 const labelHeight = label.offsetHeight;
-                const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
-                const paddingY = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-stat-padding-y')) || 0;
-                const rowExtra = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-stat-row-extra')) || 0;
-                const vertical = (cardHeight - labelHeight * 2 - 7 - paddingY * 4 - rowExtra * 2) / (expanded ? 3.8 : 4);
-                const emblemScale = parseFloat(getComputedStyle(col).getPropertyValue('--bbgl-t-emblem-scale')) || 1.12;
+                const colStyle = getComputedStyle(col);
+                const padY = paddingY !== null ? paddingY : (parseFloat(colStyle.getPropertyValue('--bbgl-stat-padding-y')) || 0);
+                const extra = rowExtra !== null ? rowExtra : (parseFloat(colStyle.getPropertyValue('--bbgl-stat-row-extra')) || 0);
+                const vertical = (cardHeight - labelHeight * 2 - 7 - padY * 4 - extra * 2) / (expanded ? 3.8 : 4);
+                const emblemScale = parseFloat(colStyle.getPropertyValue('--bbgl-t-emblem-scale')) || 1.12;
                 // The grid reserves clearance outside the plate's 3px overhang.
                 const horizontal = (col.clientWidth - gap * 4) / (5 * emblemScale);
-                col.style.setProperty('--bbgl-t-star', `${Math.max(1, Math.min(vertical, horizontal))}px`);
+                starSizes.push([col, `${Math.max(1, Math.min(vertical, horizontal))}px`]);
             });
+            starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
             // The level-bar tooltip's title text copies the expanded page's size. That text is
             // min(14cqw, 25cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
             // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
@@ -923,38 +995,16 @@
             const sign = main.closest('#bbgl-panel.bbgl-expanded') && main.querySelector('.bbgl-title-card-sign');
             if (sign && sign.clientWidth > 0 && sign.clientHeight > 0) {
                 const fs = Math.min(sign.clientWidth * .14, sign.clientHeight * .25);
-                document.documentElement.style.setProperty('--bbgl-tip-title-fs', `${fs.toFixed(2)}px`);
+                // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
+                if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
             }
         }
-        const blocks = document.querySelectorAll('.bbgl-title-block');
-        if (!blocks.length) return true;
-        const measurements = [];
-        let allMeasured = true;
-        blocks.forEach(block => {
-            const svg = block.querySelector(':scope > .bbgl-title-block-frame');
-            const label = block.querySelector(':scope > .bbgl-title-block-label');
-            if (!svg || !label) return;
-            const w = block.offsetWidth, h = block.offsetHeight;
-            const labelW = label.offsetWidth;
-            if (!(w > 0) || !(h > 0)) { allMeasured = false; return; }
-            // getComputedStyle here resolves the actual clamp()'d --bbgl-t-win-radius into a
-            // usable px number — reading the custom property directly would return the
-            // unresolved clamp() string.
-            const radius = parseFloat(getComputedStyle(block).borderRadius) || 0;
-            // Flat, small breathing room rather than a share of the block's own width — the old
-            // w*0.03 term grew the gap with block size for no reason tied to the label itself,
-            // leaving the line stranded well off the first/last letter on wider blocks. Dancing
-            // Script's italic slant already bakes a little whitespace into its own offsetWidth, so
-            // this only needs to cover the stroke's own glow bleeding onto the glyph, not a real gap.
-            const pad = 0.5;
-            measurements.push({ svg, w, h, radius, gapW: labelW + pad * 2 });
-        });
-        measurements.forEach(({ svg, w, h, radius, gapW }) => {
-            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-            const path = svg.querySelector('path');
-            if (path) path.setAttribute('d', roundedRectGapPathD(w, h, radius, w / 2, gapW));
-        });
-        return allMeasured;
+        // Not settled yet if any stat block still measures 0x0 — achRefreshPageDom()'s retry loop
+        // keys off this to re-run the pass on the next frame.
+        for (const block of document.querySelectorAll('.bbgl-title-block')) {
+            if (!(block.offsetWidth > 0) || !(block.offsetHeight > 0)) return false;
+        }
+        return true;
     }
 
     // Returns an element's untransformed layout top in ancestor-local coordinates. offsetTop is
@@ -1110,7 +1160,7 @@
         drop = Math.min(drop, availableBottom - assemblyFloor - blockBottom);
 
         const localY = lineCenter - scaleTop + drop;
-        scale.style.setProperty('--bbgl-t-rank-line-y', `${localY.toFixed(3)}px`);
+        const labelDrop = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-label-drop')) || 0;
 
         // Snap the groove to whole device pixels. localY is fractional, and the line then shifts
         // by its own -50% (half of a 1px bar) and --bbgl-rank-visual-drop, so its 1px edge usually
@@ -1125,12 +1175,34 @@
         // Windows' 125%/130% a 1px CSS line is 1.25-1.3 device px, which pixel snapping rounds to 1
         // or 2 depending on where each line lands — so identical ticks came out at two different
         // thicknesses. The groove reads this for its thickness (see .bbgl-rank-line).
-        scale.style.setProperty('--bbgl-t-hair', `${(Math.max(1, Math.round(dpr)) / dpr).toFixed(4)}px`);
-        const lineRect = line.getBoundingClientRect();
-        const lineCssW = parseFloat(getComputedStyle(line).width);
-        const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
-        const snapOff = (Math.round(lineRect.top * dpr) / dpr - lineRect.top) / (lineScale || 1);
-        if (Math.abs(snapOff) > .001) scale.style.setProperty('--bbgl-t-rank-line-y', `${(localY + snapOff).toFixed(3)}px`);
+        const hairChanged = setStyleVarIfChanged(scale, '--bbgl-t-hair', `${(Math.max(1, Math.round(dpr)) / dpr).toFixed(4)}px`);
+        const prevY = parseFloat(scale.style.getPropertyValue('--bbgl-t-rank-line-y'));
+        const snapOffAt = (top, lineScale) => (Math.round(top * dpr) / dpr - top) / (lineScale || 1);
+        let finalY = localY;
+        let lineHeight;
+        if (!hairChanged && Number.isFinite(prevY)) {
+            // Nothing that moves or resizes the groove has been written yet this pass, so its current
+            // on-screen box is the layout the reads above already paid for. Predict where localY puts
+            // it and snap in one write, instead of writing localY, forcing a second full layout just
+            // to read it back, then writing the snapped value over it.
+            const lineRect = line.getBoundingClientRect();
+            const lineCssW = parseFloat(getComputedStyle(line).width);
+            const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
+            const snapOff = snapOffAt(lineRect.top + (localY - prevY) * lineScale, lineScale);
+            if (Math.abs(snapOff) > .001) finalY = localY + snapOff;
+            lineHeight = line.offsetHeight;
+        } else {
+            // First pass (still on the 50% CSS fallback) or a DPR change resized the groove: nothing
+            // to predict from, so place it and measure where it really landed.
+            scale.style.setProperty('--bbgl-t-rank-line-y', `${localY.toFixed(3)}px`);
+            const lineRect = line.getBoundingClientRect();
+            const lineCssW = parseFloat(getComputedStyle(line).width);
+            const lineScale = lineCssW > 0 ? lineRect.width / lineCssW : 1;
+            const snapOff = snapOffAt(lineRect.top, lineScale);
+            if (Math.abs(snapOff) > .001) finalY = localY + snapOff;
+            lineHeight = line.offsetHeight;
+        }
+        setStyleVarIfChanged(scale, '--bbgl-t-rank-line-y', `${finalY.toFixed(3)}px`);
 
         // labelGap above the groove, frozen in pass 1 — expressed relative to the groove itself so
         // every later shift carries the labels along unchanged. Measured from .bbgl-rank-LINE's own
@@ -1138,9 +1210,8 @@
         // containing block — anything scale-relative would pin to the groove regardless of the
         // value given. Negative because the labels sit entirely above the line.
         // Apply label tightening after centring so it cannot move the slider.
-        const labelDrop = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-label-drop')) || 0;
-        const titlesY = line.offsetHeight / 2 - labelGap + labelDrop;
-        scale.style.setProperty('--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
+        const titlesY = lineHeight / 2 - labelGap + labelDrop;
+        setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         return true;
     }
 
@@ -1159,8 +1230,18 @@
     // repeated calls safe without the caller having to remember to tear down first.
     function observeTitleBlockFrames() {
         if (runtime.titleFrameResizeObserver) runtime.titleFrameResizeObserver.disconnect();
+        // observe() always delivers one initial notification. It is deliberately NOT skipped even though
+        // achRefreshPageDom() just ran a synchronous pass: a web font finishing (or that pass's own
+        // --bbgl-t-star writes resizing a block) before the first delivery is only reported by it.
+        // It stays cheap because setStyleVarIfChanged() makes a pass with nothing new write nothing,
+        // so its layout reads hit an already-clean layout.
         runtime.titleFrameResizeObserver = new ResizeObserver(() => {
-            window.requestAnimationFrame(layoutTitlesPageGeometry);
+            // Coalesce: several deliveries before the next frame still get one geometry pass.
+            if (runtime._titleGeometryRafId) return;
+            runtime._titleGeometryRafId = window.requestAnimationFrame(() => {
+                runtime._titleGeometryRafId = null;
+                layoutTitlesPageGeometry();
+            });
         });
         document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob')
             .forEach(el => runtime.titleFrameResizeObserver.observe(el));
@@ -2083,6 +2164,22 @@
         p._bbglResizingCancel = finish;
     }
 
+    // True when every record in a MutationObserver batch happened inside BBGL's own tooltip or panel.
+    // The document.body-subtree observers (domObs in 10-section-ix-init.js, watchLayoutLifecycle below)
+    // exist to notice Torn rebuilding its page, but they also fired on the script's own churn — the
+    // tooltip's content swap on every new hover target, shine elements built on first hover, calendar
+    // and graph re-renders — and ran their checks again each time. A record's target is the node
+    // whose children changed, so BBGL's own elements being added/removed by Torn (target = Torn's
+    // parent) never count as "own" and still get handled.
+    function _bbglMutationsAreOwn(muts) {
+        for (const m of muts) {
+            const t = m.target;
+            const el = t && (t.nodeType === 1 ? t : t.parentElement);
+            if (!el || !el.closest('#bbgl-tooltip, #bbgl-panel')) return false;
+        }
+        return true;
+    }
+
     function _bbglGetChatRoot() {
         return document.getElementById('chatRoot');
     }
@@ -2173,6 +2270,7 @@
                 // re-scanning every record after the first was real wasted work. Nothing is missed:
                 // the queued frame reads live DOM state when it runs, not a snapshot.
                 if (runtime.layoutRafId) return;
+                if (_bbglMutationsAreOwn(muts)) return;
                 for (const m of muts) {
                     if (m.type !== 'childList') continue;
                     if (_containsLayoutWindow(m.addedNodes) || _containsLayoutWindow(m.removedNodes)) {

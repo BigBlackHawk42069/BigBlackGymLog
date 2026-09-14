@@ -702,7 +702,7 @@
                         max-height: calc(100vh - 50px) !important;
                         overflow-y: auto;
                         overflow-x: hidden;
-                        transition: width .3s cubic-bezier(.25, 1, .5, 1), height .3s cubic-bezier(.25, 1, .5, 1);
+                        /* No width/height transition: every --bbgl-dock-t size inside the panel reads the panel's width, so animating it re-laid-out the whole panel every frame. Size snaps. */
                     }
 
                     #bbgl-panel.bbgl-expanded {
@@ -1207,6 +1207,10 @@
                         filter: drop-shadow(0 0 1px rgba(0, 0, 0, .5));
                         z-index: 1000000;
                         pointer-events: none;
+                        /* Own compositor layer: without it every show/move/hide as the mouse crosses the
+                           grid also repainted the panel content under the tooltip's box (scaled
+                           calendar JPGs, stickers, week bars), not just the tooltip itself. */
+                        will-change: transform;
                         display: none;
                         white-space: normal;
                         box-sizing: border-box;
@@ -1230,7 +1234,7 @@
                         font-weight: 400;
                     }
 
-                    #bbgl-tooltip:has(.bbgl-level-title-tooltip) {
+                    #bbgl-tooltip.is-level-title {
                         background: none;
                         padding: 0;
                         border-radius: 0;
@@ -1238,7 +1242,7 @@
                         max-width: 268px;
                     }
 
-                    #bbgl-tooltip:has(.bbgl-level-title-tooltip) #bbgl-tooltip-arrow {
+                    #bbgl-tooltip.is-level-title #bbgl-tooltip-arrow {
                         display: none;
                     }
 
@@ -1662,7 +1666,6 @@
                         flex-direction: column;
                         padding-top: var(--bbgl-top-pt, 2px);
                         padding-bottom: 0px;
-                        transition: height .3s, padding-top .3s;
                         z-index: 25;
                     }
 
@@ -1694,7 +1697,6 @@
                         right: 0;
                         bottom: 0;
                         height: auto;
-                        transition: top .3s;
                     }
 
                     /* Dedicated box for the SVG toolbar row (view-switcher icons, item counters,
@@ -1984,7 +1986,6 @@
                         font-weight: 400;
                         pointer-events: none;
                         z-index: 50;
-                        transition: font-size .3s;
                     }
 
                     #bbgl-ledger-footer {
@@ -2170,7 +2171,6 @@
                         max-height: var(--bbgl-col-gap);
                         min-height: 0;
                         width: 100%;
-                        transition: max-height .3s, flex-basis .3s;
                     }
 
                     .cell-stack {
@@ -2242,7 +2242,6 @@
                         justify-content: center;
                         white-space: nowrap;
                         letter-spacing: -.5px;
-                        transition: font-size .3s;
                     }
 
                     .l-bot {
@@ -2254,7 +2253,6 @@
                         align-items: center;
                         justify-content: center;
                         white-space: nowrap;
-                        transition: font-size .3s;
                     }
 
                     .c-label {
@@ -2263,7 +2261,6 @@
                         font-size: var(--bbgl-f-label);
                         text-transform: var(--bbgl-label-case);
                         letter-spacing: 0;
-                        transition: font-size .3s;
                     }
 
                     .c-gain .l-top {
@@ -2532,9 +2529,12 @@
                         letter-spacing: .005em;
                     }
 
+                    /* No opacity transition on purpose: each 0.1s fade was an animation starting on an
+                       SVG shape, which Chrome layerizes — and everything the graph draws after that
+                       point (the later series' lines and points) got regrouped and repainted on every
+                       step of a scrub. The dot now simply shows/hides with .active. */
                     .g-point-group .g-point-visual {
                         opacity: 0;
-                        transition: opacity .1s;
                         stroke-width: 1.5;
                         pointer-events: none;
                     }
@@ -3399,7 +3399,6 @@
                         display: flex;
                         flex-direction: column;
                         justify-content: flex-end;
-                        transition: flex .3s cubic-bezier(.25, 1, .5, 1);
                     }
 
                     .bbgl-header-wrapper::before {
@@ -3433,7 +3432,6 @@
                         gap: 8px;
                         position: relative;
                         margin-bottom: 4px;
-                        transition: margin-bottom .3s ease;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-month-header {
@@ -3455,6 +3453,7 @@
                         align-self: flex-end;
                         margin-bottom: 4px;
                         transition: transform .2s, text-shadow .2s;
+                        will-change: transform; /* same reason as .stats-btn / .header-trigger */
                     }
 
                     @media (hover: hover) {
@@ -3630,6 +3629,10 @@
                         align-self: flex-end;
                         transform-origin: center bottom;
                         transform: translate(-5px, calc(-6px + var(--btn-lift, 0px)));
+                        /* Permanent layer: the hover jump/scale and glow (transform + filter transitions)
+                           otherwise got a layer created at hover start and dropped at the end, regrouping
+                           and repainting the header content drawn around and after the button. */
+                        will-change: transform, filter;
                     }
 
                     /* Hover jump is a per-mode absolute (not a delta from rest):
@@ -3671,9 +3674,13 @@
                         text-transform: capitalize;
                         user-select: none;
                         text-shadow: 0 2px 4px #000;
-                        transition: font-size .3s;
                         line-height: 1;
                         transform: translateY(calc(-6px + var(--trigger-lift, 0px)));
+                        /* Own layer, like .stats-btn: the triggers paint after the chart buttons and sit
+                           inside their hover glow, so a button's hover otherwise regrouped and repainted
+                           them. (Rows aren't isolated instead: that would trap each dropdown's z-index
+                           inside its row, under the rows painted after it.) */
+                        will-change: transform;
                     }
 
                     .header-trigger:hover {
@@ -3814,7 +3821,6 @@
                         min-height: 0;
                         position: relative;
                         z-index: 1;
-                        transition: padding .3s ease;
                     }
 
                     .bbgl-week-row {
@@ -3869,6 +3875,20 @@
                         border-left: 1px solid rgba(255, 255, 255, .05);
                     }
 
+                    /* One calendar week: its row of day cells and the weekly bar under it. Its own
+                       stacking context, so the bar's z-index:20 (and the handle growing up into the
+                       row) only ranks above this week's cells, not every cell in the grid, and a
+                       layer appearing on hover is only overlap-checked against this week. Plain
+                       block stacking row-then-bar, so layout is unchanged. */
+                    .bbgl-week {
+                        isolation: isolate;
+                        /* Each week permanently on its own layer, for the same reason as the day cells:
+                           weeks paint top to bottom, and the week bar's hover changes (sweeps starting,
+                           handle growing, its shadows reaching a few px past the week's bottom edge) made
+                           the browser regroup the week painted after it into a new layer and repaint it. */
+                        will-change: transform;
+                    }
+
                     .bbgl-row-slice {
                         display: flex;
                         width: 100%;
@@ -3890,6 +3910,19 @@
                         border-right: 1px solid rgba(255, 255, 255, .05);
                         transition: transform .1s;
                         overflow: hidden;
+                        /* Own stacking context, so the z-indexes inside (sticker 15, post-its 17, day
+                           number 20) order only this cell's contents instead of competing across the
+                           whole grid. Without it, a post-it peel or shine starting in one cell made the
+                           browser treat every later day number/sticker/handle in the grid as possibly
+                           overlapping it, and re-layer + repaint them all. overflow:hidden already
+                           keeps everything inside the cell, so nothing changes visually. */
+                        isolation: isolate;
+                        /* Every cell permanently on its own layer. Cells paint in order within a week,
+                           so a layer appearing inside one hovered cell forced every cell painted after
+                           it (to the end of the week) to be regrouped into a new layer above it. With
+                           each cell already a separate layer in the right order, there's nothing left
+                           to regroup and a hovered cell only repaints itself. */
+                        will-change: transform;
                         user-select: none;
                         -webkit-user-select: none;
                     }
@@ -3920,9 +3953,9 @@
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
                        topmost note (the one covering everything) leaves with zero delay the
                        moment you hover, while notes further down follow in sequence behind it. */
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):has(.sticker-wrapper):hover .bbgl-event-post-it,
-                    .bbgl-day-cell.is-scrub-hovered:has(.sticker-wrapper) .bbgl-event-post-it,
-                    .bbgl-day-cell.is-viewing:has(.sticker-wrapper) .bbgl-event-post-it {
+                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty).is-hover-intent .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-scrub-hovered .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                         transition-delay: calc(((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.15s);
@@ -3932,9 +3965,9 @@
                        .bbgl-event-post-it-top, only ever added when there's more than one note)
                        peels away, revealing whatever's fanned out underneath. A lone post-it with
                        no sticker underneath never moves. */
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(:has(.sticker-wrapper)):hover .bbgl-event-post-it-top,
-                    .bbgl-day-cell.is-scrub-hovered:not(:has(.sticker-wrapper)) .bbgl-event-post-it-top,
-                    .bbgl-day-cell.is-viewing:not(:has(.sticker-wrapper)) .bbgl-event-post-it-top {
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty).is-hover-intent:not(.has-sticker) .bbgl-event-post-it-top,
+                    .bbgl-day-cell.is-scrub-hovered:not(.has-sticker) .bbgl-event-post-it-top,
+                    .bbgl-day-cell.is-viewing:not(.has-sticker) .bbgl-event-post-it-top {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                     }
@@ -3982,9 +4015,11 @@
                         mask-position: center;
                     }
 
-                    @keyframes gold-roll {
+                    /* gold-roll, split in two: the fade stays on .jewel-shine, the travel moves to
+                       .jewel-shine-band as a transform. Both run with the same duration and easing, so
+                       each property eases over the same keyframe segments as the combined original. */
+                    @keyframes gold-roll-fade {
                         0% {
-                            background-position: 200% 0%;
                             opacity: 0
                         }
 
@@ -3993,8 +4028,17 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: 1
+                        }
+                    }
+
+                    @keyframes gold-roll-band {
+                        0% {
+                            transform: translateX(-62.5%)
+                        }
+
+                        100% {
+                            transform: translateX(-15.625%)
                         }
                     }
 
@@ -4004,14 +4048,35 @@
                         -webkit-backface-visibility: hidden;
                     }
 
+                    /* The moving gradient lives on an inner band (.jewel-shine-band) that slides with
+                       transform, instead of animating this element's background-position. That
+                       repainted the gradient through the mask + blend every frame; now the band is
+                       rasterized once and only moved. overflow:hidden limits the band to this box,
+                       which is exactly where the background used to paint. */
                     .jewel-type-gold .jewel-shine {
                         transform: scale(1.2);
                         filter: brightness(1.2);
-                        background: linear-gradient(135deg, transparent 25%, rgba(255, 240, 180, 1) 45%, rgba(255, 255, 255, 1.0) 50%, rgba(255, 240, 180, 1) 55%, transparent 75%);
-                        background-size: 200% auto;
+                        overflow: hidden;
                         mix-blend-mode: soft-light;
                         opacity: 0;
                         transition: opacity .2s;
+                    }
+
+                    /* Geometry mirrors the old background exactly: one gradient tile was 200% x 100%
+                       of the box (2 box widths), repeating, travelling from background-position 200%
+                       (offset -2 widths, = 0% one tile over) to 50% (offset -0.5 widths). Covering the
+                       box across that range needs a band 3 widths wide; it is 3.2 for a sliver of
+                       margin, and kept that small because the whole band is rasterized when the shine
+                       starts. In its own width: tile = 2/3.2, -2 widths = -62.5%, -0.5 = -15.625%. */
+                    .jewel-type-gold .jewel-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 320%;
+                        height: 100%;
+                        background: linear-gradient(135deg, transparent 25%, rgba(255, 240, 180, 1) 45%, rgba(255, 255, 255, 1.0) 50%, rgba(255, 240, 180, 1) 55%, transparent 75%);
+                        background-size: 62.5% 100%;
+                        transform: translateX(-62.5%);
                     }
 
                     .jewel-type-green .jewel-asset {
@@ -4022,12 +4087,38 @@
 
                     /* Green and diamond jewels share the same shine gradients; only the
                        transforms differ per type. */
+                    /* Same inner-band technique as gold (see .jewel-type-gold .jewel-shine): the
+                       gradients below now live on each element's .jewel-shine-band child, which slides
+                       with transform, and the element itself clips it (overflow:hidden) and keeps the
+                       mask, blend mode and per-type transform. */
                     .jewel-type-green .jewel-shine,
                     .jewel-type-diamond .jewel-shine {
-                        background: linear-gradient(120deg, transparent 10%, rgba(0, 220, 110, .4) 28%, rgba(180, 255, 210, .95) 40%, rgba(255, 255, 255, 1.0) 50%, rgba(180, 255, 210, .95) 60%, rgba(0, 220, 110, .4) 72%, transparent 90%);
-                        background-size: 300% auto;
+                        overflow: hidden;
                         mix-blend-mode: screen;
                         opacity: 0;
+                    }
+
+                    /* Old background: 300% x 100% tiles, repeating, animated from background-position
+                       250% to 50% (an offset of -5 to -1 box widths, i.e. more than one whole tile of
+                       travel). A two-tile (600%) band covers the box across that whole range:
+                       translateX(-5/6) and translateX(-1/6) of the band's own width are exactly those
+                       two offsets. At rest it sits at -50% (one whole tile = position 0%). */
+                    :is(.jewel-type-green, .jewel-type-diamond) :is(.jewel-shine, .jewel-shine-over) > .jewel-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 600%;
+                        height: 100%;
+                        background-size: 50% 100%;
+                        transform: translateX(-50%);
+                    }
+
+                    :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine > .jewel-shine-band {
+                        background-image: linear-gradient(120deg, transparent 10%, rgba(0, 220, 110, .4) 28%, rgba(180, 255, 210, .95) 40%, rgba(255, 255, 255, 1.0) 50%, rgba(180, 255, 210, .95) 60%, rgba(0, 220, 110, .4) 72%, transparent 90%);
+                    }
+
+                    :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine-over > .jewel-shine-band {
+                        background-image: linear-gradient(120deg, transparent 0%, rgba(120, 255, 180, .5) 41%, rgba(255, 255, 255, .7) 50%, rgba(120, 255, 180, .5) 59%, transparent 100%);
                     }
 
                     .jewel-type-green .jewel-shine-over,
@@ -4036,8 +4127,7 @@
                         z-index: 3;
                         width: 100%;
                         height: 100%;
-                        background: linear-gradient(120deg, transparent 0%, rgba(120, 255, 180, .5) 41%, rgba(255, 255, 255, .7) 50%, rgba(120, 255, 180, .5) 59%, transparent 100%);
-                        background-size: 300% auto;
+                        overflow: hidden;
                         mix-blend-mode: soft-light;
                         opacity: 0;
                         -webkit-mask-image: var(--jewel-mask);
@@ -4071,9 +4161,11 @@
                         transform: translate(-3%, 3%) scale(1.02, 1.00);
                     }
 
-                    @keyframes green-flash {
+                    /* green-flash / green-flash-over, split like gold-roll: the fades stay on the
+                       elements, the shared travel moves to their bands. Same 1.7s ease-out on all of
+                       them, so each property eases over the same keyframe segments as before. */
+                    @keyframes green-flash-fade {
                         0% {
-                            background-position: 250% 0%;
                             opacity: 0
                         }
 
@@ -4082,14 +4174,12 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: .75
                         }
                     }
 
-                    @keyframes green-flash-over {
+                    @keyframes green-flash-over-fade {
                         0% {
-                            background-position: 250% 0%;
                             opacity: 0
                         }
 
@@ -4098,8 +4188,17 @@
                         }
 
                         100% {
-                            background-position: 50% 0%;
                             opacity: .95
+                        }
+                    }
+
+                    @keyframes green-flash-band {
+                        0% {
+                            transform: translateX(calc(-100% * 5 / 6))
+                        }
+
+                        100% {
+                            transform: translateX(calc(-100% / 6))
                         }
                     }
 
@@ -4143,12 +4242,14 @@
                         pointer-events: none;
                     }
 
+                    /* Same inner-band technique as the jewel shines: the gradient (set inline per tier by
+                       buildShine, 07-section-vi-ui.js) lives on .sticker-shine-band, which slides with
+                       transform. This element keeps the mask, blend mode, brightness filter and rounded
+                       corners, and clips the band (overflow:hidden). */
                     .sticker-shine {
                         position: absolute;
                         inset: 0;
-                        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(200, 250, 255, .001) 30%, rgba(255, 255, 255, .01) 50%, rgba(255, 200, 220, .001) 70%, rgba(255, 255, 255, 0) 100%);
-                        background-size: 400% 400%;
-                        background-position: var(--bg-x, 50%) var(--bg-y, 50%);
+                        overflow: hidden;
                         mix-blend-mode: overlay;
                         opacity: 0;
                         border-radius: 4px;
@@ -4162,15 +4263,32 @@
                         mask-position: center;
                     }
 
-                    @keyframes bbgl-auto-shimmer {
+                    /* Old background: 400% x 400% tiles, repeating, animated diagonally from
+                       background-position 0% 0% to 100% 100% (an offset of 0 to -3 box widths/heights),
+                       resting at 50% 50%. Covering the box across that range needs 4 box sizes each way;
+                       the band is 4.5 for a little margin, and no bigger because the whole band is
+                       rasterized when the shine starts (an 8x8 band was 64x the sticker's pixels). In its
+                       own size: tile = 4/4.5, -3 = -66.667%, the 50% rest (-1.5) = -33.333%. */
+                    .sticker-shine-band {
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 450%;
+                        height: 450%;
+                        background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(200, 250, 255, .001) 30%, rgba(255, 255, 255, .01) 50%, rgba(255, 200, 220, .001) 70%, rgba(255, 255, 255, 0) 100%);
+                        background-size: calc(100% * 4 / 4.5) calc(100% * 4 / 4.5);
+                        transform: translate(calc(-100% / 3), calc(-100% / 3));
+                    }
+
+                    /* The old keyframes held opacity at .85 at both ends, i.e. a constant — so the
+                       outer element now just sits at .85 while active, and only the band animates. */
+                    @keyframes bbgl-auto-shimmer-band {
                         0% {
-                            opacity: .85;
-                            background-position: 0% 0%
+                            transform: translate(0, 0)
                         }
 
                         100% {
-                            opacity: .85;
-                            background-position: 100% 100%
+                            transform: translate(calc(-100% * 2 / 3), calc(-100% * 2 / 3))
                         }
                     }
 
@@ -4225,22 +4343,33 @@
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine {
                         opacity: 1;
-                        animation: gold-roll 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
+                        animation: gold-roll-fade 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine-band {
+                        animation: gold-roll-band 1.2s cubic-bezier(.3, 0, .55, 1) 1 forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine {
                         opacity: 1;
-                        animation: green-flash 1.7s ease-out 1 forwards;
+                        animation: green-flash-fade 1.7s ease-out 1 forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) .jewel-shine-over {
                         opacity: 1;
-                        animation: green-flash-over 1.7s ease-out 1 forwards;
+                        animation: green-flash-over-fade 1.7s ease-out 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) :is(.jewel-type-green, .jewel-type-diamond) :is(.jewel-shine, .jewel-shine-over) > .jewel-shine-band {
+                        animation: green-flash-band 1.7s ease-out 1 forwards;
+                    }
+
+                    .bbgl-day-cell:is(.shimmer-active, .is-viewing) .sticker-shine-band {
+                        animation: bbgl-auto-shimmer-band 2.4s cubic-bezier(.3, 0, .55, 1) 2 alternate forwards;
                     }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .sticker-shine {
-                        animation: bbgl-auto-shimmer 2.4s cubic-bezier(.3, 0, .55, 1) 2 alternate forwards;
-                        opacity: 1;
+                        opacity: .85;
                     }
 
                     .day-num {
@@ -4259,7 +4388,11 @@
                         align-items: center;
                         justify-content: center;
                         border-radius: 50%;
-                        transition: all .2s;
+                        /* Explicit list instead of "all": hover flips transform between none and
+                           scale(1), which look identical but still started a transform transition (and
+                           a re-layering) on every cell hover. Everything that visibly changes across
+                           the day-number states is still listed. */
+                        transition: color .2s, background .2s, font-size .2s, width .2s, height .2s, top .2s, left .2s, z-index .2s;
                         z-index: 20;
                     }
 
@@ -4267,7 +4400,7 @@
                         color: #999;
                     }
 
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(.is-viewing):hover .day-num,
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(.is-viewing).is-hover-intent .day-num,
                     .bbgl-day-cell:not(.empty):not(.is-viewing).is-scrub-hovered .day-num {
                         color: #fff;
                         background: #555;
@@ -4315,6 +4448,11 @@
                         cursor: pointer;
                         border-radius: 0 4px 4px 0;
                         overflow: hidden;
+                        /* Contains the sweep animations that start on hover, so the browser's overlap
+                           check treats the track as one clipped group rather than re-layering (and
+                           repainting) everything painted after it in the calendar. overflow:hidden
+                           already clips the sweeps to the track, so nothing changes visually. */
+                        isolation: isolate;
                         pointer-events: auto;
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                         box-shadow: inset 0 2px 5px rgba(0, 0, 0, .8), inset 0 -1px 0 rgba(255, 255, 255, .05);
@@ -4332,7 +4470,7 @@
                         box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine) {
+                    #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-shine-band, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine, .sticker-shine-band) {
                         animation: none !important;
                         opacity: 0 !important;
                     }
@@ -4365,12 +4503,13 @@
                         opacity: 0;
                     }
 
-                    /* Only animate while the row is actually being looked at — hovered, the
+                    /* Only animate while the row is actually being looked at — hover intent, the
                        currently-viewed week, or touch-scrubbed. At rest the sweep is an inert,
-                       non-animating opacity:0 div (near-zero cost); this cuts the number of
-                       simultaneously-animating sweeps from "every completed week on screen" down
-                       to "at most the one row the mouse is on". */
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep,
+                       non-animating opacity:0 div with no layer of its own, which keeps dozens of idle
+                       sweep layers out of every frame the compositor draws. The layer is only built when
+                       a row becomes active; with hover intent gating that, it no longer happens for every
+                       row the mouse merely crosses. */
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep {
                         will-change: transform, opacity;
@@ -4380,14 +4519,14 @@
                        buildCapsuleBar) instead of one capsule-local bounce — that's what makes the
                        whole bar read as one band traveling to the far end and back, rather than
                        each capsule bouncing on its own. */
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep-pass-fwd,
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep-pass-fwd,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep-pass-fwd,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep-pass-fwd {
                         animation: bbgl-cap-sweep-move-fwd-kf 4s cubic-bezier(.3, 0, .7, 1) infinite,
                                    bbgl-cap-sweep-fade-pass-kf 4s linear infinite;
                     }
 
-                    .bbgl-weekly-track:hover .bbgl-cap-sweep-pass-bwd,
+                    .bbgl-weekly-track.is-hover-intent .bbgl-cap-sweep-pass-bwd,
                     .bbgl-weekly-track.is-viewing .bbgl-cap-sweep-pass-bwd,
                     .bbgl-weekly-track.is-scrub-hovered .bbgl-cap-sweep-pass-bwd {
                         animation: bbgl-cap-sweep-move-bwd-kf 4s cubic-bezier(.3, 0, .7, 1) infinite,
@@ -4517,19 +4656,19 @@
                         height: clamp(22px, calc(22px + 4px * var(--bbgl-page-t)), 26px);
                     }
 
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 32px;
                         --bbgl-handle-active-h: 32px;
                         box-shadow: inset 0 1px 0 rgba(255,255,255,.38), inset 1px 0 0 rgba(255,255,255,.25);
                     }
 
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover ~ .bbgl-bar-handle::before,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before,
                     .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle::before,
                     .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle::before,
-                    body:not(.is-touch-device) .bbgl-bar-handle:hover::before {
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before {
                         opacity: 1;
                     }
 
@@ -4549,7 +4688,7 @@
                     }
 
                     /* Left-edge glow on the track bleeds from the tab on hover — both sides light up together */
-                    body:not(.is-touch-device) .bbgl-weekly-track:hover,
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent,
                     .bbgl-weekly-track.is-scrub-hovered,
                     .bbgl-weekly-track.is-viewing {
                         background: linear-gradient(90deg, rgba(255,255,255,.08) 0%, transparent 12%),
@@ -4557,26 +4696,26 @@
                                     linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 26px;
                         --bbgl-handle-active-h: 26px;
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
                         --bbgl-handle-active-h: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
                     }
 
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track:hover ~ .bbgl-bar-handle,
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
-                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-bar-handle:hover {
+                    body:not(.is-touch-device) #bbgl-panel.bbgl-mode-page .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: clamp(30px, calc(30px + 6px * var(--bbgl-page-t)), 36px);
                         --bbgl-handle-active-h: clamp(30px, calc(30px + 6px * var(--bbgl-page-t)), 36px);
                     }
@@ -4601,6 +4740,10 @@
                         justify-content: flex-end;
                         pointer-events: none;
                         z-index: 10;
+                        /* Own layer: this full-width bar paints after the whole title group and overlaps
+                           the month row's chart-button glow, so every header button hover regrouped and
+                           repainted it — badge, crown and level number included. */
+                        will-change: transform;
                     }
 
                     /* Sibling of #bbgl-level-container, painted behind it, holding the housing
@@ -4612,6 +4755,7 @@
                         right: 0;
                         height: 9px;
                         pointer-events: none;
+                        will-change: transform; /* same reason as #bbgl-level-container */
                     }
 
                     /* Wraps the tucking badge — both the text flag (#bbgl-level-num) and, for
@@ -9490,36 +9634,15 @@
                         padding-bottom: var(--bbgl-t-win-pad-y);
                     }
 
-                    /* The frame for each stat block: a real inline SVG (first child of
-                       .bbgl-title-block, see titleBlockHTML() in 06-section-v-logic.js), its <path
-                       d="..."> generated fresh every layout pass by layoutTitleBlockFrames()
-                       (07-section-vi-ui.js) from the block's own live pixel size — viewBox is set
-                       to match that size exactly (0 0 <w> <h>), so stroke-width:1px here maps 1:1
-                       to on-screen px with no scale-correcting calc() needed, unlike the star
-                       crown's fixed-size icon. Same line-colour/glow recipe as the identity card's
-                       border above and the star trace, so all three read as one light source per
-                       stat. z-index:-1 + inset:0 for the same reason the old pseudo-element used
-                       them — paints behind the star rows/label, not over them. */
-                    .bbgl-title-block-frame {
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        width: 100%;
-                        height: 100%;
-                        pointer-events: none;
-                        overflow: visible;
-                    }
-
-                    .bbgl-title-block-frame path {
-                        fill: none;
-                        stroke: color-mix(in srgb, var(--bbgl-t-win-color) 42%, rgba(255, 255, 255, .92));
-                        stroke-width: 1px;
-                        filter:
-                            drop-shadow(0 0 1px color-mix(in srgb, var(--bbgl-t-win-color) 55%, #fff))
-                            drop-shadow(0 0 calc(4px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 55%, transparent))
-                            drop-shadow(0 0 calc(11px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 26%, transparent));
-                        animation: bbgl-neon-hum var(--bbgl-t-win-hum, 8s) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    /* Animated rank names (emerald/bright-silver, gold, diamond) on their own layer. Their
+                       shine can't be moved to a transform — it's a gradient clipped to the letters with
+                       background-clip:text, plus a blurred glow copy — so it repaints every frame no matter
+                       what. On its own layer only the name itself is redrawn, instead of everything under
+                       its glow reach (plaque grain, rivets, frame bands, the rank track). The line is
+                       already a stacking context (position:relative; z-index:2 below), so its ::before glow
+                       still stacks exactly as before. */
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-bright-silver, .material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
+                        will-change: transform;
                     }
 
                     /* The lit glass inside it. inset:1px keeps the texture off the tube's own line so
@@ -9548,17 +9671,14 @@
                     }
 
                     #bbgl-panel.bbgl-no-animations .bbgl-title-card::before,
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-block-frame path,
                     #bbgl-panel.bbgl-no-animations .bbgl-titles-name {
                         animation: none;
                     }
 
                     /* ─── Stat-name label ────────────────────────────────────────────
                        Straddles the block's own top border line directly — no plate, no wires. The
-                       frame's path (.bbgl-title-block-frame) leaves a literal gap in the top edge
-                       exactly as wide as this label's rendered text (computed by
-                       layoutTitleBlockFrames(), 07-section-vi-ui.js), so the tube reads as
-                       terminating right into the letters rather than running behind/through them —
+                       outline (.bbgl-plate-neon) leaves a notch in its top edge for this label, so the
+                       tube reads as terminating right into the letters rather than running behind/through them —
                        replaces the old hanging-plate sign, which was a deliberately opposite,
                        occluding read next to an open frame; this instead reads as ONE continuous
                        neon object, tube and text alike, cursive text being the natural "handwritten
@@ -10059,10 +10179,6 @@
                             inset 1px 0 0 #9aa6ad38,
                             inset -1px 0 0 #10161980,
                             inset 0 -1px 0 #c4cdd16b;
-                    }
-
-                    .bbgl-title-block-frame {
-                        display: none;
                     }
 
                     .bbgl-plate-neon {
