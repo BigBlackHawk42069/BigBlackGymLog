@@ -1,8 +1,21 @@
-Dev/LEVELING_PLAN.md
-CLAUDE.md
-AGENTS.md
-/Build Tools
-Dev/full-release-build.bat
-Dev/release-build.bat
-Dev/dev-build.bat
-.vscode/tasks.json
+# Allowlist: ignore everything by default, then un-ignore only what belongs on GitHub.
+# Anything new you create stays local unless you add it below.
+
+/*
+/Dev/*
+
+# Repo config
+!/.gitignore
+
+# Builds
+!/BigBlackGymLog.js
+!/Dev/
+!/Dev/BBGLDev.js
+!/Dev/BBGLRelease.js
+
+# Source
+!/Dev/src/
+
+# Docs
+!/UserDocs/
+!/Dev/BBGL Technical Changelog.md
