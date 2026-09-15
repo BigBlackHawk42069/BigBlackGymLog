@@ -3872,7 +3872,7 @@
                         flex-grow: 1;
                         text-align: left;
                         padding-left: 0;
-                        transform: translateX(0px);
+                        transform: translate(0px, -2px);
                         display: flex;
                         flex-direction: column;
                         justify-content: flex-start;
@@ -3960,8 +3960,7 @@
                        visible content. .stats-btn / .header-trigger both add the
                        same hardcoded -6px settled offset so they move together.
                        --trigger-lift / --btn-lift: live per-element tuning knobs
-                       (delta from the settled -6px baseline), default 0 = no change.
-                       --btn-hover-adjust: per-row hover-jump correction. */
+                       (delta from the settled -6px baseline), default 0 = no change. */
                     .header-row {
                         display: flex;
                         align-items: flex-end;
@@ -3970,7 +3969,6 @@
                         height: 16px;
                         --trigger-lift: 0px;
                         --btn-lift: 0px;
-                        --btn-hover-adjust: 0px;
                     }
 
                     #bbgl-panel.bbgl-expanded .header-row {
@@ -3994,7 +3992,6 @@
                        every panel mode, both mathematically and visually. */
 
                     .header-row--year {
-                        --btn-hover-adjust: 1px;
                         --trigger-lift: -4px;
                     }
 
@@ -4033,17 +4030,15 @@
                         will-change: transform, filter;
                     }
 
-                    /* Hover jump is a per-mode absolute (not a delta from rest):
-                       page -4px, expanded -6px, compact -7px; --btn-hover-adjust
-                       (set per-row, e.g. .header-row--year) shifts it +1px shallower. */
+                    /* Same translate as rest, scaled from the bottom edge, so hover/active never
+                       moves the button's bottom off its label. */
                     .stats-btn:hover, .stats-btn.active {
                         opacity: 1;
-                        transform: translate(-5px, calc(var(--btn-hover-jump, -6px) + var(--btn-hover-adjust, 0px))) scale(1.15);
+                        transform: translate(-5px, calc(-6px + var(--btn-lift, 0px))) scale(1.15);
                         filter: drop-shadow(0 0 6px rgba(216, 150, 224, 0.9)) drop-shadow(0 0 2px rgba(171, 71, 188, 1));
                     }
 
                     #bbgl-panel.bbgl-compact .header-row {
-                        --btn-hover-jump: -7px;
                         --btn-lift: -2.5px;
                     }
 
@@ -4052,9 +4047,6 @@
                     }
                     #bbgl-panel.bbgl-compact .header-row--year {
                         --trigger-lift: -3px;
-                    }
-                    #bbgl-panel.bbgl-mode-page .header-row {
-                        --btn-hover-jump: -4px;
                     }
 
                     .stats-btn svg {
