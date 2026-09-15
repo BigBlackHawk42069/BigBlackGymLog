@@ -2897,7 +2897,7 @@ function computeBookData(s) {
     Object.keys(BOOK_META).map(Number).forEach(id => {
         const meta = BOOK_META[id];
         if (id === MEMORIES_BOOK) {
-            result[id] = { state: memories ? 'read' : 'unread' };
+            result[id] = memories ? { state: 'read', start: memories.start, end: memories.end } : { state: 'unread' };
             return;
         }
         const w = windows[id];
@@ -2906,7 +2906,7 @@ function computeBookData(s) {
             return;
         }
         const finished = w.end != null;
-        const entry = { state: finished ? 'read' : 'reading' };
+        const entry = { state: finished ? 'read' : 'reading', start: w.start, end: w.end };
         if (meta.training) Object.assign(entry, effectData(meta, w.start, finished ? w.end : nowTs + 1, w.end));
         result[id] = entry;
     });
@@ -2915,7 +2915,7 @@ function computeBookData(s) {
     if (memories && memories.repeats != null) {
         const repMeta = BOOK_META[memories.repeats];
         if (repMeta && repMeta.training && repMeta.training !== 'repeat') {
-            memoriesRow = Object.assign({ repeats: memories.repeats, start: memories.start }, effectData(repMeta, memories.start, memories.end, memories.end));
+            memoriesRow = Object.assign({ repeats: memories.repeats, start: memories.start, end: memories.end }, effectData(repMeta, memories.start, memories.end, memories.end));
         }
     }
     return { books: result, memories: memoriesRow };
@@ -3651,9 +3651,13 @@ function buildSessionText(sl, s, keys) {
         ds = Formatter.dateFull(sl.date);
     const isSingle = keys.length === 1;
     const eCost = isSingle ? s[keys[0]].cost : s.total.cost;
-    const eTxt = eCost > 0 ? `⚡${Formatter.number(eCost)} E` : '🛌 I was a lazy POS.';
+    // The lazy line is reserved for a period that is fully in the past with no training in any stat;
+    // anything else (today, or a stat that just wasn't trained) reads as 0 E / +0.
+    const lastDate = (sl._dailyList && sl._dailyList.length) ? sl._dailyList[sl._dailyList.length - 1].date : sl.date;
+    const isLazy = !(s.total.cost > 0) && !!lastDate && lastDate < Formatter.dateLogical();
+    const eTxt = isLazy ? '🛌 I was a lazy POS.' : `⚡${Formatter.number(eCost || 0)} E`;
     const statLines = keys
-        .filter(k => s[k].gain > 0 || s[k].cost > 0)
+        .filter(k => isSingle || s[k].gain > 0 || s[k].cost > 0)
         .map(k => `${statEmoji[k]}${statNames[k]}: +${Formatter.achAbbr(s[k].gain, ACH_FMT.gains)} (${Formatter.achAbbr(s[k].start, ACH_FMT.gains)} \u2192 ${Formatter.achAbbr(s[k].end, ACH_FMT.gains)})`);
     return ['👑Big Black Gym Log', '', `${ds} |${eTxt}`, ...statLines].join('\n');
 }

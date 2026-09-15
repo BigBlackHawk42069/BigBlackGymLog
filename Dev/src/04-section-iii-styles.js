@@ -2621,6 +2621,11 @@
                         font-weight: 700;
                     }
 
+                    /* Read books and headers with a read book are click-to-copy. */
+                    #bbgl-library-container [data-lib-copy] {
+                        cursor: pointer;
+                    }
+
                     /* A book used but not finished yet. */
                     .bbgl-lib-reading {
                         margin-left: .5em;

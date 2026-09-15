@@ -288,6 +288,62 @@
             if (st === 'reading') return '<span class="bbgl-lib-reading">Reading</span>';
             return '';
         };
+        // Click-to-copy, only for read books (and a section header once any of its books is read).
+        // Each copyable element carries data-lib-copy, a key into runtime._libCopy; headers also
+        // list the rows to flash. Text follows the achievements copies: header, blank line, then
+        // "Name:" with its details indented beneath.
+        const LIB_H = '👑BBGL Library';
+        const copyMap = {};
+        runtime._libCopy = copyMap;
+        const COPY_STAT = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity' };
+        const COPY_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex' };
+        const nowTs = Math.floor(Date.now() / 1000);
+        const fmtDay = ts => Formatter.datePretty(Formatter.dateLogical(ts * 1000));
+        const copyBlock = (name, desc, meta, d) => {
+            const lines = [name + ':', '  ' + desc];
+            if (meta.training === 'stat') {
+                if (d.end != null) lines.push('  Finished: ' + fmtDay(d.end));
+                lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(d.gain || 0));
+            } else {
+                const from = d.start != null ? fmtDay(d.start) : 'Before log';
+                const to = d.end == null || d.end > nowTs ? 'Active' : fmtDay(d.end);
+                if (d.start != null || d.end != null) lines.push('  ' + from + ' – ' + to);
+                const stats = d.stats || {};
+                if (meta.training === 'gym' && meta.stat) {
+                    lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(stats[meta.stat] || 0));
+                } else if (meta.training) {
+                    ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null).forEach(k => lines.push('  ' + COPY_ABBR[k] + ': +' + Formatter.number(stats[k])));
+                    lines.push('  Total: +' + Formatter.number(stats.tot || 0));
+                }
+            }
+            return lines.join('\n');
+        };
+        const bookBlock = id => copyBlock(BOOK_META[id].name, BOOK_META[id].short || BOOK_META[id].effect, BOOK_META[id], info(id));
+        const isCopyable = id => info(id).state === 'read';
+        // Returns the attributes for a row: registered in the copy map only when the book is read.
+        const rowCopyAttrs = id => {
+            if (!isCopyable(id)) return '';
+            copyMap['b' + id] = LIB_H + '\n\n' + bookBlock(id);
+            return ` data-lib-copy="b${id}"`;
+        };
+        const headerCopyAttrs = (key, title, ids) => {
+            const readIds = ids.filter(isCopyable);
+            if (!readIds.length) return '';
+            copyMap[key] = LIB_H + '\n\n— ' + title + ' —\n' + readIds.map(bookBlock).join('\n\n');
+            return ` data-lib-copy="${key}" data-lib-flash="${readIds.map(id => 'b' + id).join(' ')}" data-tooltip="Click any read book or this title to copy its data to your clipboard."`;
+        };
+        if (!runtime._libCopyWired) {
+            runtime._libCopyWired = true;
+            c.addEventListener('click', e => {
+                const el = e.target.closest('[data-lib-copy]');
+                if (!el || !runtime._libCopy) return;
+                const txt = runtime._libCopy[el.getAttribute('data-lib-copy')];
+                if (!txt) return;
+                const flashKeys = (el.getAttribute('data-lib-flash') || '').split(' ').filter(Boolean);
+                const targets = flashKeys.length ? flashKeys.map(k => c.querySelector(`[data-lib-copy="${k}"]`)).filter(Boolean) : [el];
+                navigator.clipboard.writeText(txt).then(() => flashCopied(targets.length ? targets : el));
+            });
+        }
         const page = viewState.libraryPage === 1 ? 1 : 0;
         const ind = document.getElementById('bbgl-lib-pagination');
         if (ind) {
@@ -306,8 +362,8 @@
             // training book, its effect gets its own row at the bottom of page 1.
             const others = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
             const rowsPerCol = Math.ceil(others.length / 2);
-            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
-            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group">Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
+            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"${rowCopyAttrs(id)}><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
+            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group"${headerCopyAttrs('gOther', 'Other Books', others)}>Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
             return;
         }
         const GROUPS = [
@@ -347,21 +403,22 @@
         const row = id => {
             const b = BOOK_META[id];
             const repeated = memRow && memRow.repeats === id ? ' is-repeated' : '';
-            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}" data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
+            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}"${rowCopyAttrs(id)} data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
         };
         // Headers sit directly in the list beside the rows (not wrapped per group) so every book
         // row still takes an equal share of the height.
         let html = GROUPS.map(([type, label]) => {
             const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type);
             if (!ids.length) return '';
-            return `<div class="bbgl-lib-group" data-type="${type}">${label}</div>${ids.map(row).join('')}`;
+            return `<div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}>${label}</div>${ids.map(row).join('')}`;
         }).join('');
         // Memories And Mammaries' own row, once read, when the book it repeated is a training book:
         // its title, with the repeated book's effect measured over Memories' own period.
         if (memRow) {
             const mem = BOOK_META[MEMORIES_BOOK],
                 rep = BOOK_META[memRow.repeats];
-            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
+            copyMap.bMem = LIB_H + '\n\n' + copyBlock(mem.name, 'Repeated ' + rep.name, rep, memRow);
+            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}" data-lib-copy="bMem"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
         }
         c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
         window.requestAnimationFrame(fitLibraryCells);
