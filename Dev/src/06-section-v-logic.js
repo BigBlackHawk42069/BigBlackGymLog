@@ -86,6 +86,8 @@ const DataController = {
         this._cache.slices = {};
     },
     getBookData() {
+        // Dev-only fake Library data (11-section-x-devtools.js, stripped from release builds).
+        if (runtime.devMode && runtime._devBookOverride) return runtime._devBookOverride;
         if (!this._cache.bookData) this._cache.bookData = computeBookData(getActiveHistory());
         return this._cache.bookData;
     },

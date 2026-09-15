@@ -1984,7 +1984,7 @@
                 // stale; release it so the Resume button works again without a 24h lockout.
                 await recoverInterruptedBackfill();
                 renderScanUI();
-                if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized') && !sessionStorage.getItem('bbgl_dev_onboarding')) localStorage.setItem('bbgl_initialized', '1');
+                if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized'))localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
             }

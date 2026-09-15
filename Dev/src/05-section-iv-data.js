@@ -628,7 +628,7 @@
         if (!panelOpen && !onGymPage) return;
 
         const lastFull = parseInt(localStorage.getItem(KEYS.LAST_SYNC)) || 0;
-        const gate = runtime._devHbIntervalMs || 1800000;
+        const gate = 1800000;
 
         let mission, fire;
         if (panelOpen) {

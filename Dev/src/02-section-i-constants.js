@@ -436,7 +436,8 @@
         // Half-finished stat-title pick on the titles page: {stat, phase} once the first word has
         // been clicked, null otherwise. See handleTitleStarPick() in 07-section-vi-ui.js.
         _titlePick: null,
-        _devTitleOverride: null
+        _devTitleOverride: null,
+        _devBookOverride: null
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
