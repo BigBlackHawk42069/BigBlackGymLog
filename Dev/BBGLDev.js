@@ -185,9 +185,75 @@
         8983: { label: 'Yellow Egg Used', group: 'happy', happy: true, achLabel: 'Yellow Eggs Used' },
         2291: { label: 'Xanax OD', group: 'od', energyLost: true, short: 'Xan OD' },
         2231: { label: 'LSD OD', group: 'od', energyLost: true, short: 'LSD OD' },
-        2211: { label: 'Ecstasy OD', group: 'od', happyLost: true, energyLost: true, short: 'Ex OD' }
+        2211: { label: 'Ecstasy OD', group: 'od', happyLost: true, energyLost: true, short: 'Ex OD' },
+        // Every book shares these two codes; the book itself is data.item, captured as bookId.
+        2050: { label: 'Book Used', group: 'book', book: true },
+        2051: { label: 'Book Finished', group: 'book', book: true }
     };
-    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items' };
+    // Every Torn book, keyed by item id (bookId = data.item on 2050/2051). `training` is set only on
+    // books that affect training: stat (stat +5% on finish), gym (gym gain rate), energy, happy, or
+    // repeat (Memories And Mammaries copies the last book read).
+    const BOOK_META = {
+        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str' },
+        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd' },
+        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def' },
+        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex' },
+        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.' },
+        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.' },
+        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.' },
+        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.' },
+        752: { name: 'Fight Like An Asshole', short: '+25% all battle stats', effect: 'Provides a passive 25% bonus to all stats for 31 days.' },
+        753: { name: 'Mind Over Matter', short: '+100% Strength', effect: 'Provides a passive 100% bonus to Strength for 31 days.' },
+        754: { name: 'No Shame No Pain', short: '+100% Defense', effect: 'Provides a passive 100% bonus to Defense for 31 days.' },
+        755: { name: 'Run Like The Wind', short: '+100% Speed', effect: 'Provides a passive 100% bonus to Speed for 31 days.' },
+        756: { name: 'Weaseling Out Of Trouble', short: '+100% Dexterity', effect: 'Provides a passive 100% bonus to Dexterity for 31 days.' },
+        757: { name: 'Get Hard Or Go Home', short: '+20% all gym gains', effect: 'Increases all gym gains by 20% for 31 days.', training: 'gym' },
+        758: { name: 'Gym Grunting - Shouting To Success', short: '+30% Strength gym gains', effect: 'Increases Strength gym gains by 30% for 31 days.', training: 'gym', stat: 'str' },
+        759: { name: 'Self Defense In The Workplace', short: '+30% Defense gym gains', effect: 'Increases Defense gym gains by 30% for 31 days.', training: 'gym', stat: 'def' },
+        760: { name: 'Speed 3 - The Rejected Script', short: '+30% Speed gym gains', effect: 'Increases Speed gym gains by 30% for 31 days.', training: 'gym', stat: 'spd' },
+        761: { name: 'Limbo Lovers 101', short: '+30% Dexterity gym gains', effect: 'Increases Dexterity gym gains by 30% for 31 days.', training: 'gym', stat: 'dex' },
+        762: { name: 'The Hamburglar\'s Guide To Crime', short: '+25% crime skill & XP', effect: 'Increases crime skill & crime experience gain by 25% for 31 days.' },
+        763: { name: 'What Are Old Folk Good For Anyway?', short: '+25% leveling EXP', effect: 'Increases leveling EXP gain by 25% for 31 days.' },
+        764: { name: 'Medical Degree Schmedical Degree', short: '-50% hospital time', effect: 'Decreases all hospital times by 50% for 31 days.' },
+        765: { name: 'No More Soap On A Rope', short: '-50% jail time', effect: 'Decreases all jail times by 50% for 31 days.' },
+        766: { name: 'Mailing Yourself Abroad', short: '-25% travel time', effect: 'Decreases all travel times by 25% for 31 days.' },
+        767: { name: 'Smuggling For Beginners', short: '+10 travel items', effect: 'Increases travel items by 10 for 31 days.' },
+        768: { name: 'Stealthy Stealing of Underwear', short: 'Maximum stealth', effect: 'Maximum stealth for the next 31 days.' },
+        769: { name: 'Shawshank Sure Ain\'t For Me!', short: 'Better busts & escapes', effect: 'Large jail bust & escape boost for the next 31 days.' },
+        770: { name: 'Ignorance Is Bliss', short: 'Happy regens past max', effect: 'Happiness can regenerate above maximum for 31 days.', training: 'happy' },
+        771: { name: 'Winking To Win', short: '2x contract rewards', effect: 'Doubles contract credit and money rewards for 31 days.' },
+        772: { name: 'Finders Keepers', short: 'More city item spawns', effect: 'Drastically increases city item spawns for 31 days.' },
+        773: { name: 'Hot Turkey', short: 'No drug addiction gain', effect: 'Gain no drug addiction for 31 days.' },
+        774: { name: 'Higher Daddy, Higher!', short: '+20% energy regen', effect: 'Provides +20% energy regeneration for 31 days.', training: 'energy' },
+        775: { name: 'The Real Dutch Courage', short: '2x nerve regen', effect: 'Doubles nerve regeneration for 31 days.' },
+        776: { name: 'Because I\'m Happy - The Pharrell Story', short: '2x happy regen', effect: 'Doubles happiness regeneration for 31 days.', training: 'happy' },
+        777: { name: 'No More Sick Days', short: '2x life regen', effect: 'Doubles life regeneration for 31 days.' },
+        778: { name: 'Duke - My Story', short: 'Duke retaliates for you', effect: 'Duke will occasionally retaliate against your attackers for 31 days.' },
+        779: { name: 'Self Control Is For Losers', short: '-50% consumable cooldowns', effect: 'Decreases all consumable cooldowns by 50% for 31 days.', training: 'energy' },
+        780: { name: 'Going Back For More', short: '-50% medical cooldowns', effect: 'Decreases all medical cooldowns by 50% for 31 days.' },
+        781: { name: 'Get Drunk And Lose Dignity', short: '2x alcohol effects', effect: 'Doubles alcohol effects for 31 days.' },
+        782: { name: 'Fuelling Your Way To Failure', short: '2x energy drink effects', effect: 'Doubles energy drink effects for 31 days.', training: 'energy' },
+        783: { name: 'Yes Please Diabetes', short: '2x candy effects', effect: 'Doubles candy effects for 31 days.', training: 'happy' },
+        784: { name: 'Ugly Energy', short: '250 max energy', effect: 'Increases maximum energy (including energy refills) to 250 for 31 days.', training: 'energy' },
+        785: { name: 'Memories And Mammaries', short: 'Repeats last book read', effect: 'Takes the same effect from the last used book for 31 days.', training: 'repeat' },
+        786: { name: 'Brown-nosing The Boss', short: 'More employee effectiveness', effect: 'Greatly increases personal employee effectiveness for 31 days.' },
+        787: { name: 'Running Away From Trouble', short: 'Guaranteed attack escapes', effect: 'Guaranteed attacking escape attempt success for 31 days.' }
+    };
+    const TRAINING_BOOKS = Object.keys(BOOK_META).map(Number).filter(id => BOOK_META[id].training);
+    // Log categories requested by the custom API key link (Torn logIds).
+    const API_KEY_LOG_IDS = [
+        54, // Defense
+        50, // Dexterity
+        23, // Item Use (includes book used 2050)
+        52, // Speed
+        56, // Strength
+        3,  // Refills (includes points refill 4900)
+        33, // Books (book finished 2051)
+        80  // Faction (faction application accepted 6253, read at backfill start)
+    ];
+    // Not requested:
+    // 6  — Points (refill 4900 is covered by 3)
+    const ITEM_GROUP_LABELS ={ energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
     const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
     const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
     const TRAIN_LOGS = [5300, 5301, 5302, 5303];
@@ -199,8 +265,9 @@
     const STAT_LOGS = itemLogsByGroup('stat');        // 4
     const HAPPY_LOGS = itemLogsByGroup('happy');      // 4
     const OD_LOGS = itemLogsByGroup('od');            // 3 (xan, lsd, ex)
+    const BOOK_LOGS = itemLogsByGroup('book');        // 2 (use, finish)
     const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(',');   // reconcile call (10)
-    const STAT_HAPPY_PARAM = [...HAPPY_LOGS, ...OD_LOGS].join(',');         // reconcile call (7)
+    const STAT_HAPPY_PARAM = [...HAPPY_LOGS, ...OD_LOGS, ...BOOK_LOGS].join(',');   // reconcile call (9)
     const STAT_ENHANCER_PARAM = STAT_LOGS.join(',');                        // conditional call (4)
     // Backfill batches its backward scan into grouped `log=` calls (<=10 types each). Stat enhancers
     // get their own group since they are excluded from the live STAT_HAPPY_PARAM call and must still
@@ -213,7 +280,7 @@
     const BACKFILL_GROUP_KEYS = Object.keys(BACKFILL_GROUPS);
     const BACKFILL_GROUP_OF = {};
     [...TRAIN_LOGS, ...ENERGY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'trainEnergy'; });
-    [...HAPPY_LOGS, ...OD_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
+    [...HAPPY_LOGS, ...OD_LOGS, ...BOOK_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
     STAT_LOGS.forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statEnhancers'; });
     const XANAX_LOG = 2290,
         XANAX_OD_LOG = 2291,
@@ -231,7 +298,7 @@
     // (it never moves battlestats) — so OD rides with train, which is otherwise redundant with the
     // live TRAIN call but cheap insurance (self-heals a missed/aborted TRAIN call for free).
     const ITEM_CODES = [...ENERGY_LOGS, ...HAPPY_LOGS];       // always (10)
-    const TRAIN_OD_CODES = [...TRAIN_LOGS, ...OD_LOGS];       // always (7)
+    const TRAIN_OD_CODES = [...TRAIN_LOGS, ...OD_LOGS, ...BOOK_LOGS];   // always (9)
     // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
     // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
     // makes the overlap harmless.
@@ -1664,6 +1731,7 @@
         LEDGER: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="2" fill="none"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>`,
         GRAPH: `<svg viewBox="0 0 24 24"><path d="M3,12 L7,16 L13,6 L18,14 L22,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
         STICKERBOOK: `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5" fill="none"/><circle cx="12" cy="5.5" r="3.5" fill="none"/><circle cx="18" cy="10" r="3.5" fill="none"/><circle cx="16" cy="17" r="3.5" fill="none"/><circle cx="8" cy="17" r="3.5" fill="none"/><circle cx="6" cy="10" r="3.5" fill="none"/></svg>`,
+        LIBRARY: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="5" height="16" rx="1" fill="none"/><rect x="6" y="2.5" width="5.5" height="19.5" rx="1" fill="none"/><rect x="17.8" y="8" width="5.5" height="14" rx="1" fill="none" transform="rotate(-18 17.8 22)"/></svg>`,
         ACHIEVEMENTS: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" fill="none"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" fill="none"></path><path d="M4 22h16" fill="none"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" fill="none"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" fill="none"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="none"></path></svg>`,
         PASTE: `<svg viewBox="0 0 24 24"><path d="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H14.82C14.4,0.84 13.3,0 12,0C10.7,0 9.6,0.84 9.18,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"/></svg>`,
         CHECK: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17 4 12" fill="none"/></svg>`,
@@ -1706,6 +1774,7 @@
     const EXP_CROWN_PATH = "M193.636 22.044 C 182.529 27.985,180.338 45.621,189.593 54.592 C 193.384 58.266,193.325 58.939,188.176 70.810 C 163.707 127.227,143.908 132.713,103.872 94.170 C 97.232 87.778,97.187 87.704,98.234 84.744 C 102.964 71.365,85.668 57.225,74.917 65.683 C 65.274 73.267,71.102 91.707,83.674 93.393 C 86.535 93.777,87.611 94.407,88.243 96.069 C 89.543 99.488,100.349 139.625,104.966 158.182 C 107.267 167.432,109.322 175.494,109.532 176.099 C 109.800 176.869,111.627 176.423,115.639 174.608 L 286.205 174.613 C 293.432 177.890,291.721 180.896,299.107 151.950 C 311.947 101.626,314.454 93.636,317.401 93.636 C 326.599 93.636,334.579 79.275,330.342 70.347 C 322.578 53.985,297.084 68.675,303.582 85.767 C 305.874 91.794,271.086 117.463,258.740 118.855 C 242.368 120.700,226.759 103.733,212.306 68.380 L 208.113 58.124 211.323 55.097 C 226.571 40.716,211.474 12.503,193.636 22.044 M138.379 65.055 C 132.851 68.927,132.526 85.309,137.973 85.475 C 138.338 85.486,139.582 86.223,140.738 87.112 L 142.839 88.729 139.512 98.673 C 137.682 104.142,135.612 109.726,134.911 111.082 C 133.185 114.418,133.200 114.456,136.789 115.955 C 146.318 119.937,155.721 116.589,165.869 105.601 L 168.556 102.692 162.196 96.119 C 152.170 85.755,152.287 85.936,154.000 83.490 C 160.757 73.843,147.749 58.492,138.379 65.055 M254.135 66.447 C 249.029 70.930,247.780 79.527,251.606 83.864 C 253.281 85.763,253.294 85.744,242.310 97.108 L 235.000 104.671 239.263 108.569 C 247.293 115.913,255.483 117.954,264.959 114.973 C 271.221 113.003,271.405 112.722,269.230 108.440 C 267.406 104.849,262.723 90.706,262.733 88.817 C 262.736 88.218,263.983 87.019,265.504 86.154 C 267.186 85.196,268.997 82.935,270.127 80.379 C 275.243 68.813,263.295 58.404,254.135 66.447";
     const CROWN_BADGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 20 280 154.6" preserveAspectRatio="none">${ASSETS.GRADIENT}<g><path fill="url(#bbgl_silver_grad)" d="${EXP_CROWN_PATH}"></path></g></svg>`;
     const CROWN_BADGE_URL = `data:image/svg+xml,${encodeURIComponent(CROWN_BADGE_SVG)}`;
+    const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
 
@@ -2406,8 +2475,15 @@
                         --bbgl-ledger-footer-pb: 3px;
                         --bbgl-top-pt: 18px;
                         --bbgl-toolbar-pad: 8px;
-                        --bbgl-toolbar-gap: 11px;
+                        /* 9px, the same tap-target floor expanded and page use: at 11px the graph band
+                           ran 18px short once the Library icon joined the row. */
+                        --bbgl-toolbar-gap: 9px;
                         --bbgl-toolbar-min-gap: 12px;
+                    }
+
+                    /* The other 6px of that shortfall, taken only where the stat pills exist. */
+                    #bbgl-panel.bbgl-compact #bbgl-top-panel.viewing-graph #bbgl-toolbar {
+                        --bbgl-toolbar-min-gap: 6px;
                     }
 
                     #bbgl-panel.bbgl-mode-page {
@@ -3454,6 +3530,7 @@
                     #bbgl-ledger-toggle,
                     #bbgl-graph-toggle,
                     #bbgl-achievements-toggle,
+                    #bbgl-library-toggle,
                     #bbgl-sticker-toggle,
                     #bbgl-copy-btn {
                         color: rgba(255, 255, 255, .55);
@@ -3470,6 +3547,7 @@
                     #bbgl-ledger-toggle:hover,
                     #bbgl-graph-toggle:hover,
                     #bbgl-achievements-toggle:hover,
+                    #bbgl-library-toggle:hover,
                     #bbgl-sticker-toggle:hover,
                     #bbgl-copy-btn:hover {
                         color: rgba(255, 255, 255, 1);
@@ -3478,6 +3556,7 @@
                     #bbgl-ledger-toggle,
                     #bbgl-graph-toggle,
                     #bbgl-achievements-toggle,
+                    #bbgl-library-toggle,
                     #bbgl-sticker-toggle,
                     #bbgl-copy-btn {
                         z-index: 59;
@@ -3494,6 +3573,7 @@
                     #bbgl-ledger-toggle svg,
                     #bbgl-graph-toggle svg,
                     #bbgl-achievements-toggle svg,
+                    #bbgl-library-toggle svg,
                     #bbgl-sticker-toggle svg,
                     #bbgl-copy-btn svg {
                         fill: currentColor;
@@ -3501,6 +3581,8 @@
 
                     #bbgl-graph-toggle,
                     #bbgl-graph-toggle svg,
+                    #bbgl-library-toggle,
+                    #bbgl-library-toggle svg,
                     #bbgl-sticker-toggle,
                     #bbgl-sticker-toggle svg {
                         width: 14px;
@@ -3519,13 +3601,14 @@
 
                     .viewing-graph #bbgl-graph-toggle,
                     .viewing-achievements #bbgl-achievements-toggle,
+                    .viewing-library #bbgl-library-toggle,
                     .viewing-stickers #bbgl-sticker-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
                     }
 
-                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements) #bbgl-ledger-toggle {
+                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library) #bbgl-ledger-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
@@ -3551,6 +3634,7 @@
                         height: 15.5px;
                     }
 
+                    .bbgl-expanded #bbgl-library-toggle,
                     .bbgl-expanded #bbgl-sticker-toggle {
                         width: 16px;
                         height: 15px;
@@ -3565,6 +3649,7 @@
                     #bbgl-panel.bbgl-mode-page #bbgl-ledger-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-graph-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-achievements-toggle,
+                    #bbgl-panel.bbgl-mode-page #bbgl-library-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-sticker-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-copy-btn {
                         width: clamp(14.5px, calc(14.5px + 3.5px * var(--bbgl-page-t)), 18px);
@@ -3578,11 +3663,13 @@
                     .bbgl-expanded #bbgl-ledger-toggle svg,
                     .bbgl-expanded #bbgl-graph-toggle svg,
                     .bbgl-expanded #bbgl-achievements-toggle svg,
+                    .bbgl-expanded #bbgl-library-toggle svg,
                     .bbgl-expanded #bbgl-sticker-toggle svg,
                     .bbgl-expanded #bbgl-copy-btn svg,
                     .bbgl-mode-page #bbgl-ledger-toggle svg,
                     .bbgl-mode-page #bbgl-graph-toggle svg,
                     .bbgl-mode-page #bbgl-achievements-toggle svg,
+                    .bbgl-mode-page #bbgl-library-toggle svg,
                     .bbgl-mode-page #bbgl-sticker-toggle svg,
                     .bbgl-mode-page #bbgl-copy-btn svg {
                         width: 100% !important;
@@ -3672,7 +3759,9 @@
                     .viewing-graph .ui-floating-label,
                     .viewing-graph .ui-floating-summary,
                     .viewing-achievements .ui-floating-label,
-                    .viewing-achievements .ui-floating-summary {
+                    .viewing-achievements .ui-floating-summary,
+                    .viewing-library .ui-floating-label,
+                    .viewing-library .ui-floating-summary {
                         opacity: 0;
                     }
 
@@ -3693,11 +3782,13 @@
                         display: none !important;
                     }
 
-                    #bbgl-top-panel.viewing-achievements {
+                    #bbgl-top-panel.viewing-achievements,
+                    #bbgl-top-panel.viewing-library {
                         border-bottom: none !important;
                     }
 
-                    #bbgl-top-panel.viewing-achievements::after {
+                    #bbgl-top-panel.viewing-achievements::after,
+                    #bbgl-top-panel.viewing-library::after {
                         box-shadow: inset 1px 1px 1px rgba(255, 255, 255, .2) !important;
                     }
 
@@ -3716,7 +3807,8 @@
 
                     .viewing-graph #bbgl-ledger-view,
                     .viewing-stickers #bbgl-ledger-view,
-                    .viewing-achievements #bbgl-ledger-view {
+                    .viewing-achievements #bbgl-ledger-view,
+                    .viewing-library #bbgl-ledger-view {
                         display: none !important;
                     }
 
@@ -3942,7 +4034,8 @@
                     }
 
                     #bbgl-graph-container,
-                    #bbgl-achievements-container {
+                    #bbgl-achievements-container,
+                    #bbgl-library-container {
                         display: none;
                         flex: 1;
                         flex-direction: column;
@@ -3951,8 +4044,329 @@
                     }
 
                     .viewing-graph #bbgl-graph-container,
-                    .viewing-achievements #bbgl-achievements-container {
+                    .viewing-achievements #bbgl-achievements-container,
+                    .viewing-library #bbgl-library-container {
                         display: flex;
+                    }
+
+                    /* The Library takes the whole panel: #bbgl-top-panel grows over the calendar. Docked
+                       modes already lay it absolutely over #bbgl-bottom-panel, so it just fills its
+                       box. Page mode stacks them in flow, so it grows by the bottom panel's measured
+                       height (--bbgl-lib-extra, set by resizeLibraryPanel()) and gives the same amount
+                       back as a negative margin, which keeps the page from changing height. The
+                       transition only exists while bbgl-lib-anim is on, so mode switches stay instant. */
+                    #bbgl-panel:not(.bbgl-mode-page) #bbgl-top-panel.viewing-library {
+                        height: 100%;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-library {
+                        flex-basis: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) + var(--bbgl-lib-extra, 0px));
+                        height: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) + var(--bbgl-lib-extra, 0px));
+                        margin-bottom: calc(-1 * var(--bbgl-lib-extra, 0px));
+                    }
+
+                    /* The glass art is drawn for the normal top-panel height, so at full height it is
+                       sliced instead of stretched: the top 85% and bottom 5% keep their normal-height
+                       proportions and only the 85-95% band (side glare only) stretches to fill the
+                       rest. Slice widths are fractions of the normal top-panel height; percentages in
+                       --bbgl-top-h resolve against this box, which is that same full height here. */
+                    #bbgl-top-panel.viewing-library .glass-overlay {
+                        background-image: none;
+                        border-style: solid;
+                        border-width: 0;
+                        border-image-source: url('${ASSETS.GLASS_OVERLAY}');
+                        border-image-slice: 85% 0 5% 0 fill;
+                        border-image-width: calc(var(--bbgl-top-h) * .85) 0 calc(var(--bbgl-top-h) * .05) 0;
+                        border-image-repeat: stretch;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-library .glass-overlay {
+                        border-image-width: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) * .85) 0 calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) * .05) 0;
+                    }
+
+                    #bbgl-panel.bbgl-lib-anim #bbgl-top-panel {
+                        transition: height .36s cubic-bezier(.25, .8, .25, 1), flex-basis .36s cubic-bezier(.25, .8, .25, 1), margin-bottom .36s cubic-bezier(.25, .8, .25, 1);
+                    }
+
+                    /* The Library's space: everything under the toolbar band (the same top clearance
+                       the graph uses), inset on the sides to clear the glass overlay's edge glare.
+                       A size container, so row type scales with the page's height and 17 rows always
+                       fit without scrolling. */
+                    #bbgl-library-container {
+                        min-height: 0;
+                        overflow: hidden;
+                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(14px, 6%, 32px) 10px;
+                        container-type: size;
+                        container-name: bbgl-lib;
+                        --bbgl-lib-font: 'Barlow Condensed', 'Arial Narrow', 'Nimbus Sans Narrow', Tahoma, sans-serif;
+                    }
+
+                    .bbgl-lib-list {
+                        flex: 1;
+                        min-height: 0;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    /* Type header above each group. Fixed to its own content height so the book rows
+                       below keep splitting the rest of the page evenly. */
+                    .bbgl-lib-group {
+                        flex: 0 0 auto;
+                        display: flex;
+                        align-items: center;
+                        gap: .5em;
+                        padding: clamp(4px, 1.4cqh, 10px) 0 clamp(2px, .6cqh, 4px);
+                        font-family: var(--bbgl-lib-font);
+                        font-size: clamp(8.5px, 2.1cqh, 13px);
+                        font-weight: 600;
+                        letter-spacing: .1em;
+                        text-transform: uppercase;
+                        color: rgba(255, 255, 255, .42);
+                    }
+
+                    .bbgl-lib-group:first-child {
+                        padding-top: 0;
+                    }
+
+                    .bbgl-lib-group::after {
+                        content: "";
+                        flex: 1;
+                        height: 1px;
+                        background: rgba(255, 255, 255, .12);
+                    }
+
+                    /* Left column: title over its short effect. Right column: reserved for the book's
+                       data. */
+                    .bbgl-lib-row {
+                        flex: 1 1 0;
+                        min-height: 0;
+                        overflow: hidden;
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                        align-items: center;
+                        column-gap: 10px;
+                        padding-left: .5em;
+                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                    }
+
+                    .bbgl-lib-row:last-child,
+                    .bbgl-lib-row:has(+ .bbgl-lib-group) {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-text {
+                        min-width: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        text-align: left;
+                        line-height: 1.1;
+                        font-family: var(--bbgl-lib-font);
+                    }
+
+                    .bbgl-lib-data {
+                        min-width: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        font-family: var(--bbgl-lib-font);
+                    }
+
+                    .bbgl-lib-name,
+                    .bbgl-lib-effect {
+                        max-width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .bbgl-lib-name {
+                        font-size: clamp(8px, 2.1cqh, 12px);
+                        font-weight: 600;
+                        color: #e6e6e6;
+                    }
+
+                    .bbgl-lib-effect {
+                        font-size: clamp(7px, 1.7cqh, 10px);
+                        color: rgba(255, 255, 255, .55);
+                    }
+
+                    /* Hanging indent: page 1's descriptions sit in from their title. */
+                    .bbgl-lib-row .bbgl-lib-effect {
+                        box-sizing: border-box;
+                        padding-left: .9em;
+                    }
+
+                    /* Book data cells: each number with its coloured label centred beneath it. The cell
+                       group sits against the column's right edge without right-justifying the text.
+                       Compact puts each cell on one line with the abbreviated number and short label. */
+                    .bbgl-lib-cells {
+                        flex: 0 0 auto;
+                        display: flex;
+                        align-items: center;
+                        gap: clamp(6px, 2.5cqw, 14px);
+                        white-space: nowrap;
+                    }
+
+                    .bbgl-lib-cell {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                        line-height: 1.1;
+                    }
+
+                    .bbgl-lib-val {
+                        font-size: clamp(8.5px, 2.2cqh, 13px);
+                        font-weight: 600;
+                        color: #e6e6e6;
+                        font-variant-numeric: tabular-nums;
+                    }
+
+                    /* Every cell reserves room for its largest expected number so centres line up down
+                       the column whatever is showing: full width fits "+999,999,999", the abbreviated
+                       form fits "+999.9m". Compact's inline cells are right-aligned instead. */
+                    .bbgl-lib-val.v-full {
+                        min-width: 12ch;
+                    }
+
+                    .bbgl-lib-val.v-abbr {
+                        min-width: 7ch;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-val {
+                        min-width: 0;
+                    }
+
+                    .bbgl-lib-stat {
+                        font-size: clamp(7px, 1.6cqh, 10px);
+                        font-weight: 600;
+                    }
+
+                    .bbgl-lib-cell.s-str .bbgl-lib-stat { color: ${CONSTANTS.COLORS.STR}; }
+                    .bbgl-lib-cell.s-def .bbgl-lib-stat { color: ${CONSTANTS.COLORS.DEF}; }
+                    .bbgl-lib-cell.s-spd .bbgl-lib-stat { color: ${CONSTANTS.COLORS.SPD}; }
+                    .bbgl-lib-cell.s-dex .bbgl-lib-stat { color: ${CONSTANTS.COLORS.DEX}; }
+                    .bbgl-lib-cell.s-tot .bbgl-lib-stat { color: ${CONSTANTS.COLORS.TOT}; }
+
+                    .bbgl-lib-cell .v-abbr,
+                    .bbgl-lib-cell .l-abbr {
+                        display: none;
+                    }
+
+                    /* A multi-cell group that didn't fit (see fitLibraryCells()) abbreviates in place. */
+                    .bbgl-lib-cells.is-tight .v-full,
+                    .bbgl-lib-cells.is-tight .l-full {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .v-abbr,
+                    .bbgl-lib-cells.is-tight .l-abbr {
+                        display: inline;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell {
+                        flex-direction: row;
+                        align-items: baseline;
+                        gap: .3em;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-full {
+                        display: none;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-abbr,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-abbr {
+                        display: inline;
+                    }
+
+                    /* Compact shows only the Total of a multi-stat book. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cells.is-multi .bbgl-lib-cell:not(.s-tot) {
+                        display: none;
+                    }
+
+                    /* Page 2: the non-training books as a plain checklist, two columns filled top to
+                       bottom, every cell an equal share of the height. */
+                    .bbgl-lib-grid {
+                        flex: 1;
+                        min-height: 0;
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-rows: repeat(var(--bbgl-lib-rows), minmax(0, 1fr));
+                        grid-auto-flow: column;
+                        column-gap: clamp(10px, 4cqw, 28px);
+                    }
+
+                    .bbgl-lib-item {
+                        min-width: 0;
+                        min-height: 0;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        line-height: 1.1;
+                        font-family: var(--bbgl-lib-font);
+                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                    }
+
+                    .bbgl-lib-item.is-unread {
+                        opacity: .6;
+                        filter: grayscale(1);
+                    }
+
+                    /* Compact trims each book to its title; the effect text returns in expanded and page mode. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-effect {
+                        display: none;
+                    }
+
+                    .bbgl-lib-check {
+                        margin-left: .35em;
+                        color: #69f0ae;
+                        font-weight: 700;
+                    }
+
+                    /* A book used but not finished yet. */
+                    .bbgl-lib-reading {
+                        margin-left: .5em;
+                        font-size: .72em;
+                        font-weight: 600;
+                        letter-spacing: .06em;
+                        text-transform: uppercase;
+                        color: #8fd3ff;
+                    }
+
+                    /* Memories And Mammaries' row and the book it repeated share a soft gold tint. The
+                       Memories row sits a little apart from the rows above it, with no header. */
+                    .bbgl-lib-row.is-repeat,
+                    .bbgl-lib-row.is-repeated {
+                        background: linear-gradient(90deg, rgba(255, 205, 100, .12), rgba(255, 205, 100, .04));
+                        border-radius: 3px;
+                    }
+
+                    .bbgl-lib-row.is-repeat {
+                        margin-top: clamp(3px, 1cqh, 8px);
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-data-inner {
+                        display: flex;
+                        justify-content: flex-end;
+                        min-width: 0;
+                    }
+
+                    /* Values that may be incomplete or imprecise read slightly dimmer; the tooltip says why. */
+                    .bbgl-lib-data-inner.is-approx .bbgl-lib-val {
+                        opacity: .7;
+                    }
+
+                    /* Unread books are greyed out rather than given a status column. Only the title and
+                       description fade: the data column keeps its stat colours either way. */
+                    .bbgl-lib-row.is-unread .bbgl-lib-text {
+                        opacity: .6;
+                        filter: grayscale(1);
                     }
 
                     .viewing-graph #bbgl-graph-container {
@@ -4027,6 +4441,22 @@
 
                     #bbgl-top-panel.viewing-graph .g-hud-sep {
                         display: block;
+                    }
+
+                    /* The smallest page tier's graph band ran 16px short once the Library icon joined
+                       the row. The inset and icon gap tighten for every view, not just graph, so the
+                       icon row sits in the same place whichever page is open. Declared on the band
+                       itself so the content padding that also reads --bbgl-toolbar-pad is untouched. */
+                    @container bbgl-page (max-width:385px) {
+                        #bbgl-panel.bbgl-mode-page #bbgl-toolbar {
+                            --bbgl-toolbar-pad: 8px;
+                            --bbgl-toolbar-gap: 8px;
+                        }
+
+                        /* Clearance before the stat pills only exists in graph view. */
+                        #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-graph #bbgl-toolbar {
+                            --bbgl-toolbar-min-gap: 6px;
+                        }
                     }
 
                     .g-toggles {
@@ -4410,7 +4840,8 @@
 
                        The stickerbook's original big edge arrows (.sticker-nav-btn) are unrelated,
                        stayed inside #bbgl-sticker-container, and are untouched by any of this. */
-                    #bbgl-sticker-pagination-bar {
+                    #bbgl-sticker-pagination-bar,
+                    #bbgl-lib-pagination-bar {
                         --bbgl-ach-dot-gap: 8px;
                         --bbgl-ach-dot-w: 8px;
                         --bbgl-ach-nav-size: clamp(7px, calc(1.3 * var(--bbgl-ach-dot-w)), 11px);
@@ -4427,11 +4858,13 @@
                         z-index: 61;
                     }
 
-                    #bbgl-top-panel.viewing-stickers #bbgl-sticker-pagination-bar {
+                    #bbgl-top-panel.viewing-stickers #bbgl-sticker-pagination-bar,
+                    #bbgl-top-panel.viewing-library #bbgl-lib-pagination-bar {
                         display: flex;
                     }
 
-                    #bbgl-sticker-pagination {
+                    #bbgl-sticker-pagination,
+                    #bbgl-lib-pagination {
                         display: flex;
                         align-items: center;
                         gap: var(--bbgl-ach-dot-gap);
@@ -4549,7 +4982,8 @@
 
                     /* Copy session + item counters are ledger-only: hide on every non-ledger view. */
                     .viewing-graph .copy-hist-btn,
-                    .viewing-achievements .copy-hist-btn {
+                    .viewing-achievements .copy-hist-btn,
+                    .viewing-library .copy-hist-btn {
                         display: none !important;
                     }
 
@@ -4576,6 +5010,7 @@
 
                     .viewing-graph #bbgl-item-counters,
                     .viewing-achievements #bbgl-item-counters,
+                    .viewing-library #bbgl-item-counters,
                     .viewing-stickers #bbgl-item-counters {
                         display: none !important;
                     }
@@ -4659,7 +5094,8 @@
                         font-size: clamp(8px, calc(8px + 2px * var(--bbgl-page-t)), 10px);
                     }
 
-                    #bbgl-panel.bbgl-mode-page #bbgl-sticker-pagination-bar {
+                    #bbgl-panel.bbgl-mode-page #bbgl-sticker-pagination-bar,
+                    #bbgl-panel.bbgl-mode-page #bbgl-lib-pagination-bar {
                         --bbgl-ach-dot-gap: clamp(5px, calc(5px + 3px * var(--bbgl-page-t)), 8px);
                         --bbgl-ach-dot-w: clamp(6px, calc(6px + 2px * var(--bbgl-page-t)), 8px);
                         --bbgl-ach-nav-size: clamp(7px, calc(1.3 * var(--bbgl-ach-dot-w)), 11px);
@@ -6094,21 +6530,15 @@
                            already clips the sweeps to the track, so nothing changes visually. */
                         isolation: isolate;
                         pointer-events: auto;
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
-                        box-shadow: inset 0 2px 5px rgba(0, 0, 0, .8), inset 0 -1px 0 rgba(255, 255, 255, .05);
+                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
+                        box-shadow: none;
+                        z-index: 1;
                     }
 
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track {
                         height: 12px;
                     }
 
-                    .bbgl-weekly-track.is-viewing {
-                        box-shadow: 0 0 5px rgba(255, 255, 255, .3), inset 0 2px 5px rgba(0, 0, 0, .8);
-                    }
-
-                    .bbgl-weekly-track.track-polished {
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
-                    }
 
                     #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-shine-band, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine, .sticker-shine-band) {
                         animation: none !important;
@@ -6133,6 +6563,7 @@
                     }
 
                     .bbgl-cap-win {
+                        border-radius: 3% / 13%;
                         position: absolute;
                         overflow: hidden;
                     }
@@ -6178,15 +6609,15 @@
                        Still a static background, so only transform/opacity animate and the
                        compositor-only behavior from earlier is unaffected. */
                     .bbgl-cap-sweep-green {
-                        background: linear-gradient(90deg, rgba(68, 255, 0, 0) 0%, rgba(120, 255, 60, .95) 15%, rgba(210, 255, 190, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(210, 255, 190, 1) 65%, rgba(120, 255, 60, .95) 85%, rgba(68, 255, 0, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(95,255,20,.45) 12%, rgba(169,255,92,.9) 28%, #f1ffdf 42%, #ffffff 48%, #ffffff 52%, #f1ffdf 58%, rgba(169,255,92,.9) 72%, rgba(95,255,20,.45) 88%, transparent 100%);
                     }
 
                     .bbgl-cap-sweep-gold {
-                        background: linear-gradient(90deg, rgba(255, 170, 0, 0) 0%, rgba(255, 210, 80, .95) 15%, rgba(255, 252, 230, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(255, 252, 230, 1) 65%, rgba(255, 210, 80, .95) 85%, rgba(255, 170, 0, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(255,175,20,.45) 12%, rgba(255,217,94,.9) 28%, #fff4d2 42%, #ffffff 48%, #ffffff 52%, #fff4d2 58%, rgba(255,217,94,.9) 72%, rgba(255,175,20,.45) 88%, transparent 100%);
                     }
 
                     .bbgl-cap-sweep-diamond {
-                        background: linear-gradient(90deg, rgba(170, 68, 255, 0) 0%, rgba(215, 160, 255, .95) 15%, rgba(245, 245, 255, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(225, 245, 255, 1) 65%, rgba(160, 215, 255, .95) 85%, rgba(68, 170, 255, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(185,145,255,.45) 12%, rgba(221,203,255,.9) 28%, #eefff9 42%, #ffffff 48%, #ffffff 52%, #eefff9 58%, rgba(171,230,255,.9) 72%, rgba(120,220,235,.45) 88%, transparent 100%);
                     }
 
                     /* Outbound leg, left-to-right (see .bbgl-cap-sweep-pass-fwd above). */
@@ -6273,6 +6704,18 @@
                         transition: height .2s cubic-bezier(.18, .89, .32, 1.28), box-shadow .15s ease;
                     }
 
+                    .bbgl-summary-inset {
+                        position: relative;
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                        padding: 2px;
+                        border-radius: 3px;
+                        background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.1) 45%, rgba(0,0,0,.22));
+                        box-shadow: inset 0 1px 2px rgba(0,0,0,.75), inset 1px 0 1px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.22);
+                        pointer-events: none;
+                    }
+
                     .bbgl-bar-handle svg {
                         display: block;
                         width: 100%;
@@ -6325,15 +6768,6 @@
                         opacity: 0;
                         pointer-events: none;
                         transition: opacity .15s ease;
-                    }
-
-                    /* Left-edge glow on the track bleeds from the tab on hover — both sides light up together */
-                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent,
-                    .bbgl-weekly-track.is-scrub-hovered,
-                    .bbgl-weekly-track.is-viewing {
-                        background: linear-gradient(90deg, rgba(255,255,255,.08) 0%, transparent 12%),
-                                    repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px),
-                                    linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
                     body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
@@ -6461,17 +6895,33 @@
                         pointer-events: auto;
                     }
 
+                    #bbgl-level-bg,
+                    #bbgl-gym-level-track {
+                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
+                    }
+
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         position: absolute;
-                        top: 18%;
+                        top: 13%;
                         left: 1.6%;
-                        height: 64%;
+                        height: 74%;
                         width: 0%;
                         z-index: 2;
-                        border-radius: 0;
+                        border-radius: 3px / 50%;
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
+                    }
+
+                    #bbgl-level-fill::after,
+                    #bbgl-gym-level-fill::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        border-radius: inherit;
+                        pointer-events: none;
+                        background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(255,255,255,.25) 22%, transparent 42%, rgba(0,0,0,.16) 74%, rgba(255,255,255,.12) 88%, rgba(0,0,0,.32));
+                        box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset -1px 0 1px rgba(255,255,255,.45), 1px 0 2px rgba(0,0,0,.7), 0 1px 1px rgba(0,0,0,.65);
                     }
 
                     @keyframes bbgl-lvl-flash-dmnd {
@@ -6864,16 +7314,10 @@
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #404040 0%,
-                            #808080 22%,
-                            #a8a8a8 38%,
-                            #c0c0c0 48%,
-                            #b0b0b0 52%,
-                            #888888 70%,
-                            #484848 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+                        background:
+                            linear-gradient(112deg, transparent 5%, #ffffff30 17%, #11182030 24%, transparent 32%, #ffffff45 49%, transparent 56%, #10182035 71%, #ffffff30 85%, transparent 94%),
+                            linear-gradient(180deg, #252e32 0%, #818c90 16%, #edf1ee 32%, #b9c3c4 44%, #626e74 55%, #97a4a6 73%, #d4dcda 86%, #394447 100%);
+                        box-shadow: inset 0 1px 0 #f0f5ef50, inset 0 -1px 0 #080e1280, inset 1px 0 2px #10182070;
                     }
 
                     #bbgl-panel[data-atrophy="1"] .bbgl-level-up-flash #bbgl-level-track,
@@ -6894,16 +7338,11 @@
                     /* ─── Level Bar — A1: Green ──────────────────────────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #003322 0%,
-                            #008844 25%,
-                            #66bb22 40%,
-                            #ccffcc 50%,
-                            #00cc88 62%,
-                            #44aa00 78%,
-                            #001a0d 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            repeating-linear-gradient(118deg, transparent 0 37px, #011e1850 38px 55px, #b2ffd626 56px 57px, transparent 58px 103px),
+                            linear-gradient(72deg, #00291e40, transparent 24%, #8bffc333 41%, transparent 55%, #001e2045 79%, transparent),
+                            linear-gradient(180deg, #04271f 0%, #096245 19%, #59c999 32%, #159867 45%, #07563f 58%, #0b925c 78%, #40b582 87%, #032b21 100%);
+                        box-shadow: inset 0 1px 0 #bcffdc45, inset 0 -1px 0 #001b1680, inset 1px 0 2px #001b1670;
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
@@ -6980,44 +7419,24 @@
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #442200 0%,
-                            #cc8800 25%,
-                            #ffcc00 40%,
-                            #fffff0 50%,
-                            #ffdd44 62%,
-                            #cc8800 78%,
-                            #221100 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            linear-gradient(108deg, #69300c30 5%, transparent 17%, #fff0ad50 28%, transparent 34%, #6b35052e 55%, #fff4c43d 73%, transparent 81%),
+                            repeating-linear-gradient(0deg, transparent 0 2px, #ffe8a30d 2px 3px),
+                            linear-gradient(180deg, #4a2c10 0%, #b48229 18%, #ffe59a 33%, #e5b64a 45%, #9c651d 57%, #cb932f 72%, #efcc70 87%, #624019 100%);
+                        box-shadow: inset 0 1px 0 #fff0b650, inset 0 -1px 0 #32150090, inset 1px 0 2px #32150070;
                     }
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill.level-full {
-                        background: linear-gradient(180deg,
-                            #552200 0%,
-                            #dd9900 25%,
-                            #ffdd00 40%,
-                            #ffffff 50%,
-                            #ffee66 62%,
-                            #dd9900 78%,
-                            #221100 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        box-shadow: inset 0 1px 0 #fff0b680, inset 0 -1px 0 #32150090, inset 0 0 3px #ffe9a145;
                     }
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full {
-                        background: linear-gradient(180deg,
-                            #220033 0%,
-                            #882299 25%,
-                            #ee77ff 40%,
-                            #eeeeff 50%,
-                            #88bbff 62%,
-                            #77ffcc 78%,
-                            #001122 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            linear-gradient(180deg, #122133a0, #ffffff30 22%, #ffffff95 34%, transparent 47%, #24283e60 59%, #ffffff30 84%, #142337a0),
+                            linear-gradient(112deg, #91c6d0 0%, #c5b0e3 16%, #e3b9d2 29%, #a9dbea 43%, #c5ebd7 57%, #e5dfb6 70%, #cbbce4 83%, #9ed8dd 100%);
+                        box-shadow: inset 0 1px 0 #f4ffff80, inset 0 -1px 0 #19243e90, inset 1px 0 2px #182a3860;
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -7635,6 +8054,7 @@
                         }
 
                         #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
                         #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle {
                             width: 16px !important;
                             height: 16px;
@@ -7704,11 +8124,42 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle svg,
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle svg,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle svg {
                         width: 16px !important;
                         height: 16px !important;
+                    }
+
+                    /* Below a 380px screen the expanded band's gaps are already at their floor, so the
+                       view icons give up size instead: 3px smaller by a 320px screen. Repeats the
+                       !important of the two rules above so it wins against both. */
+                    @media (max-width: 380px) {
+                        /* The icon gap follows the same curve, 9px down to 7px, in every view so the
+                           row lines up whichever page is open. */
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-toolbar {
+                            --bbgl-toolbar-gap: clamp(7px, calc(9px + (100vw - 380px) * .034), 9px);
+                        }
+
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle svg {
+                            width: clamp(12.5px, calc(15.5px + (100vw - 380px) * .05), 15.5px) !important;
+                            height: clamp(12.5px, calc(15.5px + (100vw - 380px) * .05), 15.5px) !important;
+                        }
+
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle svg {
+                            width: clamp(13px, calc(16px + (100vw - 380px) * .05), 16px) !important;
+                            height: clamp(13px, calc(16px + (100vw - 380px) * .05), 16px) !important;
+                        }
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .arrow-btn {
@@ -12417,14 +12868,16 @@
                        rather than each carrying their own copy — see #bbgl-sticker-pagination-bar's
                        own comment further up this file for why. */
                     #bbgl-ach-pageindicator .pg-dot,
-                    #bbgl-sticker-pagination .pg-dot {
+                    #bbgl-sticker-pagination .pg-dot,
+                    #bbgl-lib-pagination .pg-dot {
                         position: relative;
                         width: var(--bbgl-ach-dot-w);
                         height: var(--bbgl-ach-dot-w);
                     }
 
                     #bbgl-ach-pageindicator .pg-dot::before,
-                    #bbgl-sticker-pagination .pg-dot::before {
+                    #bbgl-sticker-pagination .pg-dot::before,
+                    #bbgl-lib-pagination .pg-dot::before {
                         content: '';
                         position: absolute;
                         /* Kept under half the dot-to-dot gap (--bbgl-ach-dot-gap) so adjacent dots'
@@ -12435,7 +12888,8 @@
                     }
 
                     #bbgl-ach-pageindicator .pg-dot.active,
-                    #bbgl-sticker-pagination .pg-dot.active {
+                    #bbgl-sticker-pagination .pg-dot.active,
+                    #bbgl-lib-pagination .pg-dot.active {
                         transform: scale(1.2);
                         box-shadow: 0 0 clamp(3px, calc(3px + 5px * var(--bbgl-dock-t, 0)), 8px) rgba(255, 255, 255, .5);
                     }
@@ -12447,7 +12901,8 @@
                        instead of introducing a separate glow-based hover language. Doesn't apply to
                        an already-active dot (already at full brightness). */
                     body:not(.is-touch-device) #bbgl-ach-pageindicator .pg-dot:not(.active):hover,
-                    body:not(.is-touch-device) #bbgl-sticker-pagination .pg-dot:not(.active):hover {
+                    body:not(.is-touch-device) #bbgl-sticker-pagination .pg-dot:not(.active):hover,
+                    body:not(.is-touch-device) #bbgl-lib-pagination .pg-dot:not(.active):hover {
                         background: rgba(255, 255, 255, .6);
                     }
 
@@ -13074,6 +13529,7 @@
         dom.monthDropdown = root.querySelector('#bbgl-month-dropdown');
         dom.yearDropdown = root.querySelector('#bbgl-year-dropdown');
         dom.achievementsContainer = root.querySelector('#bbgl-achievements-container');
+        dom.libraryContainer = root.querySelector('#bbgl-library-container');
         dom.achievementsToggle = root.querySelector('#bbgl-achievements-toggle');
         dom.stickerGrid = root.querySelector('#bbgl-sticker-grid');
         dom.stickerPagination = root.querySelector('#bbgl-sticker-pagination');
@@ -13397,6 +13853,7 @@
         if (e.type === 'item') {
             if (e.ts !== undefined) e.ts = parseInt(e.ts);
             if (e.energy !== undefined) e.energy = parseInt(e.energy);
+            if (e.bookId !== undefined) e.bookId = parseInt(e.bookId);
             return;
         }
         e.type = 'gym';
@@ -13846,6 +14303,7 @@
                         if (l.energyLost != null) entry.energyLost = l.energyLost;
                         if (l.happyLost != null) entry.happyLost = l.happyLost;
                         if (l.happy) entry.happy = l.happy;
+                        if (l.bookId) entry.bookId = l.bookId;
                         if (l.statKey) {
                             entry.statKey = l.statKey;
                             entry.statGain = l.statGain;
@@ -14288,7 +14746,8 @@ const DataController = {
         stickerMap: null,
         unlockedCount: null,
         featuredDays: null,
-        hjData: null
+        hjData: null,
+        bookData: null
     },
     invalidate() {
         this._cache.timeline = null;
@@ -14299,6 +14758,7 @@ const DataController = {
         this._cache.unlockedCount = null;
         this._cache.featuredDays = null;
         this._cache.hjData = null;
+        this._cache.bookData = null;
         runtime.stickerData = [];
         runtime._achCache = null;
     },
@@ -14310,9 +14770,14 @@ const DataController = {
     // leaves the day's series/gains/eSpent untouched), so they stay valid. A day rollover or
     // any change to historical days must still call the full invalidate().
     invalidateToday() {
+        this._cache.bookData = null;
         this._cache.timeline = null;
         this._cache.dateMap = null;
         this._cache.slices = {};
+    },
+    getBookData() {
+        if (!this._cache.bookData) this._cache.bookData = computeBookData(getActiveHistory());
+        return this._cache.bookData;
     },
     // Fast hydration from a pre-built { meta, history, today } (DBManager.loadHistory()) —
     // no series flatten, no _rebuildFromSeries, no session serialization.
@@ -15009,6 +15474,7 @@ const DataController = {
             if (l.energyLost != null) entry.energyLost = l.energyLost;
             if (l.happyLost != null) entry.happyLost = l.happyLost;
             if (l.happy) entry.happy = l.happy;
+            if (l.bookId) entry.bookId = l.bookId;
             if (l.statKey) {
                 entry.statKey = l.statKey;
                 entry.statGain = l.statGain;
@@ -15422,6 +15888,7 @@ function normalizeApiLogs(rawLogs) {
             if (meta.energyLost) e.energyLost = parseInt(d.energy_decreased ?? 0);
             if (meta.happyLost) e.happyLost = parseInt(d.happy_decreased ?? 0);
             if (meta.happy) e.happy = parseInt(d.happy_increased || 0);
+            if (meta.book && d.item != null) e.bookId = parseInt(d.item);
             if (meta.stat) {
                 // Stat enhancers carry their gain under <stat>_increased; detect which stat.
                 const sn = ['strength', 'defense', 'speed', 'dexterity'].find(s => d[`${s}_increased`] != null);
@@ -16112,8 +16579,9 @@ function updateAchPageIndicator() {
         };
         ind.appendChild(d);
     }
-    const p = document.querySelector('.bbgl-ach-prev'),
-        n = document.querySelector('.bbgl-ach-next');
+    // Scoped to the footer: the stickerbook and Library bars reuse these classes.
+    const p = document.querySelector('#bbgl-ach-footer .bbgl-ach-prev'),
+        n = document.querySelector('#bbgl-ach-footer .bbgl-ach-next');
     if (p) {
         p.style.display = '';
         p.removeAttribute('aria-hidden');
@@ -16265,6 +16733,11 @@ function achTimeZoneSuffix() {
 function achFmtTimeHMClip(ts) {
     const d = new Date(ts * 1000);
     return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
+}
+
+// Indented "date  HH:MM – HH:MM TCT" line for Happy Jump clipboard copies.
+function achHJClipDate(rec) {
+    return '  ' + achFmtDate(rec.date) + '  ' + achFmtTimeHMClip(rec.ts) + ' – ' + achFmtTimeHMClip(rec.tsEnd || rec.ts) + ' TCT';
 }
 
 function achFmtTimeHMS(ts) {
@@ -16920,14 +17393,14 @@ function achBuildPage2(d) {
         const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0);
         const statCells = trained.map(sk => `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-stat bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${sk}" data-tooltip="Total ${achEsc(STAT_FULL[sk])} gained during this jump."><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[sk]))}</span><span class="bbgl-ach-hh-tag ach-stat-${sk}">${STAT_ABBR[sk]}</span></div>`).join('');
         const totalCell = `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
-        const clipParts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk]));
+        const clipParts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
         clipParts.push('Total: +' + achFmtGain(rec.value));
         return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${statCells}${totalCell}</div></div>`;
     };
     const hjCount = countRow('Happy Jumps Performed', 'Happy Jumps', d.happyJumps || 0, 'hj-count', 'Total number of Happy Jumps performed.<br><i>HJ = 1000E+ spent within 15m of using Ecstasy</i>', true);
     const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
     const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
-    let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
+    let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump:${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return '\n  ' + parts.join('\n  ') + '\n' + achHJClipDate(rec); })() : ' +0'}`;
 
     let helpersHTML = '';
     if (d.happyItemTotals) {
@@ -16983,15 +17456,159 @@ function achBuildPage2(d) {
             }
             const clipHelpers = helpers.map(h => {
                 let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
-                if (h.id === ECSTASY_LOG && h.odCount > 0) line += `\n  - ODs: ${h.odCount}`;
+                if (h.id === ECSTASY_LOG && h.odCount > 0) {
+                    const exRec = d.odItemTotals[EX_OD_LOG];
+                    line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
+                }
                 return line;
-            }).join('\n');
+            }).join('\n\n');
             clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
             helpersHTML = `<div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
         }
     }
 
     return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</span></div>${rowsHTML}${helpersHTML}</div>`;
+}
+
+// ─── Books: read state, active windows and the gains attributed to each ─────────
+// Built from the book log entries (2050 used / 2051 finished, bookId = the item) and the gym series.
+//   state    'unread' | 'reading' (used, not finished) | 'read' (finished; Memories is read on use)
+//   stats    { str?, def?, spd?, dex?, tot } for window books — only stats trained in the window
+//   gain     number for stat books — the jump in that stat at payout
+//   partial  the window started before the log
+//   uncertain  a stat jump that doesn't match the book's +5% (a train missing around it)
+// Gym-gains books report only the extra from the book, assuming the bonus multiplies:
+// extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
+// read before it: a 31-day window from its use, or a stat payout 31 days after its use.
+const BOOK_USE_LOG = 2050,
+    BOOK_FINISH_LOG = 2051,
+    MEMORIES_BOOK = 785,
+    BOOK_PERIOD_SECONDS = 31 * 86400;
+
+function computeBookData(s) {
+    const days = [...(s.history || []), s.today].filter(Boolean);
+    const books = [],
+        gym = [],
+        enhancers = [];
+    days.forEach(day => {
+        (day.series || []).forEach(e => {
+            if (e.type === 'item') {
+                if ((e.logId === BOOK_USE_LOG || e.logId === BOOK_FINISH_LOG) && e.bookId) books.push(e);
+                else if (e.statKey) enhancers.push(e);
+            } else if (!e.synthetic && e.stat) {
+                gym.push(e);
+            }
+        });
+    });
+    books.sort((a, b) => a.ts - b.ts);
+    gym.sort((a, b) => a.ts - b.ts);
+    enhancers.sort((a, b) => a.ts - b.ts);
+    const nowTs = Math.floor(Date.now() / 1000);
+    const logStart = (s.meta && s.meta.logStartDate) || 0;
+
+    // Windows: one per book; Memories gets its own, copying the book read before it.
+    const windows = {};
+    let memories = null,
+        lastRead = null;
+    books.forEach(e => {
+        if (e.logId === BOOK_USE_LOG) {
+            if (e.bookId === MEMORIES_BOOK) {
+                if (!memories) memories = { start: e.ts, end: e.ts + BOOK_PERIOD_SECONDS, repeats: lastRead };
+                return;
+            }
+            if (!windows[e.bookId]) windows[e.bookId] = { start: e.ts, end: null };
+            lastRead = e.bookId;
+        } else if (e.bookId !== MEMORIES_BOOK) {
+            const w = windows[e.bookId];
+            if (w && w.end == null) w.end = e.ts;
+            else if (!w) {
+                windows[e.bookId] = { start: null, end: e.ts, partial: true };
+                if (lastRead == null) lastRead = e.bookId;
+            }
+        }
+    });
+
+    // Per-stat gains from trains in [a, b), scaled by `factor`. Only stats trained appear.
+    const sumGains = (a, b, onlyStat, factor) => {
+        const out = {};
+        let tot = 0;
+        gym.forEach(e => {
+            if ((a != null && e.ts < a) || e.ts >= b) return;
+            if (onlyStat && e.stat !== onlyStat) return;
+            const g = (e.gain || 0) * factor;
+            out[e.stat] = (out[e.stat] || 0) + g;
+            tot += g;
+        });
+        Object.keys(out).forEach(k => { out[k] = r2(out[k]); });
+        out.tot = r2(tot);
+        return out;
+    };
+    // The jump in `stat` at `T`: the stat's value just after T (the next train's before-value, or
+    // today's live value) minus its value just before T (the last train's after-value), less any
+    // stat enhancer gains on that stat in between.
+    const statJump = (stat, T) => {
+        let prev = null,
+            next = null;
+        for (const e of gym) {
+            if (e.stat !== stat) continue;
+            if (e.ts <= T) prev = e;
+            else { next = e; break; }
+        }
+        if (!prev) return null;
+        const before = prev.after;
+        const afterVal = next ? next.after - next.gain : ((s.today.endBreakdown && s.today.endBreakdown[stat]) || 0);
+        const until = next ? next.ts : nowTs + 1;
+        const se = enhancers.reduce((a, e) => (e.statKey === stat && e.ts > prev.ts && e.ts < until) ? a + (e.statGain || 0) : a, 0);
+        const gain = r2(afterVal - before - se);
+        if (!(gain > 0)) return null;
+        const expected = Math.min(before * 0.05, 10000000);
+        return { gain, uncertain: Math.abs(gain - expected) > expected * 0.1 + 1 };
+    };
+    // The data a book produces over one window, by its training type.
+    const effectData = (meta, start, end, finishTs) => {
+        const out = { partial: (start == null) || (start < logStart) };
+        if (meta.training === 'stat') {
+            if (finishTs == null || finishTs > nowTs) return out;
+            const j = statJump(meta.stat, finishTs);
+            if (j) { out.gain = j.gain; out.uncertain = j.uncertain; }
+            out.partial = false;
+            return out;
+        }
+        if (meta.training === 'gym') {
+            const bonus = meta.stat ? 0.3 : 0.2;
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
+        } else if (meta.training === 'energy' || meta.training === 'happy') {
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), null, 1);
+        }
+        return out;
+    };
+
+    const result = {};
+    Object.keys(BOOK_META).map(Number).forEach(id => {
+        const meta = BOOK_META[id];
+        if (id === MEMORIES_BOOK) {
+            result[id] = { state: memories ? 'read' : 'unread' };
+            return;
+        }
+        const w = windows[id];
+        if (!w) {
+            result[id] = { state: 'unread' };
+            return;
+        }
+        const finished = w.end != null;
+        const entry = { state: finished ? 'read' : 'reading' };
+        if (meta.training) Object.assign(entry, effectData(meta, w.start, finished ? w.end : nowTs + 1, w.end));
+        result[id] = entry;
+    });
+    // Memories' own row: the repeated book's effect over Memories' window (training books only).
+    let memoriesRow = null;
+    if (memories && memories.repeats != null) {
+        const repMeta = BOOK_META[memories.repeats];
+        if (repMeta && repMeta.training && repMeta.training !== 'repeat') {
+            memoriesRow = Object.assign({ repeats: memories.repeats, start: memories.start }, effectData(repMeta, memories.start, memories.end, memories.end));
+        }
+    }
+    return { books: result, memories: memoriesRow };
 }
 
 function computeEnhancersForPeriod(sl) {
@@ -17060,7 +17677,7 @@ function achBuildPageOverview(d) {
             // Stat label always shows; number is — when no data
             const gainNum = rec.gain > 0 ? `+${achEsc(Formatter.achAbbr(rec.gain, ACH_FMT.enhancers))}` : NULL;
             gainedHtml = `${gainNum} <span class="ach-stat-${sk}">${STAT_ABBR[sk]}</span>`;
-            clipVal = `${label}: ${rec.count} (+${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)} ${STAT_ABBR[sk]})`;
+            clipVal = `${label}: ${rec.count} (${STAT_ABBR[sk]}: +${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)})`;
             tip = isExpanded ? `Amount of ${tipLabel} · ${achStatFull(sk)} Gained` : `Amount of ${tipLabel}`;
         } else {
             const rec = enrg[id] || { count: 0, energy: 0 };
@@ -17086,7 +17703,7 @@ function achBuildPageOverview(d) {
         const gainedHtml = `${lostNum} <span class="ach-enh-e-label">E</span>`;
         const odLabel = achOdLabel(meta.label);
         const tip = isExpanded ? `Amount of ${odLabel} · Energy Lost` : `Amount of ${odLabel}`;
-        const clipVal = `- ${meta.label}: ${rec.count} (-${Formatter.number(rec.energyLost)} Energy Lost)`;
+        const clipVal = `- ${meta.label}: ${rec.count} (-${Formatter.number(rec.happyLost || 0)} H, -${Formatter.number(rec.energyLost || 0)} E)`;
         const key = `enh-${odId}`;
         return `<div class="bbgl-ach-row bbgl-ach-enh-row bbgl-ach-od-row bbgl-subgroup-row bbgl-subgroup-row-last" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">− ODs:</span><span class="ach-title-short">− ODs:</span></span></div><div class="ach-v-wrap"><span class="ach-value">${countHtml}</span><span class="ach-value ach-enh-gained ach-enh-od">${gainedHtml}</span></div></div></div>`;
     };
@@ -17108,17 +17725,19 @@ function achBuildPageOverview(d) {
         const sk = STAT_ENH_MAP[id];
         if (sk) {
             const rec = enh[sk] || { count: 0, gain: 0 };
-            return `${label}: ${rec.count} (+${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)} ${STAT_ABBR[sk]})`;
+            if (!rec.count) return null;
+            return `${label}: ${rec.count} (${STAT_ABBR[sk]}: +${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)})`;
         }
         const rec = enrg[id] || { count: 0, energy: 0 };
         const odId = OD_AFTER[id];
         const odCount = (odId && od[odId] && od[odId].count) || 0;
+        if (!(rec.count + odCount)) return null;
         let line = `${label}: ${rec.count + odCount} (+${Formatter.achAbbr(rec.energy, ACH_FMT.enhancers)} Energy)`;
-        if (odCount > 0) line += `\n  - ODs: ${odCount}`;
+        if (odCount > 0) line += `\n  - ODs: ${odCount} (-${Formatter.number(od[odId].happyLost || 0)} H, -${Formatter.number(od[odId].energyLost || 0)} E)`;
         return line;
-    }).join('\n');
+    }).filter(Boolean).join('\n\n') || '0';
 
-    const cols = `<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
+    const cols =`<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
     const isPeriod = !!viewState.achEnhPeriodMode;
     const switchHTML = `<div class="bbgl-enh-mode-switch" data-tooltip-html="<b>Changes the data scope displayed on this page.</b><br><i><b>All-Time</b> shows totals across your entire log history. <b>Selected</b> shows data for the selected period on the calendar.</i>" data-tooltip-side="left"><span class="bbgl-enh-sw-opt${isPeriod ? '' : ' active'}" data-mode="alltime">All-Time</span><span class="bbgl-enh-sw-opt${isPeriod ? ' active' : ''}" data-mode="selected">Selected</span></div>`;
     return `<div class="bbgl-ach-section bbgl-ach-section-energy"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="endocrine-enhancers" data-clip-section="${achEsc(clipAll)}" data-clip-title="Endocrine Enhancers" data-tooltip="Click any row to copy its data, or click this title to copy the entire section to your clipboard.">ENDOCRINE ENHANCERS</span>${switchHTML}</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(2,minmax(0,1fr));">${cols}</div></div>`;
@@ -17138,11 +17757,11 @@ function buildAchievementsPage(pageIdx, d) {
             ...base,
             dualHtml: opts.dualHtml,
             display: opts.display !== undefined ? opts.display : '',
-            rawVal: opts.rawVal !== undefined ? opts.rawVal : (opts.dualHtml && typeof value === 'number' ? achLedgerClip(value) : '\u2014')
+            rawVal: opts.rawVal !== undefined ? opts.rawVal : (opts.dualHtml && typeof value === 'number' ? achLedgerClip(value) : '0')
         };
         if (opts.display !== undefined || opts.rawVal !== undefined || value === null || value === undefined || typeof value !== 'number') {
             const display = opts.display !== undefined ? opts.display : achFmtVal(value);
-            const rawVal = opts.rawVal !== undefined ? opts.rawVal : (opts.display !== undefined ? String(opts.display).replace(/<[^>]+>/g, '') : (value !== null && value !== undefined ? achFmtVal(value) : '\u2014'));
+            const rawVal = opts.rawVal !== undefined ? opts.rawVal : (opts.display !== undefined ? String(opts.display).replace(/<[^>]+>/g, '') : (value !== null && value !== undefined ? achFmtVal(value) : '0'));
             return {
                 ...base,
                 dualHtml: '',
@@ -17174,7 +17793,7 @@ function buildAchievementsPage(pageIdx, d) {
         }) : mk(label, null, {
             ...o,
             display: '\u2014',
-            rawVal: '\u2014'
+            rawVal: '0 E'
         });
         return mk(label, v, o);
     };
@@ -17196,25 +17815,25 @@ function buildAchievementsPage(pageIdx, d) {
         const consistRows = [mk('Best Training Streak', d.longestStreak, {
             key: 'training-streak',
             dualHtml: achUnit(d.longestStreak, 'Day', 'Days'),
-            rawVal: d.longestStreak ? d.longestStreak + (d.longestStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestStreak ? d.longestStreak + (d.longestStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestStreakStart, d.longestStreakEnd),
             tip: 'Longest streak of active training days'
         }), mk('Best Green Streak', d.longestGoalStreak, {
             key: 'green-streak',
             dualHtml: achUnit(d.longestGoalStreak, 'Day', 'Days'),
-            rawVal: d.longestGoalStreak ? d.longestGoalStreak + (d.longestGoalStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestGoalStreak ? d.longestGoalStreak + (d.longestGoalStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestGoalStreakStart, d.longestGoalStreakEnd),
             tip: 'Longest streak of achieving at least Green (1000E+)'
         }), mk('Best Gold Streak', d.longestGoldStreak, {
             key: 'gold-streak',
             dualHtml: achUnit(d.longestGoldStreak, 'Day', 'Days'),
-            rawVal: d.longestGoldStreak ? d.longestGoldStreak + (d.longestGoldStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestGoldStreak ? d.longestGoldStreak + (d.longestGoldStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestGoldStreakStart, d.longestGoldStreakEnd),
             tip: 'Longest streak of achieving Gold (1500E+)'
         }), mk('Consistency Rate', null, {
             key: 'consistency',
             display: d.trainingRestRatio || '\u2014',
-            rawVal: d.trainingRestRatio || '\u2014',
+            rawVal: d.trainingRestRatio || '0',
             tip: 'Lifetime ratio of rest days to training days'
         }), mk('Happy Jumps', d.happyJumps, {
             key: 'happy-jumps',
@@ -17300,7 +17919,7 @@ function achOdLabel(label) {
 
 function achFmtGainsLine(g) {
     const ORDER = ['str', 'def', 'spd', 'dex'];
-    return ORDER.filter(k => g && g[k] > 0).map(k => '+' + achFmtGain(g[k]) + ' ' + achStatAbbr(k)).join(' | ');
+    return ORDER.filter(k => g && g[k] > 0).map(k => achStatAbbr(k) + ': +' + achFmtGain(g[k])).join('\n    ');
 }
 
 function achFmtTs(ts) {
@@ -17430,7 +18049,7 @@ function achFmtStatBlock(key, rec, stat, indent) {
     else if (key === 'best-day') dateStr = Formatter.datePretty(rec.date);
     else if (key === 'best-week') dateStr = Formatter.datePretty(rec.weekOf);
     else if (key === 'best-month') dateStr = achFmtMonthLong(rec.rawMonth);
-    const line1 = indent + '+' + Formatter.number(rec.value) + ' ' + STAT_FULL[stat] + (baStr ? ' | ' + baStr : '');
+    const line1 = indent + STAT_FULL[stat] + ': +' + Formatter.number(rec.value) + (baStr ? ' | ' + baStr : '');
     const line2 = indent + '  ' + dateStr;
     return line1 + '\n' + line2;
 }
@@ -17451,7 +18070,7 @@ function handleAchCopy(el) {
         }
         if (row) {
             const clip = row.getAttribute('data-clip');
-            if (clip) { navigator.clipboard.writeText(clip).then(() => flashCopied(row)); }
+            if (clip) { navigator.clipboard.writeText('👑BBGL Achievements\n\n' + clip).then(() => flashCopied(row)); }
         }
         return;
     }
@@ -17480,12 +18099,13 @@ function handleAchCopy(el) {
         const PS_MAP_L = { 'best-train': 'bestTrain', 'best-day': 'bestDay', 'best-week': 'bestWeek', 'best-month': 'bestMonth' };
         const TITLE_MAP_L = { 'best-train': 'Best Train', 'best-day': 'Best Day', 'best-week': 'Best Week', 'best-month': 'Best Month' };
         if (sk && r && r.perStatBest) {
-            const lines = ['best-train', 'best-day', 'best-week', 'best-month'].map(mkey => {
-                const rec = (r.perStatBest[PS_MAP_L[mkey]] || {})[sk];
-                return achFmtStatBlock(mkey, rec, sk, '  ');
-            }).filter(Boolean);
-            if (lines.length) {
-                txt = '👑BBGL Achievements\nGreatest Gains — ' + achStatFull(sk) + ':\n' + lines.join(NL);
+            const hasAny = ['best-train', 'best-day', 'best-week', 'best-month'].some(mkey => (r.perStatBest[PS_MAP_L[mkey]] || {})[sk]);
+            if (hasAny) {
+                const blocks = ['best-train', 'best-day', 'best-week', 'best-month'].map(mkey => {
+                    const block = achFmtStatBlock(mkey, (r.perStatBest[PS_MAP_L[mkey]] || {})[sk], sk, I);
+                    return TITLE_MAP_L[mkey] + ':' + (block ? NL + block : ' +0');
+                });
+                txt = achClipSection(H, 'Greatest Gains (' + achStatFull(sk) + ')', blocks);
                 const _sec = el.closest('.bbgl-ach-section');
                 const _cells = _sec ? Array.from(_sec.querySelectorAll(`.bbgl-ach-stat-cell[data-stat="${sk}"]`)).filter(c => !c.querySelector('.ach-null')) : [];
                 flashEl = _cells.length ? _cells : el;
@@ -17498,7 +18118,7 @@ function handleAchCopy(el) {
         const rec = (recs && stat) ? recs[stat] : null;
         const block = achFmtStatBlock(key, rec, stat, '');
         if (block && TITLE_MAP[key]) {
-            txt = H + NL + TITLE_MAP[key] + ':' + NL + block;
+            txt = H + NL + NL + TITLE_MAP[key] + ':' + NL + block;
             flashEl = el;
         } else if (cache && /^(training|green|gold|diamond)-streak$/.test(key)) {
             const SK = {
@@ -17517,11 +18137,12 @@ function handleAchCopy(el) {
             const ent = SK[key];
             if (ent && ent[2]) {
                 const label = ent[0],
+                    len = ent[1] || 0,
                     g = ent[2],
                     st = ent[3],
                     en = ent[4];
                 const v = stat === 'total' ? ['str', 'def', 'spd', 'dex'].reduce((a, k) => a + (g[k] || 0), 0) : (g[stat] || 0);
-                txt = H + NL + label + ' — ' + SF[stat] + ':' + NL + '+' + Formatter.number(v) + ' ' + SF[stat] + (st && en ? NL + I + Formatter.datePretty(st) + ' – ' + Formatter.datePretty(en) : '');
+                txt = H + NL + NL + label + ' — ' + SF[stat] + ': ' + len + (len === 1 ? ' Day' : ' Days') + NL + I + SF[stat] + ': +' + Formatter.number(v) + (st && en ? NL + I + Formatter.datePretty(st) + ' – ' + Formatter.datePretty(en) : '');
                 flashEl = el;
             }
         } else if (key === 'best-hj') {
@@ -17536,7 +18157,7 @@ function handleAchCopy(el) {
             };
             if (rec && rec.stats) {
                 const v = stat === 'total' ? rec.value : (rec.stats[stat] || 0);
-                txt = H + NL + label + ' — ' + HHSF[stat] + ': +' + achFmtGain(v);
+                txt = H + NL + NL + label + ' — ' + HHSF[stat] + ': +' + achFmtGain(v) + NL + achHJClipDate(rec);
                 flashEl = el;
             }
         }
@@ -17551,14 +18172,14 @@ function handleAchCopy(el) {
         };
         const GSTS = ['str', 'def', 'spd', 'dex'];
         const fmtJ = (rec) => {
-            if (!rec || !rec.stats) return '\u2014';
+            if (!rec || !rec.stats) return ' +0';
             const tr = GSTS.filter(sk => (rec.stats[sk] || 0) > 0);
-            const pts = tr.map(sk => GABR[sk] + ': +' + achFmtGain(rec.stats[sk]));
+            const pts = tr.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
             pts.push('Total: +' + achFmtGain(rec.value));
-            return pts.join(' | ');
+            return NL + I + pts.join(NL + I) + NL + achHJClipDate(rec);
         };
         if (gKey === 'happy-jumps-group') {
-            txt = H + NL + 'Happy Jumps Performed: ' + (r.happyJumps || 0) + NL + 'Best Happy Jump: ' + fmtJ(r.bestHappyJump && r.bestHappyJump.total);
+            txt = H + NL + NL + 'Happy Jumps Performed: ' + (r.happyJumps || 0) + NL + 'Best Happy Jump:' + fmtJ(r.bestHappyJump && r.bestHappyJump.total);
             flashEl = Array.from(el.children);
         }
     } else if (el.classList.contains('bbgl-ach-section-title') || el.classList.contains('bbgl-ach-subsection-title')) {
@@ -17566,19 +18187,19 @@ function handleAchCopy(el) {
             r = cache,
             title = el.getAttribute('data-clip-title') || '';
         const gain = (label, rec, getBA, getDate) => {
-            if (!rec) return label + ': \u2014';
+            if (!rec) return label + ': +0';
             const ba = getBA(rec),
                 baStr = achFmtBA(ba);
-            const line1 = label + ': +' + Formatter.number(rec.value) + ' ' + achStatFull(rec.stat) + (baStr ? ' | ' + baStr : '');
+            const line1 = label + ': ' + achStatFull(rec.stat) + ' +' + Formatter.number(rec.value) + (baStr ? ' | ' + baStr : '');
             return line1 + NL + I + getDate(rec);
         };
-        const eRow = (label, rec, getDate) => !rec ? label + ': \u2014' : label + ': ' + Formatter.number(rec.value) + ' E' + NL + I + getDate(rec);
+        const eRow = (label, rec, getDate) => !rec ? label + ': 0 E' : label + ': ' + Formatter.number(rec.value) + ' E' + NL + I + getDate(rec);
         const streak = (label, len, gains, start, end) => {
-            if (!len) return label + ': \u2014';
+            if (!len) return label + ': 0 Days';
             const gLine = gains ? achFmtGainsLine(gains) : '';
             const tot = gains ? ((gains.str || 0) + (gains.def || 0) + (gains.spd || 0) + (gains.dex || 0)) : 0;
             let s = label + ': ' + len + (len === 1 ? ' Day' : ' Days') + NL;
-            if (gLine) s += I + 'Gains: ' + gLine + NL;
+            if (gLine) s += I + 'Gains:' + NL + '    ' + gLine + NL;
             if (tot) s += I + 'Total Gains: +' + Formatter.number(tot) + NL;
             if (start && end) s += I + Formatter.datePretty(start) + ' \u2013 ' + Formatter.datePretty(end);
             return s;
@@ -17587,15 +18208,15 @@ function handleAchCopy(el) {
         if (sec === 'greatest-gains') {
             const buildMulti = (label, mkey) => {
                 const mRecs = (r && r.perStatBest) ? r.perStatBest[PS_MAP[mkey]] : null;
-                if (!mRecs) return label + ': —';
+                if (!mRecs) return label + ': +0';
                 const mLines = ['str', 'def', 'spd', 'dex'].map(sk => achFmtStatBlock(mkey, mRecs[sk], sk, I)).filter(Boolean);
-                if (!mLines.length) return label + ': —';
+                if (!mLines.length) return label + ': +0';
                 return label + ':' + NL + mLines.join(NL);
             };
             blocks = [buildMulti('Best Train', 'best-train'), buildMulti('Best Day', 'best-day'), buildMulti('Best Week', 'best-week'), buildMulti('Best Month', 'best-month')];
         } else if (sec === 'expended-energy') blocks = [eRow('Best Day', r.mostEInOneDay, rec => Formatter.datePretty(rec.date)), eRow('Best Week', r.mostEInOneWeek, rec => achFmtWeekCopy(rec.weekOf)), eRow('Best Month', r.mostEInOneMonth, rec => rec.month)];
-        else if (sec === 'consistency-kept') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '\u2014') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained', 'Happy Jumps: ' + (r.happyJumps || 0)];
-        else if (sec === 'sexiest-streaks') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), streak('Best Diamond Streak', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '\u2014') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Calendar Days Trained'];
+        else if (sec === 'consistency-kept') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '0') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained', 'Happy Jumps: ' + (r.happyJumps || 0)];
+        else if (sec === 'sexiest-streaks') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), streak('Best Diamond Streak', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '0') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Calendar Days Trained'];
         else if (sec === 'rewards-reaped') blocks = ['Green Days: ' + (r.greenDays || 0), 'Green Weeks: ' + (r.greenWeeks || 0), 'Gold Days: ' + (r.goldDays || 0), 'Gold Weeks: ' + (r.goldWeeks || 0), 'Diamond Days: ' + (r.diamondDays || 0), 'Diamond Weeks: ' + (r.diamondWeeks || 0), 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length];
         if (blocks) {
             txt = achClipSection(H, title, blocks);
@@ -17649,17 +18270,17 @@ function handleAchCopy(el) {
             const mTitle = TITLE_MAP[key];
             if (mRecs && mTitle) {
                 const mLines = ['str', 'def', 'spd', 'dex'].map(sk => achFmtStatBlock(key, mRecs[sk], sk, I)).filter(Boolean);
-                txt = H + NL + mTitle + ':' + (mLines.length ? NL + mLines.join(NL) : NL + '—');
+                txt = H + NL + NL + mTitle + ':' + (mLines.length ? NL + mLines.join(NL) : NL + '+0');
             }
         } else if (key === 'most-e-day' && r.mostEInOneDay) {
             const rec = r.mostEInOneDay;
-            txt = H + NL + 'Most Energy Used Training in a Single Day:' + NL + Formatter.number(rec.value) + ' E' + NL + I + Formatter.datePretty(rec.date);
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Day:' + NL + Formatter.number(rec.value) + ' E' + NL + I + Formatter.datePretty(rec.date);
         } else if (key === 'most-e-week' && r.mostEInOneWeek) {
             const rec = r.mostEInOneWeek;
-            txt = H + NL + 'Most Energy Used Training in a Single Week:' + NL + Formatter.number(rec.value) + ' E' + NL + I + achFmtWeekCopy(rec.weekOf);
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Week:' + NL + Formatter.number(rec.value) + ' E' + NL + I + achFmtWeekCopy(rec.weekOf);
         } else if (key === 'most-e-month' && r.mostEInOneMonth) {
             const rec = r.mostEInOneMonth;
-            txt = H + NL + 'Most Energy Used Training in a Single Month:' + NL + Formatter.number(rec.value) + ' E' + NL + I + rec.month;
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Month:' + NL + Formatter.number(rec.value) + ' E' + NL + I + rec.month;
         } else if (key === 'training-streak' || key === 'green-streak' || key === 'gold-streak' || key === 'diamond-streak') {
             const SK = {
                 'training-streak': ['Longest Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd],
@@ -17674,28 +18295,28 @@ function handleAchCopy(el) {
                 en = SK[4];
             const gLine = gains ? achFmtGainsLine(gains) : '';
             const tot = gains ? ((gains.str || 0) + (gains.def || 0) + (gains.spd || 0) + (gains.dex || 0)) : 0;
-            txt = H + NL + label + ': ' + len + (len === 1 ? ' Day' : ' Days');
-            if (gLine) txt += NL + 'Gains: ' + gLine;
-            if (tot) txt += NL + 'Total Gains: +' + Formatter.number(tot);
+            txt = H + NL + NL + label + ': ' + len + (len === 1 ? ' Day' : ' Days');
+            if (gLine) txt += NL + I + 'Gains:' + NL + '    ' + gLine;
+            if (tot) txt += NL + I + 'Total Gains: +' + Formatter.number(tot);
             if (st && en) txt += NL + I + Formatter.datePretty(st) + ' \u2013 ' + Formatter.datePretty(en);
         } else if (key === 'consistency') {
-            txt = H + NL + 'Training Consistency: ' + (r.trainingRestRatio || '\u2014') + NL + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained';
+            txt = H + NL + NL + 'Training Consistency: ' + (r.trainingRestRatio || '0') + NL + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained';
         } else if (key === 'happy-jumps') {
-            txt = H + NL + 'Happy Jumps: ' + (r.happyJumps || 0);
+            txt = H + NL + NL + 'Happy Jumps: ' + (r.happyJumps || 0);
         } else if (key === 'green-days') {
-            txt = H + NL + 'Green Days: ' + (r.greenDays || 0);
+            txt = H + NL + NL + 'Green Days: ' + (r.greenDays || 0);
         } else if (key === 'green-weeks') {
-            txt = H + NL + 'Green Weeks: ' + (r.greenWeeks || 0);
+            txt = H + NL + NL + 'Green Weeks: ' + (r.greenWeeks || 0);
         } else if (key === 'gold-days') {
-            txt = H + NL + 'Gold Days: ' + (r.goldDays || 0);
+            txt = H + NL + NL + 'Gold Days: ' + (r.goldDays || 0);
         } else if (key === 'gold-weeks') {
-            txt = H + NL + 'Gold Weeks: ' + (r.goldWeeks || 0);
+            txt = H + NL + NL + 'Gold Weeks: ' + (r.goldWeeks || 0);
         } else if (key === 'diamond-days') {
-            txt = H + NL + 'Diamond Days: ' + (r.diamondDays || 0);
+            txt = H + NL + NL + 'Diamond Days: ' + (r.diamondDays || 0);
         } else if (key === 'diamond-weeks') {
-            txt = H + NL + 'Diamond Weeks: ' + (r.diamondWeeks || 0);
+            txt = H + NL + NL + 'Diamond Weeks: ' + (r.diamondWeeks || 0);
         } else if (key === 'stickers') {
-            txt = H + NL + 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length;
+            txt = H + NL + NL + 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length;
         } else {
             const clip = el.getAttribute('data-clip') || '',
                 clipDate = el.getAttribute('data-clip-date') || '';
@@ -17724,7 +18345,7 @@ function buildSessionText(sl, s, keys) {
     const statLines = keys
         .filter(k => s[k].gain > 0 || s[k].cost > 0)
         .map(k => `${statEmoji[k]}${statNames[k]}: +${Formatter.achAbbr(s[k].gain, ACH_FMT.gains)} (${Formatter.achAbbr(s[k].start, ACH_FMT.gains)} \u2192 ${Formatter.achAbbr(s[k].end, ACH_FMT.gains)})`);
-    return ['👑BBGymLog', `${ds} |${eTxt}`, ...statLines].join('\n');
+    return ['👑Big Black Gym Log', '', `${ds} |${eTxt}`, ...statLines].join('\n');
 }
 
 // Reusable "Copied!" overlay: hide the element's children, show a centred overlay for 1s.
@@ -17877,6 +18498,7 @@ async function exportData() {
             if (e.energy) entry.e = e.energy;
             if (e.energyLost != null) entry.eLost = e.energyLost;
             if (e.happy) entry.happy = e.happy;
+            if (e.bookId) entry.book = e.bookId;
             if (e.statKey) {
                 entry.stat = e.statKey;
                 entry.gain = e.statGain;
@@ -18037,6 +18659,7 @@ function importData(f, onDone, opts = {}) {
                                 const m = labelToItem[k];
                                 const out = { type: 'item', logId: m.logId, ts: e[k] };
                                 if (e.e !== undefined) out.energy = e.e;
+                                if (e.book !== undefined) out.bookId = e.book;
                                 return out;
                             }
                         }
@@ -18376,10 +18999,21 @@ const BestGymController = {
     // slots: ['green'|'gold'|'diamond'|'silver'|null] x5. lit=true → bright colours (complete week).
     // animated=true → per-window inner radiance glow (CSS-animated sweep, see .bbgl-cap-sweep).
     const CAP_W = 500, CAP_H = 100, CAP_N = 5;
-    const CAP_PAD_X = 8, CAP_PAD_Y = 18, CAP_GAP = 7;
-    const CAP_SLOT_W = (CAP_W - 2 * CAP_PAD_X - (CAP_N - 1) * CAP_GAP) / CAP_N;
+    const CAP_PAD_X = 18, CAP_PAD_RIGHT = 8, CAP_PAD_Y = 8, CAP_GAP = 7;
+    const CAP_SLOT_W = (CAP_W - CAP_PAD_X - CAP_PAD_RIGHT - (CAP_N - 1) * CAP_GAP) / CAP_N;
     const CAP_SLOT_H = CAP_H - 2 * CAP_PAD_Y;
-    const CAP_TERM_W = 10;
+    const CAP_TERM_W = 7;
+    const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
+
+    const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
+
+    function buildTubeBrackets(x, width, paint = 'bbc-term') {
+        const l = x - 2, r = x + width + 2;
+        return `<path d="M${l} 73L${x} 66H${x + width}L${r} 73Z M${l} 27L${x} 34H${x + width}L${r} 27Z" fill="#080a09" fill-opacity=".7"/>
+            <path d="M${l} 96V79L${x} 68H${x + width}L${r} 79V96Z M${l} 4V21L${x} 32H${x + width}L${r} 21V4Z" fill="url(#${paint})"/>
+            <path d="M${x + width - 1} 69L${x + width + 1} 73H${x + width - 1}L${x + width - 2} 70Z M${x + width - 1} 31L${x + width + 1} 27H${x + width - 1}L${x + width - 2} 30Z" fill="#080c0a" fill-opacity=".55"/>
+            <path d="M${x - 1} 73L${x + 1} 70H${x + width - 1} M${x - 1} 27L${x + 1} 30H${x + width - 1}" fill="none" stroke="#b4bcb4" stroke-opacity=".5" stroke-width="1.2"/>`;
+    }
 
     // Gradients/patterns are pure functions of the bar's fixed dimensions above, so they're
     // identical on every call regardless of slots/lit/animated. Built once here (instead of
@@ -18390,19 +19024,17 @@ const BestGymController = {
     // only runs once per distinct bar state.
     const CAP_BAR_DEFS =
         `<defs>` +
-        `<pattern id="bbc-hatch" width="8" height="8" patternUnits="userSpaceOnUse">` +
-        `<line x1="0" y1="8" x2="8" y2="0" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `<line x1="-2" y1="2" x2="2" y2="-2" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `<line x1="6" y1="10" x2="10" y2="6" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `</pattern>` +
+        `<linearGradient id="bbc-joint-recess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101211"/><stop offset=".18" stop-color="#252a26"/><stop offset=".45" stop-color="#151916"/><stop offset=".78" stop-color="#101310"/><stop offset="1" stop-color="#30362f"/></linearGradient>` +
+        `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
+        `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
+        `<linearGradient id="bbc-join" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/><stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/><stop offset="1" stop-color="#181818"/></linearGradient><linearGradient id="bbc-join-fade"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="bbc-join-mask"><rect width="18" height="100" fill="url(#bbc-join-fade)"/></mask>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
-        `<stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/>` +
-        `<stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/>` +
-        `<stop offset="1" stop-color="#181818"/></linearGradient>` +
+        BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
-        `<stop offset="0" stop-color="#1e1e1e"/><stop offset=".25" stop-color="#484848"/>` +
-        `<stop offset=".5" stop-color="#606060"/><stop offset=".75" stop-color="#484848"/>` +
-        `<stop offset="1" stop-color="#161616"/></linearGradient>` +
+        BAR_TERMINAL_STOPS + `</linearGradient>` +
+        `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
+        `<linearGradient id="bbc-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".48"/><stop offset=".12" stop-color="#fff" stop-opacity=".08"/><stop offset=".23" stop-color="#fff" stop-opacity=".58"/><stop offset=".3" stop-color="#fff" stop-opacity=".32"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".58" stop-color="#000" stop-opacity=".08"/><stop offset=".76" stop-color="#000" stop-opacity=".22"/><stop offset=".9" stop-color="#fff" stop-opacity=".26"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>` +
+        `<linearGradient id="bbc-glass-highlight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".15" stop-color="#fff" stop-opacity=".2"/><stop offset=".4" stop-color="#fff" stop-opacity=".52"/><stop offset=".7" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>` +
         `<linearGradient id="bbc-recess-shadow" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>` +
         `<linearGradient id="bbc-recess-shine" x1="0" y1="0" x2="0" y2="1">` +
@@ -18425,9 +19057,10 @@ const BestGymController = {
         `<linearGradient id="bbc-dL" x1="0" y1="1" x2="1" y2="0">` +
         `<stop offset="0" stop-color="#ee77ff"/><stop offset=".33" stop-color="#88bbff"/>` +
         `<stop offset=".66" stop-color="#77ffcc"/><stop offset="1" stop-color="#ff77cc"/></linearGradient>` +
-        `<filter id="bbc-tube-glow" x="-20%" y="-30%" width="140%" height="160%" color-interpolation-filters="sRGB">` +
-        `<feGaussianBlur stdDeviation="4" result="blur"/>` +
-        `<feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>` +
+        `<filter id="bbc-tube-glow" x="-5%" y="-15%" width="110%" height="130%" color-interpolation-filters="sRGB">` +
+        `<feGaussianBlur stdDeviation="1.2 3"/>` +
+        `<feComponentTransfer result="blur"><feFuncA type="linear" slope=".85"/></feComponentTransfer>` +
+        `<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>` +
         `</filter>` +
         `<linearGradient id="bbc-s" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#1e1e1e"/><stop offset=".35" stop-color="#484848"/>` +
@@ -18468,8 +19101,8 @@ const BestGymController = {
         for (let i = 0; i < CAP_N; i++) {
             const bx = CAP_PAD_X + i * (CAP_SLOT_W + CAP_GAP),
                 gx = bx + CAP_TERM_W, gw = CAP_SLOT_W - 2 * CAP_TERM_W,
-                winY = CAP_PAD_Y + 18, winH = CAP_SLOT_H - 18 * 2,
-                fy = winY + 3, fh = winH - 3 * 2;
+                winY = CAP_PAD_Y + CAP_RAIL_H, winH = CAP_SLOT_H - CAP_RAIL_H * 2,
+                fy = winY + CAP_FILL_INSET, fh = winH - CAP_FILL_INSET * 2;
             CAP_WIN_LEFT_PCT.push(gx / CAP_W * 100);
             CAP_WIN_DELAY_FWD_S.push(gx / CAP_W * FORWARD_SPREAD_S);
             CAP_WIN_DELAY_BWD_S.push(PHASE1_END_S + (CAP_W - gx) / CAP_W * BACKWARD_SPREAD_S);
@@ -18496,7 +19129,8 @@ const BestGymController = {
 
         const colorKey = { green: 'g', gold: 'o', diamond: 'd', silver: 's' };
         const f = (v) => v.toFixed(2);
-        let out = `<rect width="${W}" height="${H}" fill="url(#bbc-housing)"/>`;
+        let out = `<rect width="18" height="100" fill="url(#bbc-join)"/><rect width="18" height="100" fill="url(#bbc-housing)" mask="url(#bbc-join-mask)"/><rect x="492" width="8" height="100" rx="2" fill="url(#bbc-housing)"/>`;
+        out += `<path d="M16.5 8L18 14V86L16.5 92Z M493.5 8L492 14V86L493.5 92Z" fill="#090a09" fill-opacity=".45"/><path d="M16.5 8V92 M493.5 8V92" stroke="#a4aaa4" stroke-opacity=".18" stroke-width=".6"/><path d="M17.7 14V86 M492.3 14V86" stroke="#030403" stroke-opacity=".65" stroke-width=".6"/>`;
         // HTML overlay, not SVG: inline SVG doesn't reliably get its own GPU compositor layer for
         // transform/opacity animation, but a clipped HTML div does.
         let overlay = '';
@@ -18505,46 +19139,62 @@ const BestGymController = {
             const bx = padX + i * (slotW + gap);
             const by = padY;
 
-            // Bay recess: darken for depth, then inner shadow/highlight for the housing lip.
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="#000" fill-opacity=".5"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="url(#bbc-recess-shadow)"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="3" fill="#000" fill-opacity=".6"/>`;
-            out += `<rect x="${f(bx)}" y="${f(by + slotH - 1.5)}" width="${f(slotW)}" height="1.5" fill="#fff" fill-opacity=".15"/>`;
+            out += `<path d="M${f(bx)} 75Q${f(bx + slotW / 2)} 95 ${f(bx + slotW)} 75V94H${f(bx)}Z" fill="#171a19"/><path d="M${f(bx + 3)} 78Q${f(bx + slotW / 2)} 93 ${f(bx + slotW - 3)} 78" fill="none" stroke="#535b55" stroke-width="2"/>`;
 
             const color = slots[i];
-            if (!color) continue;
-
-            out += `<rect x="${f(bx)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-hatch)"/>`;
-            out += `<rect x="${f(bx + slotW - termW)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(bx + slotW - termW)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-hatch)"/>`;
-
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="2.5" fill="#000" fill-opacity=".4"/>`;
+            if (i < n - 1) {
+                out += `<rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-recess)"/><rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-wall)"/><path d="M${f(bx + slotW + .7)} 11Q${f(bx + slotW + gap / 2)} 5 ${f(bx + slotW + gap - .7)} 11 M${f(bx + slotW + .7)} 88Q${f(bx + slotW + gap / 2)} 94 ${f(bx + slotW + gap - .7)} 88" fill="none" stroke="#84917f" stroke-opacity=".24" stroke-width=".8"/>`;
+                out += `<rect x="${f(bx + slotW - 1)}" y="${by + 19}" width="${gap + 2}" height="${slotH - 38}" rx="1" fill="url(#bbc-term)"/><path d="M${f(bx + slotW + gap / 2)} ${by + 21}v${slotH - 42}" stroke="#111" stroke-width="1.5"/>`;
+            }
 
             const gx = bx + termW, gw = slotW - 2 * termW;
             const gy = by, gh = slotH;
-            const railH = 18;
+            const railH = CAP_RAIL_H;
             const winY = gy + railH, winH = gh - railH * 2;
-            const fillInset = 3;
+            const fillInset = CAP_FILL_INSET;
             const fy = winY + fillInset, fh = winH - fillInset * 2;
 
             const fid = colorKey[color];
             const fillId = fid === 's' ? 's' : (fid + (lit ? 'L' : 'D'));
 
-            // Rails drawn first so fill+glow bleeds over them on completed weeks (same as end-caps).
-            out += `<rect x="${f(gx)}" y="${gy}" width="${f(gw)}" height="${railH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(gx)}" y="${gy}" width="${f(gw)}" height="${railH}" fill="url(#bbc-hatch)"/>`;
-            out += `<rect x="${f(gx)}" y="${f(gy + gh - railH)}" width="${f(gw)}" height="${railH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(gx)}" y="${f(gy + gh - railH)}" width="${f(gw)}" height="${railH}" fill="url(#bbc-hatch)"/>`;
-
             // Glow filter is safe to leave static — the sweep animation lives in the HTML overlay, not here.
-            if (lit && color !== 'silver') out += `<g filter="url(#bbc-tube-glow)">`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-${fillId})"/>`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-recess-shadow)" opacity="${lit ? 0.4 : 1}"/>`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-recess-shine)"/>`;
-            if (lit && color !== 'silver') out += `</g>`;
-            if (animated && color !== 'silver') {
-                overlay += `<div class="bbgl-cap-win" style="left:${CAP_WIN_LEFT_PCT[i].toFixed(2)}%;width:${CAP_WIN_WIDTH_PCT.toFixed(2)}%;top:${CAP_WIN_TOP_PCT.toFixed(2)}%;height:${CAP_WIN_HEIGHT_PCT.toFixed(2)}%">` +
+            if (color) {
+                out += `<rect x="${f(gx - 1)}" y="${winY}" width="${f(gw + 2)}" height="${winH}" rx="3" ry="9" fill="#0b0e0c"/>`;
+                if (lit && color !== 'silver') out += `<g filter="url(#bbc-tube-glow)">`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#bbc-${fillId})"/>`;
+                if (lit && color !== 'silver') out += `</g>`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#${color === 'silver' ? 'bbc-glass' : 'bbc-tube-glass'})"/>`;
+                if (color !== 'silver') {
+                    out += `<rect x="${f(gx + 2)}" y="${f(fy + fh * .19)}" width="${f(gw - 4)}" height="${f(fh * .055)}" rx="1" fill="url(#bbc-glass-highlight)"/>`;
+                }
+            } else {
+                out += `<rect x="${f(gx - 1)}" y="${winY}" width="${f(gw + 2)}" height="${winH}" rx="3" ry="9" fill="#acc5c0" fill-opacity=".06" stroke="#a2bab3" stroke-opacity=".35" stroke-width="1"/>`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#bbc-tube-glass)" opacity=".65"/>`;
+                out += `<rect x="${f(gx + 2)}" y="${f(fy + fh * .19)}" width="${f(gw - 4)}" height="${f(fh * .055)}" rx="1" fill="url(#bbc-glass-highlight)"/>`;
+            }
+            out += `<path d="M${f(bx)} 4H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V96H${f(bx)}Z" fill="url(#bbc-term)"/>`;
+            out += `<path d="M${f(bx)} 22H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V78H${f(bx)}Z" fill="#090c0a" fill-opacity=".65"/>`;
+            out += `<path d="M${f(bx)} 26H${f(bx + slotW)} M${f(bx)} 74H${f(bx + slotW)}" stroke="#080b09" stroke-opacity=".82" stroke-width="1.5"/><path d="M${f(bx + 1)} 21H${f(bx + slotW - 1)} M${f(bx + 1)} 76H${f(bx + slotW - 1)}" stroke="#b4bcb4" stroke-opacity=".6" stroke-width="1.2"/><path d="M${f(bx + 1)} 6H${f(bx + slotW - 1)} M${f(bx + 1)} 94H${f(bx + slotW - 1)}" stroke="#080b09" stroke-opacity=".5" stroke-width="1"/>`;
+            // Collars cover the glass ends.
+            for (const [tx, innerX] of [[bx, gx - 1], [bx + slotW - termW, gx + gw]]) {
+                out += `<rect x="${f(tx)}" y="${by}" width="${termW}" height="${slotH}" rx="1.5" ry="5" fill="url(#bbc-term)"/>`;
+                out += `<rect x="${f(innerX)}" y="${by + 4}" width="1" height="${slotH - 8}" fill="#101310"/><path d="M${f(tx + 2)} ${by + 8}v${slotH - 16}" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
+            }
+            if (lit && color && color !== 'silver') {
+                const bloom = { green: '#a5ff52', gold: '#ffda61', diamond: '#b7f3e2' }[color];
+                out += `<rect x="${f(gx + 1)}" y="32" width="${f(gw - 2)}" height="36" rx="3" ry="10" fill="${bloom}" opacity=".4" filter="url(#bbc-end-bloom)"/>`;
+                for (const edge of [gx + .5, gx + gw - .5]) {
+                    out += `<ellipse cx="${f(edge)}" cy="50" rx="3" ry="24" fill="${bloom}" opacity="1" filter="url(#bbc-end-bloom)"/>`;
+                }
+            }
+            const clipX = bx + slotW * .35, clipW = slotW * .3;
+            out += buildTubeBrackets(clipX, clipW);
+            if (animated && lit && color && color !== 'silver') {
+                // Keep the sweep behind the retaining brackets.
+                const cl = f((clipX - 2 - gx) / gw * 100), cr = f((clipX + clipW + 2 - gx) / gw * 100);
+                const ct = f((35 - fy) / fh * 100), cb = f((65 - fy) / fh * 100);
+                const rt = f((27 - fy) / fh * 100), rb = f((73 - fy) / fh * 100);
+                overlay += `<div class="bbgl-cap-win" style="left:${CAP_WIN_LEFT_PCT[i].toFixed(2)}%;width:${CAP_WIN_WIDTH_PCT.toFixed(2)}%;top:${CAP_WIN_TOP_PCT.toFixed(2)}%;height:${CAP_WIN_HEIGHT_PCT.toFixed(2)}%;clip-path:polygon(0 ${rt}%,${cl}% ${rt}%,${cl}% ${ct}%,${cr}% ${ct}%,${cr}% ${rt}%,100% ${rt}%,100% ${rb}%,${cr}% ${rb}%,${cr}% ${cb}%,${cl}% ${cb}%,${cl}% ${rb}%,0 ${rb}%)">` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-fwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_FWD_S[i].toFixed(3)}s"></div>` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-bwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_BWD_S[i].toFixed(3)}s"></div>` +
                     `</div>`;
@@ -18577,7 +19227,136 @@ const BestGymController = {
         if (aBtn) aBtn.classList.toggle('active', activeL === 'All-Time');
     }
 
+    // Library page: one equal-height row per training book, grouped by training type. A book
+    // counts as read once any 2051 (book finished) entry for it is in the log.
+    const LIBRARY_PAGE_COUNT = 2;
+
+    function gotoLibraryPage(p) {
+        const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
+        if (next === (viewState.libraryPage || 0)) return;
+        viewState.libraryPage = next;
+        saveViewState();
+        renderLibrary();
+    }
+
+    function renderLibrary() {
+        const c = dom.libraryContainer;
+        if (!c) return;
+        const bookData = DataController.getBookData();
+        const info = id => bookData.books[id] || { state: 'unread' };
+        // Unread books grey out; a book being read shows a marker; a finished (or, for Memories, used)
+        // book gets the ✓.
+        const stateClass = id => ({ read: ' is-read', reading: ' is-reading', unread: ' is-unread' })[info(id).state];
+        const marker = id => {
+            const st = info(id).state;
+            if (st === 'read') return '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
+            if (st === 'reading') return '<span class="bbgl-lib-reading">Reading</span>';
+            return '';
+        };
+        const page = viewState.libraryPage === 1 ? 1 : 0;
+        const ind = document.getElementById('bbgl-lib-pagination');
+        if (ind) {
+            ind.innerHTML = '';
+            for (let i = 0; i < LIBRARY_PAGE_COUNT; i++) {
+                const d = document.createElement('div');
+                d.className = 'pg-dot' + (i === page ? ' active' : '');
+                d.onclick = () => gotoLibraryPage(i);
+                ind.appendChild(d);
+            }
+        }
+        retryToolbarPaginationLayout(() => dom.topPanel && dom.topPanel.classList.contains('viewing-library'));
+        // Page 2: every non-training book as a two-column checklist, filled top-to-bottom.
+        if (page === 1) {
+            // Memories And Mammaries lives here rather than on the training page: when it repeats a
+            // training book, its effect gets its own row at the bottom of page 1.
+            const others = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
+            const rowsPerCol = Math.ceil(others.length / 2);
+            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
+            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group">Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
+            return;
+        }
+        const GROUPS = [
+            ['stat', 'Stat Books'],
+            ['gym', 'Gym Gains'],
+            ['energy', 'Energy'],
+            ['happy', 'Happy']
+        ];
+        const STAT_NAME = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity', tot: 'Total' };
+        const STAT_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex', tot: 'Tot' };
+        // One number with its label centred beneath. Both formats are emitted and CSS picks one:
+        // full number over full label, or abbreviated (compact, or a multi-cell group that didn't fit).
+        const cell = (key, gain) => {
+            const full = gain == null ? '—' : '+' + Formatter.number(gain);
+            const abbr = gain == null ? '—' : '+' + Formatter.achAbbr(gain, ACH_FMT.gains);
+            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span></div>`;
+        };
+        // Right column, from computeBookData(). Stat books: the jump in their stat at payout.
+        // Single-stat gym books: the extra gains on their stat. Get Hard Or Go Home, energy and happy
+        // books: a cell per stat trained in the window plus Total (only Total until something is
+        // recorded). `d` is the book's own data, or the Memories row's data for the book it repeated.
+        const dataCell = (b, d) => {
+            d = d || {};
+            let html = '';
+            if (b.training === 'stat') html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
+            else if (b.training === 'gym' && b.stat) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.stats && d.stats[b.stat] != null ? d.stats[b.stat] : null)}</div>`;
+            else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
+                const stats = d.stats || {};
+                const keys = ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null);
+                html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k])).join('')}${cell('tot', keys.length ? stats.tot : null)}</div>`;
+            }
+            const note = d.uncertain ? 'This gain could not be measured precisely: a train around the payout is missing from the log.' :
+                d.partial ? 'May be incomplete: part of this book\'s period is before your log.' : '';
+            return note ? `<div class="bbgl-lib-data-inner is-approx" data-tooltip="${achEsc(note)}">${html}</div>` : html;
+        };
+        const memRow = bookData.memories;
+        const row = id => {
+            const b = BOOK_META[id];
+            const repeated = memRow && memRow.repeats === id ? ' is-repeated' : '';
+            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}" data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
+        };
+        // Headers sit directly in the list beside the rows (not wrapped per group) so every book
+        // row still takes an equal share of the height.
+        let html = GROUPS.map(([type, label]) => {
+            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type);
+            if (!ids.length) return '';
+            return `<div class="bbgl-lib-group" data-type="${type}">${label}</div>${ids.map(row).join('')}`;
+        }).join('');
+        // Memories And Mammaries' own row, once read, when the book it repeated is a training book:
+        // its title, with the repeated book's effect measured over Memories' own period.
+        if (memRow) {
+            const mem = BOOK_META[MEMORIES_BOOK],
+                rep = BOOK_META[memRow.repeats];
+            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
+        }
+        c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
+        window.requestAnimationFrame(fitLibraryCells);
+        if (!runtime._libFitObserver && window.ResizeObserver) {
+            runtime._libFitObserver = new ResizeObserver(() => window.requestAnimationFrame(fitLibraryCells));
+            runtime._libFitObserver.observe(c);
+        }
+    }
+
+    // Multi-cell groups keep full numbers unless they don't fit their column with a little room to
+    // spare; then they switch to abbreviated numbers and short labels.
+    function fitLibraryCells() {
+        const c = dom.libraryContainer;
+        if (!c) return;
+        c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
+            g.classList.remove('is-tight');
+            const box = g.closest('.bbgl-lib-data');
+            if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
+        });
+    }
+
     function renderPanelContent() {
+        // The Library covers the calendar; switchView() renders it once on the way out. Data
+        // updates still refresh the Library itself.
+        if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) {
+            runtime._calendarStale = true;
+            renderLibrary();
+            return;
+        }
+        runtime._calendarStale = false;
         const s = getActiveHistory(),
             dm = DataController.getDateMap(),
             tk = Formatter.dateLogical();
@@ -18982,7 +19761,7 @@ const BestGymController = {
             tr.setAttribute('data-tooltip-html', tooltipHtml);
             tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle');
             tab.onclick = (e) => { e.stopPropagation(); openHistory(slice, slice.label); };
-            tab.innerHTML = buildChartSVG(slice);
+            tab.innerHTML = `<div class="bbgl-summary-inset">${buildChartSVG(slice)}</div>`;
             anchor.appendChild(tab);
         };
         // Archived / pre-install weeks: five silver placeholder capsules (no real reward data).
@@ -19659,11 +20438,13 @@ const BestGymController = {
         if (!topPanel) return true;
         const achFooter = topPanel.classList.contains('viewing-achievements') ? document.getElementById('bbgl-ach-footer') : null;
         const stickerBar = topPanel.classList.contains('viewing-stickers') ? document.getElementById('bbgl-sticker-pagination-bar') : null;
-        if (!achFooter && !stickerBar) return true;
+        const libBar = topPanel.classList.contains('viewing-library') ? document.getElementById('bbgl-lib-pagination-bar') : null;
+        if (!achFooter && !stickerBar && !libBar) return true;
         const center = measureToolbarCenter();
         if (!center) return false;
         if (achFooter) writeToolbarPaginationVars(achFooter, center);
         if (stickerBar) writeToolbarPaginationVars(stickerBar, center);
+        if (libBar) writeToolbarPaginationVars(libBar, center);
         return true;
     }
 
@@ -20666,7 +21447,7 @@ const BestGymController = {
         const fill = document.createElement('div');
         fill.id = 'bbgl-gym-level-fill';
 
-        track.innerHTML = buildEmptyLevelTrackSVG();
+        track.innerHTML = buildEmptyLevelTrackSVG() + buildEmptyLevelTrackSVG(true);
         track.appendChild(fill);
         container.appendChild(num);
         container.appendChild(track);
@@ -20872,6 +21653,7 @@ const BestGymController = {
         GRAPH_VIEW: "Graph",
         STICKERBOOK: "Stickerbook",
         ACHIEVEMENTS: "Achievements",
+        LIBRARY: "Library",
         COPY_SESSION: "Copy Session Data",
         ALL_TIME_SUMMARY: "All-Time Summary",
         YEARLY_SUMMARY: "Yearly Summary",
@@ -21317,40 +22099,18 @@ const BestGymController = {
         return `<div class="close-settings-btn" title="Close Settings">${ICONS.CHECK}</div><div class="bbgl-settings-scroll-area">${buildSettingsFeaturesSection()}${buildSettingsLogFormatSection()}${buildSettingsDataSection()}${buildSettingsApiSection()}${buildSettingsInfoSection()}</div>`;
     }
 
-    function buildEmptyLevelTrackSVG() {
-        const W = 500, H = 100;
-        const padX = 8, padY = 18;
-        const slotW = W - 2 * padX;
-        const slotH = H - 2 * padY;
-
-        const defs =
-            `<defs>` +
-            `<linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/>` +
-            `<stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/>` +
-            `<stop offset="1" stop-color="#181818"/></linearGradient>` +
-            `<linearGradient id="lvl-recess-shadow" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>` +
-            `<linearGradient id="lvl-recess-shine" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".35"/></linearGradient>` +
-            `</defs>`;
-
-        const f = (v) => v.toFixed(2);
-        let out = `<rect width="${W}" height="${H}" fill="url(#lvl-housing)"/>`;
-        const bx = padX, by = padY;
-        
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="#000" fill-opacity=".5"/>`;
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="url(#lvl-recess-shadow)"/>`;
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="3" fill="#000" fill-opacity=".6"/>`;
-        out += `<rect x="${f(bx)}" y="${f(by + slotH - 1.5)}" width="${f(slotW)}" height="1.5" fill="#fff" fill-opacity=".15"/>`;
-
-        return `<svg class="bbgl-level-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;display:block;">${defs}${out}</svg>`;
+    function buildEmptyLevelTrackSVG(foreground = false) {
+        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset=".23" stop-color="#fff" stop-opacity=".5"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset=".9" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient></defs>`;
+        const body = foreground
+            ? `<rect x="8" y="13" width="484" height="74" rx="2" ry="37" fill="url(#lvl-tube-glass)"/><rect x="1" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/><rect x="492" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/>`
+            : `<path d="M0 88H500V100H0Z M0 2H500V10H0Z" fill="url(#lvl-tube-metal)"/><rect x="7" y="11" width="486" height="78" rx="3" ry="39" fill="#050907" fill-opacity=".38" stroke="#a2bab3" stroke-opacity=".25" stroke-width="1"/>`;
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${body}</svg>`;
     }
 
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div></div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div>${buildEmptyLevelTrackSVG(true)}</div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
@@ -23934,6 +24694,8 @@ const BestGymController = {
             }
         } else if (viewState.subView === 'achievements') {
             switchView('achievements', true);
+        } else if (viewState.subView === 'library') {
+            switchView('library', true);
         } else switchView('ledger', true);
     }
 
@@ -23949,6 +24711,7 @@ const BestGymController = {
         else if (tp.classList.contains('viewing-graph')) cm = 'graph';
         else if (tp.classList.contains('viewing-stickers')) cm = 'stickers';
         else if (tp.classList.contains('viewing-achievements')) cm = 'achievements';
+        else if (tp.classList.contains('viewing-library')) cm = 'library';
         if (cm === tgt && !inst) return;
         if (cm === 'achievements' && tgt !== 'achievements') resetTitlesPageAnimationClock();
         if (cm === 'stickers' && tgt !== 'stickers' && !inst) {
@@ -23968,12 +24731,20 @@ const BestGymController = {
                 if (m === 'graph') return dom.graphContainer;
                 if (m === 'stickers') return dom.stickerContainer;
                 if (m === 'achievements') return dom.achievementsContainer;
+                if (m === 'library') return dom.libraryContainer;
                 return dom.ledgerView;
             },
             cel = gel(cm),
             nel = gel(tgt);
         const app = () => {
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            // Leaving the Library: start its shrink before the class comes off, so the transition
+            // is armed when the height changes.
+            if (cm === 'library' && tgt !== 'library') {
+                resizeLibraryPanel(false, !inst && userConfig.animations);
+                // Like the stickerbook, the Library reopens on its first page.
+                if (!inst) viewState.libraryPage = 0;
+            }
+            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
@@ -24066,7 +24837,7 @@ const BestGymController = {
                     const cb = wv.querySelector('#init-create-api-btn');
                     if (cb) cb.onclick = function() {
                         this.blur();
-                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=54,50,23,6,52,56,3&title=BigBlackGymLog', '_blank');
+                        window.open(`https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=${API_KEY_LOG_IDS.join(',')}&title=BigBlackGymLog`, '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
@@ -24117,7 +24888,15 @@ const BestGymController = {
             } else if (tgt === 'achievements') {
                 tp.classList.add('viewing-achievements');
                 renderAchievements();
+            } else if (tgt === 'library') {
+                // Measured after the bottom panel's display is restored above, before the class
+                // that grows the top panel over it.
+                resizeLibraryPanel(true, !inst && cm !== 'library' && userConfig.animations);
+                tp.classList.add('viewing-library');
+                renderLibrary();
             } else renderPanelContent();
+            // Calendar renders are skipped while the Library covers it; catch up on the way out.
+            if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
             // variant; other views get the full scan state machine).
             renderScanOverlay();
@@ -24205,9 +24984,14 @@ const BestGymController = {
         if (tp) {
             tp.style.display = 'flex';
             resetTitlesPageAnimationClock();
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
         }
-        if (bp) bp.style.display = 'flex';
+        if (bp) {
+            bp.style.display = 'flex';
+            bp.style.visibility = '';
+        }
+        clearTimeout(runtime._libraryTimer);
+        p.classList.remove('bbgl-lib-anim');
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
@@ -24258,6 +25042,29 @@ const BestGymController = {
         saveViewState();
     }
 
+    function toggleLibraryView() {
+        switchView('library');
+        saveViewState();
+    }
+
+    // The Library grows #bbgl-top-panel over the whole panel (see .viewing-library in the styles).
+    // --bbgl-lib-extra is the bottom panel's height, which page mode adds to the top panel and
+    // cancels with a matching negative margin so the page never changes height. Once covered, the
+    // bottom panel stops painting; it is made visible again before any shrink starts.
+    function resizeLibraryPanel(opening, animate) {
+        const p = dom.panel,
+            bp = dom.bottomPanel;
+        if (!p || !bp) return;
+        clearTimeout(runtime._libraryTimer);
+        bp.style.visibility = '';
+        p.style.setProperty('--bbgl-lib-extra', bp.offsetHeight + 'px');
+        p.classList.toggle('bbgl-lib-anim', animate);
+        runtime._libraryTimer = setTimeout(() => {
+            p.classList.remove('bbgl-lib-anim');
+            if (opening && dom.topPanel && dom.topPanel.classList.contains('viewing-library')) bp.style.visibility = 'hidden';
+        }, animate ? 380 : 0);
+    }
+
     function toggleSettingsView(e) {
         if (e) e.stopPropagation();
         const sp = dom.settingsView,
@@ -24282,6 +25089,7 @@ const BestGymController = {
             else if (tp.classList.contains('viewing-graph')) runtime.returnView = 'graph';
             else if (tp.classList.contains('viewing-stickers')) runtime.returnView = 'stickers';
             else if (tp.classList.contains('viewing-achievements')) runtime.returnView = 'achievements';
+            else if (tp.classList.contains('viewing-library')) runtime.returnView = 'library';
             else runtime.returnView = 'ledger';
             switchView('settings');
             viewState.subView = 'settings';
@@ -24736,6 +25544,23 @@ const BestGymController = {
         if (gt) gt.onclick = toggleGraphView;
         const act = get('bbgl-achievements-toggle');
         if (act) act.onclick = toggleAchievementsView;
+        const lib = get('bbgl-library-toggle');
+        if (lib) lib.onclick = toggleLibraryView;
+        const libPrev = get('lib-mini-prev-btn'),
+            libNext = get('lib-mini-next-btn');
+        if (libPrev) libPrev.onclick = (e) => {
+            e.stopPropagation();
+            gotoLibraryPage((viewState.libraryPage || 0) - 1);
+        };
+        if (libNext) libNext.onclick = (e) => {
+            e.stopPropagation();
+            gotoLibraryPage((viewState.libraryPage || 0) + 1);
+        };
+        // Page mode's calendar height follows the panel width, so keep the Library's page-mode
+        // offset in step with it while the Library is open.
+        if (window.ResizeObserver && dom.bottomPanel) new ResizeObserver(() => {
+            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) dom.panel.style.setProperty('--bbgl-lib-extra', dom.bottomPanel.offsetHeight + 'px');
+        }).observe(dom.bottomPanel);
         const st = get('bbgl-sticker-toggle');
         if (st) st.onclick = toggleStickerView;
         // Big edge arrows, plus the mini prev/next flanking the pagination dots
@@ -24925,7 +25750,7 @@ const BestGymController = {
         const crb = get('create-api-btn');
         if (crb) crb.onclick = function() {
             this.blur();
-            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=54,50,23,6,52,56,3&title=BigBlackGymLog', '_blank');
+            window.open(`https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=${API_KEY_LOG_IDS.join(',')}&title=BigBlackGymLog`, '_blank');
         };
         const rb = get('refresh-log-btn');
         if (rb) rb.onclick = function() {
@@ -25028,8 +25853,8 @@ const BestGymController = {
         GraphController.setupControls();
         setupStickerGrid();
         refreshInitLock();
-        const achPrev = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-prev') : null;
-        const achNext = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-next') : null;
+        const achPrev = get('bbgl-achievements-container') ? root.querySelector('#bbgl-ach-footer .bbgl-ach-prev') : null;
+        const achNext = get('bbgl-achievements-container') ? root.querySelector('#bbgl-ach-footer .bbgl-ach-next') : null;
         if (achPrev) achPrev.onclick = (e) => {
             e.stopPropagation();
             gotoAchievementsPage(-1);
@@ -25400,7 +26225,7 @@ const BestGymController = {
             _scrubMode = false,
             _scrubMoveBound = null,
             _toolbarTipTimer = null;
-        const _TOOLBAR_TOGGLE_IDS = new Set(['bbgl-ledger-toggle', 'bbgl-graph-toggle', 'bbgl-achievements-toggle', 'bbgl-sticker-toggle']);
+        const _TOOLBAR_TOGGLE_IDS = new Set(['bbgl-ledger-toggle', 'bbgl-graph-toggle', 'bbgl-achievements-toggle', 'bbgl-library-toggle', 'bbgl-sticker-toggle']);
         // Anything that acts on tap keeps its plain-text tooltip for tap-and-hold only (the 400ms
         // timer in touchstart); a tap tooltip would just pop up over whatever the tap did.
         const _isTapAction = (target, tipEl) => !!target.closest('button, a[href], input, select, textarea, [role="button"]') ||

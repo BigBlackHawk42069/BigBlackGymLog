@@ -34,10 +34,21 @@
     // slots: ['green'|'gold'|'diamond'|'silver'|null] x5. lit=true → bright colours (complete week).
     // animated=true → per-window inner radiance glow (CSS-animated sweep, see .bbgl-cap-sweep).
     const CAP_W = 500, CAP_H = 100, CAP_N = 5;
-    const CAP_PAD_X = 8, CAP_PAD_Y = 18, CAP_GAP = 7;
-    const CAP_SLOT_W = (CAP_W - 2 * CAP_PAD_X - (CAP_N - 1) * CAP_GAP) / CAP_N;
+    const CAP_PAD_X = 18, CAP_PAD_RIGHT = 8, CAP_PAD_Y = 8, CAP_GAP = 7;
+    const CAP_SLOT_W = (CAP_W - CAP_PAD_X - CAP_PAD_RIGHT - (CAP_N - 1) * CAP_GAP) / CAP_N;
     const CAP_SLOT_H = CAP_H - 2 * CAP_PAD_Y;
-    const CAP_TERM_W = 10;
+    const CAP_TERM_W = 7;
+    const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
+
+    const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
+
+    function buildTubeBrackets(x, width, paint = 'bbc-term') {
+        const l = x - 2, r = x + width + 2;
+        return `<path d="M${l} 73L${x} 66H${x + width}L${r} 73Z M${l} 27L${x} 34H${x + width}L${r} 27Z" fill="#080a09" fill-opacity=".7"/>
+            <path d="M${l} 96V79L${x} 68H${x + width}L${r} 79V96Z M${l} 4V21L${x} 32H${x + width}L${r} 21V4Z" fill="url(#${paint})"/>
+            <path d="M${x + width - 1} 69L${x + width + 1} 73H${x + width - 1}L${x + width - 2} 70Z M${x + width - 1} 31L${x + width + 1} 27H${x + width - 1}L${x + width - 2} 30Z" fill="#080c0a" fill-opacity=".55"/>
+            <path d="M${x - 1} 73L${x + 1} 70H${x + width - 1} M${x - 1} 27L${x + 1} 30H${x + width - 1}" fill="none" stroke="#b4bcb4" stroke-opacity=".5" stroke-width="1.2"/>`;
+    }
 
     // Gradients/patterns are pure functions of the bar's fixed dimensions above, so they're
     // identical on every call regardless of slots/lit/animated. Built once here (instead of
@@ -48,19 +59,17 @@
     // only runs once per distinct bar state.
     const CAP_BAR_DEFS =
         `<defs>` +
-        `<pattern id="bbc-hatch" width="8" height="8" patternUnits="userSpaceOnUse">` +
-        `<line x1="0" y1="8" x2="8" y2="0" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `<line x1="-2" y1="2" x2="2" y2="-2" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `<line x1="6" y1="10" x2="10" y2="6" stroke="#fff" stroke-opacity=".1" stroke-width="1"/>` +
-        `</pattern>` +
+        `<linearGradient id="bbc-joint-recess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101211"/><stop offset=".18" stop-color="#252a26"/><stop offset=".45" stop-color="#151916"/><stop offset=".78" stop-color="#101310"/><stop offset="1" stop-color="#30362f"/></linearGradient>` +
+        `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
+        `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
+        `<linearGradient id="bbc-join" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/><stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/><stop offset="1" stop-color="#181818"/></linearGradient><linearGradient id="bbc-join-fade"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="bbc-join-mask"><rect width="18" height="100" fill="url(#bbc-join-fade)"/></mask>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
-        `<stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/>` +
-        `<stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/>` +
-        `<stop offset="1" stop-color="#181818"/></linearGradient>` +
+        BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
-        `<stop offset="0" stop-color="#1e1e1e"/><stop offset=".25" stop-color="#484848"/>` +
-        `<stop offset=".5" stop-color="#606060"/><stop offset=".75" stop-color="#484848"/>` +
-        `<stop offset="1" stop-color="#161616"/></linearGradient>` +
+        BAR_TERMINAL_STOPS + `</linearGradient>` +
+        `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
+        `<linearGradient id="bbc-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".48"/><stop offset=".12" stop-color="#fff" stop-opacity=".08"/><stop offset=".23" stop-color="#fff" stop-opacity=".58"/><stop offset=".3" stop-color="#fff" stop-opacity=".32"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".58" stop-color="#000" stop-opacity=".08"/><stop offset=".76" stop-color="#000" stop-opacity=".22"/><stop offset=".9" stop-color="#fff" stop-opacity=".26"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></linearGradient>` +
+        `<linearGradient id="bbc-glass-highlight" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".15" stop-color="#fff" stop-opacity=".2"/><stop offset=".4" stop-color="#fff" stop-opacity=".52"/><stop offset=".7" stop-color="#fff" stop-opacity=".3"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>` +
         `<linearGradient id="bbc-recess-shadow" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>` +
         `<linearGradient id="bbc-recess-shine" x1="0" y1="0" x2="0" y2="1">` +
@@ -83,9 +92,10 @@
         `<linearGradient id="bbc-dL" x1="0" y1="1" x2="1" y2="0">` +
         `<stop offset="0" stop-color="#ee77ff"/><stop offset=".33" stop-color="#88bbff"/>` +
         `<stop offset=".66" stop-color="#77ffcc"/><stop offset="1" stop-color="#ff77cc"/></linearGradient>` +
-        `<filter id="bbc-tube-glow" x="-20%" y="-30%" width="140%" height="160%" color-interpolation-filters="sRGB">` +
-        `<feGaussianBlur stdDeviation="4" result="blur"/>` +
-        `<feMerge><feMergeNode in="blur"/><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>` +
+        `<filter id="bbc-tube-glow" x="-5%" y="-15%" width="110%" height="130%" color-interpolation-filters="sRGB">` +
+        `<feGaussianBlur stdDeviation="1.2 3"/>` +
+        `<feComponentTransfer result="blur"><feFuncA type="linear" slope=".85"/></feComponentTransfer>` +
+        `<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>` +
         `</filter>` +
         `<linearGradient id="bbc-s" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#1e1e1e"/><stop offset=".35" stop-color="#484848"/>` +
@@ -126,8 +136,8 @@
         for (let i = 0; i < CAP_N; i++) {
             const bx = CAP_PAD_X + i * (CAP_SLOT_W + CAP_GAP),
                 gx = bx + CAP_TERM_W, gw = CAP_SLOT_W - 2 * CAP_TERM_W,
-                winY = CAP_PAD_Y + 18, winH = CAP_SLOT_H - 18 * 2,
-                fy = winY + 3, fh = winH - 3 * 2;
+                winY = CAP_PAD_Y + CAP_RAIL_H, winH = CAP_SLOT_H - CAP_RAIL_H * 2,
+                fy = winY + CAP_FILL_INSET, fh = winH - CAP_FILL_INSET * 2;
             CAP_WIN_LEFT_PCT.push(gx / CAP_W * 100);
             CAP_WIN_DELAY_FWD_S.push(gx / CAP_W * FORWARD_SPREAD_S);
             CAP_WIN_DELAY_BWD_S.push(PHASE1_END_S + (CAP_W - gx) / CAP_W * BACKWARD_SPREAD_S);
@@ -154,7 +164,8 @@
 
         const colorKey = { green: 'g', gold: 'o', diamond: 'd', silver: 's' };
         const f = (v) => v.toFixed(2);
-        let out = `<rect width="${W}" height="${H}" fill="url(#bbc-housing)"/>`;
+        let out = `<rect width="18" height="100" fill="url(#bbc-join)"/><rect width="18" height="100" fill="url(#bbc-housing)" mask="url(#bbc-join-mask)"/><rect x="492" width="8" height="100" rx="2" fill="url(#bbc-housing)"/>`;
+        out += `<path d="M16.5 8L18 14V86L16.5 92Z M493.5 8L492 14V86L493.5 92Z" fill="#090a09" fill-opacity=".45"/><path d="M16.5 8V92 M493.5 8V92" stroke="#a4aaa4" stroke-opacity=".18" stroke-width=".6"/><path d="M17.7 14V86 M492.3 14V86" stroke="#030403" stroke-opacity=".65" stroke-width=".6"/>`;
         // HTML overlay, not SVG: inline SVG doesn't reliably get its own GPU compositor layer for
         // transform/opacity animation, but a clipped HTML div does.
         let overlay = '';
@@ -163,46 +174,62 @@
             const bx = padX + i * (slotW + gap);
             const by = padY;
 
-            // Bay recess: darken for depth, then inner shadow/highlight for the housing lip.
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="#000" fill-opacity=".5"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="url(#bbc-recess-shadow)"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="3" fill="#000" fill-opacity=".6"/>`;
-            out += `<rect x="${f(bx)}" y="${f(by + slotH - 1.5)}" width="${f(slotW)}" height="1.5" fill="#fff" fill-opacity=".15"/>`;
+            out += `<path d="M${f(bx)} 75Q${f(bx + slotW / 2)} 95 ${f(bx + slotW)} 75V94H${f(bx)}Z" fill="#171a19"/><path d="M${f(bx + 3)} 78Q${f(bx + slotW / 2)} 93 ${f(bx + slotW - 3)} 78" fill="none" stroke="#535b55" stroke-width="2"/>`;
 
             const color = slots[i];
-            if (!color) continue;
-
-            out += `<rect x="${f(bx)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(bx)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-hatch)"/>`;
-            out += `<rect x="${f(bx + slotW - termW)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(bx + slotW - termW)}" y="${by}" width="${termW}" height="${slotH}" fill="url(#bbc-hatch)"/>`;
-
-            out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="2.5" fill="#000" fill-opacity=".4"/>`;
+            if (i < n - 1) {
+                out += `<rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-recess)"/><rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-wall)"/><path d="M${f(bx + slotW + .7)} 11Q${f(bx + slotW + gap / 2)} 5 ${f(bx + slotW + gap - .7)} 11 M${f(bx + slotW + .7)} 88Q${f(bx + slotW + gap / 2)} 94 ${f(bx + slotW + gap - .7)} 88" fill="none" stroke="#84917f" stroke-opacity=".24" stroke-width=".8"/>`;
+                out += `<rect x="${f(bx + slotW - 1)}" y="${by + 19}" width="${gap + 2}" height="${slotH - 38}" rx="1" fill="url(#bbc-term)"/><path d="M${f(bx + slotW + gap / 2)} ${by + 21}v${slotH - 42}" stroke="#111" stroke-width="1.5"/>`;
+            }
 
             const gx = bx + termW, gw = slotW - 2 * termW;
             const gy = by, gh = slotH;
-            const railH = 18;
+            const railH = CAP_RAIL_H;
             const winY = gy + railH, winH = gh - railH * 2;
-            const fillInset = 3;
+            const fillInset = CAP_FILL_INSET;
             const fy = winY + fillInset, fh = winH - fillInset * 2;
 
             const fid = colorKey[color];
             const fillId = fid === 's' ? 's' : (fid + (lit ? 'L' : 'D'));
 
-            // Rails drawn first so fill+glow bleeds over them on completed weeks (same as end-caps).
-            out += `<rect x="${f(gx)}" y="${gy}" width="${f(gw)}" height="${railH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(gx)}" y="${gy}" width="${f(gw)}" height="${railH}" fill="url(#bbc-hatch)"/>`;
-            out += `<rect x="${f(gx)}" y="${f(gy + gh - railH)}" width="${f(gw)}" height="${railH}" fill="url(#bbc-term)"/>`;
-            out += `<rect x="${f(gx)}" y="${f(gy + gh - railH)}" width="${f(gw)}" height="${railH}" fill="url(#bbc-hatch)"/>`;
-
             // Glow filter is safe to leave static — the sweep animation lives in the HTML overlay, not here.
-            if (lit && color !== 'silver') out += `<g filter="url(#bbc-tube-glow)">`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-${fillId})"/>`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-recess-shadow)" opacity="${lit ? 0.4 : 1}"/>`;
-            out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" fill="url(#bbc-recess-shine)"/>`;
-            if (lit && color !== 'silver') out += `</g>`;
-            if (animated && color !== 'silver') {
-                overlay += `<div class="bbgl-cap-win" style="left:${CAP_WIN_LEFT_PCT[i].toFixed(2)}%;width:${CAP_WIN_WIDTH_PCT.toFixed(2)}%;top:${CAP_WIN_TOP_PCT.toFixed(2)}%;height:${CAP_WIN_HEIGHT_PCT.toFixed(2)}%">` +
+            if (color) {
+                out += `<rect x="${f(gx - 1)}" y="${winY}" width="${f(gw + 2)}" height="${winH}" rx="3" ry="9" fill="#0b0e0c"/>`;
+                if (lit && color !== 'silver') out += `<g filter="url(#bbc-tube-glow)">`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#bbc-${fillId})"/>`;
+                if (lit && color !== 'silver') out += `</g>`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#${color === 'silver' ? 'bbc-glass' : 'bbc-tube-glass'})"/>`;
+                if (color !== 'silver') {
+                    out += `<rect x="${f(gx + 2)}" y="${f(fy + fh * .19)}" width="${f(gw - 4)}" height="${f(fh * .055)}" rx="1" fill="url(#bbc-glass-highlight)"/>`;
+                }
+            } else {
+                out += `<rect x="${f(gx - 1)}" y="${winY}" width="${f(gw + 2)}" height="${winH}" rx="3" ry="9" fill="#acc5c0" fill-opacity=".06" stroke="#a2bab3" stroke-opacity=".35" stroke-width="1"/>`;
+                out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#bbc-tube-glass)" opacity=".65"/>`;
+                out += `<rect x="${f(gx + 2)}" y="${f(fy + fh * .19)}" width="${f(gw - 4)}" height="${f(fh * .055)}" rx="1" fill="url(#bbc-glass-highlight)"/>`;
+            }
+            out += `<path d="M${f(bx)} 4H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V96H${f(bx)}Z" fill="url(#bbc-term)"/>`;
+            out += `<path d="M${f(bx)} 22H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V78H${f(bx)}Z" fill="#090c0a" fill-opacity=".65"/>`;
+            out += `<path d="M${f(bx)} 26H${f(bx + slotW)} M${f(bx)} 74H${f(bx + slotW)}" stroke="#080b09" stroke-opacity=".82" stroke-width="1.5"/><path d="M${f(bx + 1)} 21H${f(bx + slotW - 1)} M${f(bx + 1)} 76H${f(bx + slotW - 1)}" stroke="#b4bcb4" stroke-opacity=".6" stroke-width="1.2"/><path d="M${f(bx + 1)} 6H${f(bx + slotW - 1)} M${f(bx + 1)} 94H${f(bx + slotW - 1)}" stroke="#080b09" stroke-opacity=".5" stroke-width="1"/>`;
+            // Collars cover the glass ends.
+            for (const [tx, innerX] of [[bx, gx - 1], [bx + slotW - termW, gx + gw]]) {
+                out += `<rect x="${f(tx)}" y="${by}" width="${termW}" height="${slotH}" rx="1.5" ry="5" fill="url(#bbc-term)"/>`;
+                out += `<rect x="${f(innerX)}" y="${by + 4}" width="1" height="${slotH - 8}" fill="#101310"/><path d="M${f(tx + 2)} ${by + 8}v${slotH - 16}" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
+            }
+            if (lit && color && color !== 'silver') {
+                const bloom = { green: '#a5ff52', gold: '#ffda61', diamond: '#b7f3e2' }[color];
+                out += `<rect x="${f(gx + 1)}" y="32" width="${f(gw - 2)}" height="36" rx="3" ry="10" fill="${bloom}" opacity=".4" filter="url(#bbc-end-bloom)"/>`;
+                for (const edge of [gx + .5, gx + gw - .5]) {
+                    out += `<ellipse cx="${f(edge)}" cy="50" rx="3" ry="24" fill="${bloom}" opacity="1" filter="url(#bbc-end-bloom)"/>`;
+                }
+            }
+            const clipX = bx + slotW * .35, clipW = slotW * .3;
+            out += buildTubeBrackets(clipX, clipW);
+            if (animated && lit && color && color !== 'silver') {
+                // Keep the sweep behind the retaining brackets.
+                const cl = f((clipX - 2 - gx) / gw * 100), cr = f((clipX + clipW + 2 - gx) / gw * 100);
+                const ct = f((35 - fy) / fh * 100), cb = f((65 - fy) / fh * 100);
+                const rt = f((27 - fy) / fh * 100), rb = f((73 - fy) / fh * 100);
+                overlay += `<div class="bbgl-cap-win" style="left:${CAP_WIN_LEFT_PCT[i].toFixed(2)}%;width:${CAP_WIN_WIDTH_PCT.toFixed(2)}%;top:${CAP_WIN_TOP_PCT.toFixed(2)}%;height:${CAP_WIN_HEIGHT_PCT.toFixed(2)}%;clip-path:polygon(0 ${rt}%,${cl}% ${rt}%,${cl}% ${ct}%,${cr}% ${ct}%,${cr}% ${rt}%,100% ${rt}%,100% ${rb}%,${cr}% ${rb}%,${cr}% ${cb}%,${cl}% ${cb}%,${cl}% ${rb}%,0 ${rb}%)">` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-fwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_FWD_S[i].toFixed(3)}s"></div>` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-bwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_BWD_S[i].toFixed(3)}s"></div>` +
                     `</div>`;
@@ -235,7 +262,136 @@
         if (aBtn) aBtn.classList.toggle('active', activeL === 'All-Time');
     }
 
+    // Library page: one equal-height row per training book, grouped by training type. A book
+    // counts as read once any 2051 (book finished) entry for it is in the log.
+    const LIBRARY_PAGE_COUNT = 2;
+
+    function gotoLibraryPage(p) {
+        const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
+        if (next === (viewState.libraryPage || 0)) return;
+        viewState.libraryPage = next;
+        saveViewState();
+        renderLibrary();
+    }
+
+    function renderLibrary() {
+        const c = dom.libraryContainer;
+        if (!c) return;
+        const bookData = DataController.getBookData();
+        const info = id => bookData.books[id] || { state: 'unread' };
+        // Unread books grey out; a book being read shows a marker; a finished (or, for Memories, used)
+        // book gets the ✓.
+        const stateClass = id => ({ read: ' is-read', reading: ' is-reading', unread: ' is-unread' })[info(id).state];
+        const marker = id => {
+            const st = info(id).state;
+            if (st === 'read') return '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
+            if (st === 'reading') return '<span class="bbgl-lib-reading">Reading</span>';
+            return '';
+        };
+        const page = viewState.libraryPage === 1 ? 1 : 0;
+        const ind = document.getElementById('bbgl-lib-pagination');
+        if (ind) {
+            ind.innerHTML = '';
+            for (let i = 0; i < LIBRARY_PAGE_COUNT; i++) {
+                const d = document.createElement('div');
+                d.className = 'pg-dot' + (i === page ? ' active' : '');
+                d.onclick = () => gotoLibraryPage(i);
+                ind.appendChild(d);
+            }
+        }
+        retryToolbarPaginationLayout(() => dom.topPanel && dom.topPanel.classList.contains('viewing-library'));
+        // Page 2: every non-training book as a two-column checklist, filled top-to-bottom.
+        if (page === 1) {
+            // Memories And Mammaries lives here rather than on the training page: when it repeats a
+            // training book, its effect gets its own row at the bottom of page 1.
+            const others = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
+            const rowsPerCol = Math.ceil(others.length / 2);
+            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
+            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group">Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
+            return;
+        }
+        const GROUPS = [
+            ['stat', 'Stat Books'],
+            ['gym', 'Gym Gains'],
+            ['energy', 'Energy'],
+            ['happy', 'Happy']
+        ];
+        const STAT_NAME = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity', tot: 'Total' };
+        const STAT_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex', tot: 'Tot' };
+        // One number with its label centred beneath. Both formats are emitted and CSS picks one:
+        // full number over full label, or abbreviated (compact, or a multi-cell group that didn't fit).
+        const cell = (key, gain) => {
+            const full = gain == null ? '—' : '+' + Formatter.number(gain);
+            const abbr = gain == null ? '—' : '+' + Formatter.achAbbr(gain, ACH_FMT.gains);
+            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span></div>`;
+        };
+        // Right column, from computeBookData(). Stat books: the jump in their stat at payout.
+        // Single-stat gym books: the extra gains on their stat. Get Hard Or Go Home, energy and happy
+        // books: a cell per stat trained in the window plus Total (only Total until something is
+        // recorded). `d` is the book's own data, or the Memories row's data for the book it repeated.
+        const dataCell = (b, d) => {
+            d = d || {};
+            let html = '';
+            if (b.training === 'stat') html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
+            else if (b.training === 'gym' && b.stat) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.stats && d.stats[b.stat] != null ? d.stats[b.stat] : null)}</div>`;
+            else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
+                const stats = d.stats || {};
+                const keys = ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null);
+                html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k])).join('')}${cell('tot', keys.length ? stats.tot : null)}</div>`;
+            }
+            const note = d.uncertain ? 'This gain could not be measured precisely: a train around the payout is missing from the log.' :
+                d.partial ? 'May be incomplete: part of this book\'s period is before your log.' : '';
+            return note ? `<div class="bbgl-lib-data-inner is-approx" data-tooltip="${achEsc(note)}">${html}</div>` : html;
+        };
+        const memRow = bookData.memories;
+        const row = id => {
+            const b = BOOK_META[id];
+            const repeated = memRow && memRow.repeats === id ? ' is-repeated' : '';
+            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}" data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
+        };
+        // Headers sit directly in the list beside the rows (not wrapped per group) so every book
+        // row still takes an equal share of the height.
+        let html = GROUPS.map(([type, label]) => {
+            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type);
+            if (!ids.length) return '';
+            return `<div class="bbgl-lib-group" data-type="${type}">${label}</div>${ids.map(row).join('')}`;
+        }).join('');
+        // Memories And Mammaries' own row, once read, when the book it repeated is a training book:
+        // its title, with the repeated book's effect measured over Memories' own period.
+        if (memRow) {
+            const mem = BOOK_META[MEMORIES_BOOK],
+                rep = BOOK_META[memRow.repeats];
+            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
+        }
+        c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
+        window.requestAnimationFrame(fitLibraryCells);
+        if (!runtime._libFitObserver && window.ResizeObserver) {
+            runtime._libFitObserver = new ResizeObserver(() => window.requestAnimationFrame(fitLibraryCells));
+            runtime._libFitObserver.observe(c);
+        }
+    }
+
+    // Multi-cell groups keep full numbers unless they don't fit their column with a little room to
+    // spare; then they switch to abbreviated numbers and short labels.
+    function fitLibraryCells() {
+        const c = dom.libraryContainer;
+        if (!c) return;
+        c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
+            g.classList.remove('is-tight');
+            const box = g.closest('.bbgl-lib-data');
+            if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
+        });
+    }
+
     function renderPanelContent() {
+        // The Library covers the calendar; switchView() renders it once on the way out. Data
+        // updates still refresh the Library itself.
+        if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) {
+            runtime._calendarStale = true;
+            renderLibrary();
+            return;
+        }
+        runtime._calendarStale = false;
         const s = getActiveHistory(),
             dm = DataController.getDateMap(),
             tk = Formatter.dateLogical();
@@ -640,7 +796,7 @@
             tr.setAttribute('data-tooltip-html', tooltipHtml);
             tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle');
             tab.onclick = (e) => { e.stopPropagation(); openHistory(slice, slice.label); };
-            tab.innerHTML = buildChartSVG(slice);
+            tab.innerHTML = `<div class="bbgl-summary-inset">${buildChartSVG(slice)}</div>`;
             anchor.appendChild(tab);
         };
         // Archived / pre-install weeks: five silver placeholder capsules (no real reward data).
@@ -1317,11 +1473,13 @@
         if (!topPanel) return true;
         const achFooter = topPanel.classList.contains('viewing-achievements') ? document.getElementById('bbgl-ach-footer') : null;
         const stickerBar = topPanel.classList.contains('viewing-stickers') ? document.getElementById('bbgl-sticker-pagination-bar') : null;
-        if (!achFooter && !stickerBar) return true;
+        const libBar = topPanel.classList.contains('viewing-library') ? document.getElementById('bbgl-lib-pagination-bar') : null;
+        if (!achFooter && !stickerBar && !libBar) return true;
         const center = measureToolbarCenter();
         if (!center) return false;
         if (achFooter) writeToolbarPaginationVars(achFooter, center);
         if (stickerBar) writeToolbarPaginationVars(stickerBar, center);
+        if (libBar) writeToolbarPaginationVars(libBar, center);
         return true;
     }
 
@@ -2324,7 +2482,7 @@
         const fill = document.createElement('div');
         fill.id = 'bbgl-gym-level-fill';
 
-        track.innerHTML = buildEmptyLevelTrackSVG();
+        track.innerHTML = buildEmptyLevelTrackSVG() + buildEmptyLevelTrackSVG(true);
         track.appendChild(fill);
         container.appendChild(num);
         container.appendChild(track);
@@ -2530,6 +2688,7 @@
         GRAPH_VIEW: "Graph",
         STICKERBOOK: "Stickerbook",
         ACHIEVEMENTS: "Achievements",
+        LIBRARY: "Library",
         COPY_SESSION: "Copy Session Data",
         ALL_TIME_SUMMARY: "All-Time Summary",
         YEARLY_SUMMARY: "Yearly Summary",
@@ -2975,40 +3134,18 @@
         return `<div class="close-settings-btn" title="Close Settings">${ICONS.CHECK}</div><div class="bbgl-settings-scroll-area">${buildSettingsFeaturesSection()}${buildSettingsLogFormatSection()}${buildSettingsDataSection()}${buildSettingsApiSection()}${buildSettingsInfoSection()}</div>`;
     }
 
-    function buildEmptyLevelTrackSVG() {
-        const W = 500, H = 100;
-        const padX = 8, padY = 18;
-        const slotW = W - 2 * padX;
-        const slotH = H - 2 * padY;
-
-        const defs =
-            `<defs>` +
-            `<linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/>` +
-            `<stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/>` +
-            `<stop offset="1" stop-color="#181818"/></linearGradient>` +
-            `<linearGradient id="lvl-recess-shadow" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset=".5" stop-color="#000" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>` +
-            `<linearGradient id="lvl-recess-shine" x1="0" y1="0" x2="0" y2="1">` +
-            `<stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".7" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".35"/></linearGradient>` +
-            `</defs>`;
-
-        const f = (v) => v.toFixed(2);
-        let out = `<rect width="${W}" height="${H}" fill="url(#lvl-housing)"/>`;
-        const bx = padX, by = padY;
-        
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="#000" fill-opacity=".5"/>`;
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="${slotH}" fill="url(#lvl-recess-shadow)"/>`;
-        out += `<rect x="${f(bx)}" y="${by}" width="${f(slotW)}" height="3" fill="#000" fill-opacity=".6"/>`;
-        out += `<rect x="${f(bx)}" y="${f(by + slotH - 1.5)}" width="${f(slotW)}" height="1.5" fill="#fff" fill-opacity=".15"/>`;
-
-        return `<svg class="bbgl-level-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;display:block;">${defs}${out}</svg>`;
+    function buildEmptyLevelTrackSVG(foreground = false) {
+        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset=".23" stop-color="#fff" stop-opacity=".5"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset=".9" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient></defs>`;
+        const body = foreground
+            ? `<rect x="8" y="13" width="484" height="74" rx="2" ry="37" fill="url(#lvl-tube-glass)"/><rect x="1" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/><rect x="492" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/>`
+            : `<path d="M0 88H500V100H0Z M0 2H500V10H0Z" fill="url(#lvl-tube-metal)"/><rect x="7" y="11" width="486" height="78" rx="3" ry="39" fill="#050907" fill-opacity=".38" stroke="#a2bab3" stroke-opacity=".25" stroke-width="1"/>`;
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${body}</svg>`;
     }
 
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div></div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div>${buildEmptyLevelTrackSVG(true)}</div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**

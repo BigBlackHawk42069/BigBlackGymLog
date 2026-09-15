@@ -56,7 +56,8 @@ const DataController = {
         stickerMap: null,
         unlockedCount: null,
         featuredDays: null,
-        hjData: null
+        hjData: null,
+        bookData: null
     },
     invalidate() {
         this._cache.timeline = null;
@@ -67,6 +68,7 @@ const DataController = {
         this._cache.unlockedCount = null;
         this._cache.featuredDays = null;
         this._cache.hjData = null;
+        this._cache.bookData = null;
         runtime.stickerData = [];
         runtime._achCache = null;
     },
@@ -78,9 +80,14 @@ const DataController = {
     // leaves the day's series/gains/eSpent untouched), so they stay valid. A day rollover or
     // any change to historical days must still call the full invalidate().
     invalidateToday() {
+        this._cache.bookData = null;
         this._cache.timeline = null;
         this._cache.dateMap = null;
         this._cache.slices = {};
+    },
+    getBookData() {
+        if (!this._cache.bookData) this._cache.bookData = computeBookData(getActiveHistory());
+        return this._cache.bookData;
     },
     // Fast hydration from a pre-built { meta, history, today } (DBManager.loadHistory()) —
     // no series flatten, no _rebuildFromSeries, no session serialization.
@@ -777,6 +784,7 @@ const DataController = {
             if (l.energyLost != null) entry.energyLost = l.energyLost;
             if (l.happyLost != null) entry.happyLost = l.happyLost;
             if (l.happy) entry.happy = l.happy;
+            if (l.bookId) entry.bookId = l.bookId;
             if (l.statKey) {
                 entry.statKey = l.statKey;
                 entry.statGain = l.statGain;
@@ -1190,6 +1198,7 @@ function normalizeApiLogs(rawLogs) {
             if (meta.energyLost) e.energyLost = parseInt(d.energy_decreased ?? 0);
             if (meta.happyLost) e.happyLost = parseInt(d.happy_decreased ?? 0);
             if (meta.happy) e.happy = parseInt(d.happy_increased || 0);
+            if (meta.book && d.item != null) e.bookId = parseInt(d.item);
             if (meta.stat) {
                 // Stat enhancers carry their gain under <stat>_increased; detect which stat.
                 const sn = ['strength', 'defense', 'speed', 'dexterity'].find(s => d[`${s}_increased`] != null);
@@ -1880,8 +1889,9 @@ function updateAchPageIndicator() {
         };
         ind.appendChild(d);
     }
-    const p = document.querySelector('.bbgl-ach-prev'),
-        n = document.querySelector('.bbgl-ach-next');
+    // Scoped to the footer: the stickerbook and Library bars reuse these classes.
+    const p = document.querySelector('#bbgl-ach-footer .bbgl-ach-prev'),
+        n = document.querySelector('#bbgl-ach-footer .bbgl-ach-next');
     if (p) {
         p.style.display = '';
         p.removeAttribute('aria-hidden');
@@ -2033,6 +2043,11 @@ function achTimeZoneSuffix() {
 function achFmtTimeHMClip(ts) {
     const d = new Date(ts * 1000);
     return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0');
+}
+
+// Indented "date  HH:MM – HH:MM TCT" line for Happy Jump clipboard copies.
+function achHJClipDate(rec) {
+    return '  ' + achFmtDate(rec.date) + '  ' + achFmtTimeHMClip(rec.ts) + ' – ' + achFmtTimeHMClip(rec.tsEnd || rec.ts) + ' TCT';
 }
 
 function achFmtTimeHMS(ts) {
@@ -2688,14 +2703,14 @@ function achBuildPage2(d) {
         const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0);
         const statCells = trained.map(sk => `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-stat bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${sk}" data-tooltip="Total ${achEsc(STAT_FULL[sk])} gained during this jump."><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[sk]))}</span><span class="bbgl-ach-hh-tag ach-stat-${sk}">${STAT_ABBR[sk]}</span></div>`).join('');
         const totalCell = `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
-        const clipParts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk]));
+        const clipParts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
         clipParts.push('Total: +' + achFmtGain(rec.value));
         return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${statCells}${totalCell}</div></div>`;
     };
     const hjCount = countRow('Happy Jumps Performed', 'Happy Jumps', d.happyJumps || 0, 'hj-count', 'Total number of Happy Jumps performed.<br><i>HJ = 1000E+ spent within 15m of using Ecstasy</i>', true);
     const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
     const rowsHTML = `<div class="bbgl-ach-hh-group" data-ach-key="happy-jumps-group">${hjCount}${hjBest}</div>`;
-    let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump: ${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => STAT_ABBR[sk] + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return parts.join(' | '); })() : '—'}`;
+    let clipAll = `Happy Jumps Performed: ${d.happyJumps || 0}\nBest Happy Jump:${d.bestHappyJump && d.bestHappyJump.total ? (() => { const rec = d.bestHappyJump.total; const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0); const parts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk])); parts.push('Total: +' + achFmtGain(rec.value)); return '\n  ' + parts.join('\n  ') + '\n' + achHJClipDate(rec); })() : ' +0'}`;
 
     let helpersHTML = '';
     if (d.happyItemTotals) {
@@ -2751,15 +2766,159 @@ function achBuildPage2(d) {
             }
             const clipHelpers = helpers.map(h => {
                 let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
-                if (h.id === ECSTASY_LOG && h.odCount > 0) line += `\n  - ODs: ${h.odCount}`;
+                if (h.id === ECSTASY_LOG && h.odCount > 0) {
+                    const exRec = d.odItemTotals[EX_OD_LOG];
+                    line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
+                }
                 return line;
-            }).join('\n');
+            }).join('\n\n');
             clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
             helpersHTML = `<div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
         }
     }
 
     return `<div class="bbgl-ach-section bbgl-ach-section-hh"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="happy-hopping" data-clip-section="${achEsc(clipAll)}" data-clip-title="Happy Hopping" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">HAPPY HOPPING</span></div>${rowsHTML}${helpersHTML}</div>`;
+}
+
+// ─── Books: read state, active windows and the gains attributed to each ─────────
+// Built from the book log entries (2050 used / 2051 finished, bookId = the item) and the gym series.
+//   state    'unread' | 'reading' (used, not finished) | 'read' (finished; Memories is read on use)
+//   stats    { str?, def?, spd?, dex?, tot } for window books — only stats trained in the window
+//   gain     number for stat books — the jump in that stat at payout
+//   partial  the window started before the log
+//   uncertain  a stat jump that doesn't match the book's +5% (a train missing around it)
+// Gym-gains books report only the extra from the book, assuming the bonus multiplies:
+// extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
+// read before it: a 31-day window from its use, or a stat payout 31 days after its use.
+const BOOK_USE_LOG = 2050,
+    BOOK_FINISH_LOG = 2051,
+    MEMORIES_BOOK = 785,
+    BOOK_PERIOD_SECONDS = 31 * 86400;
+
+function computeBookData(s) {
+    const days = [...(s.history || []), s.today].filter(Boolean);
+    const books = [],
+        gym = [],
+        enhancers = [];
+    days.forEach(day => {
+        (day.series || []).forEach(e => {
+            if (e.type === 'item') {
+                if ((e.logId === BOOK_USE_LOG || e.logId === BOOK_FINISH_LOG) && e.bookId) books.push(e);
+                else if (e.statKey) enhancers.push(e);
+            } else if (!e.synthetic && e.stat) {
+                gym.push(e);
+            }
+        });
+    });
+    books.sort((a, b) => a.ts - b.ts);
+    gym.sort((a, b) => a.ts - b.ts);
+    enhancers.sort((a, b) => a.ts - b.ts);
+    const nowTs = Math.floor(Date.now() / 1000);
+    const logStart = (s.meta && s.meta.logStartDate) || 0;
+
+    // Windows: one per book; Memories gets its own, copying the book read before it.
+    const windows = {};
+    let memories = null,
+        lastRead = null;
+    books.forEach(e => {
+        if (e.logId === BOOK_USE_LOG) {
+            if (e.bookId === MEMORIES_BOOK) {
+                if (!memories) memories = { start: e.ts, end: e.ts + BOOK_PERIOD_SECONDS, repeats: lastRead };
+                return;
+            }
+            if (!windows[e.bookId]) windows[e.bookId] = { start: e.ts, end: null };
+            lastRead = e.bookId;
+        } else if (e.bookId !== MEMORIES_BOOK) {
+            const w = windows[e.bookId];
+            if (w && w.end == null) w.end = e.ts;
+            else if (!w) {
+                windows[e.bookId] = { start: null, end: e.ts, partial: true };
+                if (lastRead == null) lastRead = e.bookId;
+            }
+        }
+    });
+
+    // Per-stat gains from trains in [a, b), scaled by `factor`. Only stats trained appear.
+    const sumGains = (a, b, onlyStat, factor) => {
+        const out = {};
+        let tot = 0;
+        gym.forEach(e => {
+            if ((a != null && e.ts < a) || e.ts >= b) return;
+            if (onlyStat && e.stat !== onlyStat) return;
+            const g = (e.gain || 0) * factor;
+            out[e.stat] = (out[e.stat] || 0) + g;
+            tot += g;
+        });
+        Object.keys(out).forEach(k => { out[k] = r2(out[k]); });
+        out.tot = r2(tot);
+        return out;
+    };
+    // The jump in `stat` at `T`: the stat's value just after T (the next train's before-value, or
+    // today's live value) minus its value just before T (the last train's after-value), less any
+    // stat enhancer gains on that stat in between.
+    const statJump = (stat, T) => {
+        let prev = null,
+            next = null;
+        for (const e of gym) {
+            if (e.stat !== stat) continue;
+            if (e.ts <= T) prev = e;
+            else { next = e; break; }
+        }
+        if (!prev) return null;
+        const before = prev.after;
+        const afterVal = next ? next.after - next.gain : ((s.today.endBreakdown && s.today.endBreakdown[stat]) || 0);
+        const until = next ? next.ts : nowTs + 1;
+        const se = enhancers.reduce((a, e) => (e.statKey === stat && e.ts > prev.ts && e.ts < until) ? a + (e.statGain || 0) : a, 0);
+        const gain = r2(afterVal - before - se);
+        if (!(gain > 0)) return null;
+        const expected = Math.min(before * 0.05, 10000000);
+        return { gain, uncertain: Math.abs(gain - expected) > expected * 0.1 + 1 };
+    };
+    // The data a book produces over one window, by its training type.
+    const effectData = (meta, start, end, finishTs) => {
+        const out = { partial: (start == null) || (start < logStart) };
+        if (meta.training === 'stat') {
+            if (finishTs == null || finishTs > nowTs) return out;
+            const j = statJump(meta.stat, finishTs);
+            if (j) { out.gain = j.gain; out.uncertain = j.uncertain; }
+            out.partial = false;
+            return out;
+        }
+        if (meta.training === 'gym') {
+            const bonus = meta.stat ? 0.3 : 0.2;
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
+        } else if (meta.training === 'energy' || meta.training === 'happy') {
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), null, 1);
+        }
+        return out;
+    };
+
+    const result = {};
+    Object.keys(BOOK_META).map(Number).forEach(id => {
+        const meta = BOOK_META[id];
+        if (id === MEMORIES_BOOK) {
+            result[id] = { state: memories ? 'read' : 'unread' };
+            return;
+        }
+        const w = windows[id];
+        if (!w) {
+            result[id] = { state: 'unread' };
+            return;
+        }
+        const finished = w.end != null;
+        const entry = { state: finished ? 'read' : 'reading' };
+        if (meta.training) Object.assign(entry, effectData(meta, w.start, finished ? w.end : nowTs + 1, w.end));
+        result[id] = entry;
+    });
+    // Memories' own row: the repeated book's effect over Memories' window (training books only).
+    let memoriesRow = null;
+    if (memories && memories.repeats != null) {
+        const repMeta = BOOK_META[memories.repeats];
+        if (repMeta && repMeta.training && repMeta.training !== 'repeat') {
+            memoriesRow = Object.assign({ repeats: memories.repeats, start: memories.start }, effectData(repMeta, memories.start, memories.end, memories.end));
+        }
+    }
+    return { books: result, memories: memoriesRow };
 }
 
 function computeEnhancersForPeriod(sl) {
@@ -2828,7 +2987,7 @@ function achBuildPageOverview(d) {
             // Stat label always shows; number is — when no data
             const gainNum = rec.gain > 0 ? `+${achEsc(Formatter.achAbbr(rec.gain, ACH_FMT.enhancers))}` : NULL;
             gainedHtml = `${gainNum} <span class="ach-stat-${sk}">${STAT_ABBR[sk]}</span>`;
-            clipVal = `${label}: ${rec.count} (+${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)} ${STAT_ABBR[sk]})`;
+            clipVal = `${label}: ${rec.count} (${STAT_ABBR[sk]}: +${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)})`;
             tip = isExpanded ? `Amount of ${tipLabel} · ${achStatFull(sk)} Gained` : `Amount of ${tipLabel}`;
         } else {
             const rec = enrg[id] || { count: 0, energy: 0 };
@@ -2854,7 +3013,7 @@ function achBuildPageOverview(d) {
         const gainedHtml = `${lostNum} <span class="ach-enh-e-label">E</span>`;
         const odLabel = achOdLabel(meta.label);
         const tip = isExpanded ? `Amount of ${odLabel} · Energy Lost` : `Amount of ${odLabel}`;
-        const clipVal = `- ${meta.label}: ${rec.count} (-${Formatter.number(rec.energyLost)} Energy Lost)`;
+        const clipVal = `- ${meta.label}: ${rec.count} (-${Formatter.number(rec.happyLost || 0)} H, -${Formatter.number(rec.energyLost || 0)} E)`;
         const key = `enh-${odId}`;
         return `<div class="bbgl-ach-row bbgl-ach-enh-row bbgl-ach-od-row bbgl-subgroup-row bbgl-subgroup-row-last" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(clipVal)}"><div class="ach-row-main"><div class="ach-k-stack"><span class="ach-k"><span class="ach-title-long">− ODs:</span><span class="ach-title-short">− ODs:</span></span></div><div class="ach-v-wrap"><span class="ach-value">${countHtml}</span><span class="ach-value ach-enh-gained ach-enh-od">${gainedHtml}</span></div></div></div>`;
     };
@@ -2876,17 +3035,19 @@ function achBuildPageOverview(d) {
         const sk = STAT_ENH_MAP[id];
         if (sk) {
             const rec = enh[sk] || { count: 0, gain: 0 };
-            return `${label}: ${rec.count} (+${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)} ${STAT_ABBR[sk]})`;
+            if (!rec.count) return null;
+            return `${label}: ${rec.count} (${STAT_ABBR[sk]}: +${Formatter.achAbbr(rec.gain, ACH_FMT.enhancers)})`;
         }
         const rec = enrg[id] || { count: 0, energy: 0 };
         const odId = OD_AFTER[id];
         const odCount = (odId && od[odId] && od[odId].count) || 0;
+        if (!(rec.count + odCount)) return null;
         let line = `${label}: ${rec.count + odCount} (+${Formatter.achAbbr(rec.energy, ACH_FMT.enhancers)} Energy)`;
-        if (odCount > 0) line += `\n  - ODs: ${odCount}`;
+        if (odCount > 0) line += `\n  - ODs: ${odCount} (-${Formatter.number(od[odId].happyLost || 0)} H, -${Formatter.number(od[odId].energyLost || 0)} E)`;
         return line;
-    }).join('\n');
+    }).filter(Boolean).join('\n\n') || '0';
 
-    const cols = `<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
+    const cols =`<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
     const isPeriod = !!viewState.achEnhPeriodMode;
     const switchHTML = `<div class="bbgl-enh-mode-switch" data-tooltip-html="<b>Changes the data scope displayed on this page.</b><br><i><b>All-Time</b> shows totals across your entire log history. <b>Selected</b> shows data for the selected period on the calendar.</i>" data-tooltip-side="left"><span class="bbgl-enh-sw-opt${isPeriod ? '' : ' active'}" data-mode="alltime">All-Time</span><span class="bbgl-enh-sw-opt${isPeriod ? ' active' : ''}" data-mode="selected">Selected</span></div>`;
     return `<div class="bbgl-ach-section bbgl-ach-section-energy"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="endocrine-enhancers" data-clip-section="${achEsc(clipAll)}" data-clip-title="Endocrine Enhancers" data-tooltip="Click any row to copy its data, or click this title to copy the entire section to your clipboard.">ENDOCRINE ENHANCERS</span>${switchHTML}</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(2,minmax(0,1fr));">${cols}</div></div>`;
@@ -2906,11 +3067,11 @@ function buildAchievementsPage(pageIdx, d) {
             ...base,
             dualHtml: opts.dualHtml,
             display: opts.display !== undefined ? opts.display : '',
-            rawVal: opts.rawVal !== undefined ? opts.rawVal : (opts.dualHtml && typeof value === 'number' ? achLedgerClip(value) : '\u2014')
+            rawVal: opts.rawVal !== undefined ? opts.rawVal : (opts.dualHtml && typeof value === 'number' ? achLedgerClip(value) : '0')
         };
         if (opts.display !== undefined || opts.rawVal !== undefined || value === null || value === undefined || typeof value !== 'number') {
             const display = opts.display !== undefined ? opts.display : achFmtVal(value);
-            const rawVal = opts.rawVal !== undefined ? opts.rawVal : (opts.display !== undefined ? String(opts.display).replace(/<[^>]+>/g, '') : (value !== null && value !== undefined ? achFmtVal(value) : '\u2014'));
+            const rawVal = opts.rawVal !== undefined ? opts.rawVal : (opts.display !== undefined ? String(opts.display).replace(/<[^>]+>/g, '') : (value !== null && value !== undefined ? achFmtVal(value) : '0'));
             return {
                 ...base,
                 dualHtml: '',
@@ -2942,7 +3103,7 @@ function buildAchievementsPage(pageIdx, d) {
         }) : mk(label, null, {
             ...o,
             display: '\u2014',
-            rawVal: '\u2014'
+            rawVal: '0 E'
         });
         return mk(label, v, o);
     };
@@ -2964,25 +3125,25 @@ function buildAchievementsPage(pageIdx, d) {
         const consistRows = [mk('Best Training Streak', d.longestStreak, {
             key: 'training-streak',
             dualHtml: achUnit(d.longestStreak, 'Day', 'Days'),
-            rawVal: d.longestStreak ? d.longestStreak + (d.longestStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestStreak ? d.longestStreak + (d.longestStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestStreakStart, d.longestStreakEnd),
             tip: 'Longest streak of active training days'
         }), mk('Best Green Streak', d.longestGoalStreak, {
             key: 'green-streak',
             dualHtml: achUnit(d.longestGoalStreak, 'Day', 'Days'),
-            rawVal: d.longestGoalStreak ? d.longestGoalStreak + (d.longestGoalStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestGoalStreak ? d.longestGoalStreak + (d.longestGoalStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestGoalStreakStart, d.longestGoalStreakEnd),
             tip: 'Longest streak of achieving at least Green (1000E+)'
         }), mk('Best Gold Streak', d.longestGoldStreak, {
             key: 'gold-streak',
             dualHtml: achUnit(d.longestGoldStreak, 'Day', 'Days'),
-            rawVal: d.longestGoldStreak ? d.longestGoldStreak + (d.longestGoldStreak === 1 ? ' Day' : ' Days') : '\u2014',
+            rawVal: d.longestGoldStreak ? d.longestGoldStreak + (d.longestGoldStreak === 1 ? ' Day' : ' Days') : '0 Days',
             clipDate: achFmtStreakRange(d.longestGoldStreakStart, d.longestGoldStreakEnd),
             tip: 'Longest streak of achieving Gold (1500E+)'
         }), mk('Consistency Rate', null, {
             key: 'consistency',
             display: d.trainingRestRatio || '\u2014',
-            rawVal: d.trainingRestRatio || '\u2014',
+            rawVal: d.trainingRestRatio || '0',
             tip: 'Lifetime ratio of rest days to training days'
         }), mk('Happy Jumps', d.happyJumps, {
             key: 'happy-jumps',
@@ -3068,7 +3229,7 @@ function achOdLabel(label) {
 
 function achFmtGainsLine(g) {
     const ORDER = ['str', 'def', 'spd', 'dex'];
-    return ORDER.filter(k => g && g[k] > 0).map(k => '+' + achFmtGain(g[k]) + ' ' + achStatAbbr(k)).join(' | ');
+    return ORDER.filter(k => g && g[k] > 0).map(k => achStatAbbr(k) + ': +' + achFmtGain(g[k])).join('\n    ');
 }
 
 function achFmtTs(ts) {
@@ -3198,7 +3359,7 @@ function achFmtStatBlock(key, rec, stat, indent) {
     else if (key === 'best-day') dateStr = Formatter.datePretty(rec.date);
     else if (key === 'best-week') dateStr = Formatter.datePretty(rec.weekOf);
     else if (key === 'best-month') dateStr = achFmtMonthLong(rec.rawMonth);
-    const line1 = indent + '+' + Formatter.number(rec.value) + ' ' + STAT_FULL[stat] + (baStr ? ' | ' + baStr : '');
+    const line1 = indent + STAT_FULL[stat] + ': +' + Formatter.number(rec.value) + (baStr ? ' | ' + baStr : '');
     const line2 = indent + '  ' + dateStr;
     return line1 + '\n' + line2;
 }
@@ -3219,7 +3380,7 @@ function handleAchCopy(el) {
         }
         if (row) {
             const clip = row.getAttribute('data-clip');
-            if (clip) { navigator.clipboard.writeText(clip).then(() => flashCopied(row)); }
+            if (clip) { navigator.clipboard.writeText('👑BBGL Achievements\n\n' + clip).then(() => flashCopied(row)); }
         }
         return;
     }
@@ -3248,12 +3409,13 @@ function handleAchCopy(el) {
         const PS_MAP_L = { 'best-train': 'bestTrain', 'best-day': 'bestDay', 'best-week': 'bestWeek', 'best-month': 'bestMonth' };
         const TITLE_MAP_L = { 'best-train': 'Best Train', 'best-day': 'Best Day', 'best-week': 'Best Week', 'best-month': 'Best Month' };
         if (sk && r && r.perStatBest) {
-            const lines = ['best-train', 'best-day', 'best-week', 'best-month'].map(mkey => {
-                const rec = (r.perStatBest[PS_MAP_L[mkey]] || {})[sk];
-                return achFmtStatBlock(mkey, rec, sk, '  ');
-            }).filter(Boolean);
-            if (lines.length) {
-                txt = '👑BBGL Achievements\nGreatest Gains — ' + achStatFull(sk) + ':\n' + lines.join(NL);
+            const hasAny = ['best-train', 'best-day', 'best-week', 'best-month'].some(mkey => (r.perStatBest[PS_MAP_L[mkey]] || {})[sk]);
+            if (hasAny) {
+                const blocks = ['best-train', 'best-day', 'best-week', 'best-month'].map(mkey => {
+                    const block = achFmtStatBlock(mkey, (r.perStatBest[PS_MAP_L[mkey]] || {})[sk], sk, I);
+                    return TITLE_MAP_L[mkey] + ':' + (block ? NL + block : ' +0');
+                });
+                txt = achClipSection(H, 'Greatest Gains (' + achStatFull(sk) + ')', blocks);
                 const _sec = el.closest('.bbgl-ach-section');
                 const _cells = _sec ? Array.from(_sec.querySelectorAll(`.bbgl-ach-stat-cell[data-stat="${sk}"]`)).filter(c => !c.querySelector('.ach-null')) : [];
                 flashEl = _cells.length ? _cells : el;
@@ -3266,7 +3428,7 @@ function handleAchCopy(el) {
         const rec = (recs && stat) ? recs[stat] : null;
         const block = achFmtStatBlock(key, rec, stat, '');
         if (block && TITLE_MAP[key]) {
-            txt = H + NL + TITLE_MAP[key] + ':' + NL + block;
+            txt = H + NL + NL + TITLE_MAP[key] + ':' + NL + block;
             flashEl = el;
         } else if (cache && /^(training|green|gold|diamond)-streak$/.test(key)) {
             const SK = {
@@ -3285,11 +3447,12 @@ function handleAchCopy(el) {
             const ent = SK[key];
             if (ent && ent[2]) {
                 const label = ent[0],
+                    len = ent[1] || 0,
                     g = ent[2],
                     st = ent[3],
                     en = ent[4];
                 const v = stat === 'total' ? ['str', 'def', 'spd', 'dex'].reduce((a, k) => a + (g[k] || 0), 0) : (g[stat] || 0);
-                txt = H + NL + label + ' — ' + SF[stat] + ':' + NL + '+' + Formatter.number(v) + ' ' + SF[stat] + (st && en ? NL + I + Formatter.datePretty(st) + ' – ' + Formatter.datePretty(en) : '');
+                txt = H + NL + NL + label + ' — ' + SF[stat] + ': ' + len + (len === 1 ? ' Day' : ' Days') + NL + I + SF[stat] + ': +' + Formatter.number(v) + (st && en ? NL + I + Formatter.datePretty(st) + ' – ' + Formatter.datePretty(en) : '');
                 flashEl = el;
             }
         } else if (key === 'best-hj') {
@@ -3304,7 +3467,7 @@ function handleAchCopy(el) {
             };
             if (rec && rec.stats) {
                 const v = stat === 'total' ? rec.value : (rec.stats[stat] || 0);
-                txt = H + NL + label + ' — ' + HHSF[stat] + ': +' + achFmtGain(v);
+                txt = H + NL + NL + label + ' — ' + HHSF[stat] + ': +' + achFmtGain(v) + NL + achHJClipDate(rec);
                 flashEl = el;
             }
         }
@@ -3319,14 +3482,14 @@ function handleAchCopy(el) {
         };
         const GSTS = ['str', 'def', 'spd', 'dex'];
         const fmtJ = (rec) => {
-            if (!rec || !rec.stats) return '\u2014';
+            if (!rec || !rec.stats) return ' +0';
             const tr = GSTS.filter(sk => (rec.stats[sk] || 0) > 0);
-            const pts = tr.map(sk => GABR[sk] + ': +' + achFmtGain(rec.stats[sk]));
+            const pts = tr.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
             pts.push('Total: +' + achFmtGain(rec.value));
-            return pts.join(' | ');
+            return NL + I + pts.join(NL + I) + NL + achHJClipDate(rec);
         };
         if (gKey === 'happy-jumps-group') {
-            txt = H + NL + 'Happy Jumps Performed: ' + (r.happyJumps || 0) + NL + 'Best Happy Jump: ' + fmtJ(r.bestHappyJump && r.bestHappyJump.total);
+            txt = H + NL + NL + 'Happy Jumps Performed: ' + (r.happyJumps || 0) + NL + 'Best Happy Jump:' + fmtJ(r.bestHappyJump && r.bestHappyJump.total);
             flashEl = Array.from(el.children);
         }
     } else if (el.classList.contains('bbgl-ach-section-title') || el.classList.contains('bbgl-ach-subsection-title')) {
@@ -3334,19 +3497,19 @@ function handleAchCopy(el) {
             r = cache,
             title = el.getAttribute('data-clip-title') || '';
         const gain = (label, rec, getBA, getDate) => {
-            if (!rec) return label + ': \u2014';
+            if (!rec) return label + ': +0';
             const ba = getBA(rec),
                 baStr = achFmtBA(ba);
-            const line1 = label + ': +' + Formatter.number(rec.value) + ' ' + achStatFull(rec.stat) + (baStr ? ' | ' + baStr : '');
+            const line1 = label + ': ' + achStatFull(rec.stat) + ' +' + Formatter.number(rec.value) + (baStr ? ' | ' + baStr : '');
             return line1 + NL + I + getDate(rec);
         };
-        const eRow = (label, rec, getDate) => !rec ? label + ': \u2014' : label + ': ' + Formatter.number(rec.value) + ' E' + NL + I + getDate(rec);
+        const eRow = (label, rec, getDate) => !rec ? label + ': 0 E' : label + ': ' + Formatter.number(rec.value) + ' E' + NL + I + getDate(rec);
         const streak = (label, len, gains, start, end) => {
-            if (!len) return label + ': \u2014';
+            if (!len) return label + ': 0 Days';
             const gLine = gains ? achFmtGainsLine(gains) : '';
             const tot = gains ? ((gains.str || 0) + (gains.def || 0) + (gains.spd || 0) + (gains.dex || 0)) : 0;
             let s = label + ': ' + len + (len === 1 ? ' Day' : ' Days') + NL;
-            if (gLine) s += I + 'Gains: ' + gLine + NL;
+            if (gLine) s += I + 'Gains:' + NL + '    ' + gLine + NL;
             if (tot) s += I + 'Total Gains: +' + Formatter.number(tot) + NL;
             if (start && end) s += I + Formatter.datePretty(start) + ' \u2013 ' + Formatter.datePretty(end);
             return s;
@@ -3355,15 +3518,15 @@ function handleAchCopy(el) {
         if (sec === 'greatest-gains') {
             const buildMulti = (label, mkey) => {
                 const mRecs = (r && r.perStatBest) ? r.perStatBest[PS_MAP[mkey]] : null;
-                if (!mRecs) return label + ': —';
+                if (!mRecs) return label + ': +0';
                 const mLines = ['str', 'def', 'spd', 'dex'].map(sk => achFmtStatBlock(mkey, mRecs[sk], sk, I)).filter(Boolean);
-                if (!mLines.length) return label + ': —';
+                if (!mLines.length) return label + ': +0';
                 return label + ':' + NL + mLines.join(NL);
             };
             blocks = [buildMulti('Best Train', 'best-train'), buildMulti('Best Day', 'best-day'), buildMulti('Best Week', 'best-week'), buildMulti('Best Month', 'best-month')];
         } else if (sec === 'expended-energy') blocks = [eRow('Best Day', r.mostEInOneDay, rec => Formatter.datePretty(rec.date)), eRow('Best Week', r.mostEInOneWeek, rec => achFmtWeekCopy(rec.weekOf)), eRow('Best Month', r.mostEInOneMonth, rec => rec.month)];
-        else if (sec === 'consistency-kept') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '\u2014') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained', 'Happy Jumps: ' + (r.happyJumps || 0)];
-        else if (sec === 'sexiest-streaks') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), streak('Best Diamond Streak', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '\u2014') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Calendar Days Trained'];
+        else if (sec === 'consistency-kept') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '0') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained', 'Happy Jumps: ' + (r.happyJumps || 0)];
+        else if (sec === 'sexiest-streaks') blocks = [streak('Best Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd), streak('Best Green Streak', r.longestGoalStreak, r.longestGoalStreakGains, r.longestGoalStreakStart, r.longestGoalStreakEnd), streak('Best Gold Streak', r.longestGoldStreak, r.longestGoldStreakGains, r.longestGoldStreakStart, r.longestGoldStreakEnd), streak('Best Diamond Streak', r.longestDiamondStreak, r.longestDiamondStreakGains, r.longestDiamondStreakStart, r.longestDiamondStreakEnd), 'Consistency: ' + (r.trainingRestRatio || '0') + ' | ' + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Calendar Days Trained'];
         else if (sec === 'rewards-reaped') blocks = ['Green Days: ' + (r.greenDays || 0), 'Green Weeks: ' + (r.greenWeeks || 0), 'Gold Days: ' + (r.goldDays || 0), 'Gold Weeks: ' + (r.goldWeeks || 0), 'Diamond Days: ' + (r.diamondDays || 0), 'Diamond Weeks: ' + (r.diamondWeeks || 0), 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length];
         if (blocks) {
             txt = achClipSection(H, title, blocks);
@@ -3417,17 +3580,17 @@ function handleAchCopy(el) {
             const mTitle = TITLE_MAP[key];
             if (mRecs && mTitle) {
                 const mLines = ['str', 'def', 'spd', 'dex'].map(sk => achFmtStatBlock(key, mRecs[sk], sk, I)).filter(Boolean);
-                txt = H + NL + mTitle + ':' + (mLines.length ? NL + mLines.join(NL) : NL + '—');
+                txt = H + NL + NL + mTitle + ':' + (mLines.length ? NL + mLines.join(NL) : NL + '+0');
             }
         } else if (key === 'most-e-day' && r.mostEInOneDay) {
             const rec = r.mostEInOneDay;
-            txt = H + NL + 'Most Energy Used Training in a Single Day:' + NL + Formatter.number(rec.value) + ' E' + NL + I + Formatter.datePretty(rec.date);
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Day:' + NL + Formatter.number(rec.value) + ' E' + NL + I + Formatter.datePretty(rec.date);
         } else if (key === 'most-e-week' && r.mostEInOneWeek) {
             const rec = r.mostEInOneWeek;
-            txt = H + NL + 'Most Energy Used Training in a Single Week:' + NL + Formatter.number(rec.value) + ' E' + NL + I + achFmtWeekCopy(rec.weekOf);
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Week:' + NL + Formatter.number(rec.value) + ' E' + NL + I + achFmtWeekCopy(rec.weekOf);
         } else if (key === 'most-e-month' && r.mostEInOneMonth) {
             const rec = r.mostEInOneMonth;
-            txt = H + NL + 'Most Energy Used Training in a Single Month:' + NL + Formatter.number(rec.value) + ' E' + NL + I + rec.month;
+            txt = H + NL + NL + 'Most Energy Used Training in a Single Month:' + NL + Formatter.number(rec.value) + ' E' + NL + I + rec.month;
         } else if (key === 'training-streak' || key === 'green-streak' || key === 'gold-streak' || key === 'diamond-streak') {
             const SK = {
                 'training-streak': ['Longest Training Streak', r.longestStreak, r.longestStreakGains, r.longestStreakStart, r.longestStreakEnd],
@@ -3442,28 +3605,28 @@ function handleAchCopy(el) {
                 en = SK[4];
             const gLine = gains ? achFmtGainsLine(gains) : '';
             const tot = gains ? ((gains.str || 0) + (gains.def || 0) + (gains.spd || 0) + (gains.dex || 0)) : 0;
-            txt = H + NL + label + ': ' + len + (len === 1 ? ' Day' : ' Days');
-            if (gLine) txt += NL + 'Gains: ' + gLine;
-            if (tot) txt += NL + 'Total Gains: +' + Formatter.number(tot);
+            txt = H + NL + NL + label + ': ' + len + (len === 1 ? ' Day' : ' Days');
+            if (gLine) txt += NL + I + 'Gains:' + NL + '    ' + gLine;
+            if (tot) txt += NL + I + 'Total Gains: +' + Formatter.number(tot);
             if (st && en) txt += NL + I + Formatter.datePretty(st) + ' \u2013 ' + Formatter.datePretty(en);
         } else if (key === 'consistency') {
-            txt = H + NL + 'Training Consistency: ' + (r.trainingRestRatio || '\u2014') + NL + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained';
+            txt = H + NL + NL + 'Training Consistency: ' + (r.trainingRestRatio || '0') + NL + (r.trainingDays || 0) + '/' + (r.calDays || 0) + ' Days Trained';
         } else if (key === 'happy-jumps') {
-            txt = H + NL + 'Happy Jumps: ' + (r.happyJumps || 0);
+            txt = H + NL + NL + 'Happy Jumps: ' + (r.happyJumps || 0);
         } else if (key === 'green-days') {
-            txt = H + NL + 'Green Days: ' + (r.greenDays || 0);
+            txt = H + NL + NL + 'Green Days: ' + (r.greenDays || 0);
         } else if (key === 'green-weeks') {
-            txt = H + NL + 'Green Weeks: ' + (r.greenWeeks || 0);
+            txt = H + NL + NL + 'Green Weeks: ' + (r.greenWeeks || 0);
         } else if (key === 'gold-days') {
-            txt = H + NL + 'Gold Days: ' + (r.goldDays || 0);
+            txt = H + NL + NL + 'Gold Days: ' + (r.goldDays || 0);
         } else if (key === 'gold-weeks') {
-            txt = H + NL + 'Gold Weeks: ' + (r.goldWeeks || 0);
+            txt = H + NL + NL + 'Gold Weeks: ' + (r.goldWeeks || 0);
         } else if (key === 'diamond-days') {
-            txt = H + NL + 'Diamond Days: ' + (r.diamondDays || 0);
+            txt = H + NL + NL + 'Diamond Days: ' + (r.diamondDays || 0);
         } else if (key === 'diamond-weeks') {
-            txt = H + NL + 'Diamond Weeks: ' + (r.diamondWeeks || 0);
+            txt = H + NL + NL + 'Diamond Weeks: ' + (r.diamondWeeks || 0);
         } else if (key === 'stickers') {
-            txt = H + NL + 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length;
+            txt = H + NL + NL + 'Stickers Unlocked: ' + (r.stickersUnlocked || 0) + '/' + CUSTOM_STICKERS.length;
         } else {
             const clip = el.getAttribute('data-clip') || '',
                 clipDate = el.getAttribute('data-clip-date') || '';
@@ -3492,7 +3655,7 @@ function buildSessionText(sl, s, keys) {
     const statLines = keys
         .filter(k => s[k].gain > 0 || s[k].cost > 0)
         .map(k => `${statEmoji[k]}${statNames[k]}: +${Formatter.achAbbr(s[k].gain, ACH_FMT.gains)} (${Formatter.achAbbr(s[k].start, ACH_FMT.gains)} \u2192 ${Formatter.achAbbr(s[k].end, ACH_FMT.gains)})`);
-    return ['👑BBGymLog', `${ds} |${eTxt}`, ...statLines].join('\n');
+    return ['👑Big Black Gym Log', '', `${ds} |${eTxt}`, ...statLines].join('\n');
 }
 
 // Reusable "Copied!" overlay: hide the element's children, show a centred overlay for 1s.
@@ -3645,6 +3808,7 @@ async function exportData() {
             if (e.energy) entry.e = e.energy;
             if (e.energyLost != null) entry.eLost = e.energyLost;
             if (e.happy) entry.happy = e.happy;
+            if (e.bookId) entry.book = e.bookId;
             if (e.statKey) {
                 entry.stat = e.statKey;
                 entry.gain = e.statGain;
@@ -3805,6 +3969,7 @@ function importData(f, onDone, opts = {}) {
                                 const m = labelToItem[k];
                                 const out = { type: 'item', logId: m.logId, ts: e[k] };
                                 if (e.e !== undefined) out.energy = e.e;
+                                if (e.book !== undefined) out.bookId = e.book;
                                 return out;
                             }
                         }

@@ -24,6 +24,7 @@
         LEDGER: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="2" fill="none"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>`,
         GRAPH: `<svg viewBox="0 0 24 24"><path d="M3,12 L7,16 L13,6 L18,14 L22,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
         STICKERBOOK: `<svg viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.5" fill="none"/><circle cx="12" cy="5.5" r="3.5" fill="none"/><circle cx="18" cy="10" r="3.5" fill="none"/><circle cx="16" cy="17" r="3.5" fill="none"/><circle cx="8" cy="17" r="3.5" fill="none"/><circle cx="6" cy="10" r="3.5" fill="none"/></svg>`,
+        LIBRARY: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="6" width="5" height="16" rx="1" fill="none"/><rect x="6" y="2.5" width="5.5" height="19.5" rx="1" fill="none"/><rect x="17.8" y="8" width="5.5" height="14" rx="1" fill="none" transform="rotate(-18 17.8 22)"/></svg>`,
         ACHIEVEMENTS: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" fill="none"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" fill="none"></path><path d="M4 22h16" fill="none"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" fill="none"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" fill="none"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" fill="none"></path></svg>`,
         PASTE: `<svg viewBox="0 0 24 24"><path d="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H14.82C14.4,0.84 13.3,0 12,0C10.7,0 9.6,0.84 9.18,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"/></svg>`,
         CHECK: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17 4 12" fill="none"/></svg>`,
@@ -66,6 +67,7 @@
     const EXP_CROWN_PATH = "M193.636 22.044 C 182.529 27.985,180.338 45.621,189.593 54.592 C 193.384 58.266,193.325 58.939,188.176 70.810 C 163.707 127.227,143.908 132.713,103.872 94.170 C 97.232 87.778,97.187 87.704,98.234 84.744 C 102.964 71.365,85.668 57.225,74.917 65.683 C 65.274 73.267,71.102 91.707,83.674 93.393 C 86.535 93.777,87.611 94.407,88.243 96.069 C 89.543 99.488,100.349 139.625,104.966 158.182 C 107.267 167.432,109.322 175.494,109.532 176.099 C 109.800 176.869,111.627 176.423,115.639 174.608 L 286.205 174.613 C 293.432 177.890,291.721 180.896,299.107 151.950 C 311.947 101.626,314.454 93.636,317.401 93.636 C 326.599 93.636,334.579 79.275,330.342 70.347 C 322.578 53.985,297.084 68.675,303.582 85.767 C 305.874 91.794,271.086 117.463,258.740 118.855 C 242.368 120.700,226.759 103.733,212.306 68.380 L 208.113 58.124 211.323 55.097 C 226.571 40.716,211.474 12.503,193.636 22.044 M138.379 65.055 C 132.851 68.927,132.526 85.309,137.973 85.475 C 138.338 85.486,139.582 86.223,140.738 87.112 L 142.839 88.729 139.512 98.673 C 137.682 104.142,135.612 109.726,134.911 111.082 C 133.185 114.418,133.200 114.456,136.789 115.955 C 146.318 119.937,155.721 116.589,165.869 105.601 L 168.556 102.692 162.196 96.119 C 152.170 85.755,152.287 85.936,154.000 83.490 C 160.757 73.843,147.749 58.492,138.379 65.055 M254.135 66.447 C 249.029 70.930,247.780 79.527,251.606 83.864 C 253.281 85.763,253.294 85.744,242.310 97.108 L 235.000 104.671 239.263 108.569 C 247.293 115.913,255.483 117.954,264.959 114.973 C 271.221 113.003,271.405 112.722,269.230 108.440 C 267.406 104.849,262.723 90.706,262.733 88.817 C 262.736 88.218,263.983 87.019,265.504 86.154 C 267.186 85.196,268.997 82.935,270.127 80.379 C 275.243 68.813,263.295 58.404,254.135 66.447";
     const CROWN_BADGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 20 280 154.6" preserveAspectRatio="none">${ASSETS.GRADIENT}<g><path fill="url(#bbgl_silver_grad)" d="${EXP_CROWN_PATH}"></path></g></svg>`;
     const CROWN_BADGE_URL = `data:image/svg+xml,${encodeURIComponent(CROWN_BADGE_SVG)}`;
+    const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
 
@@ -766,8 +768,15 @@
                         --bbgl-ledger-footer-pb: 3px;
                         --bbgl-top-pt: 18px;
                         --bbgl-toolbar-pad: 8px;
-                        --bbgl-toolbar-gap: 11px;
+                        /* 9px, the same tap-target floor expanded and page use: at 11px the graph band
+                           ran 18px short once the Library icon joined the row. */
+                        --bbgl-toolbar-gap: 9px;
                         --bbgl-toolbar-min-gap: 12px;
+                    }
+
+                    /* The other 6px of that shortfall, taken only where the stat pills exist. */
+                    #bbgl-panel.bbgl-compact #bbgl-top-panel.viewing-graph #bbgl-toolbar {
+                        --bbgl-toolbar-min-gap: 6px;
                     }
 
                     #bbgl-panel.bbgl-mode-page {
@@ -1814,6 +1823,7 @@
                     #bbgl-ledger-toggle,
                     #bbgl-graph-toggle,
                     #bbgl-achievements-toggle,
+                    #bbgl-library-toggle,
                     #bbgl-sticker-toggle,
                     #bbgl-copy-btn {
                         color: rgba(255, 255, 255, .55);
@@ -1830,6 +1840,7 @@
                     #bbgl-ledger-toggle:hover,
                     #bbgl-graph-toggle:hover,
                     #bbgl-achievements-toggle:hover,
+                    #bbgl-library-toggle:hover,
                     #bbgl-sticker-toggle:hover,
                     #bbgl-copy-btn:hover {
                         color: rgba(255, 255, 255, 1);
@@ -1838,6 +1849,7 @@
                     #bbgl-ledger-toggle,
                     #bbgl-graph-toggle,
                     #bbgl-achievements-toggle,
+                    #bbgl-library-toggle,
                     #bbgl-sticker-toggle,
                     #bbgl-copy-btn {
                         z-index: 59;
@@ -1854,6 +1866,7 @@
                     #bbgl-ledger-toggle svg,
                     #bbgl-graph-toggle svg,
                     #bbgl-achievements-toggle svg,
+                    #bbgl-library-toggle svg,
                     #bbgl-sticker-toggle svg,
                     #bbgl-copy-btn svg {
                         fill: currentColor;
@@ -1861,6 +1874,8 @@
 
                     #bbgl-graph-toggle,
                     #bbgl-graph-toggle svg,
+                    #bbgl-library-toggle,
+                    #bbgl-library-toggle svg,
                     #bbgl-sticker-toggle,
                     #bbgl-sticker-toggle svg {
                         width: 14px;
@@ -1879,13 +1894,14 @@
 
                     .viewing-graph #bbgl-graph-toggle,
                     .viewing-achievements #bbgl-achievements-toggle,
+                    .viewing-library #bbgl-library-toggle,
                     .viewing-stickers #bbgl-sticker-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
                     }
 
-                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements) #bbgl-ledger-toggle {
+                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library) #bbgl-ledger-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
@@ -1911,6 +1927,7 @@
                         height: 15.5px;
                     }
 
+                    .bbgl-expanded #bbgl-library-toggle,
                     .bbgl-expanded #bbgl-sticker-toggle {
                         width: 16px;
                         height: 15px;
@@ -1925,6 +1942,7 @@
                     #bbgl-panel.bbgl-mode-page #bbgl-ledger-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-graph-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-achievements-toggle,
+                    #bbgl-panel.bbgl-mode-page #bbgl-library-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-sticker-toggle,
                     #bbgl-panel.bbgl-mode-page #bbgl-copy-btn {
                         width: clamp(14.5px, calc(14.5px + 3.5px * var(--bbgl-page-t)), 18px);
@@ -1938,11 +1956,13 @@
                     .bbgl-expanded #bbgl-ledger-toggle svg,
                     .bbgl-expanded #bbgl-graph-toggle svg,
                     .bbgl-expanded #bbgl-achievements-toggle svg,
+                    .bbgl-expanded #bbgl-library-toggle svg,
                     .bbgl-expanded #bbgl-sticker-toggle svg,
                     .bbgl-expanded #bbgl-copy-btn svg,
                     .bbgl-mode-page #bbgl-ledger-toggle svg,
                     .bbgl-mode-page #bbgl-graph-toggle svg,
                     .bbgl-mode-page #bbgl-achievements-toggle svg,
+                    .bbgl-mode-page #bbgl-library-toggle svg,
                     .bbgl-mode-page #bbgl-sticker-toggle svg,
                     .bbgl-mode-page #bbgl-copy-btn svg {
                         width: 100% !important;
@@ -2032,7 +2052,9 @@
                     .viewing-graph .ui-floating-label,
                     .viewing-graph .ui-floating-summary,
                     .viewing-achievements .ui-floating-label,
-                    .viewing-achievements .ui-floating-summary {
+                    .viewing-achievements .ui-floating-summary,
+                    .viewing-library .ui-floating-label,
+                    .viewing-library .ui-floating-summary {
                         opacity: 0;
                     }
 
@@ -2053,11 +2075,13 @@
                         display: none !important;
                     }
 
-                    #bbgl-top-panel.viewing-achievements {
+                    #bbgl-top-panel.viewing-achievements,
+                    #bbgl-top-panel.viewing-library {
                         border-bottom: none !important;
                     }
 
-                    #bbgl-top-panel.viewing-achievements::after {
+                    #bbgl-top-panel.viewing-achievements::after,
+                    #bbgl-top-panel.viewing-library::after {
                         box-shadow: inset 1px 1px 1px rgba(255, 255, 255, .2) !important;
                     }
 
@@ -2076,7 +2100,8 @@
 
                     .viewing-graph #bbgl-ledger-view,
                     .viewing-stickers #bbgl-ledger-view,
-                    .viewing-achievements #bbgl-ledger-view {
+                    .viewing-achievements #bbgl-ledger-view,
+                    .viewing-library #bbgl-ledger-view {
                         display: none !important;
                     }
 
@@ -2302,7 +2327,8 @@
                     }
 
                     #bbgl-graph-container,
-                    #bbgl-achievements-container {
+                    #bbgl-achievements-container,
+                    #bbgl-library-container {
                         display: none;
                         flex: 1;
                         flex-direction: column;
@@ -2311,8 +2337,329 @@
                     }
 
                     .viewing-graph #bbgl-graph-container,
-                    .viewing-achievements #bbgl-achievements-container {
+                    .viewing-achievements #bbgl-achievements-container,
+                    .viewing-library #bbgl-library-container {
                         display: flex;
+                    }
+
+                    /* The Library takes the whole panel: #bbgl-top-panel grows over the calendar. Docked
+                       modes already lay it absolutely over #bbgl-bottom-panel, so it just fills its
+                       box. Page mode stacks them in flow, so it grows by the bottom panel's measured
+                       height (--bbgl-lib-extra, set by resizeLibraryPanel()) and gives the same amount
+                       back as a negative margin, which keeps the page from changing height. The
+                       transition only exists while bbgl-lib-anim is on, so mode switches stay instant. */
+                    #bbgl-panel:not(.bbgl-mode-page) #bbgl-top-panel.viewing-library {
+                        height: 100%;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-library {
+                        flex-basis: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) + var(--bbgl-lib-extra, 0px));
+                        height: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) + var(--bbgl-lib-extra, 0px));
+                        margin-bottom: calc(-1 * var(--bbgl-lib-extra, 0px));
+                    }
+
+                    /* The glass art is drawn for the normal top-panel height, so at full height it is
+                       sliced instead of stretched: the top 85% and bottom 5% keep their normal-height
+                       proportions and only the 85-95% band (side glare only) stretches to fill the
+                       rest. Slice widths are fractions of the normal top-panel height; percentages in
+                       --bbgl-top-h resolve against this box, which is that same full height here. */
+                    #bbgl-top-panel.viewing-library .glass-overlay {
+                        background-image: none;
+                        border-style: solid;
+                        border-width: 0;
+                        border-image-source: url('${ASSETS.GLASS_OVERLAY}');
+                        border-image-slice: 85% 0 5% 0 fill;
+                        border-image-width: calc(var(--bbgl-top-h) * .85) 0 calc(var(--bbgl-top-h) * .05) 0;
+                        border-image-repeat: stretch;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-library .glass-overlay {
+                        border-image-width: calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) * .85) 0 calc(clamp(180px, calc(180px + 90px * var(--bbgl-page-t)), 270px) * .05) 0;
+                    }
+
+                    #bbgl-panel.bbgl-lib-anim #bbgl-top-panel {
+                        transition: height .36s cubic-bezier(.25, .8, .25, 1), flex-basis .36s cubic-bezier(.25, .8, .25, 1), margin-bottom .36s cubic-bezier(.25, .8, .25, 1);
+                    }
+
+                    /* The Library's space: everything under the toolbar band (the same top clearance
+                       the graph uses), inset on the sides to clear the glass overlay's edge glare.
+                       A size container, so row type scales with the page's height and 17 rows always
+                       fit without scrolling. */
+                    #bbgl-library-container {
+                        min-height: 0;
+                        overflow: hidden;
+                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(14px, 6%, 32px) 10px;
+                        container-type: size;
+                        container-name: bbgl-lib;
+                        --bbgl-lib-font: 'Barlow Condensed', 'Arial Narrow', 'Nimbus Sans Narrow', Tahoma, sans-serif;
+                    }
+
+                    .bbgl-lib-list {
+                        flex: 1;
+                        min-height: 0;
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    /* Type header above each group. Fixed to its own content height so the book rows
+                       below keep splitting the rest of the page evenly. */
+                    .bbgl-lib-group {
+                        flex: 0 0 auto;
+                        display: flex;
+                        align-items: center;
+                        gap: .5em;
+                        padding: clamp(4px, 1.4cqh, 10px) 0 clamp(2px, .6cqh, 4px);
+                        font-family: var(--bbgl-lib-font);
+                        font-size: clamp(8.5px, 2.1cqh, 13px);
+                        font-weight: 600;
+                        letter-spacing: .1em;
+                        text-transform: uppercase;
+                        color: rgba(255, 255, 255, .42);
+                    }
+
+                    .bbgl-lib-group:first-child {
+                        padding-top: 0;
+                    }
+
+                    .bbgl-lib-group::after {
+                        content: "";
+                        flex: 1;
+                        height: 1px;
+                        background: rgba(255, 255, 255, .12);
+                    }
+
+                    /* Left column: title over its short effect. Right column: reserved for the book's
+                       data. */
+                    .bbgl-lib-row {
+                        flex: 1 1 0;
+                        min-height: 0;
+                        overflow: hidden;
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                        align-items: center;
+                        column-gap: 10px;
+                        padding-left: .5em;
+                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                    }
+
+                    .bbgl-lib-row:last-child,
+                    .bbgl-lib-row:has(+ .bbgl-lib-group) {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-text {
+                        min-width: 0;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        text-align: left;
+                        line-height: 1.1;
+                        font-family: var(--bbgl-lib-font);
+                    }
+
+                    .bbgl-lib-data {
+                        min-width: 0;
+                        display: flex;
+                        align-items: center;
+                        justify-content: flex-end;
+                        font-family: var(--bbgl-lib-font);
+                    }
+
+                    .bbgl-lib-name,
+                    .bbgl-lib-effect {
+                        max-width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .bbgl-lib-name {
+                        font-size: clamp(8px, 2.1cqh, 12px);
+                        font-weight: 600;
+                        color: #e6e6e6;
+                    }
+
+                    .bbgl-lib-effect {
+                        font-size: clamp(7px, 1.7cqh, 10px);
+                        color: rgba(255, 255, 255, .55);
+                    }
+
+                    /* Hanging indent: page 1's descriptions sit in from their title. */
+                    .bbgl-lib-row .bbgl-lib-effect {
+                        box-sizing: border-box;
+                        padding-left: .9em;
+                    }
+
+                    /* Book data cells: each number with its coloured label centred beneath it. The cell
+                       group sits against the column's right edge without right-justifying the text.
+                       Compact puts each cell on one line with the abbreviated number and short label. */
+                    .bbgl-lib-cells {
+                        flex: 0 0 auto;
+                        display: flex;
+                        align-items: center;
+                        gap: clamp(6px, 2.5cqw, 14px);
+                        white-space: nowrap;
+                    }
+
+                    .bbgl-lib-cell {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        text-align: center;
+                        line-height: 1.1;
+                    }
+
+                    .bbgl-lib-val {
+                        font-size: clamp(8.5px, 2.2cqh, 13px);
+                        font-weight: 600;
+                        color: #e6e6e6;
+                        font-variant-numeric: tabular-nums;
+                    }
+
+                    /* Every cell reserves room for its largest expected number so centres line up down
+                       the column whatever is showing: full width fits "+999,999,999", the abbreviated
+                       form fits "+999.9m". Compact's inline cells are right-aligned instead. */
+                    .bbgl-lib-val.v-full {
+                        min-width: 12ch;
+                    }
+
+                    .bbgl-lib-val.v-abbr {
+                        min-width: 7ch;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-val {
+                        min-width: 0;
+                    }
+
+                    .bbgl-lib-stat {
+                        font-size: clamp(7px, 1.6cqh, 10px);
+                        font-weight: 600;
+                    }
+
+                    .bbgl-lib-cell.s-str .bbgl-lib-stat { color: ${CONSTANTS.COLORS.STR}; }
+                    .bbgl-lib-cell.s-def .bbgl-lib-stat { color: ${CONSTANTS.COLORS.DEF}; }
+                    .bbgl-lib-cell.s-spd .bbgl-lib-stat { color: ${CONSTANTS.COLORS.SPD}; }
+                    .bbgl-lib-cell.s-dex .bbgl-lib-stat { color: ${CONSTANTS.COLORS.DEX}; }
+                    .bbgl-lib-cell.s-tot .bbgl-lib-stat { color: ${CONSTANTS.COLORS.TOT}; }
+
+                    .bbgl-lib-cell .v-abbr,
+                    .bbgl-lib-cell .l-abbr {
+                        display: none;
+                    }
+
+                    /* A multi-cell group that didn't fit (see fitLibraryCells()) abbreviates in place. */
+                    .bbgl-lib-cells.is-tight .v-full,
+                    .bbgl-lib-cells.is-tight .l-full {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .v-abbr,
+                    .bbgl-lib-cells.is-tight .l-abbr {
+                        display: inline;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell {
+                        flex-direction: row;
+                        align-items: baseline;
+                        gap: .3em;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-full {
+                        display: none;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-abbr,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-abbr {
+                        display: inline;
+                    }
+
+                    /* Compact shows only the Total of a multi-stat book. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-cells.is-multi .bbgl-lib-cell:not(.s-tot) {
+                        display: none;
+                    }
+
+                    /* Page 2: the non-training books as a plain checklist, two columns filled top to
+                       bottom, every cell an equal share of the height. */
+                    .bbgl-lib-grid {
+                        flex: 1;
+                        min-height: 0;
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-rows: repeat(var(--bbgl-lib-rows), minmax(0, 1fr));
+                        grid-auto-flow: column;
+                        column-gap: clamp(10px, 4cqw, 28px);
+                    }
+
+                    .bbgl-lib-item {
+                        min-width: 0;
+                        min-height: 0;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        text-align: center;
+                        line-height: 1.1;
+                        font-family: var(--bbgl-lib-font);
+                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                    }
+
+                    .bbgl-lib-item.is-unread {
+                        opacity: .6;
+                        filter: grayscale(1);
+                    }
+
+                    /* Compact trims each book to its title; the effect text returns in expanded and page mode. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-effect {
+                        display: none;
+                    }
+
+                    .bbgl-lib-check {
+                        margin-left: .35em;
+                        color: #69f0ae;
+                        font-weight: 700;
+                    }
+
+                    /* A book used but not finished yet. */
+                    .bbgl-lib-reading {
+                        margin-left: .5em;
+                        font-size: .72em;
+                        font-weight: 600;
+                        letter-spacing: .06em;
+                        text-transform: uppercase;
+                        color: #8fd3ff;
+                    }
+
+                    /* Memories And Mammaries' row and the book it repeated share a soft gold tint. The
+                       Memories row sits a little apart from the rows above it, with no header. */
+                    .bbgl-lib-row.is-repeat,
+                    .bbgl-lib-row.is-repeated {
+                        background: linear-gradient(90deg, rgba(255, 205, 100, .12), rgba(255, 205, 100, .04));
+                        border-radius: 3px;
+                    }
+
+                    .bbgl-lib-row.is-repeat {
+                        margin-top: clamp(3px, 1cqh, 8px);
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-data-inner {
+                        display: flex;
+                        justify-content: flex-end;
+                        min-width: 0;
+                    }
+
+                    /* Values that may be incomplete or imprecise read slightly dimmer; the tooltip says why. */
+                    .bbgl-lib-data-inner.is-approx .bbgl-lib-val {
+                        opacity: .7;
+                    }
+
+                    /* Unread books are greyed out rather than given a status column. Only the title and
+                       description fade: the data column keeps its stat colours either way. */
+                    .bbgl-lib-row.is-unread .bbgl-lib-text {
+                        opacity: .6;
+                        filter: grayscale(1);
                     }
 
                     .viewing-graph #bbgl-graph-container {
@@ -2387,6 +2734,22 @@
 
                     #bbgl-top-panel.viewing-graph .g-hud-sep {
                         display: block;
+                    }
+
+                    /* The smallest page tier's graph band ran 16px short once the Library icon joined
+                       the row. The inset and icon gap tighten for every view, not just graph, so the
+                       icon row sits in the same place whichever page is open. Declared on the band
+                       itself so the content padding that also reads --bbgl-toolbar-pad is untouched. */
+                    @container bbgl-page (max-width:385px) {
+                        #bbgl-panel.bbgl-mode-page #bbgl-toolbar {
+                            --bbgl-toolbar-pad: 8px;
+                            --bbgl-toolbar-gap: 8px;
+                        }
+
+                        /* Clearance before the stat pills only exists in graph view. */
+                        #bbgl-panel.bbgl-mode-page #bbgl-top-panel.viewing-graph #bbgl-toolbar {
+                            --bbgl-toolbar-min-gap: 6px;
+                        }
                     }
 
                     .g-toggles {
@@ -2770,7 +3133,8 @@
 
                        The stickerbook's original big edge arrows (.sticker-nav-btn) are unrelated,
                        stayed inside #bbgl-sticker-container, and are untouched by any of this. */
-                    #bbgl-sticker-pagination-bar {
+                    #bbgl-sticker-pagination-bar,
+                    #bbgl-lib-pagination-bar {
                         --bbgl-ach-dot-gap: 8px;
                         --bbgl-ach-dot-w: 8px;
                         --bbgl-ach-nav-size: clamp(7px, calc(1.3 * var(--bbgl-ach-dot-w)), 11px);
@@ -2787,11 +3151,13 @@
                         z-index: 61;
                     }
 
-                    #bbgl-top-panel.viewing-stickers #bbgl-sticker-pagination-bar {
+                    #bbgl-top-panel.viewing-stickers #bbgl-sticker-pagination-bar,
+                    #bbgl-top-panel.viewing-library #bbgl-lib-pagination-bar {
                         display: flex;
                     }
 
-                    #bbgl-sticker-pagination {
+                    #bbgl-sticker-pagination,
+                    #bbgl-lib-pagination {
                         display: flex;
                         align-items: center;
                         gap: var(--bbgl-ach-dot-gap);
@@ -2909,7 +3275,8 @@
 
                     /* Copy session + item counters are ledger-only: hide on every non-ledger view. */
                     .viewing-graph .copy-hist-btn,
-                    .viewing-achievements .copy-hist-btn {
+                    .viewing-achievements .copy-hist-btn,
+                    .viewing-library .copy-hist-btn {
                         display: none !important;
                     }
 
@@ -2936,6 +3303,7 @@
 
                     .viewing-graph #bbgl-item-counters,
                     .viewing-achievements #bbgl-item-counters,
+                    .viewing-library #bbgl-item-counters,
                     .viewing-stickers #bbgl-item-counters {
                         display: none !important;
                     }
@@ -3019,7 +3387,8 @@
                         font-size: clamp(8px, calc(8px + 2px * var(--bbgl-page-t)), 10px);
                     }
 
-                    #bbgl-panel.bbgl-mode-page #bbgl-sticker-pagination-bar {
+                    #bbgl-panel.bbgl-mode-page #bbgl-sticker-pagination-bar,
+                    #bbgl-panel.bbgl-mode-page #bbgl-lib-pagination-bar {
                         --bbgl-ach-dot-gap: clamp(5px, calc(5px + 3px * var(--bbgl-page-t)), 8px);
                         --bbgl-ach-dot-w: clamp(6px, calc(6px + 2px * var(--bbgl-page-t)), 8px);
                         --bbgl-ach-nav-size: clamp(7px, calc(1.3 * var(--bbgl-ach-dot-w)), 11px);
@@ -4454,21 +4823,15 @@
                            already clips the sweeps to the track, so nothing changes visually. */
                         isolation: isolate;
                         pointer-events: auto;
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
-                        box-shadow: inset 0 2px 5px rgba(0, 0, 0, .8), inset 0 -1px 0 rgba(255, 255, 255, .05);
+                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
+                        box-shadow: none;
+                        z-index: 1;
                     }
 
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track {
                         height: 12px;
                     }
 
-                    .bbgl-weekly-track.is-viewing {
-                        box-shadow: 0 0 5px rgba(255, 255, 255, .3), inset 0 2px 5px rgba(0, 0, 0, .8);
-                    }
-
-                    .bbgl-weekly-track.track-polished {
-                        box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
-                    }
 
                     #bbgl-panel.bbgl-no-animations .bbgl-day-cell.is-viewing :is(.jewel-type-gold .jewel-shine, .jewel-shine-band, .jewel-type-green .jewel-shine, .jewel-type-green .jewel-shine-over, .jewel-type-diamond .jewel-shine, .jewel-type-diamond .jewel-shine-over, .sticker-shine, .sticker-shine-band) {
                         animation: none !important;
@@ -4493,6 +4856,7 @@
                     }
 
                     .bbgl-cap-win {
+                        border-radius: 3% / 13%;
                         position: absolute;
                         overflow: hidden;
                     }
@@ -4538,15 +4902,15 @@
                        Still a static background, so only transform/opacity animate and the
                        compositor-only behavior from earlier is unaffected. */
                     .bbgl-cap-sweep-green {
-                        background: linear-gradient(90deg, rgba(68, 255, 0, 0) 0%, rgba(120, 255, 60, .95) 15%, rgba(210, 255, 190, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(210, 255, 190, 1) 65%, rgba(120, 255, 60, .95) 85%, rgba(68, 255, 0, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(95,255,20,.45) 12%, rgba(169,255,92,.9) 28%, #f1ffdf 42%, #ffffff 48%, #ffffff 52%, #f1ffdf 58%, rgba(169,255,92,.9) 72%, rgba(95,255,20,.45) 88%, transparent 100%);
                     }
 
                     .bbgl-cap-sweep-gold {
-                        background: linear-gradient(90deg, rgba(255, 170, 0, 0) 0%, rgba(255, 210, 80, .95) 15%, rgba(255, 252, 230, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(255, 252, 230, 1) 65%, rgba(255, 210, 80, .95) 85%, rgba(255, 170, 0, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(255,175,20,.45) 12%, rgba(255,217,94,.9) 28%, #fff4d2 42%, #ffffff 48%, #ffffff 52%, #fff4d2 58%, rgba(255,217,94,.9) 72%, rgba(255,175,20,.45) 88%, transparent 100%);
                     }
 
                     .bbgl-cap-sweep-diamond {
-                        background: linear-gradient(90deg, rgba(170, 68, 255, 0) 0%, rgba(215, 160, 255, .95) 15%, rgba(245, 245, 255, 1) 35%, rgba(255, 255, 255, 1) 45%, rgba(255, 255, 255, 1) 55%, rgba(225, 245, 255, 1) 65%, rgba(160, 215, 255, .95) 85%, rgba(68, 170, 255, 0) 100%);
+                        background: linear-gradient(90deg, transparent 0%, rgba(185,145,255,.45) 12%, rgba(221,203,255,.9) 28%, #eefff9 42%, #ffffff 48%, #ffffff 52%, #eefff9 58%, rgba(171,230,255,.9) 72%, rgba(120,220,235,.45) 88%, transparent 100%);
                     }
 
                     /* Outbound leg, left-to-right (see .bbgl-cap-sweep-pass-fwd above). */
@@ -4633,6 +4997,18 @@
                         transition: height .2s cubic-bezier(.18, .89, .32, 1.28), box-shadow .15s ease;
                     }
 
+                    .bbgl-summary-inset {
+                        position: relative;
+                        width: 100%;
+                        height: 100%;
+                        box-sizing: border-box;
+                        padding: 2px;
+                        border-radius: 3px;
+                        background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.1) 45%, rgba(0,0,0,.22));
+                        box-shadow: inset 0 1px 2px rgba(0,0,0,.75), inset 1px 0 1px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.22);
+                        pointer-events: none;
+                    }
+
                     .bbgl-bar-handle svg {
                         display: block;
                         width: 100%;
@@ -4685,15 +5061,6 @@
                         opacity: 0;
                         pointer-events: none;
                         transition: opacity .15s ease;
-                    }
-
-                    /* Left-edge glow on the track bleeds from the tab on hover — both sides light up together */
-                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent,
-                    .bbgl-weekly-track.is-scrub-hovered,
-                    .bbgl-weekly-track.is-viewing {
-                        background: linear-gradient(90deg, rgba(255,255,255,.08) 0%, transparent 12%),
-                                    repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255, 255, 255, .03) 1px, rgba(255, 255, 255, .03) 2px),
-                                    linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
                     body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
@@ -4821,17 +5188,33 @@
                         pointer-events: auto;
                     }
 
+                    #bbgl-level-bg,
+                    #bbgl-gym-level-track {
+                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
+                    }
+
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         position: absolute;
-                        top: 18%;
+                        top: 13%;
                         left: 1.6%;
-                        height: 64%;
+                        height: 74%;
                         width: 0%;
                         z-index: 2;
-                        border-radius: 0;
+                        border-radius: 3px / 50%;
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
+                    }
+
+                    #bbgl-level-fill::after,
+                    #bbgl-gym-level-fill::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        border-radius: inherit;
+                        pointer-events: none;
+                        background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(255,255,255,.25) 22%, transparent 42%, rgba(0,0,0,.16) 74%, rgba(255,255,255,.12) 88%, rgba(0,0,0,.32));
+                        box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset -1px 0 1px rgba(255,255,255,.45), 1px 0 2px rgba(0,0,0,.7), 0 1px 1px rgba(0,0,0,.65);
                     }
 
                     @keyframes bbgl-lvl-flash-dmnd {
@@ -5224,16 +5607,10 @@
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #404040 0%,
-                            #808080 22%,
-                            #a8a8a8 38%,
-                            #c0c0c0 48%,
-                            #b0b0b0 52%,
-                            #888888 70%,
-                            #484848 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.3);
+                        background:
+                            linear-gradient(112deg, transparent 5%, #ffffff30 17%, #11182030 24%, transparent 32%, #ffffff45 49%, transparent 56%, #10182035 71%, #ffffff30 85%, transparent 94%),
+                            linear-gradient(180deg, #252e32 0%, #818c90 16%, #edf1ee 32%, #b9c3c4 44%, #626e74 55%, #97a4a6 73%, #d4dcda 86%, #394447 100%);
+                        box-shadow: inset 0 1px 0 #f0f5ef50, inset 0 -1px 0 #080e1280, inset 1px 0 2px #10182070;
                     }
 
                     #bbgl-panel[data-atrophy="1"] .bbgl-level-up-flash #bbgl-level-track,
@@ -5254,16 +5631,11 @@
                     /* ─── Level Bar — A1: Green ──────────────────────────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #003322 0%,
-                            #008844 25%,
-                            #66bb22 40%,
-                            #ccffcc 50%,
-                            #00cc88 62%,
-                            #44aa00 78%,
-                            #001a0d 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            repeating-linear-gradient(118deg, transparent 0 37px, #011e1850 38px 55px, #b2ffd626 56px 57px, transparent 58px 103px),
+                            linear-gradient(72deg, #00291e40, transparent 24%, #8bffc333 41%, transparent 55%, #001e2045 79%, transparent),
+                            linear-gradient(180deg, #04271f 0%, #096245 19%, #59c999 32%, #159867 45%, #07563f 58%, #0b925c 78%, #40b582 87%, #032b21 100%);
+                        box-shadow: inset 0 1px 0 #bcffdc45, inset 0 -1px 0 #001b1680, inset 1px 0 2px #001b1670;
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
@@ -5340,44 +5712,24 @@
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill {
-                        background: linear-gradient(180deg,
-                            #442200 0%,
-                            #cc8800 25%,
-                            #ffcc00 40%,
-                            #fffff0 50%,
-                            #ffdd44 62%,
-                            #cc8800 78%,
-                            #221100 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            linear-gradient(108deg, #69300c30 5%, transparent 17%, #fff0ad50 28%, transparent 34%, #6b35052e 55%, #fff4c43d 73%, transparent 81%),
+                            repeating-linear-gradient(0deg, transparent 0 2px, #ffe8a30d 2px 3px),
+                            linear-gradient(180deg, #4a2c10 0%, #b48229 18%, #ffe59a 33%, #e5b64a 45%, #9c651d 57%, #cb932f 72%, #efcc70 87%, #624019 100%);
+                        box-shadow: inset 0 1px 0 #fff0b650, inset 0 -1px 0 #32150090, inset 1px 0 2px #32150070;
                     }
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill.level-full {
-                        background: linear-gradient(180deg,
-                            #552200 0%,
-                            #dd9900 25%,
-                            #ffdd00 40%,
-                            #ffffff 50%,
-                            #ffee66 62%,
-                            #dd9900 78%,
-                            #221100 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        box-shadow: inset 0 1px 0 #fff0b680, inset 0 -1px 0 #32150090, inset 0 0 3px #ffe9a145;
                     }
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full {
-                        background: linear-gradient(180deg,
-                            #220033 0%,
-                            #882299 25%,
-                            #ee77ff 40%,
-                            #eeeeff 50%,
-                            #88bbff 62%,
-                            #77ffcc 78%,
-                            #001122 100%
-                        );
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -1px 0 rgba(0,0,0,0.3);
+                        background:
+                            linear-gradient(180deg, #122133a0, #ffffff30 22%, #ffffff95 34%, transparent 47%, #24283e60 59%, #ffffff30 84%, #142337a0),
+                            linear-gradient(112deg, #91c6d0 0%, #c5b0e3 16%, #e3b9d2 29%, #a9dbea 43%, #c5ebd7 57%, #e5dfb6 70%, #cbbce4 83%, #9ed8dd 100%);
+                        box-shadow: inset 0 1px 0 #f4ffff80, inset 0 -1px 0 #19243e90, inset 1px 0 2px #182a3860;
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -5995,6 +6347,7 @@
                         }
 
                         #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
                         #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle {
                             width: 16px !important;
                             height: 16px;
@@ -6064,11 +6417,42 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle svg,
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle svg,
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle svg {
                         width: 16px !important;
                         height: 16px !important;
+                    }
+
+                    /* Below a 380px screen the expanded band's gaps are already at their floor, so the
+                       view icons give up size instead: 3px smaller by a 320px screen. Repeats the
+                       !important of the two rules above so it wins against both. */
+                    @media (max-width: 380px) {
+                        /* The icon gap follows the same curve, 9px down to 7px, in every view so the
+                           row lines up whichever page is open. */
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-toolbar {
+                            --bbgl-toolbar-gap: clamp(7px, calc(9px + (100vw - 380px) * .034), 9px);
+                        }
+
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-achievements-toggle svg {
+                            width: clamp(12.5px, calc(15.5px + (100vw - 380px) * .05), 15.5px) !important;
+                            height: clamp(12.5px, calc(15.5px + (100vw - 380px) * .05), 15.5px) !important;
+                        }
+
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-graph-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-library-toggle svg,
+                        #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-toggle svg {
+                            width: clamp(13px, calc(16px + (100vw - 380px) * .05), 16px) !important;
+                            height: clamp(13px, calc(16px + (100vw - 380px) * .05), 16px) !important;
+                        }
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .arrow-btn {
@@ -10777,14 +11161,16 @@
                        rather than each carrying their own copy — see #bbgl-sticker-pagination-bar's
                        own comment further up this file for why. */
                     #bbgl-ach-pageindicator .pg-dot,
-                    #bbgl-sticker-pagination .pg-dot {
+                    #bbgl-sticker-pagination .pg-dot,
+                    #bbgl-lib-pagination .pg-dot {
                         position: relative;
                         width: var(--bbgl-ach-dot-w);
                         height: var(--bbgl-ach-dot-w);
                     }
 
                     #bbgl-ach-pageindicator .pg-dot::before,
-                    #bbgl-sticker-pagination .pg-dot::before {
+                    #bbgl-sticker-pagination .pg-dot::before,
+                    #bbgl-lib-pagination .pg-dot::before {
                         content: '';
                         position: absolute;
                         /* Kept under half the dot-to-dot gap (--bbgl-ach-dot-gap) so adjacent dots'
@@ -10795,7 +11181,8 @@
                     }
 
                     #bbgl-ach-pageindicator .pg-dot.active,
-                    #bbgl-sticker-pagination .pg-dot.active {
+                    #bbgl-sticker-pagination .pg-dot.active,
+                    #bbgl-lib-pagination .pg-dot.active {
                         transform: scale(1.2);
                         box-shadow: 0 0 clamp(3px, calc(3px + 5px * var(--bbgl-dock-t, 0)), 8px) rgba(255, 255, 255, .5);
                     }
@@ -10807,7 +11194,8 @@
                        instead of introducing a separate glow-based hover language. Doesn't apply to
                        an already-active dot (already at full brightness). */
                     body:not(.is-touch-device) #bbgl-ach-pageindicator .pg-dot:not(.active):hover,
-                    body:not(.is-touch-device) #bbgl-sticker-pagination .pg-dot:not(.active):hover {
+                    body:not(.is-touch-device) #bbgl-sticker-pagination .pg-dot:not(.active):hover,
+                    body:not(.is-touch-device) #bbgl-lib-pagination .pg-dot:not(.active):hover {
                         background: rgba(255, 255, 255, .6);
                     }
 
@@ -11434,6 +11822,7 @@
         dom.monthDropdown = root.querySelector('#bbgl-month-dropdown');
         dom.yearDropdown = root.querySelector('#bbgl-year-dropdown');
         dom.achievementsContainer = root.querySelector('#bbgl-achievements-container');
+        dom.libraryContainer = root.querySelector('#bbgl-library-container');
         dom.achievementsToggle = root.querySelector('#bbgl-achievements-toggle');
         dom.stickerGrid = root.querySelector('#bbgl-sticker-grid');
         dom.stickerPagination = root.querySelector('#bbgl-sticker-pagination');

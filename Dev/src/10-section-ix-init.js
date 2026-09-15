@@ -540,6 +540,8 @@
             }
         } else if (viewState.subView === 'achievements') {
             switchView('achievements', true);
+        } else if (viewState.subView === 'library') {
+            switchView('library', true);
         } else switchView('ledger', true);
     }
 
@@ -555,6 +557,7 @@
         else if (tp.classList.contains('viewing-graph')) cm = 'graph';
         else if (tp.classList.contains('viewing-stickers')) cm = 'stickers';
         else if (tp.classList.contains('viewing-achievements')) cm = 'achievements';
+        else if (tp.classList.contains('viewing-library')) cm = 'library';
         if (cm === tgt && !inst) return;
         if (cm === 'achievements' && tgt !== 'achievements') resetTitlesPageAnimationClock();
         if (cm === 'stickers' && tgt !== 'stickers' && !inst) {
@@ -574,12 +577,20 @@
                 if (m === 'graph') return dom.graphContainer;
                 if (m === 'stickers') return dom.stickerContainer;
                 if (m === 'achievements') return dom.achievementsContainer;
+                if (m === 'library') return dom.libraryContainer;
                 return dom.ledgerView;
             },
             cel = gel(cm),
             nel = gel(tgt);
         const app = () => {
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            // Leaving the Library: start its shrink before the class comes off, so the transition
+            // is armed when the height changes.
+            if (cm === 'library' && tgt !== 'library') {
+                resizeLibraryPanel(false, !inst && userConfig.animations);
+                // Like the stickerbook, the Library reopens on its first page.
+                if (!inst) viewState.libraryPage = 0;
+            }
+            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
@@ -672,7 +683,7 @@
                     const cb = wv.querySelector('#init-create-api-btn');
                     if (cb) cb.onclick = function() {
                         this.blur();
-                        window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=54,50,23,6,52,56,3&title=BigBlackGymLog', '_blank');
+                        window.open(`https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=${API_KEY_LOG_IDS.join(',')}&title=BigBlackGymLog`, '_blank');
                     };
                     const rib = wv.querySelector('#init-returning-import-btn'),
                         rif = wv.querySelector('#init-import-file');
@@ -723,7 +734,15 @@
             } else if (tgt === 'achievements') {
                 tp.classList.add('viewing-achievements');
                 renderAchievements();
+            } else if (tgt === 'library') {
+                // Measured after the bottom panel's display is restored above, before the class
+                // that grows the top panel over it.
+                resizeLibraryPanel(true, !inst && cm !== 'library' && userConfig.animations);
+                tp.classList.add('viewing-library');
+                renderLibrary();
             } else renderPanelContent();
+            // Calendar renders are skipped while the Library covers it; catch up on the way out.
+            if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
             // variant; other views get the full scan state machine).
             renderScanOverlay();
@@ -811,9 +830,14 @@
         if (tp) {
             tp.style.display = 'flex';
             resetTitlesPageAnimationClock();
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
         }
-        if (bp) bp.style.display = 'flex';
+        if (bp) {
+            bp.style.display = 'flex';
+            bp.style.visibility = '';
+        }
+        clearTimeout(runtime._libraryTimer);
+        p.classList.remove('bbgl-lib-anim');
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
@@ -864,6 +888,29 @@
         saveViewState();
     }
 
+    function toggleLibraryView() {
+        switchView('library');
+        saveViewState();
+    }
+
+    // The Library grows #bbgl-top-panel over the whole panel (see .viewing-library in the styles).
+    // --bbgl-lib-extra is the bottom panel's height, which page mode adds to the top panel and
+    // cancels with a matching negative margin so the page never changes height. Once covered, the
+    // bottom panel stops painting; it is made visible again before any shrink starts.
+    function resizeLibraryPanel(opening, animate) {
+        const p = dom.panel,
+            bp = dom.bottomPanel;
+        if (!p || !bp) return;
+        clearTimeout(runtime._libraryTimer);
+        bp.style.visibility = '';
+        p.style.setProperty('--bbgl-lib-extra', bp.offsetHeight + 'px');
+        p.classList.toggle('bbgl-lib-anim', animate);
+        runtime._libraryTimer = setTimeout(() => {
+            p.classList.remove('bbgl-lib-anim');
+            if (opening && dom.topPanel && dom.topPanel.classList.contains('viewing-library')) bp.style.visibility = 'hidden';
+        }, animate ? 380 : 0);
+    }
+
     function toggleSettingsView(e) {
         if (e) e.stopPropagation();
         const sp = dom.settingsView,
@@ -888,6 +935,7 @@
             else if (tp.classList.contains('viewing-graph')) runtime.returnView = 'graph';
             else if (tp.classList.contains('viewing-stickers')) runtime.returnView = 'stickers';
             else if (tp.classList.contains('viewing-achievements')) runtime.returnView = 'achievements';
+            else if (tp.classList.contains('viewing-library')) runtime.returnView = 'library';
             else runtime.returnView = 'ledger';
             switchView('settings');
             viewState.subView = 'settings';
@@ -1342,6 +1390,23 @@
         if (gt) gt.onclick = toggleGraphView;
         const act = get('bbgl-achievements-toggle');
         if (act) act.onclick = toggleAchievementsView;
+        const lib = get('bbgl-library-toggle');
+        if (lib) lib.onclick = toggleLibraryView;
+        const libPrev = get('lib-mini-prev-btn'),
+            libNext = get('lib-mini-next-btn');
+        if (libPrev) libPrev.onclick = (e) => {
+            e.stopPropagation();
+            gotoLibraryPage((viewState.libraryPage || 0) - 1);
+        };
+        if (libNext) libNext.onclick = (e) => {
+            e.stopPropagation();
+            gotoLibraryPage((viewState.libraryPage || 0) + 1);
+        };
+        // Page mode's calendar height follows the panel width, so keep the Library's page-mode
+        // offset in step with it while the Library is open.
+        if (window.ResizeObserver && dom.bottomPanel) new ResizeObserver(() => {
+            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) dom.panel.style.setProperty('--bbgl-lib-extra', dom.bottomPanel.offsetHeight + 'px');
+        }).observe(dom.bottomPanel);
         const st = get('bbgl-sticker-toggle');
         if (st) st.onclick = toggleStickerView;
         // Big edge arrows, plus the mini prev/next flanking the pagination dots
@@ -1531,7 +1596,7 @@
         const crb = get('create-api-btn');
         if (crb) crb.onclick = function() {
             this.blur();
-            window.open('https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=54,50,23,6,52,56,3&title=BigBlackGymLog', '_blank');
+            window.open(`https://www.torn.com/preferences.php#tab=api?step=addNewKey&user=basic,battlestats,log&faction=rankedwars&logIds=${API_KEY_LOG_IDS.join(',')}&title=BigBlackGymLog`, '_blank');
         };
         const rb = get('refresh-log-btn');
         if (rb) rb.onclick = function() {
@@ -1634,8 +1699,8 @@
         GraphController.setupControls();
         setupStickerGrid();
         refreshInitLock();
-        const achPrev = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-prev') : null;
-        const achNext = get('bbgl-achievements-container') ? root.querySelector('.bbgl-ach-next') : null;
+        const achPrev = get('bbgl-achievements-container') ? root.querySelector('#bbgl-ach-footer .bbgl-ach-prev') : null;
+        const achNext = get('bbgl-achievements-container') ? root.querySelector('#bbgl-ach-footer .bbgl-ach-next') : null;
         if (achPrev) achPrev.onclick = (e) => {
             e.stopPropagation();
             gotoAchievementsPage(-1);
@@ -2006,7 +2071,7 @@
             _scrubMode = false,
             _scrubMoveBound = null,
             _toolbarTipTimer = null;
-        const _TOOLBAR_TOGGLE_IDS = new Set(['bbgl-ledger-toggle', 'bbgl-graph-toggle', 'bbgl-achievements-toggle', 'bbgl-sticker-toggle']);
+        const _TOOLBAR_TOGGLE_IDS = new Set(['bbgl-ledger-toggle', 'bbgl-graph-toggle', 'bbgl-achievements-toggle', 'bbgl-library-toggle', 'bbgl-sticker-toggle']);
         // Anything that acts on tap keeps its plain-text tooltip for tap-and-hold only (the 400ms
         // timer in touchstart); a tap tooltip would just pop up over whatever the tap did.
         const _isTapAction = (target, tipEl) => !!target.closest('button, a[href], input, select, textarea, [role="button"]') ||

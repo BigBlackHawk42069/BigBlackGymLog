@@ -118,9 +118,75 @@
         8983: { label: 'Yellow Egg Used', group: 'happy', happy: true, achLabel: 'Yellow Eggs Used' },
         2291: { label: 'Xanax OD', group: 'od', energyLost: true, short: 'Xan OD' },
         2231: { label: 'LSD OD', group: 'od', energyLost: true, short: 'LSD OD' },
-        2211: { label: 'Ecstasy OD', group: 'od', happyLost: true, energyLost: true, short: 'Ex OD' }
+        2211: { label: 'Ecstasy OD', group: 'od', happyLost: true, energyLost: true, short: 'Ex OD' },
+        // Every book shares these two codes; the book itself is data.item, captured as bookId.
+        2050: { label: 'Book Used', group: 'book', book: true },
+        2051: { label: 'Book Finished', group: 'book', book: true }
     };
-    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items' };
+    // Every Torn book, keyed by item id (bookId = data.item on 2050/2051). `training` is set only on
+    // books that affect training: stat (stat +5% on finish), gym (gym gain rate), energy, happy, or
+    // repeat (Memories And Mammaries copies the last book read).
+    const BOOK_META = {
+        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str' },
+        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd' },
+        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def' },
+        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex' },
+        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.' },
+        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.' },
+        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.' },
+        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.' },
+        752: { name: 'Fight Like An Asshole', short: '+25% all battle stats', effect: 'Provides a passive 25% bonus to all stats for 31 days.' },
+        753: { name: 'Mind Over Matter', short: '+100% Strength', effect: 'Provides a passive 100% bonus to Strength for 31 days.' },
+        754: { name: 'No Shame No Pain', short: '+100% Defense', effect: 'Provides a passive 100% bonus to Defense for 31 days.' },
+        755: { name: 'Run Like The Wind', short: '+100% Speed', effect: 'Provides a passive 100% bonus to Speed for 31 days.' },
+        756: { name: 'Weaseling Out Of Trouble', short: '+100% Dexterity', effect: 'Provides a passive 100% bonus to Dexterity for 31 days.' },
+        757: { name: 'Get Hard Or Go Home', short: '+20% all gym gains', effect: 'Increases all gym gains by 20% for 31 days.', training: 'gym' },
+        758: { name: 'Gym Grunting - Shouting To Success', short: '+30% Strength gym gains', effect: 'Increases Strength gym gains by 30% for 31 days.', training: 'gym', stat: 'str' },
+        759: { name: 'Self Defense In The Workplace', short: '+30% Defense gym gains', effect: 'Increases Defense gym gains by 30% for 31 days.', training: 'gym', stat: 'def' },
+        760: { name: 'Speed 3 - The Rejected Script', short: '+30% Speed gym gains', effect: 'Increases Speed gym gains by 30% for 31 days.', training: 'gym', stat: 'spd' },
+        761: { name: 'Limbo Lovers 101', short: '+30% Dexterity gym gains', effect: 'Increases Dexterity gym gains by 30% for 31 days.', training: 'gym', stat: 'dex' },
+        762: { name: 'The Hamburglar\'s Guide To Crime', short: '+25% crime skill & XP', effect: 'Increases crime skill & crime experience gain by 25% for 31 days.' },
+        763: { name: 'What Are Old Folk Good For Anyway?', short: '+25% leveling EXP', effect: 'Increases leveling EXP gain by 25% for 31 days.' },
+        764: { name: 'Medical Degree Schmedical Degree', short: '-50% hospital time', effect: 'Decreases all hospital times by 50% for 31 days.' },
+        765: { name: 'No More Soap On A Rope', short: '-50% jail time', effect: 'Decreases all jail times by 50% for 31 days.' },
+        766: { name: 'Mailing Yourself Abroad', short: '-25% travel time', effect: 'Decreases all travel times by 25% for 31 days.' },
+        767: { name: 'Smuggling For Beginners', short: '+10 travel items', effect: 'Increases travel items by 10 for 31 days.' },
+        768: { name: 'Stealthy Stealing of Underwear', short: 'Maximum stealth', effect: 'Maximum stealth for the next 31 days.' },
+        769: { name: 'Shawshank Sure Ain\'t For Me!', short: 'Better busts & escapes', effect: 'Large jail bust & escape boost for the next 31 days.' },
+        770: { name: 'Ignorance Is Bliss', short: 'Happy regens past max', effect: 'Happiness can regenerate above maximum for 31 days.', training: 'happy' },
+        771: { name: 'Winking To Win', short: '2x contract rewards', effect: 'Doubles contract credit and money rewards for 31 days.' },
+        772: { name: 'Finders Keepers', short: 'More city item spawns', effect: 'Drastically increases city item spawns for 31 days.' },
+        773: { name: 'Hot Turkey', short: 'No drug addiction gain', effect: 'Gain no drug addiction for 31 days.' },
+        774: { name: 'Higher Daddy, Higher!', short: '+20% energy regen', effect: 'Provides +20% energy regeneration for 31 days.', training: 'energy' },
+        775: { name: 'The Real Dutch Courage', short: '2x nerve regen', effect: 'Doubles nerve regeneration for 31 days.' },
+        776: { name: 'Because I\'m Happy - The Pharrell Story', short: '2x happy regen', effect: 'Doubles happiness regeneration for 31 days.', training: 'happy' },
+        777: { name: 'No More Sick Days', short: '2x life regen', effect: 'Doubles life regeneration for 31 days.' },
+        778: { name: 'Duke - My Story', short: 'Duke retaliates for you', effect: 'Duke will occasionally retaliate against your attackers for 31 days.' },
+        779: { name: 'Self Control Is For Losers', short: '-50% consumable cooldowns', effect: 'Decreases all consumable cooldowns by 50% for 31 days.', training: 'energy' },
+        780: { name: 'Going Back For More', short: '-50% medical cooldowns', effect: 'Decreases all medical cooldowns by 50% for 31 days.' },
+        781: { name: 'Get Drunk And Lose Dignity', short: '2x alcohol effects', effect: 'Doubles alcohol effects for 31 days.' },
+        782: { name: 'Fuelling Your Way To Failure', short: '2x energy drink effects', effect: 'Doubles energy drink effects for 31 days.', training: 'energy' },
+        783: { name: 'Yes Please Diabetes', short: '2x candy effects', effect: 'Doubles candy effects for 31 days.', training: 'happy' },
+        784: { name: 'Ugly Energy', short: '250 max energy', effect: 'Increases maximum energy (including energy refills) to 250 for 31 days.', training: 'energy' },
+        785: { name: 'Memories And Mammaries', short: 'Repeats last book read', effect: 'Takes the same effect from the last used book for 31 days.', training: 'repeat' },
+        786: { name: 'Brown-nosing The Boss', short: 'More employee effectiveness', effect: 'Greatly increases personal employee effectiveness for 31 days.' },
+        787: { name: 'Running Away From Trouble', short: 'Guaranteed attack escapes', effect: 'Guaranteed attacking escape attempt success for 31 days.' }
+    };
+    const TRAINING_BOOKS = Object.keys(BOOK_META).map(Number).filter(id => BOOK_META[id].training);
+    // Log categories requested by the custom API key link (Torn logIds).
+    const API_KEY_LOG_IDS = [
+        54, // Defense
+        50, // Dexterity
+        23, // Item Use (includes book used 2050)
+        52, // Speed
+        56, // Strength
+        3,  // Refills (includes points refill 4900)
+        33, // Books (book finished 2051)
+        80  // Faction (faction application accepted 6253, read at backfill start)
+    ];
+    // Not requested:
+    // 6  — Points (refill 4900 is covered by 3)
+    const ITEM_GROUP_LABELS ={ energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
     const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
     const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
     const TRAIN_LOGS = [5300, 5301, 5302, 5303];
@@ -132,8 +198,9 @@
     const STAT_LOGS = itemLogsByGroup('stat');        // 4
     const HAPPY_LOGS = itemLogsByGroup('happy');      // 4
     const OD_LOGS = itemLogsByGroup('od');            // 3 (xan, lsd, ex)
+    const BOOK_LOGS = itemLogsByGroup('book');        // 2 (use, finish)
     const TRAIN_ENERGY_PARAM = [...TRAIN_LOGS, ...ENERGY_LOGS].join(',');   // reconcile call (10)
-    const STAT_HAPPY_PARAM = [...HAPPY_LOGS, ...OD_LOGS].join(',');         // reconcile call (7)
+    const STAT_HAPPY_PARAM = [...HAPPY_LOGS, ...OD_LOGS, ...BOOK_LOGS].join(',');   // reconcile call (9)
     const STAT_ENHANCER_PARAM = STAT_LOGS.join(',');                        // conditional call (4)
     // Backfill batches its backward scan into grouped `log=` calls (<=10 types each). Stat enhancers
     // get their own group since they are excluded from the live STAT_HAPPY_PARAM call and must still
@@ -146,7 +213,7 @@
     const BACKFILL_GROUP_KEYS = Object.keys(BACKFILL_GROUPS);
     const BACKFILL_GROUP_OF = {};
     [...TRAIN_LOGS, ...ENERGY_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'trainEnergy'; });
-    [...HAPPY_LOGS, ...OD_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
+    [...HAPPY_LOGS, ...OD_LOGS, ...BOOK_LOGS].forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statHappy'; });
     STAT_LOGS.forEach(c => { BACKFILL_GROUP_OF[String(c)] = 'statEnhancers'; });
     const XANAX_LOG = 2290,
         XANAX_OD_LOG = 2291,
@@ -164,7 +231,7 @@
     // (it never moves battlestats) — so OD rides with train, which is otherwise redundant with the
     // live TRAIN call but cheap insurance (self-heals a missed/aborted TRAIN call for free).
     const ITEM_CODES = [...ENERGY_LOGS, ...HAPPY_LOGS];       // always (10)
-    const TRAIN_OD_CODES = [...TRAIN_LOGS, ...OD_LOGS];       // always (7)
+    const TRAIN_OD_CODES = [...TRAIN_LOGS, ...OD_LOGS, ...BOOK_LOGS];   // always (9)
     // Overlap buffer (seconds) subtracted from a group's last-success time to form its `from=` bound.
     // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
     // makes the overlap harmless.

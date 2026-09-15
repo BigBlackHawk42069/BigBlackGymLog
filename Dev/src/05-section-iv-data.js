@@ -305,6 +305,7 @@
         if (e.type === 'item') {
             if (e.ts !== undefined) e.ts = parseInt(e.ts);
             if (e.energy !== undefined) e.energy = parseInt(e.energy);
+            if (e.bookId !== undefined) e.bookId = parseInt(e.bookId);
             return;
         }
         e.type = 'gym';
@@ -754,6 +755,7 @@
                         if (l.energyLost != null) entry.energyLost = l.energyLost;
                         if (l.happyLost != null) entry.happyLost = l.happyLost;
                         if (l.happy) entry.happy = l.happy;
+                        if (l.bookId) entry.bookId = l.bookId;
                         if (l.statKey) {
                             entry.statKey = l.statKey;
                             entry.statGain = l.statGain;
