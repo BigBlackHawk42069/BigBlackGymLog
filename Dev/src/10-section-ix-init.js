@@ -546,6 +546,9 @@
     }
 
     function switchView(tgt, inst = false) {
+        // A Library resize still running would leave its deferred render pending; settle it first
+        // so the current view below is read from its finished state.
+        finishLibraryResize();
         const tp = dom.topPanel,
             bp = dom.bottomPanel,
             sp = dom.settingsView,
@@ -582,11 +585,37 @@
             },
             cel = gel(cm),
             nel = gel(tgt);
+        const restoreBottomPanel = () => {
+            bp.style.removeProperty('display');
+            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
+            vp.classList.remove('active');
+            vp.style.setProperty('display', 'none', 'important');
+        };
+        // Animated switches into or out of the Library resize the top panel while the view is
+        // blinked off (between the old view's CRT-out and the new one's CRT-in), with the views
+        // inside hidden by bbgl-lib-resizing. app() then snaps the already-finished size.
+        const libResize = !inst && userConfig.animations && (cm === 'library') !== (tgt === 'library') &&
+            !['settings', 'welcome'].includes(cm) && !['settings', 'welcome'].includes(tgt);
+        const afterLibResize = (then) => {
+            if (!libResize) return then();
+            const opening = tgt === 'library';
+            if (opening) restoreBottomPanel();
+            else {
+                if (dom.libraryContainer) dom.libraryContainer.innerHTML = '';
+                // Keeps the destination's toolbar icon lit while no view class is on the panel.
+                tp.dataset.navTarget = tgt;
+            }
+            resizeLibraryPanel(opening, true, () => {
+                delete tp.dataset.navTarget;
+                then();
+            });
+            if (opening) tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            tp.classList.toggle('viewing-library', opening);
+        };
         const app = () => {
-            // Leaving the Library: start its shrink before the class comes off, so the transition
-            // is armed when the height changes.
+            // Leaving the Library: size it back down before the class comes off.
             if (cm === 'library' && tgt !== 'library') {
-                resizeLibraryPanel(false, !inst && userConfig.animations);
+                resizeLibraryPanel(false, false);
                 // Like the stickerbook, the Library reopens on its first page.
                 if (!inst) viewState.libraryPage = 0;
             }
@@ -594,12 +623,7 @@
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
-            if (!(tgt === 'stickers' && viewState.activeItemId)) {
-                bp.style.removeProperty('display');
-                if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
-                vp.classList.remove('active');
-                vp.style.setProperty('display', 'none', 'important');
-            }
+            if (!(tgt === 'stickers' && viewState.activeItemId)) restoreBottomPanel();
             if (tgt === 'welcome') {
                 if (wv) {
                     wv.innerHTML = getWelcomeHTML();
@@ -737,7 +761,7 @@
             } else if (tgt === 'library') {
                 // Measured after the bottom panel's display is restored above, before the class
                 // that grows the top panel over it.
-                resizeLibraryPanel(true, !inst && cm !== 'library' && userConfig.animations);
+                resizeLibraryPanel(true, false);
                 tp.classList.add('viewing-library');
                 renderLibrary();
             } else renderPanelContent();
@@ -778,26 +802,32 @@
             cel.classList.add('bbgl-crt-out');
             setTimeout(() => {
                 cel.classList.remove('bbgl-crt-out');
-                app();
-                runtime.isViewAnimating = false;
+                afterLibResize(() => {
+                    app();
+                    runtime.isViewAnimating = false;
+                });
             }, 280);
         } else if (cm === 'stickers') {
-            nel.classList.add('bbgl-crt-in');
-            app();
-            setTimeout(() => {
-                nel.classList.remove('bbgl-crt-in');
-                runtime.isViewAnimating = false;
-            }, 300);
-        } else {
-            cel.classList.add('bbgl-crt-out');
-            setTimeout(() => {
-                cel.classList.remove('bbgl-crt-out');
+            afterLibResize(() => {
                 nel.classList.add('bbgl-crt-in');
                 app();
                 setTimeout(() => {
                     nel.classList.remove('bbgl-crt-in');
                     runtime.isViewAnimating = false;
                 }, 300);
+            });
+        } else {
+            cel.classList.add('bbgl-crt-out');
+            setTimeout(() => {
+                cel.classList.remove('bbgl-crt-out');
+                afterLibResize(() => {
+                    nel.classList.add('bbgl-crt-in');
+                    app();
+                    setTimeout(() => {
+                        nel.classList.remove('bbgl-crt-in');
+                        runtime.isViewAnimating = false;
+                    }, 300);
+                });
             }, 280);
         }
     }
@@ -837,7 +867,9 @@
             bp.style.visibility = '';
         }
         clearTimeout(runtime._libraryTimer);
-        p.classList.remove('bbgl-lib-anim');
+        runtime._libSettle = null;
+        p.classList.remove('bbgl-lib-anim', 'bbgl-lib-resizing');
+        if (tp) delete tp.dataset.navTarget;
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
@@ -897,18 +929,36 @@
     // --bbgl-lib-extra is the bottom panel's height, which page mode adds to the top panel and
     // cancels with a matching negative margin so the page never changes height. Once covered, the
     // bottom panel stops painting; it is made visible again before any shrink starts.
-    function resizeLibraryPanel(opening, animate) {
+    // While animating, bbgl-lib-resizing hides the top panel's contents (all but the toolbar) so the
+    // height transition never re-lays-out or repaints them; onSettled draws the destination view
+    // once the panel has finished resizing.
+    function resizeLibraryPanel(opening, animate, onSettled) {
         const p = dom.panel,
             bp = dom.bottomPanel;
-        if (!p || !bp) return;
+        if (!p || !bp) {
+            if (onSettled) onSettled();
+            return;
+        }
         clearTimeout(runtime._libraryTimer);
+        runtime._libSettle = null;
         bp.style.visibility = '';
         p.style.setProperty('--bbgl-lib-extra', bp.offsetHeight + 'px');
         p.classList.toggle('bbgl-lib-anim', animate);
-        runtime._libraryTimer = setTimeout(() => {
-            p.classList.remove('bbgl-lib-anim');
+        p.classList.toggle('bbgl-lib-resizing', animate);
+        const settle = () => {
+            clearTimeout(runtime._libraryTimer);
+            runtime._libSettle = null;
+            p.classList.remove('bbgl-lib-anim', 'bbgl-lib-resizing');
             if (opening && dom.topPanel && dom.topPanel.classList.contains('viewing-library')) bp.style.visibility = 'hidden';
-        }, animate ? 380 : 0);
+            if (onSettled) onSettled();
+        };
+        runtime._libSettle = settle;
+        runtime._libraryTimer = setTimeout(settle, animate ? 380 : 0);
+    }
+
+    // Runs a pending Library resize's settle step immediately.
+    function finishLibraryResize() {
+        if (runtime._libSettle) runtime._libSettle();
     }
 
     function toggleSettingsView(e) {

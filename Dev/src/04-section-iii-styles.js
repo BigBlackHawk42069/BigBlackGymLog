@@ -1895,13 +1895,19 @@
                     .viewing-graph #bbgl-graph-toggle,
                     .viewing-achievements #bbgl-achievements-toggle,
                     .viewing-library #bbgl-library-toggle,
-                    .viewing-stickers #bbgl-sticker-toggle {
+                    .viewing-stickers #bbgl-sticker-toggle,
+                    [data-nav-target="ledger"] #bbgl-ledger-toggle,
+                    [data-nav-target="graph"] #bbgl-graph-toggle,
+                    [data-nav-target="achievements"] #bbgl-achievements-toggle,
+                    [data-nav-target="stickers"] #bbgl-sticker-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
                     }
 
-                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library) #bbgl-ledger-toggle {
+                    /* data-nav-target is set while the top panel resizes out of the Library, before the
+                       destination view's class is applied; the icon it names stays lit instead. */
+                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library):not([data-nav-target]) #bbgl-ledger-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
@@ -2379,6 +2385,14 @@
 
                     #bbgl-panel.bbgl-lib-anim #bbgl-top-panel {
                         transition: height .36s cubic-bezier(.25, .8, .25, 1), flex-basis .36s cubic-bezier(.25, .8, .25, 1), margin-bottom .36s cubic-bezier(.25, .8, .25, 1);
+                    }
+
+                    /* While the Library grows or shrinks (during the view switch's blink, between CRT-out
+                       and CRT-in), the views inside the top panel aren't rendered — every animated frame
+                       would otherwise re-lay-out the Library's size container or the view it's returning
+                       to. The panel's own chrome (toolbar, glass) stays. See resizeLibraryPanel(). */
+                    #bbgl-panel.bbgl-lib-resizing #bbgl-top-panel > :not(#bbgl-toolbar):not(.glass-overlay) {
+                        display: none !important;
                     }
 
                     /* The Library's space: everything under the toolbar band (the same top clearance
@@ -3934,8 +3948,9 @@
                        min/max order == always evaluates to -8px flat) predating
                        this change — left as-is, just accounted for correctly. */
                     #bbgl-panel.bbgl-mode-page .title-stack {
-                        gap: clamp(7px, calc(7px + 8px * var(--bbgl-page-t)), 15px);
-                        margin-top: clamp(-32px, calc(-16px - 16px * var(--bbgl-page-t)), -16px);
+                        gap: clamp(3px, calc(3px + 8px * var(--bbgl-page-t)), 11px);
+                        /* Also absorbs the all-time row's -2px margin-bottom below. */
+                        margin-top: clamp(-22px, calc(-6px - 16px * var(--bbgl-page-t)), -6px);
                     }
                     #bbgl-panel.bbgl-mode-page .title-group {
                         gap: clamp(6px, calc(8px - 2px * var(--bbgl-page-t)), 8px);
@@ -4047,6 +4062,15 @@
                     }
                     #bbgl-panel.bbgl-compact .header-row--year {
                         --trigger-lift: -3px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--year {
+                        --trigger-lift: -1px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--month {
+                        --trigger-lift: 1px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--alltime {
+                        margin-bottom: -2px;
                     }
 
                     .stats-btn svg {
@@ -5023,18 +5047,43 @@
                         width: 100%;
                         height: 100%;
                         box-sizing: border-box;
-                        padding: 2px;
+                        padding: 1px;
                         border-radius: 3px;
                         background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.1) 45%, rgba(0,0,0,.22));
                         box-shadow: inset 0 1px 2px rgba(0,0,0,.75), inset 1px 0 1px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.22);
                         pointer-events: none;
+                        transition: padding .2s cubic-bezier(.18, .89, .32, 1.28);
                     }
 
+                    /* Inactive tab: the chart's bars only span y 2.5-23.5 and x 0.5-24 of its 24×24
+                       viewBox, so they're scaled up around that ink box's centre (51% 54.17%) to fill
+                       most of the inset — 24/21 would fill it exactly; 1.1 leaves a sliver. The active
+                       tab is tall enough as-is and resets both below. */
                     .bbgl-bar-handle svg {
                         display: block;
                         width: 100%;
                         height: 100%;
-                        overflow: hidden;
+                        overflow: visible;
+                        transform-origin: 51% 54.17%;
+                        transform: scale(1.1);
+                        transition: transform .2s cubic-bezier(.18, .89, .32, 1.28);
+                    }
+
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle .bbgl-summary-inset,
+                    .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle .bbgl-summary-inset,
+                    .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle .bbgl-summary-inset {
+                        padding: 2px;
+                    }
+
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle svg,
+                    .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle svg,
+                    .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle svg {
+                        transform: none;
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-summary-inset,
+                    #bbgl-panel.bbgl-no-animations .bbgl-bar-handle svg {
+                        transition: none;
                     }
 
                     /* Compact: shorter tab */
@@ -5088,8 +5137,10 @@
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
                     body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
-                        height: 26px;
-                        --bbgl-handle-active-h: 26px;
+                        /* 28px-wide tab leaves a 16px-wide chart (4px tab + 2px inset padding per side);
+                           24px tall is the shortest that still fits it square, so the chart keeps its size. */
+                        height: 24px;
+                        --bbgl-handle-active-h: 24px;
                     }
 
                     body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,

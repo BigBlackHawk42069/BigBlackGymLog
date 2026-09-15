@@ -3603,13 +3603,19 @@
                     .viewing-graph #bbgl-graph-toggle,
                     .viewing-achievements #bbgl-achievements-toggle,
                     .viewing-library #bbgl-library-toggle,
-                    .viewing-stickers #bbgl-sticker-toggle {
+                    .viewing-stickers #bbgl-sticker-toggle,
+                    [data-nav-target="ledger"] #bbgl-ledger-toggle,
+                    [data-nav-target="graph"] #bbgl-graph-toggle,
+                    [data-nav-target="achievements"] #bbgl-achievements-toggle,
+                    [data-nav-target="stickers"] #bbgl-sticker-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
                     }
 
-                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library) #bbgl-ledger-toggle {
+                    /* data-nav-target is set while the top panel resizes out of the Library, before the
+                       destination view's class is applied; the icon it names stays lit instead. */
+                    #bbgl-top-panel:not(.viewing-graph):not(.viewing-stickers):not(.viewing-achievements):not(.viewing-library):not([data-nav-target]) #bbgl-ledger-toggle {
                         color: #fff !important;
                         filter: drop-shadow(0 0 5px rgba(255, 255, 255, .7));
                         transform: scale(1.15);
@@ -4087,6 +4093,14 @@
 
                     #bbgl-panel.bbgl-lib-anim #bbgl-top-panel {
                         transition: height .36s cubic-bezier(.25, .8, .25, 1), flex-basis .36s cubic-bezier(.25, .8, .25, 1), margin-bottom .36s cubic-bezier(.25, .8, .25, 1);
+                    }
+
+                    /* While the Library grows or shrinks (during the view switch's blink, between CRT-out
+                       and CRT-in), the views inside the top panel aren't rendered — every animated frame
+                       would otherwise re-lay-out the Library's size container or the view it's returning
+                       to. The panel's own chrome (toolbar, glass) stays. See resizeLibraryPanel(). */
+                    #bbgl-panel.bbgl-lib-resizing #bbgl-top-panel > :not(#bbgl-toolbar):not(.glass-overlay) {
+                        display: none !important;
                     }
 
                     /* The Library's space: everything under the toolbar band (the same top clearance
@@ -5642,8 +5656,9 @@
                        min/max order == always evaluates to -8px flat) predating
                        this change — left as-is, just accounted for correctly. */
                     #bbgl-panel.bbgl-mode-page .title-stack {
-                        gap: clamp(7px, calc(7px + 8px * var(--bbgl-page-t)), 15px);
-                        margin-top: clamp(-32px, calc(-16px - 16px * var(--bbgl-page-t)), -16px);
+                        gap: clamp(3px, calc(3px + 8px * var(--bbgl-page-t)), 11px);
+                        /* Also absorbs the all-time row's -2px margin-bottom below. */
+                        margin-top: clamp(-22px, calc(-6px - 16px * var(--bbgl-page-t)), -6px);
                     }
                     #bbgl-panel.bbgl-mode-page .title-group {
                         gap: clamp(6px, calc(8px - 2px * var(--bbgl-page-t)), 8px);
@@ -5755,6 +5770,15 @@
                     }
                     #bbgl-panel.bbgl-compact .header-row--year {
                         --trigger-lift: -3px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--year {
+                        --trigger-lift: -1px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--month {
+                        --trigger-lift: 1px;
+                    }
+                    #bbgl-panel.bbgl-mode-page .header-row--alltime {
+                        margin-bottom: -2px;
                     }
 
                     .stats-btn svg {
@@ -6731,18 +6755,43 @@
                         width: 100%;
                         height: 100%;
                         box-sizing: border-box;
-                        padding: 2px;
+                        padding: 1px;
                         border-radius: 3px;
                         background: linear-gradient(180deg, rgba(0,0,0,.32), rgba(0,0,0,.1) 45%, rgba(0,0,0,.22));
                         box-shadow: inset 0 1px 2px rgba(0,0,0,.75), inset 1px 0 1px rgba(0,0,0,.35), 0 1px 0 rgba(255,255,255,.22);
                         pointer-events: none;
+                        transition: padding .2s cubic-bezier(.18, .89, .32, 1.28);
                     }
 
+                    /* Inactive tab: the chart's bars only span y 2.5-23.5 and x 0.5-24 of its 24×24
+                       viewBox, so they're scaled up around that ink box's centre (51% 54.17%) to fill
+                       most of the inset — 24/21 would fill it exactly; 1.1 leaves a sliver. The active
+                       tab is tall enough as-is and resets both below. */
                     .bbgl-bar-handle svg {
                         display: block;
                         width: 100%;
                         height: 100%;
-                        overflow: hidden;
+                        overflow: visible;
+                        transform-origin: 51% 54.17%;
+                        transform: scale(1.1);
+                        transition: transform .2s cubic-bezier(.18, .89, .32, 1.28);
+                    }
+
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle .bbgl-summary-inset,
+                    .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle .bbgl-summary-inset,
+                    .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle .bbgl-summary-inset {
+                        padding: 2px;
+                    }
+
+                    body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle svg,
+                    .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle svg,
+                    .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle svg {
+                        transform: none;
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-summary-inset,
+                    #bbgl-panel.bbgl-no-animations .bbgl-bar-handle svg {
+                        transition: none;
                     }
 
                     /* Compact: shorter tab */
@@ -6796,8 +6845,10 @@
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-scrub-hovered ~ .bbgl-bar-handle,
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-viewing ~ .bbgl-bar-handle,
                     body:not(.is-touch-device) #bbgl-panel.bbgl-compact .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
-                        height: 26px;
-                        --bbgl-handle-active-h: 26px;
+                        /* 28px-wide tab leaves a 16px-wide chart (4px tab + 2px inset padding per side);
+                           24px tall is the shortest that still fits it square, so the chart keeps its size. */
+                        height: 24px;
+                        --bbgl-handle-active-h: 24px;
                     }
 
                     body:not(.is-touch-device) #bbgl-panel.bbgl-expanded .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle,
@@ -24785,6 +24836,9 @@ const BestGymController = {
     }
 
     function switchView(tgt, inst = false) {
+        // A Library resize still running would leave its deferred render pending; settle it first
+        // so the current view below is read from its finished state.
+        finishLibraryResize();
         const tp = dom.topPanel,
             bp = dom.bottomPanel,
             sp = dom.settingsView,
@@ -24821,11 +24875,37 @@ const BestGymController = {
             },
             cel = gel(cm),
             nel = gel(tgt);
+        const restoreBottomPanel = () => {
+            bp.style.removeProperty('display');
+            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
+            vp.classList.remove('active');
+            vp.style.setProperty('display', 'none', 'important');
+        };
+        // Animated switches into or out of the Library resize the top panel while the view is
+        // blinked off (between the old view's CRT-out and the new one's CRT-in), with the views
+        // inside hidden by bbgl-lib-resizing. app() then snaps the already-finished size.
+        const libResize = !inst && userConfig.animations && (cm === 'library') !== (tgt === 'library') &&
+            !['settings', 'welcome'].includes(cm) && !['settings', 'welcome'].includes(tgt);
+        const afterLibResize = (then) => {
+            if (!libResize) return then();
+            const opening = tgt === 'library';
+            if (opening) restoreBottomPanel();
+            else {
+                if (dom.libraryContainer) dom.libraryContainer.innerHTML = '';
+                // Keeps the destination's toolbar icon lit while no view class is on the panel.
+                tp.dataset.navTarget = tgt;
+            }
+            resizeLibraryPanel(opening, true, () => {
+                delete tp.dataset.navTarget;
+                then();
+            });
+            if (opening) tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
+            tp.classList.toggle('viewing-library', opening);
+        };
         const app = () => {
-            // Leaving the Library: start its shrink before the class comes off, so the transition
-            // is armed when the height changes.
+            // Leaving the Library: size it back down before the class comes off.
             if (cm === 'library' && tgt !== 'library') {
-                resizeLibraryPanel(false, !inst && userConfig.animations);
+                resizeLibraryPanel(false, false);
                 // Like the stickerbook, the Library reopens on its first page.
                 if (!inst) viewState.libraryPage = 0;
             }
@@ -24833,12 +24913,7 @@ const BestGymController = {
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
-            if (!(tgt === 'stickers' && viewState.activeItemId)) {
-                bp.style.removeProperty('display');
-                if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
-                vp.classList.remove('active');
-                vp.style.setProperty('display', 'none', 'important');
-            }
+            if (!(tgt === 'stickers' && viewState.activeItemId)) restoreBottomPanel();
             if (tgt === 'welcome') {
                 if (wv) {
                     wv.innerHTML = getWelcomeHTML();
@@ -24976,7 +25051,7 @@ const BestGymController = {
             } else if (tgt === 'library') {
                 // Measured after the bottom panel's display is restored above, before the class
                 // that grows the top panel over it.
-                resizeLibraryPanel(true, !inst && cm !== 'library' && userConfig.animations);
+                resizeLibraryPanel(true, false);
                 tp.classList.add('viewing-library');
                 renderLibrary();
             } else renderPanelContent();
@@ -25017,26 +25092,32 @@ const BestGymController = {
             cel.classList.add('bbgl-crt-out');
             setTimeout(() => {
                 cel.classList.remove('bbgl-crt-out');
-                app();
-                runtime.isViewAnimating = false;
+                afterLibResize(() => {
+                    app();
+                    runtime.isViewAnimating = false;
+                });
             }, 280);
         } else if (cm === 'stickers') {
-            nel.classList.add('bbgl-crt-in');
-            app();
-            setTimeout(() => {
-                nel.classList.remove('bbgl-crt-in');
-                runtime.isViewAnimating = false;
-            }, 300);
-        } else {
-            cel.classList.add('bbgl-crt-out');
-            setTimeout(() => {
-                cel.classList.remove('bbgl-crt-out');
+            afterLibResize(() => {
                 nel.classList.add('bbgl-crt-in');
                 app();
                 setTimeout(() => {
                     nel.classList.remove('bbgl-crt-in');
                     runtime.isViewAnimating = false;
                 }, 300);
+            });
+        } else {
+            cel.classList.add('bbgl-crt-out');
+            setTimeout(() => {
+                cel.classList.remove('bbgl-crt-out');
+                afterLibResize(() => {
+                    nel.classList.add('bbgl-crt-in');
+                    app();
+                    setTimeout(() => {
+                        nel.classList.remove('bbgl-crt-in');
+                        runtime.isViewAnimating = false;
+                    }, 300);
+                });
             }, 280);
         }
     }
@@ -25076,7 +25157,9 @@ const BestGymController = {
             bp.style.visibility = '';
         }
         clearTimeout(runtime._libraryTimer);
-        p.classList.remove('bbgl-lib-anim');
+        runtime._libSettle = null;
+        p.classList.remove('bbgl-lib-anim', 'bbgl-lib-resizing');
+        if (tp) delete tp.dataset.navTarget;
         closeItemViewer(false);
         calendarState.year = viewState.calYear;
         calendarState.month = viewState.calMonth;
@@ -25136,18 +25219,36 @@ const BestGymController = {
     // --bbgl-lib-extra is the bottom panel's height, which page mode adds to the top panel and
     // cancels with a matching negative margin so the page never changes height. Once covered, the
     // bottom panel stops painting; it is made visible again before any shrink starts.
-    function resizeLibraryPanel(opening, animate) {
+    // While animating, bbgl-lib-resizing hides the top panel's contents (all but the toolbar) so the
+    // height transition never re-lays-out or repaints them; onSettled draws the destination view
+    // once the panel has finished resizing.
+    function resizeLibraryPanel(opening, animate, onSettled) {
         const p = dom.panel,
             bp = dom.bottomPanel;
-        if (!p || !bp) return;
+        if (!p || !bp) {
+            if (onSettled) onSettled();
+            return;
+        }
         clearTimeout(runtime._libraryTimer);
+        runtime._libSettle = null;
         bp.style.visibility = '';
         p.style.setProperty('--bbgl-lib-extra', bp.offsetHeight + 'px');
         p.classList.toggle('bbgl-lib-anim', animate);
-        runtime._libraryTimer = setTimeout(() => {
-            p.classList.remove('bbgl-lib-anim');
+        p.classList.toggle('bbgl-lib-resizing', animate);
+        const settle = () => {
+            clearTimeout(runtime._libraryTimer);
+            runtime._libSettle = null;
+            p.classList.remove('bbgl-lib-anim', 'bbgl-lib-resizing');
             if (opening && dom.topPanel && dom.topPanel.classList.contains('viewing-library')) bp.style.visibility = 'hidden';
-        }, animate ? 380 : 0);
+            if (onSettled) onSettled();
+        };
+        runtime._libSettle = settle;
+        runtime._libraryTimer = setTimeout(settle, animate ? 380 : 0);
+    }
+
+    // Runs a pending Library resize's settle step immediately.
+    function finishLibraryResize() {
+        if (runtime._libSettle) runtime._libSettle();
     }
 
     function toggleSettingsView(e) {
