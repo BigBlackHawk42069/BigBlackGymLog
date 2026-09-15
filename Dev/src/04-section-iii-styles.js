@@ -2621,6 +2621,30 @@
                         font-weight: 700;
                     }
 
+                    /* Page mode's widest tier has room for larger Library type; each size keeps scaling
+                       with the page's height, only the ceiling is raised. */
+                    @container bbgl-page (min-width:784px) {
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-group {
+                            font-size: clamp(8.5px, 2.1cqh, 16px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-name {
+                            font-size: clamp(8px, 2.3cqh, 16px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-effect {
+                            font-size: clamp(7px, 1.85cqh, 13px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-val {
+                            font-size: clamp(8.5px, 2.4cqh, 17px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-stat {
+                            font-size: clamp(7px, 1.75cqh, 12.5px);
+                        }
+                    }
+
                     /* Read books and headers with a read book are click-to-copy. */
                     #bbgl-library-container [data-lib-copy] {
                         cursor: pointer;
