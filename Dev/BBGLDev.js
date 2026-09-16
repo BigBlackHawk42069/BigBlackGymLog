@@ -4572,8 +4572,10 @@
 
                     }
 
-                    /* Compact trims the Other Books checklist to titles; the training pages keep their effects. */
-                    #bbgl-panel.bbgl-compact .bbgl-lib-item .bbgl-lib-effect {
+                    /* Compact trims the Other Books checklist to titles; the training pages keep their
+                       effects. An unread entry is the exception — with no date or data on it, its card has
+                       the room (see the unread rules below). */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-item:not(.is-unread) .bbgl-lib-effect {
                         display: none;
                     }
 
@@ -4677,6 +4679,19 @@
                     .bbgl-lib-row.is-unread .bbgl-lib-title-text {
                         white-space: normal;
                         overflow: visible;
+                        text-overflow: clip;
+                    }
+
+                    /* Compact's panel is a fixed width, so an unread card there has no narrow tier to shrink
+                       for — and with its date and data gone it has height to give back. Its description gets
+                       it: shown on the Other Books page too, a size up from the one-line 11px ceiling, and
+                       wrapped onto a second line rather than ellipsised. Cards with data keep the one-line
+                       description, which is what holds their rows level with each other. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-item.is-unread .bbgl-lib-effect,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-row.is-unread .bbgl-lib-effect {
+                        font-size: clamp(9px, 2.2cqh, 13px);
+                        line-height: 1.15;
+                        white-space: normal;
                         text-overflow: clip;
                     }
 
