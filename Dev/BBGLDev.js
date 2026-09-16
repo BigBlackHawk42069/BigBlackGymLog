@@ -4394,8 +4394,12 @@
                         text-overflow: ellipsis;
                     }
 
+                    /* The title stack is sized by the smaller of a height term and a width term, so it pulls
+                       down as the panel shortens or narrows. --bbgl-lib-title-w weights the width half:
+                       a card with a whole row to itself scales it out of the way (see below) and is sized by
+                       height alone, keeping whatever ceiling its mode and tier set. */
                     .bbgl-lib-name {
-                        font-size: clamp(10px, min(2.8cqh, 2.92cqi), 15px);
+                        font-size: clamp(10px, min(2.8cqh, calc(2.92cqi * var(--bbgl-lib-title-w, 1))), 15px);
                         font-weight: 600;
                         color: #e6e6e6;
                     }
@@ -4403,8 +4407,8 @@
                     /* The line height stays pinned to the effect's previous size (clamp(7px, 1.7cqh, 10px) × 1.1),
                        so the larger text doesn't move anything around it. */
                     .bbgl-lib-effect {
-                        font-size: clamp(8px, min(1.9cqh, 2.34cqi), 11px);
-                        line-height: calc(clamp(7.5px, min(1.7cqh, 2.19cqi), 10px) * 1.1);
+                        font-size: clamp(8px, min(1.9cqh, calc(2.34cqi * var(--bbgl-lib-title-w, 1))), 11px);
+                        line-height: calc(clamp(7.5px, min(1.7cqh, calc(2.19cqi * var(--bbgl-lib-title-w, 1))), 10px) * 1.1);
                         /* overflow:hidden (for the ellipsis) clips at the padding box, so padding gives the
                            taller glyphs room to paint and the matching negative margin keeps the layout
                            exactly where it was. */
@@ -4588,16 +4592,13 @@
 
                     /* Page mode's widest tier has room for larger Library type; each size keeps scaling
                        with the page's height, only the ceiling is raised. */
-                    /* A book that has a whole row to itself has width to spare in the expanded panel, so its
-                       type is sized by height alone — only the two-across grids (and the checklist pages)
-                       need the width to pull their type down as the panel narrows. */
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-name {
-                        font-size: clamp(10px, 2.8cqh, 15px);
-                    }
-
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-effect {
-                        font-size: clamp(8px, 1.9cqh, 11px);
-                        line-height: calc(clamp(7.5px, 1.7cqh, 10px) * 1.1);
+                    /* A book that has a whole row to itself has width to spare — in the expanded panel and in
+                       page mode alike — so its title stack is sized by height alone; only the two-across
+                       grids (and the checklist pages) need the width to pull their type down as the panel
+                       narrows. Compact is a fixed width with no narrow tier to shrink for, and keeps the
+                       sizes it was measured at. */
+                    #bbgl-panel:not(.bbgl-compact) .bbgl-lib-panel > .bbgl-lib-row {
+                        --bbgl-lib-title-w: 999;
                     }
 
                     /* Their numbers are the one thing that can still outgrow a full row, so they keep a width
