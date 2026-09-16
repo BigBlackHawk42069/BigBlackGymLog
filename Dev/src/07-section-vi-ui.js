@@ -262,7 +262,8 @@
         if (aBtn) aBtn.classList.toggle('active', activeL === 'All-Time');
     }
 
-    // Library pages: 1 Stat Books + Gym Gains, 2 Energy + Happy, 3 and 4 every other book, split in half.
+    // Library pages: 1 Instant Gains + Gym Boosters, 2 Energy + Happy Boosters, 3 and 4 One-Time
+    // Perks + 31-Day Buffs, split evenly across the two pages.
     // See computeBookData() for when a book counts as read.
     const LIBRARY_PAGE_COUNT = 4;
 
@@ -374,11 +375,11 @@
         retryToolbarPaginationLayout(() => dom.topPanel && dom.topPanel.classList.contains('viewing-library'));
         // Page 3: every non-training book as a two-column checklist, filled top-to-bottom.
         const GROUPS = page === 0 ? [
-            ['stat', 'Stat Books'],
-            ['gym', 'Gym Gains']
+            ['stat', 'Instant Gains'],
+            ['gym', 'Gym Boosters']
         ] : [
-            ['energy', 'Energy'],
-            ['happy', 'Happy']
+            ['energy', 'Energy Boosters'],
+            ['happy', 'Happy Boosters']
         ];
         const STAT_NAME = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity', tot: 'Total' };
         const STAT_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex', tot: 'Tot' };
@@ -457,21 +458,31 @@
             return `<span class="d-short">${short}</span><span class="d-full">${full}</span>`;
         };
         // Pages 3-4: the non-training books as a two-column checklist, filled top-to-bottom and split
-        // across the two pages. Each entry has its date above its title, like the training rows.
+        // across the two pages, One-Time Perks first then 31-Day Buffs, each getting its own labeled
+        // group wherever it lands. Each entry has its date above its title, like the training rows.
         if (page >= 2) {
             // Memories And Mammaries lives here rather than on a training page: when it repeats a
             // training book, its effect gets its own row at the bottom of that book's page.
             const allOthers = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
-            const half = Math.ceil(allOthers.length / 2);
-            const others = page === 2 ? allOthers.slice(0, half) : allOthers.slice(half);
-            const rowsPerCol = Math.ceil(others.length / 2);
+            const perks = allOthers.filter(id => BOOK_META[id].readPeriod);
+            const buffs = allOthers.filter(id => !BOOK_META[id].readPeriod);
+            const ordered = perks.concat(buffs);
+            const half = Math.ceil(ordered.length / 2);
+            const pageItems = page === 2 ? ordered.slice(0, half) : ordered.slice(half);
             const repeatCls = id => memOther == null ? '' : id === MEMORIES_BOOK ? ' is-repeat' : id === memOther ? ' is-repeated' : '';
             const itemDate = id => {
                 const date = dateHTML(BOOK_META[id], info(id), id === MEMORIES_BOOK);
                 return `<div class="bbgl-lib-stamp"><span class="bbgl-lib-date${date ? '' : ' is-placeholder'}"${date ? '' : ' aria-hidden="true"'}>${date || '&nbsp;'}</span>${marker(id)}</div>`;
             };
-            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}${repeatCls(id)}" data-book="${id}"${rowCopyAttrs(id)}>${itemDate(id)}<div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}</div><div class="bbgl-lib-effect">${achEsc(bookDesc(id))}</div></div>`).join('');
-            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:1"><div class="bbgl-lib-group"${headerCopyAttrs('gOther' + page, 'Other Books', others)}><span class="bbgl-lib-group-label">Other Books</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div></div></div>`;
+            const itemHTML = id => `<div class="bbgl-lib-item${stateClass(id)}${repeatCls(id)}" data-book="${id}"${rowCopyAttrs(id)}>${itemDate(id)}<div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}</div><div class="bbgl-lib-effect">${achEsc(bookDesc(id))}</div></div>`;
+            const OTHER_GROUPS = [['perks', 'One-Time Perks', perks], ['buffs', '31-Day Buffs', buffs]];
+            const html = OTHER_GROUPS.map(([key, label, ids]) => {
+                const items = pageItems.filter(id => ids.includes(id));
+                if (!items.length) return '';
+                const rowsPerCol = Math.ceil(items.length / 2);
+                return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${rowsPerCol}"><div class="bbgl-lib-group"${headerCopyAttrs('g' + key + page, label, items)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items.map(itemHTML).join('')}</div></div></div>`;
+            }).join('');
+            c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
             window.requestAnimationFrame(fitLibraryCells);
             return;
         }
