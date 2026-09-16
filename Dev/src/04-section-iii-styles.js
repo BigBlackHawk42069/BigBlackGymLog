@@ -2840,15 +2840,15 @@
                     }
 
 
-                    /* Page 2: the non-training books as a plain checklist, two columns filled top to
-                       bottom, every cell an equal share of the height. */
+                    /* Page 2: the non-training books as a plain checklist, two columns filled left to
+                       right then top to bottom, every cell an equal share of the height. */
                     .bbgl-lib-grid {
                         flex: 1;
                         min-height: 0;
                         display: grid;
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                         grid-template-rows: repeat(var(--bbgl-lib-rows), minmax(0, 1fr));
-                        grid-auto-flow: column;
+                        grid-auto-flow: row;
                         gap: var(--bbgl-lib-card-gap);
                     }
 

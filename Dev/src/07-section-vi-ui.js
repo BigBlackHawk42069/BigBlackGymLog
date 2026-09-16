@@ -463,7 +463,16 @@
         if (page >= 2) {
             // Memories And Mammaries lives here rather than on a training page: when it repeats a
             // training book, its effect gets its own row at the bottom of that book's page.
-            const allOthers = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
+            // Order groups related effects together (stat/combat, crime, medical, business/travel,
+            // personal) rather than raw book-ID order, so the flat checklist reads logically.
+            const OTHER_BOOKS_ORDER = [
+                748, 749, 750, 751,
+                753, 754, 755, 756, 752, 763, 768, 777, 780, 764, 787,
+                771, 778, 762, 775, 781,
+                765, 769,
+                767, 766, 773, 786, 772, 785
+            ];
+            const allOthers = OTHER_BOOKS_ORDER.filter(id => BOOK_META[id] && (!BOOK_META[id].training || BOOK_META[id].training === 'repeat'));
             const perks = allOthers.filter(id => BOOK_META[id].readPeriod);
             const buffs = allOthers.filter(id => !BOOK_META[id].readPeriod);
             const ordered = perks.concat(buffs);
