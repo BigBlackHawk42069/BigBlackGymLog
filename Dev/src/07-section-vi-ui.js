@@ -44,10 +44,11 @@
 
     function buildTubeBrackets(x, width, paint = 'bbc-term') {
         const l = x - 2, r = x + width + 2;
-        return `<path d="M${l} 73L${x} 66H${x + width}L${r} 73Z M${l} 27L${x} 34H${x + width}L${r} 27Z" fill="#080a09" fill-opacity=".7"/>
-            <path d="M${l} 96V79L${x} 68H${x + width}L${r} 79V96Z M${l} 4V21L${x} 32H${x + width}L${r} 21V4Z" fill="url(#${paint})"/>
-            <path d="M${x + width - 1} 69L${x + width + 1} 73H${x + width - 1}L${x + width - 2} 70Z M${x + width - 1} 31L${x + width + 1} 27H${x + width - 1}L${x + width - 2} 30Z" fill="#080c0a" fill-opacity=".55"/>
-            <path d="M${x - 1} 73L${x + 1} 70H${x + width - 1} M${x - 1} 27L${x + 1} 30H${x + width - 1}" fill="none" stroke="#b4bcb4" stroke-opacity=".5" stroke-width="1.2"/>`;
+        return `<path d="M${l} 70L${x} 57H${x + width}L${r} 70Z M${l} 30L${x} 43H${x + width}L${r} 30Z" fill="#050806" fill-opacity=".78"/>
+            <path d="M${l} 96V74L${x} 61H${x + width}L${r} 74V96Z M${l} 4V26L${x} 39H${x + width}L${r} 26V4Z" fill="url(#${paint})"/>
+            <path d="M${l} 26L${x} 39H${x + width}L${r} 26L${x + width - 1} 35H${x + 1}Z" fill="#111711" fill-opacity=".75"/>
+            <path d="M${l} 74L${x} 61H${x + width}L${r} 74L${x + width - 1} 65H${x + 1}Z" fill="#a6afa1" fill-opacity=".4"/>
+            <path d="M${x + 1} 34H${x + width - 1} M${x + 1} 62H${x + width - 1}" fill="none" stroke="#b4bcb4" stroke-opacity=".4" stroke-width="1"/>`;
     }
 
     // Gradients/patterns are pure functions of the bar's fixed dimensions above, so they're
@@ -62,9 +63,11 @@
         `<linearGradient id="bbc-joint-recess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101211"/><stop offset=".18" stop-color="#252a26"/><stop offset=".45" stop-color="#151916"/><stop offset=".78" stop-color="#101310"/><stop offset="1" stop-color="#30362f"/></linearGradient>` +
         `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
         `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
-        `<linearGradient id="bbc-join" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#202020"/><stop offset=".4" stop-color="#363636"/><stop offset=".5" stop-color="#404040"/><stop offset=".6" stop-color="#363636"/><stop offset="1" stop-color="#181818"/></linearGradient><linearGradient id="bbc-join-fade"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff"/></linearGradient><mask id="bbc-join-mask"><rect width="18" height="100" fill="url(#bbc-join-fade)"/></mask>` +
+        `<linearGradient id="bbc-socket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080b08"/><stop offset=".5" stop-color="#111611"/><stop offset="1" stop-color="#070a07"/></linearGradient>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
-        BAR_TERMINAL_STOPS + `</linearGradient>` +
+        `<stop offset="0" stop-color="#34362c"/><stop offset=".22" stop-color="#45483a"/><stop offset=".55" stop-color="#32362b"/><stop offset="1" stop-color="#191d16"/></linearGradient>` +
+        `<radialGradient id="bbc-cast-bevel" cx=".3" cy=".15" r=".85"><stop offset="0" stop-color="#737b70" stop-opacity=".38"/><stop offset=".55" stop-color="#525b50" stop-opacity=".16"/><stop offset="1" stop-color="#353c34" stop-opacity="0"/></radialGradient>` +
+        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#484f46"/><stop offset=".28" stop-color="#353d34"/><stop offset=".7" stop-color="#242b24"/><stop offset="1" stop-color="#141914"/></linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
         BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
@@ -164,8 +167,13 @@
 
         const colorKey = { green: 'g', gold: 'o', diamond: 'd', silver: 's' };
         const f = (v) => v.toFixed(2);
-        let out = `<rect width="18" height="100" fill="url(#bbc-join)"/><rect width="18" height="100" fill="url(#bbc-housing)" mask="url(#bbc-join-mask)"/><rect x="492" width="8" height="100" rx="2" fill="url(#bbc-housing)"/>`;
-        out += `<path d="M16.5 8L18 14V86L16.5 92Z M493.5 8L492 14V86L493.5 92Z" fill="#090a09" fill-opacity=".45"/><path d="M16.5 8V92 M493.5 8V92" stroke="#a4aaa4" stroke-opacity=".18" stroke-width=".6"/><path d="M17.7 14V86 M492.3 14V86" stroke="#030403" stroke-opacity=".65" stroke-width=".6"/>`;
+        let out = `<rect width="16" height="100" fill="url(#bbc-housing)"/><rect x="494" width="6" height="100" rx="2" fill="url(#bbc-housing)"/><path d="M16 0H20V100H16Z M490 0H494V100H490Z" fill="url(#bbc-socket)"/>`;
+        out += `<path d="M8 0H16L13 12H8Z M494 0H498L500 12H497Z" fill="url(#bbc-cast-bevel)"/>
+            <path d="M8 91H14L16 100H8Z M496 91H500L498 100H494Z" fill="#171c17" fill-opacity=".4"/>
+            <path d="M14 10H16L18 17V83L16 90H14Z M494 10H496V90H494L492 83V17Z" fill="url(#bbc-cast-shoulder)"/>
+            <path d="M10 10H16V35H14V17H10Z M494 10H498V17H496V32H494Z" fill="url(#bbc-cast-bevel)"/>
+            <path d="M16.6 15L17.8 19V81L16.6 85 M493.4 15L492.2 19V81L493.4 85" fill="none" stroke="#030603" stroke-opacity=".9" stroke-width="1.2"/>
+            <path d="M15.4 18V82 M494.6 18V82" stroke="url(#bbc-cast-shoulder)" stroke-width=".8"/>`;
         // HTML overlay, not SVG: inline SVG doesn't reliably get its own GPU compositor layer for
         // transform/opacity animation, but a clipped HTML div does.
         let overlay = '';
@@ -207,9 +215,10 @@
                 out += `<rect x="${f(gx)}" y="${fy}" width="${f(gw)}" height="${fh}" rx="2" ry="7" fill="url(#bbc-tube-glass)" opacity=".65"/>`;
                 out += `<rect x="${f(gx + 2)}" y="${f(fy + fh * .19)}" width="${f(gw - 4)}" height="${f(fh * .055)}" rx="1" fill="url(#bbc-glass-highlight)"/>`;
             }
-            out += `<path d="M${f(bx)} 4H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V96H${f(bx)}Z" fill="url(#bbc-term)"/>`;
-            out += `<path d="M${f(bx)} 22H${f(bx + slotW)}V25H${f(bx)}Z M${f(bx)} 75H${f(bx + slotW)}V78H${f(bx)}Z" fill="#090c0a" fill-opacity=".65"/>`;
-            out += `<path d="M${f(bx)} 26H${f(bx + slotW)} M${f(bx)} 74H${f(bx + slotW)}" stroke="#080b09" stroke-opacity=".82" stroke-width="1.5"/><path d="M${f(bx + 1)} 21H${f(bx + slotW - 1)} M${f(bx + 1)} 76H${f(bx + slotW - 1)}" stroke="#b4bcb4" stroke-opacity=".6" stroke-width="1.2"/><path d="M${f(bx + 1)} 6H${f(bx + slotW - 1)} M${f(bx + 1)} 94H${f(bx + slotW - 1)}" stroke="#080b09" stroke-opacity=".5" stroke-width="1"/>`;
+            out += `<path d="M${f(bx)} 27H${f(bx + slotW)}V34H${f(bx)}Z M${f(bx)} 66H${f(bx + slotW)}V73H${f(bx)}Z" fill="#050806" fill-opacity=".72"/>`;
+            out += `<path d="M${f(bx)} 4H${f(bx + slotW)}V30H${f(bx)}Z M${f(bx)} 70H${f(bx + slotW)}V96H${f(bx)}Z" fill="url(#bbc-term)"/>`;
+            out += `<path d="M${f(bx)} 25H${f(bx + slotW)}V30H${f(bx)}Z" fill="#101610" fill-opacity=".75"/><path d="M${f(bx)} 70H${f(bx + slotW)}V75H${f(bx)}Z" fill="#a6afa1" fill-opacity=".35"/>`;
+            out += `<path d="M${f(bx + 1)} 24H${f(bx + slotW - 1)} M${f(bx + 1)} 71H${f(bx + slotW - 1)}" stroke="#b4bcb4" stroke-opacity=".4" stroke-width="1"/><path d="M${f(bx + 1)} 6H${f(bx + slotW - 1)} M${f(bx + 1)} 94H${f(bx + slotW - 1)}" stroke="#080b09" stroke-opacity=".5" stroke-width="1"/>`;
             // Collars cover the glass ends.
             for (const [tx, innerX] of [[bx, gx - 1], [bx + slotW - termW, gx + gw]]) {
                 out += `<rect x="${f(tx)}" y="${by}" width="${termW}" height="${slotH}" rx="1.5" ry="5" fill="url(#bbc-term)"/>`;
@@ -227,8 +236,8 @@
             if (animated && lit && color && color !== 'silver') {
                 // Keep the sweep behind the retaining brackets.
                 const cl = f((clipX - 2 - gx) / gw * 100), cr = f((clipX + clipW + 2 - gx) / gw * 100);
-                const ct = f((35 - fy) / fh * 100), cb = f((65 - fy) / fh * 100);
-                const rt = f((27 - fy) / fh * 100), rb = f((73 - fy) / fh * 100);
+                const ct = f((43 - fy) / fh * 100), cb = f((57 - fy) / fh * 100);
+                const rt = f((34 - fy) / fh * 100), rb = f((66 - fy) / fh * 100);
                 overlay += `<div class="bbgl-cap-win" style="left:${CAP_WIN_LEFT_PCT[i].toFixed(2)}%;width:${CAP_WIN_WIDTH_PCT.toFixed(2)}%;top:${CAP_WIN_TOP_PCT.toFixed(2)}%;height:${CAP_WIN_HEIGHT_PCT.toFixed(2)}%;clip-path:polygon(0 ${rt}%,${cl}% ${rt}%,${cl}% ${ct}%,${cr}% ${ct}%,${cr}% ${rt}%,100% ${rt}%,100% ${rb}%,${cr}% ${rb}%,${cr}% ${cb}%,${cl}% ${cb}%,${cl}% ${rb}%,0 ${rb}%)">` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-fwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_FWD_S[i].toFixed(3)}s"></div>` +
                     `<div class="bbgl-cap-sweep bbgl-cap-sweep-pass-bwd bbgl-cap-sweep-${color}" style="animation-delay:${CAP_WIN_DELAY_BWD_S[i].toFixed(3)}s"></div>` +
@@ -1750,7 +1759,7 @@
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         bar.num.innerHTML = '<span class="bbgl-lv-prefix">Lv </span>' + level;
-        bar.fill.style.width = ((pct / 100) * 96.8).toFixed(2) + '%';
+        bar.fill.style.width = ((pct / 100) * 90).toFixed(2) + '%';
         bar.fill.classList.toggle('level-full', pct >= 99.9);
         if (dom.panel) {
             dom.panel.dataset.atrophy = atrophy;
@@ -1836,7 +1845,7 @@
 
                     bars.forEach(b => {
                         b.fill.style.transitionDuration = durationMs + 'ms';
-                        b.fill.style.width = '96.8%';
+                        b.fill.style.width = '90%';
                         b.fill.classList.add('level-full');
                     });
 
@@ -3352,11 +3361,20 @@
     }
 
     function buildEmptyLevelTrackSVG(foreground = false) {
-        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".45"/><stop offset=".23" stop-color="#fff" stop-opacity=".5"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset=".9" stop-color="#fff" stop-opacity=".25"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient></defs>`;
+        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34362c"/><stop offset=".22" stop-color="#45483a"/><stop offset=".55" stop-color="#32362b"/><stop offset="1" stop-color="#191d16"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#484f46"/><stop offset=".28" stop-color="#353d34"/><stop offset=".7" stop-color="#242b24"/><stop offset="1" stop-color="#141914"/></linearGradient></defs>`;
         const body = foreground
-            ? `<rect x="8" y="13" width="484" height="74" rx="2" ry="37" fill="url(#lvl-tube-glass)"/><rect x="1" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/><rect x="492" y="4" width="7" height="92" rx="1" fill="url(#lvl-tube-metal)"/>`
-            : `<path d="M0 88H500V100H0Z M0 2H500V10H0Z" fill="url(#lvl-tube-metal)"/><rect x="7" y="11" width="486" height="78" rx="3" ry="39" fill="#050907" fill-opacity=".38" stroke="#a2bab3" stroke-opacity=".25" stroke-width="1"/>`;
-        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${body}</svg>`;
+            ? `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
+                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><path d="M0 0H500V19H0Z" fill="#0b1109"/>
+                <path d="M0 77H500V100H0Z" fill="url(#lvl-channel-lower)"/>
+                <path d="M0 20H500" stroke="#020502" stroke-opacity=".9" stroke-width="4"/>
+                <rect width="16" height="100" fill="url(#lvl-housing)"/><rect x="484" width="16" height="100" fill="url(#lvl-housing)"/>
+                <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
+                <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
+                <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
+                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`
+            : `<rect width="500" height="100" fill="#10160f"/><rect y="23" width="500" height="54" fill="#040805"/><rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="#83b29c" fill-opacity=".12"/>`;
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`;
     }
 
     function getDashboardHTML() {

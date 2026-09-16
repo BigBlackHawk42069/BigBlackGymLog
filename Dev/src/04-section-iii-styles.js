@@ -4230,7 +4230,7 @@
                         line-height: 1;
                         text-shadow: 0 1px 3px #000;
                         align-self: flex-end;
-                        margin-bottom: 4px;
+                        margin-bottom: 6px;
                         transition: transform .2s, text-shadow .2s;
                         will-change: transform; /* same reason as .stats-btn / .header-trigger */
                     }
@@ -4527,8 +4527,8 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .arrow-btn {
-                        font-size: clamp(16px, calc(16px + 12px * var(--bbgl-page-t)), 28px);
-                        margin-bottom: clamp(4px, calc(4px + 2px * var(--bbgl-page-t)), 6px);
+                        font-size: clamp(19px, calc(19px + 12px * var(--bbgl-page-t)), 31px);
+                        margin-bottom: clamp(6px, calc(6px + 2px * var(--bbgl-page-t)), 8px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .header-trigger::after {
@@ -4609,10 +4609,11 @@
                         grid-template-columns: repeat(7, 1fr);
                         text-align: center;
                         color: #888;
-                        font-size: 10px;
+                        font-size: 9px;
                         margin-bottom: 0;
                         font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
-                        padding-top: 1px;
+                        padding-top: 3px;
+                        padding-bottom: 1px;
                         border-top: none;
                         flex: 0 0 auto;
                     }
@@ -4662,12 +4663,25 @@
                        layer appearing on hover is only overlap-checked against this week. Plain
                        block stacking row-then-bar, so layout is unchanged. */
                     .bbgl-week {
+                        position: relative;
                         isolation: isolate;
                         /* Each week permanently on its own layer, for the same reason as the day cells:
                            weeks paint top to bottom, and the week bar's hover changes (sweeps starting,
                            handle growing, its shadows reaching a few px past the week's bottom edge) made
                            the browser regroup the week painted after it into a new layer and repaint it. */
                         will-change: transform;
+                    }
+
+                    .bbgl-week + .bbgl-week::before {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        height: 9px;
+                        z-index: 21;
+                        pointer-events: none;
+                        background: linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.42) 25%, rgba(0,0,0,.16) 60%, transparent 100%);
                     }
 
                     .bbgl-row-slice {
@@ -5196,6 +5210,12 @@
                         font-size: 12px !important;
                     }
 
+                    .bbgl-weekly-anchor,
+                    #bbgl-level-track,
+                    #bbgl-gym-level-track {
+                        --bbgl-cast-texture: repeating-linear-gradient(112deg, transparent 0 1px, rgba(190,194,174,.1) 1px 1.5px, transparent 1.5px 3px), repeating-linear-gradient(23deg, transparent 0 2px, rgba(13,19,12,.17) 2px 2.6px, transparent 2.6px 4px);
+                    }
+
                     .bbgl-weekly-anchor {
                         width: 100%;
                         height: 15px;
@@ -5238,6 +5258,30 @@
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                         box-shadow: none;
                         z-index: 1;
+                    }
+
+                    .bbgl-weekly-track::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        pointer-events: none;
+                        background-image: var(--bbgl-cast-texture);
+                        background-position: bottom left;
+                        mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
+                    }
+
+                    .bbgl-weekly-track {
+                        box-shadow: 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
+                    }
+
+                    .bbgl-weekly-track::before {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        z-index: 1;
+                        pointer-events: none;
+                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                     }
 
                     #bbgl-panel.bbgl-compact .bbgl-weekly-track {
@@ -5399,13 +5443,13 @@
                         border-radius: 5px 5px 0 0;
                         box-sizing: border-box;
                         padding: 3px 5px 3px;
-                        background-color: #202020;
-                        background-image: linear-gradient(180deg, #202020 0%, #363636 40%, #404040 50%, #363636 60%, #181818 100%);
-                        background-size: 100% var(--bbgl-track-h);
+                        background-color: #32352a;
+                        background-image: var(--bbgl-cast-texture), linear-gradient(180deg, #34362c 0%, #45483a 22%, #32362b 55%, #191d16 100%);
+                        background-size: 100% 100%, 100% 100%, 100% var(--bbgl-track-h);
                         background-position: bottom center;
                         background-repeat: no-repeat;
                         /* 3D edge highlights on raised tab — no right-edge shadow to avoid junction seam */
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 1px 0 0 rgba(255,255,255,.14);
+                        box-shadow: inset 0 1px 0 rgba(189,193,163,.22), inset 1px 0 0 rgba(189,193,163,.14), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                         transition: height .2s cubic-bezier(.18, .89, .32, 1.28), box-shadow .15s ease;
                     }
 
@@ -5475,7 +5519,7 @@
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 32px;
                         --bbgl-handle-active-h: 32px;
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,.38), inset 1px 0 0 rgba(255,255,255,.25);
+                        box-shadow: inset 0 1px 0 rgba(189,193,163,.32), inset 1px 0 0 rgba(189,193,163,.22), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                     }
 
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before,
@@ -5560,6 +5604,7 @@
                         left: 0;
                         right: 0;
                         height: 9px;
+                        box-shadow: 0 -1px 2px rgba(0,0,0,.45), 0 -3px 6px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.55), 0 3px 5px rgba(0,0,0,.32), 0 6px 9px rgba(0,0,0,.13);
                         pointer-events: none;
                         will-change: transform; /* same reason as #bbgl-level-container */
                     }
@@ -5635,14 +5680,38 @@
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         position: absolute;
-                        top: 13%;
-                        left: 1.6%;
-                        height: 74%;
+                        top: 30%;
+                        left: 5%;
+                        height: 40%;
                         width: 0%;
                         z-index: 2;
-                        border-radius: 3px / 50%;
+                        border-radius: 1px / 35%;
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 1px), transparent 100%);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
+                    }
+
+                    #bbgl-level-track::after,
+                    #bbgl-gym-level-track::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        z-index: 4;
+                        pointer-events: none;
+                        background-image: var(--bbgl-cast-texture);
+                        background-position: bottom left;
+                        mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
+                    }
+
+                    #bbgl-level-track::before,
+                    #bbgl-gym-level-track::before {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        z-index: 4;
+                        pointer-events: none;
+                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                     }
 
                     #bbgl-level-fill::after,
@@ -5652,8 +5721,7 @@
                         inset: 0;
                         border-radius: inherit;
                         pointer-events: none;
-                        background: linear-gradient(180deg, rgba(0,0,0,.28), rgba(255,255,255,.25) 22%, transparent 42%, rgba(0,0,0,.16) 74%, rgba(255,255,255,.12) 88%, rgba(0,0,0,.32));
-                        box-shadow: inset 0 1px 0 rgba(255,255,255,.28), inset -1px 0 1px rgba(255,255,255,.45), 1px 0 2px rgba(0,0,0,.7), 0 1px 1px rgba(0,0,0,.65);
+                        background: linear-gradient(180deg, rgba(0,0,0,.3), transparent 45%, rgba(0,0,0,.18));
                     }
 
                     @keyframes bbgl-lvl-flash-dmnd {
@@ -5858,6 +5926,7 @@
                     /* ─── Gym Page Level Bar — Structural ───────────────── */
                     #bbgl-gym-level-container {
                         position: relative;
+                        top: 1px;
                         width: 100%;
                         margin-top: 30px;
                         margin-bottom: 2px;
@@ -6049,7 +6118,7 @@
                         background:
                             linear-gradient(112deg, transparent 5%, #ffffff30 17%, #11182030 24%, transparent 32%, #ffffff45 49%, transparent 56%, #10182035 71%, #ffffff30 85%, transparent 94%),
                             linear-gradient(180deg, #252e32 0%, #818c90 16%, #edf1ee 32%, #b9c3c4 44%, #626e74 55%, #97a4a6 73%, #d4dcda 86%, #394447 100%);
-                        box-shadow: inset 0 1px 0 #f0f5ef50, inset 0 -1px 0 #080e1280, inset 1px 0 2px #10182070;
+                        box-shadow: inset 0 1px 2px #10182060;
                     }
 
                     #bbgl-panel[data-atrophy="1"] .bbgl-level-up-flash #bbgl-level-track,
@@ -6074,7 +6143,7 @@
                             repeating-linear-gradient(118deg, transparent 0 37px, #011e1850 38px 55px, #b2ffd626 56px 57px, transparent 58px 103px),
                             linear-gradient(72deg, #00291e40, transparent 24%, #8bffc333 41%, transparent 55%, #001e2045 79%, transparent),
                             linear-gradient(180deg, #04271f 0%, #096245 19%, #59c999 32%, #159867 45%, #07563f 58%, #0b925c 78%, #40b582 87%, #032b21 100%);
-                        box-shadow: inset 0 1px 0 #bcffdc45, inset 0 -1px 0 #001b1680, inset 1px 0 2px #001b1670;
+                        box-shadow: inset 0 1px 2px #001b1660;
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
@@ -6155,12 +6224,12 @@
                             linear-gradient(108deg, #69300c30 5%, transparent 17%, #fff0ad50 28%, transparent 34%, #6b35052e 55%, #fff4c43d 73%, transparent 81%),
                             repeating-linear-gradient(0deg, transparent 0 2px, #ffe8a30d 2px 3px),
                             linear-gradient(180deg, #4a2c10 0%, #b48229 18%, #ffe59a 33%, #e5b64a 45%, #9c651d 57%, #cb932f 72%, #efcc70 87%, #624019 100%);
-                        box-shadow: inset 0 1px 0 #fff0b650, inset 0 -1px 0 #32150090, inset 1px 0 2px #32150070;
+                        box-shadow: inset 0 1px 2px #32150060;
                     }
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill.level-full {
-                        box-shadow: inset 0 1px 0 #fff0b680, inset 0 -1px 0 #32150090, inset 0 0 3px #ffe9a145;
+                        box-shadow: inset 0 1px 2px #32150060;
                     }
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
@@ -6168,7 +6237,7 @@
                         background:
                             linear-gradient(180deg, #122133a0, #ffffff30 22%, #ffffff95 34%, transparent 47%, #24283e60 59%, #ffffff30 84%, #142337a0),
                             linear-gradient(112deg, #91c6d0 0%, #c5b0e3 16%, #e3b9d2 29%, #a9dbea 43%, #c5ebd7 57%, #e5dfb6 70%, #cbbce4 83%, #9ed8dd 100%);
-                        box-shadow: inset 0 1px 0 #f4ffff80, inset 0 -1px 0 #19243e90, inset 1px 0 2px #182a3860;
+                        box-shadow: inset 0 1px 2px #182a3860;
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -6895,7 +6964,8 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .arrow-btn {
-                        font-size: clamp(18px, calc(18px + 3px * var(--bbgl-dock-t)), 21px);
+                        font-size: clamp(26px, calc(26px + 3px * var(--bbgl-dock-t)), 29px);
+                        margin-bottom: 6px;
                     }
 
 #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #year-trigger {
