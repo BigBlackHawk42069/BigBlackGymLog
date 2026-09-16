@@ -786,7 +786,7 @@
                            = 38 at the high end. */
                         --bbgl-toolbar-h: clamp(23.5px, calc(23.5px + 14.5px * var(--bbgl-page-t)), 38px);
                         --bbgl-ledger-footer-pb: clamp(4px, calc(4px + 2px * var(--bbgl-page-t)), 6px);
-                        --bbgl-sticker-footer-h: clamp(24px, calc(24px + 10px * var(--bbgl-page-t)), 34px);
+                        --bbgl-sticker-footer-h: clamp(20px, calc(20px + 10px * var(--bbgl-page-t)), 30px);
                         --bbgl-sticker-footer-gap: clamp(2px, calc(2px + 2px * var(--bbgl-page-t)), 4px);
                         --bbgl-sticker-row-gap: clamp(4px, calc(4px + 4px * var(--bbgl-page-t)), 8px);
                         /* Page mode grows its header padding with --bbgl-page-t rather than holding
@@ -2402,7 +2402,7 @@
                     #bbgl-library-container {
                         min-height: 0;
                         overflow: hidden;
-                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(14px, 6%, 32px) 10px;
+                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(4px, 1.5%, 8px) 10px;
                         container-type: size;
                         container-name: bbgl-lib;
                         --bbgl-lib-font: 'Barlow Condensed', 'Arial Narrow', 'Nimbus Sans Narrow', Tahoma, sans-serif;
@@ -2413,47 +2413,66 @@
                         min-height: 0;
                         display: flex;
                         flex-direction: column;
+                        gap: clamp(3px, 1cqh, 8px);
                     }
 
-                    /* Type header above each group. Fixed to its own content height so the book rows
-                       below keep splitting the rest of the page evenly. */
+                    /* One group: a faint rounded border around a spine (the group label, reading bottom to
+                       top like a book spine) and the group's cards. Weighted by row count so rows stay equal
+                       height across groups. */
+                    .bbgl-lib-section {
+                        flex: var(--bbgl-lib-panel-rows) 1 0;
+                        min-height: 0;
+                        display: flex;
+                        gap: clamp(3px, 1cqw, 6px);
+                        padding: clamp(2px, .6cqh, 4px);
+                        border: 1px solid rgba(255, 255, 255, .08);
+                        border-radius: 6px;
+                    }
+
                     .bbgl-lib-group {
-                        flex: 0 0 auto;
+                        flex: 0 0 1.3em;
+                        min-height: 0;
                         display: flex;
                         align-items: center;
-                        gap: .5em;
-                        padding: clamp(4px, 1.4cqh, 10px) 0 clamp(2px, .6cqh, 4px);
+                        justify-content: center;
+                        overflow: hidden;
+                        border-right: 1px solid rgba(255, 255, 255, .08);
                         font-family: var(--bbgl-lib-font);
-                        font-size: clamp(8.5px, 2.1cqh, 13px);
+                        font-size: clamp(9.5px, min(2.2cqh, 2.78cqi), 13px);
                         font-weight: 600;
                         letter-spacing: .1em;
                         text-transform: uppercase;
                         color: rgba(255, 255, 255, .42);
                     }
 
-                    .bbgl-lib-group:first-child {
-                        padding-top: 0;
+                    .bbgl-lib-group-label {
+                        writing-mode: vertical-rl;
+                        transform: rotate(180deg);
+                        white-space: nowrap;
+                        line-height: 1;
                     }
 
-                    .bbgl-lib-group::after {
-                        content: "";
-                        flex: 1;
-                        height: 1px;
-                        background: rgba(255, 255, 255, .12);
-                    }
-
-                    /* Left column: title over its short effect. Right column: reserved for the book's
-                       data. */
+                    /* One book, centred: its read date / active period on top, then title, effect beneath,
+                       and its data. Every row (and every row of a .bbgl-lib-pairs grid) takes an equal
+                       share of the page's height. */
                     .bbgl-lib-row {
                         flex: 1 1 0;
+                        min-width: 0;
                         min-height: 0;
                         overflow: hidden;
-                        display: grid;
-                        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                        display: flex;
+                        flex-direction: column;
                         align-items: center;
-                        column-gap: 10px;
-                        padding-left: .5em;
-                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                        /* The row's spare height is shared out evenly around its title/effect, data and
+                           date instead of pooling above and below them; the gap is only the minimum. */
+                        justify-content: space-evenly;
+                        gap: clamp(0px, .35cqh, 3px);
+                        /* Padding eats into the row's spare height before it's shared out, which shrinks the
+                           gap between the title group and the stats while keeping both centred on the card.
+                           The top also reserves the corner date's band (--bbgl-lib-date-h, 0 in compact,
+                           which hides dates), so the title and stats centre in what's left under it. */
+                        padding-block: calc(clamp(0px, .15cqh, 1px) + var(--bbgl-lib-date-h, 0px)) clamp(0px, .2cqh, 2px);
+                        text-align: center;
                     }
 
                     .bbgl-lib-row:last-child,
@@ -2461,22 +2480,200 @@
                         border-bottom: none;
                     }
 
-                    .bbgl-lib-text {
+                    /* Entry separation, kept grayscale and quiet: every book is its own recessed card (the
+                       weekly bar summary inset's etched look), with a small gap between cards in place of
+                       divider lines. The group wrapper (.bbgl-lib-panel) is just layout: it spaces its
+                       cards and takes a share of the page height by row count. Tune with
+                       --bbgl-lib-card-bg / --bbgl-lib-card-gap. */
+                    .bbgl-lib-list {
+                        --bbgl-lib-date-h: calc(clamp(7.5px, 1.75cqh, 11px) * 1.1);
+                        --bbgl-lib-card-bg: rgba(0, 0, 0, .18);
+                        --bbgl-lib-card-raised-bg: rgba(255, 255, 255, .04);
+                        --bbgl-lib-card-gap: clamp(2px, .6cqh, 5px);
+                    }
+
+                    .bbgl-lib-panel {
+                        flex: 1 1 0;
                         min-width: 0;
+                        min-height: 0;
                         display: flex;
                         flex-direction: column;
-                        align-items: flex-start;
-                        text-align: left;
+                        gap: var(--bbgl-lib-card-gap);
+                    }
+
+                    .bbgl-lib-panel > .bbgl-lib-grid {
+                        flex: 1;
+                    }
+
+                    /* An unread book's card is a sunken recess; once it's been used the card sits proud of
+                       the page instead — a slightly lighter face inside a hairline edge, with a soft, tight
+                       shadow that keeps it seated on the background rather than floating above it. The
+                       sunken/raised contrast is what marks a book as used; its text isn't dimmed. */
+                    .bbgl-lib-row,
+                    .bbgl-lib-item {
+                        position: relative;
+                        border-radius: 4px;
+                        background: var(--bbgl-lib-card-bg);
+                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .04);
+                    }
+
+                    .bbgl-lib-row:not(.is-unread),
+                    .bbgl-lib-item:not(.is-unread) {
+                        background: var(--bbgl-lib-card-raised-bg);
+                        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 1px rgba(0, 0, 0, .3);
+                    }
+
+                    /* Single-stat books, two across. Grows by its row count so each of its rows matches
+                       a full-width row's height. */
+                    .bbgl-lib-pairs {
+                        flex: var(--bbgl-lib-pair-rows) 1 0;
+                        min-height: 0;
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-rows: repeat(var(--bbgl-lib-pair-rows), minmax(0, 1fr));
+                        gap: var(--bbgl-lib-card-gap);
+                    }
+
+                    .bbgl-lib-pairs:last-child,
+                    .bbgl-lib-pairs:has(+ .bbgl-lib-group) {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-pairs .bbgl-lib-row.is-last-row {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-text {
+                        width: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: clamp(0px, .2cqh, 2px);
                         line-height: 1.1;
                         font-family: var(--bbgl-lib-font);
                     }
 
+                    #bbgl-panel.bbgl-compact .bbgl-lib-text {
+                        gap: 1px;
+                    }
+
+                    /* The date and the book's ✓ / In progress marker share the card's top-right corner, out
+                       of the flow, so the title and effect centre on the card on their own. Compact keeps the
+                       marker and drops the date. */
+                    .bbgl-lib-stamp {
+                        position: absolute;
+                        top: clamp(1px, .4cqh, 4px);
+                        right: clamp(3px, 1cqw, 8px);
+                        max-width: calc(100% - var(--bbgl-lib-stamp-clear, .6em));
+                        display: flex;
+                        align-items: baseline;
+                        min-width: 0;
+                    }
+
+                    .bbgl-lib-date {
+                        min-width: 0;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-list {
+                        --bbgl-lib-date-h: clamp(6px, 1.5cqh, 9px);
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-date {
+                        display: none;
+                    }
+
+                    /* A book row's title centres on its text alone, with its ✓ / Reading marker hanging off
+                       the end. Three columns: an empty spacer, the title, and the marker's column. The two
+                       outer columns share the spare width equally, which centres the title, but the marker
+                       column never goes narrower than the marker. So a short title is truly centred, and
+                       a long one can use the whole row except the marker, sliding left rather than being
+                       cut off early; the title text ellipsises only when even that isn't enough. */
+                    .bbgl-lib-row .bbgl-lib-name {
+                        width: 100%;
+                        /* Optical nudge only: a transform moves the title without changing the layout. */
+                        transform: translateY(1px);
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
+                        align-items: baseline;
+                        overflow: visible;
+                    }
+
+                    .bbgl-lib-row .bbgl-lib-name::before {
+                        content: '';
+                    }
+
+                    .bbgl-lib-title {
+                        display: contents;
+                    }
+
+                    .bbgl-lib-title-text {
+                        min-width: 0;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .bbgl-lib-title > .bbgl-lib-check,
+                    .bbgl-lib-title > .bbgl-lib-reading {
+                        justify-self: start;
+                        white-space: nowrap;
+                    }
+
+                    /* Compact's larger title (up from 12px). The extra line height it adds
+                       is taken back out of the space between the title/effect group and the stats, so the
+                       row's top and bottom spacing stay as they were. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-name {
+                        font-size: clamp(9.5px, 2.6cqh, 14px);
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-row > .bbgl-lib-data {
+                        margin-top: calc((clamp(9.5px, 2.6cqh, 14px) - clamp(8px, 2.1cqh, 12px)) * -1.1);
+                    }
+
+                    /* Extra breathing room between the title/effect group and the stats, on top of the row's
+                       even spacing. */
+                    .bbgl-lib-row > .bbgl-lib-data {
+                        margin-top: clamp(1px, .6cqh, 5px);
+                    }
+
                     .bbgl-lib-data {
+                        width: 100%;
                         min-width: 0;
                         display: flex;
                         align-items: center;
-                        justify-content: flex-end;
+                        justify-content: center;
                         font-family: var(--bbgl-lib-font);
+                    }
+
+                    /* The book's read date or active period, above its title. Both forms are in
+                       the markup: compact shows the short date, expanded and page mode the exact timestamp. */
+                    /* The size lives on the stamp so the ✓ / In progress marker matches its date exactly. */
+                    .bbgl-lib-stamp {
+                        font-family: var(--bbgl-lib-font);
+                        font-size: clamp(7.5px, min(1.75cqh, 2.19cqi), 11px);
+                        line-height: 1.1;
+                    }
+
+                    .bbgl-lib-date {
+                        max-width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        letter-spacing: .03em;
+                        color: rgba(255, 255, 255, .42);
+                    }
+
+                    .bbgl-lib-date .d-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-date .d-full {
+                        display: none;
+                    }
+
+                    #bbgl-panel:not(.bbgl-compact) .bbgl-lib-date .d-full {
+                        display: inline;
+                    }
+
+                    #bbgl-panel:not(.bbgl-compact) .bbgl-lib-date .d-short {
+                        display: none;
                     }
 
                     .bbgl-lib-name,
@@ -2488,25 +2685,26 @@
                     }
 
                     .bbgl-lib-name {
-                        font-size: clamp(8px, 2.1cqh, 12px);
+                        font-size: clamp(10px, min(2.8cqh, 2.92cqi), 15px);
                         font-weight: 600;
                         color: #e6e6e6;
                     }
 
+                    /* The line height stays pinned to the effect's previous size (clamp(7px, 1.7cqh, 10px) × 1.1),
+                       so the larger text doesn't move anything around it. */
                     .bbgl-lib-effect {
-                        font-size: clamp(7px, 1.7cqh, 10px);
+                        font-size: clamp(8px, min(1.9cqh, 2.34cqi), 11px);
+                        line-height: calc(clamp(7.5px, min(1.7cqh, 2.19cqi), 10px) * 1.1);
+                        /* overflow:hidden (for the ellipsis) clips at the padding box, so padding gives the
+                           taller glyphs room to paint and the matching negative margin keeps the layout
+                           exactly where it was. */
+                        padding-block: 2px;
+                        margin-block: -2px;
                         color: rgba(255, 255, 255, .55);
                     }
 
-                    /* Hanging indent: page 1's descriptions sit in from their title. */
-                    .bbgl-lib-row .bbgl-lib-effect {
-                        box-sizing: border-box;
-                        padding-left: .9em;
-                    }
-
-                    /* Book data cells: each number with its coloured label centred beneath it. The cell
-                       group sits against the column's right edge without right-justifying the text.
-                       Compact puts each cell on one line with the abbreviated number and short label. */
+                    /* Book data cells: each number with its coloured stat label beside it, the group
+                       centred in its row. Compact uses the abbreviated number and short label. */
                     .bbgl-lib-cells {
                         flex: 0 0 auto;
                         display: flex;
@@ -2517,36 +2715,91 @@
 
                     .bbgl-lib-cell {
                         display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        text-align: center;
+                        flex-direction: row;
+                        flex-wrap: wrap;
+                        justify-content: center;
+                        align-items: baseline;
+                        column-gap: .3em;
                         line-height: 1.1;
                     }
 
+                    /* Gym-gains books: the book's share of the gain, in parentheses on its own line under
+                       the cell's number. Multi-stat strips drop the "from book" wording to fit their
+                       narrower cells, and abbreviate alongside the numbers above (compact, or a strip that
+                       didn't fit). */
+                    .bbgl-lib-extra {
+                        flex-basis: 100%;
+                        text-align: center;
+                        margin-top: 1px;
+                        line-height: 1.1;
+                        white-space: nowrap;
+                        font-family: 'Inconsolata', monospace;
+                        font-size: clamp(7.5px, min(1.75cqh, 2.19cqi), 11px);
+                        font-weight: 500;
+                        font-variant-numeric: tabular-nums;
+                        color: rgba(255, 255, 255, .5);
+                        pointer-events: none;
+                    }
+
+                    .bbgl-lib-extra .x-abbr,
+                    .bbgl-lib-cells.is-multi .bbgl-lib-extra .x-word {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .bbgl-lib-extra .x-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-extra .x-full {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .bbgl-lib-extra .x-abbr,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-extra .x-abbr {
+                        display: inline;
+                    }
+
+                    /* Multi-stat strips fill the row: every stat gets an equal share of the width, centred
+                       in it, with a hairline divider between neighbours. .is-measure (fitLibraryCells())
+                       briefly collapses the strip to its natural width to test whether it fits. */
+                    .bbgl-lib-cells.is-multi {
+                        width: 100%;
+                        gap: 0;
+                    }
+
+                    /* Stand-ins for a book with no date or data yet: they hold the space so the title sits
+                       where it will once the book is read. */
+                    .bbgl-lib-cells.is-placeholder,
+                    .bbgl-lib-date.is-placeholder {
+                        visibility: hidden;
+                    }
+
+                    .bbgl-lib-cells.is-multi .bbgl-lib-cell {
+                        flex: 1 1 0;
+                        justify-content: center;
+                        padding: 0 clamp(3px, 1.2cqw, 8px);
+                    }
+
+                    .bbgl-lib-cells.is-multi .bbgl-lib-cell + .bbgl-lib-cell {
+                        border-left: 1px solid rgba(255, 255, 255, .12);
+                    }
+
+                    .bbgl-lib-cells.is-multi.is-measure {
+                        width: auto;
+                    }
+
+                    .bbgl-lib-cells.is-multi.is-measure .bbgl-lib-cell {
+                        flex: none;
+                    }
+
+                    /* Same number face as the achievements page's values (.ach-value). */
                     .bbgl-lib-val {
-                        font-size: clamp(8.5px, 2.2cqh, 13px);
-                        font-weight: 600;
-                        color: #e6e6e6;
+                        font-size: clamp(9.5px, min(2.2cqh, 2.78cqi), 13px);
+                        font-family: 'Inconsolata', monospace;
+                        font-weight: 500;
+                        color: #eaeaea;
                         font-variant-numeric: tabular-nums;
                     }
 
-                    /* Every cell reserves room for its largest expected number so centres line up down
-                       the column whatever is showing: full width fits "+999,999,999", the abbreviated
-                       form fits "+999.9m". Compact's inline cells are right-aligned instead. */
-                    .bbgl-lib-val.v-full {
-                        min-width: 12ch;
-                    }
-
-                    .bbgl-lib-val.v-abbr {
-                        min-width: 7ch;
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-lib-val {
-                        min-width: 0;
-                    }
-
                     .bbgl-lib-stat {
-                        font-size: clamp(7px, 1.6cqh, 10px);
+                        font-size: clamp(7.5px, min(1.6cqh, 2.19cqi), 10px);
                         font-weight: 600;
                     }
 
@@ -2572,12 +2825,6 @@
                         display: inline;
                     }
 
-                    #bbgl-panel.bbgl-compact .bbgl-lib-cell {
-                        flex-direction: row;
-                        align-items: baseline;
-                        gap: .3em;
-                    }
-
                     #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-full,
                     #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-full {
                         display: none;
@@ -2588,10 +2835,6 @@
                         display: inline;
                     }
 
-                    /* Compact shows only the Total of a multi-stat book. */
-                    #bbgl-panel.bbgl-compact .bbgl-lib-cells.is-multi .bbgl-lib-cell:not(.s-tot) {
-                        display: none;
-                    }
 
                     /* Page 2: the non-training books as a plain checklist, two columns filled top to
                        bottom, every cell an equal share of the height. */
@@ -2602,7 +2845,7 @@
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                         grid-template-rows: repeat(var(--bbgl-lib-rows), minmax(0, 1fr));
                         grid-auto-flow: column;
-                        column-gap: clamp(10px, 4cqw, 28px);
+                        gap: var(--bbgl-lib-card-gap);
                     }
 
                     .bbgl-lib-item {
@@ -2616,38 +2859,129 @@
                         text-align: center;
                         line-height: 1.1;
                         font-family: var(--bbgl-lib-font);
-                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+
                     }
 
-                    .bbgl-lib-item.is-unread {
-                        opacity: .6;
-                        filter: grayscale(1);
-                    }
-
-                    /* Compact trims each book to its title; the effect text returns in expanded and page mode. */
-                    #bbgl-panel.bbgl-compact .bbgl-lib-effect {
+                    /* Compact trims the Other Books checklist to titles; the training pages keep their effects. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-item .bbgl-lib-effect {
                         display: none;
                     }
 
                     .bbgl-lib-check {
                         margin-left: .35em;
+                        font-size: 1em;
                         color: #69f0ae;
                         font-weight: 700;
                     }
 
                     /* Page mode's widest tier has room for larger Library type; each size keeps scaling
                        with the page's height, only the ceiling is raised. */
+                    /* A book that has a whole row to itself has width to spare in the expanded panel, so its
+                       type is sized by height alone — only the two-across grids (and the checklist pages)
+                       need the width to pull their type down as the panel narrows. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-name {
+                        font-size: clamp(10px, 2.8cqh, 15px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-effect {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                        line-height: calc(clamp(7.5px, 1.7cqh, 10px) * 1.1);
+                    }
+
+                    /* Their numbers are the one thing that can still outgrow a full row, so they keep a width
+                       term — but a gentle one: it only bites under ~420px and bottoms out at 11px. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-val {
+                        font-size: clamp(11px, min(2.2cqh, 3.1cqi), 13px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-stat {
+                        font-size: clamp(7.5px, 1.6cqh, 10px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-extra {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                    }
+
+                    /* The corner stamp gets the same gentle width term as the numbers: a full timestamp is
+                       long, so it eases down from ~420px to 9px rather than holding its full size. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-stamp {
+                        font-size: clamp(9px, min(1.75cqh, 2.6cqi), 11px);
+                    }
+
+                    /* Cards with no numbers on them — every Other Books entry, and any book not yet read —
+                       are a title and a short effect with room to spare, so their type is sized by height
+                       alone and a title too wide for its card wraps instead of shrinking or ellipsising.
+                       Descriptions stay on one line. Side padding keeps the wrapped title clear of the
+                       card's edges. */
+                    .bbgl-lib-item,
+                    .bbgl-lib-row.is-unread {
+                        padding-inline: clamp(4px, 2cqw, 10px);
+                    }
+
+                    /* Set by fitLibraryCells() only on an entry whose title wrapped AND that has a date: it
+                       reserves the stamp's band so the wrapped title centres in what's left under it.
+                       A one-line title stays centred on the whole card. */
+                    .bbgl-lib-item.is-stamp-offset {
+                        padding-top: var(--bbgl-lib-date-h, 0px);
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-name,
+                    .bbgl-lib-row.is-unread .bbgl-lib-name {
+                        font-size: clamp(10px, 2.8cqh, 15px);
+                        white-space: normal;
+                        text-overflow: clip;
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-effect,
+                    .bbgl-lib-row.is-unread .bbgl-lib-effect {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                        line-height: calc(clamp(7.5px, 1.7cqh, 10px) * 1.1);
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-stamp,
+                    .bbgl-lib-row.is-unread .bbgl-lib-stamp {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                    }
+
+                    /* An unread book row carries the same three placeholders a read one does — an invisible
+                       date, no marker, and an invisible data cell the shape of the stats it will one day
+                       show. With nothing to align to, they're dropped: the row loses the marker grid its
+                       title hung off, the top padding that reserved the date's band, and both placeholders,
+                       so the title stack centres on the card the way an Other Books entry does. */
+                    .bbgl-lib-row.is-unread {
+                        justify-content: center;
+                        padding-block: clamp(0px, .15cqh, 1px);
+                    }
+
+                    .bbgl-lib-row.is-unread > .bbgl-lib-stamp,
+                    .bbgl-lib-row.is-unread > .bbgl-lib-data {
+                        display: none;
+                    }
+
+                    .bbgl-lib-row.is-unread .bbgl-lib-name {
+                        display: block;
+                        /* The optical nudge went with the marker grid. */
+                        transform: none;
+                    }
+
+                    .bbgl-lib-row.is-unread .bbgl-lib-title-text {
+                        white-space: normal;
+                        overflow: visible;
+                        text-overflow: clip;
+                    }
+
                     @container bbgl-page (min-width:784px) {
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-group {
                             font-size: clamp(8.5px, 2.1cqh, 16px);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-name {
-                            font-size: clamp(8px, 2.3cqh, 16px);
+                            font-size: clamp(9px, 3cqh, 20px);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-effect {
-                            font-size: clamp(7px, 1.85cqh, 13px);
+                            font-size: clamp(7.5px, 2.05cqh, 14px);
+                            line-height: calc(clamp(7px, 1.85cqh, 13px) * 1.1);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-val {
@@ -2657,6 +2991,14 @@
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-stat {
                             font-size: clamp(7px, 1.75cqh, 12.5px);
                         }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-stamp {
+                            font-size: clamp(7.5px, 2.05cqh, 14px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-list {
+                            --bbgl-lib-date-h: calc(clamp(7.5px, 1.9cqh, 14px) * 1.1);
+                        }
                     }
 
                     /* Read books and headers with a read book are click-to-copy. */
@@ -2664,45 +3006,54 @@
                         cursor: pointer;
                     }
 
-                    /* A book used but not finished yet. */
+                    /* A book still being read, or still inside its 31 days. */
                     .bbgl-lib-reading {
                         margin-left: .5em;
-                        font-size: .72em;
+                        flex: none;
+                        white-space: nowrap;
+                        font-size: .6em;
                         font-weight: 600;
                         letter-spacing: .06em;
                         text-transform: uppercase;
                         color: #8fd3ff;
                     }
 
-                    /* Memories And Mammaries' row and the book it repeated share a soft gold tint. The
-                       Memories row sits a little apart from the rows above it, with no header. */
+                    /* Memories And Mammaries' row and the book it repeated are marked with a repeat symbol in
+                       the top left corner instead of a tint, so their cards match every other book's. */
+                    /* These carry the repeat icon in the opposite corner, so their stamp stops short of it. */
                     .bbgl-lib-row.is-repeat,
-                    .bbgl-lib-row.is-repeated {
-                        background: linear-gradient(90deg, rgba(255, 205, 100, .12), rgba(255, 205, 100, .04));
-                        border-radius: 3px;
+                    .bbgl-lib-row.is-repeated,
+                    .bbgl-lib-item.is-repeat,
+                    .bbgl-lib-item.is-repeated {
+                        position: relative;
+                        --bbgl-lib-stamp-clear: 2.4em;
                     }
 
-                    .bbgl-lib-row.is-repeat {
-                        margin-top: clamp(3px, 1cqh, 8px);
-                        border-bottom: none;
+                    .bbgl-lib-row.is-repeat::after,
+                    .bbgl-lib-row.is-repeated::after,
+                    .bbgl-lib-item.is-repeat::after,
+                    .bbgl-lib-item.is-repeated::after {
+                        content: '';
+                        position: absolute;
+                        top: clamp(1px, .4cqh, 4px);
+                        left: clamp(2px, .8cqw, 6px);
+                        width: clamp(10px, 2.6cqh, 16px);
+                        height: clamp(10px, 2.6cqh, 16px);
+                        opacity: .75;
+                        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ce93d8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.5 8a5.5 5.5 0 1 1-1.9-4.2'/%3E%3Cpath d='M13.6 1.6v2.8h-2.8'/%3E%3C/svg%3E") center / contain no-repeat;
+                        pointer-events: none;
                     }
 
                     .bbgl-lib-data-inner {
+                        width: 100%;
                         display: flex;
-                        justify-content: flex-end;
+                        justify-content: center;
                         min-width: 0;
                     }
 
                     /* Values that may be incomplete or imprecise read slightly dimmer; the tooltip says why. */
                     .bbgl-lib-data-inner.is-approx .bbgl-lib-val {
                         opacity: .7;
-                    }
-
-                    /* Unread books are greyed out rather than given a status column. Only the title and
-                       description fade: the data column keeps its stat colours either way. */
-                    .bbgl-lib-row.is-unread .bbgl-lib-text {
-                        opacity: .6;
-                        filter: grayscale(1);
                     }
 
                     .viewing-graph #bbgl-graph-container {
@@ -2985,7 +3336,7 @@
                            reserved as real padding and justify-content:centre below, the grid centres in the
                            band between the toolbar (top padding) and the title (bottom padding) rather than
                            filling the whole box underneath the toolbar down to the title. */
-                        --bbgl-sticker-title-clear: 26px;
+                        --bbgl-sticker-title-clear: 22px;
                         padding: 4px var(--bbgl-sticker-arrow-w) var(--bbgl-sticker-title-clear);
                         z-index: 40;
                         transform-origin: center;
@@ -2995,14 +3346,14 @@
 
                     .sticker-nav-btn {
                         position: absolute;
-                        /* Centred vertically within the exact band #bbgl-sticker-grid occupies, not the
-                           container. The grid is flex:1 and these buttons are absolute (no flow height), so
-                           the grid fills the container content box - i.e. from padding-top (4px) to
-                           padding-bottom (12px). Pinning top/bottom to those and letting margin auto centre
-                           a fixed-height button between them tracks that band with no hand-tuned nudge, and
-                           keeps position out of the hover/active transforms (which now carry scale only). */
+                        /* Centred on the gap between the two sticker rows, not the panel. The grid is
+                           centred (justify-content) in the container's content box and its two rows are
+                           equal, so the row gap sits at that box's middle. Pinning top/bottom to the
+                           container's padding (4px top, --bbgl-sticker-title-clear bottom) and letting
+                           margin auto centre the button lands it exactly there in every docked width;
+                           page mode's container has no vertical padding and pins to 0/0 instead. */
                         top: 4px;
-                        bottom: 12px;
+                        bottom: var(--bbgl-sticker-title-clear);
                         margin: auto 0;
                         width: var(--bbgl-sticker-arrow-w);
                         height: 25px;
@@ -3225,7 +3576,7 @@
                     #bbgl-sticker-title {
                         display: none;
                         position: absolute;
-                        bottom: 10px;
+                        bottom: 8px;
                         left: 50%;
                         transform: translateX(-50%);
                         font-size: 12px;
@@ -3269,7 +3620,7 @@
 
                     .bbgl-expanded #bbgl-sticker-title {
                         font-size: clamp(13px, calc(13px + 2px * var(--bbgl-dock-t, 0)), 15px);
-                        bottom: 12px;
+                        bottom: 10px;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-sticker-title {
@@ -3278,7 +3629,7 @@
                         right: 0;
                         bottom: 0;
                         height: var(--bbgl-sticker-footer-h);
-                        padding-bottom: clamp(11px, calc(11px + 3px * var(--bbgl-page-t)), 14px);
+                        padding-bottom: clamp(8px, calc(8px + 2px * var(--bbgl-page-t)), 10px);
                         box-sizing: border-box;
                         justify-content: center;
                         transform: none;
@@ -6700,13 +7051,22 @@
                         max-width: clamp(120px, calc(120px + 32px * var(--bbgl-dock-t)), 152px);
                     }
 
+                    /* As the docked panel narrows, the grid bleeds out into the arrow gutters so the
+                       auto columns (and the stickers capped at their width) shrink later and slower.
+                       Only the outer columns reach the gutters, and their stickers sit in the top and
+                       bottom rows, above and below the vertically centred arrows. None at full width,
+                       ramping to --bbgl-sticker-bleed-max of each gutter at the narrowest. */
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-grid {
                         row-gap: clamp(0px, calc(3px * var(--bbgl-dock-t)), 3px);
+                        --bbgl-sticker-bleed-max: .75;
+                        --bbgl-sticker-bleed: calc(var(--bbgl-sticker-arrow-w) * var(--bbgl-sticker-bleed-max) * (1 - var(--bbgl-dock-t)));
+                        width: calc(100% + 2 * var(--bbgl-sticker-bleed));
+                        margin-inline: calc(-1 * var(--bbgl-sticker-bleed));
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-container {
                         --bbgl-sticker-arrow-w: clamp(24px, calc(24px + 16px * var(--bbgl-dock-t)), 40px);
-                        --bbgl-sticker-title-clear: clamp(26px, calc(26px + 2px * var(--bbgl-dock-t)), 28px);
+                        --bbgl-sticker-title-clear: clamp(23px, calc(23px + 2px * var(--bbgl-dock-t)), 25px);
                     }
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .sticker-nav-btn {
                         font-size: clamp(20px, calc(20px + 12px * var(--bbgl-dock-t)), 32px);

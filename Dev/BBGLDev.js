@@ -192,16 +192,18 @@
     };
     // Every Torn book, keyed by item id (bookId = data.item on 2050/2051). `training` is set only on
     // books that affect training: stat (stat +5% on finish), gym (gym gain rate), energy, happy, or
-    // repeat (Memories And Mammaries copies the last book read).
+    // repeat (Memories And Mammaries copies the last book read). `readPeriod` marks the "upon completion"
+    // books, which are read over a period and only pay out when finished (2051); every other book takes
+    // effect as soon as it's used (2050) and its finish log marks the end of its 31 days.
     const BOOK_META = {
-        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str' },
-        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd' },
-        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def' },
-        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex' },
-        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.' },
-        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.' },
-        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.' },
-        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.' },
+        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str', readPeriod: true },
+        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd', readPeriod: true },
+        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def', readPeriod: true },
+        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex', readPeriod: true },
+        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.', readPeriod: true },
+        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.', readPeriod: true },
+        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.', readPeriod: true },
+        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.', readPeriod: true },
         752: { name: 'Fight Like An Asshole', short: '+25% all battle stats', effect: 'Provides a passive 25% bonus to all stats for 31 days.' },
         753: { name: 'Mind Over Matter', short: '+100% Strength', effect: 'Provides a passive 100% bonus to Strength for 31 days.' },
         754: { name: 'No Shame No Pain', short: '+100% Defense', effect: 'Provides a passive 100% bonus to Defense for 31 days.' },
@@ -2494,7 +2496,7 @@
                            = 38 at the high end. */
                         --bbgl-toolbar-h: clamp(23.5px, calc(23.5px + 14.5px * var(--bbgl-page-t)), 38px);
                         --bbgl-ledger-footer-pb: clamp(4px, calc(4px + 2px * var(--bbgl-page-t)), 6px);
-                        --bbgl-sticker-footer-h: clamp(24px, calc(24px + 10px * var(--bbgl-page-t)), 34px);
+                        --bbgl-sticker-footer-h: clamp(20px, calc(20px + 10px * var(--bbgl-page-t)), 30px);
                         --bbgl-sticker-footer-gap: clamp(2px, calc(2px + 2px * var(--bbgl-page-t)), 4px);
                         --bbgl-sticker-row-gap: clamp(4px, calc(4px + 4px * var(--bbgl-page-t)), 8px);
                         /* Page mode grows its header padding with --bbgl-page-t rather than holding
@@ -4110,7 +4112,7 @@
                     #bbgl-library-container {
                         min-height: 0;
                         overflow: hidden;
-                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(14px, 6%, 32px) 10px;
+                        padding: calc(var(--bbgl-toolbar-h) - var(--bbgl-top-pt) + 4px) clamp(4px, 1.5%, 8px) 10px;
                         container-type: size;
                         container-name: bbgl-lib;
                         --bbgl-lib-font: 'Barlow Condensed', 'Arial Narrow', 'Nimbus Sans Narrow', Tahoma, sans-serif;
@@ -4121,47 +4123,66 @@
                         min-height: 0;
                         display: flex;
                         flex-direction: column;
+                        gap: clamp(3px, 1cqh, 8px);
                     }
 
-                    /* Type header above each group. Fixed to its own content height so the book rows
-                       below keep splitting the rest of the page evenly. */
+                    /* One group: a faint rounded border around a spine (the group label, reading bottom to
+                       top like a book spine) and the group's cards. Weighted by row count so rows stay equal
+                       height across groups. */
+                    .bbgl-lib-section {
+                        flex: var(--bbgl-lib-panel-rows) 1 0;
+                        min-height: 0;
+                        display: flex;
+                        gap: clamp(3px, 1cqw, 6px);
+                        padding: clamp(2px, .6cqh, 4px);
+                        border: 1px solid rgba(255, 255, 255, .08);
+                        border-radius: 6px;
+                    }
+
                     .bbgl-lib-group {
-                        flex: 0 0 auto;
+                        flex: 0 0 1.3em;
+                        min-height: 0;
                         display: flex;
                         align-items: center;
-                        gap: .5em;
-                        padding: clamp(4px, 1.4cqh, 10px) 0 clamp(2px, .6cqh, 4px);
+                        justify-content: center;
+                        overflow: hidden;
+                        border-right: 1px solid rgba(255, 255, 255, .08);
                         font-family: var(--bbgl-lib-font);
-                        font-size: clamp(8.5px, 2.1cqh, 13px);
+                        font-size: clamp(9.5px, min(2.2cqh, 2.78cqi), 13px);
                         font-weight: 600;
                         letter-spacing: .1em;
                         text-transform: uppercase;
                         color: rgba(255, 255, 255, .42);
                     }
 
-                    .bbgl-lib-group:first-child {
-                        padding-top: 0;
+                    .bbgl-lib-group-label {
+                        writing-mode: vertical-rl;
+                        transform: rotate(180deg);
+                        white-space: nowrap;
+                        line-height: 1;
                     }
 
-                    .bbgl-lib-group::after {
-                        content: "";
-                        flex: 1;
-                        height: 1px;
-                        background: rgba(255, 255, 255, .12);
-                    }
-
-                    /* Left column: title over its short effect. Right column: reserved for the book's
-                       data. */
+                    /* One book, centred: its read date / active period on top, then title, effect beneath,
+                       and its data. Every row (and every row of a .bbgl-lib-pairs grid) takes an equal
+                       share of the page's height. */
                     .bbgl-lib-row {
                         flex: 1 1 0;
+                        min-width: 0;
                         min-height: 0;
                         overflow: hidden;
-                        display: grid;
-                        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+                        display: flex;
+                        flex-direction: column;
                         align-items: center;
-                        column-gap: 10px;
-                        padding-left: .5em;
-                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+                        /* The row's spare height is shared out evenly around its title/effect, data and
+                           date instead of pooling above and below them; the gap is only the minimum. */
+                        justify-content: space-evenly;
+                        gap: clamp(0px, .35cqh, 3px);
+                        /* Padding eats into the row's spare height before it's shared out, which shrinks the
+                           gap between the title group and the stats while keeping both centred on the card.
+                           The top also reserves the corner date's band (--bbgl-lib-date-h, 0 in compact,
+                           which hides dates), so the title and stats centre in what's left under it. */
+                        padding-block: calc(clamp(0px, .15cqh, 1px) + var(--bbgl-lib-date-h, 0px)) clamp(0px, .2cqh, 2px);
+                        text-align: center;
                     }
 
                     .bbgl-lib-row:last-child,
@@ -4169,22 +4190,200 @@
                         border-bottom: none;
                     }
 
-                    .bbgl-lib-text {
+                    /* Entry separation, kept grayscale and quiet: every book is its own recessed card (the
+                       weekly bar summary inset's etched look), with a small gap between cards in place of
+                       divider lines. The group wrapper (.bbgl-lib-panel) is just layout: it spaces its
+                       cards and takes a share of the page height by row count. Tune with
+                       --bbgl-lib-card-bg / --bbgl-lib-card-gap. */
+                    .bbgl-lib-list {
+                        --bbgl-lib-date-h: calc(clamp(7.5px, 1.75cqh, 11px) * 1.1);
+                        --bbgl-lib-card-bg: rgba(0, 0, 0, .18);
+                        --bbgl-lib-card-raised-bg: rgba(255, 255, 255, .04);
+                        --bbgl-lib-card-gap: clamp(2px, .6cqh, 5px);
+                    }
+
+                    .bbgl-lib-panel {
+                        flex: 1 1 0;
                         min-width: 0;
+                        min-height: 0;
                         display: flex;
                         flex-direction: column;
-                        align-items: flex-start;
-                        text-align: left;
+                        gap: var(--bbgl-lib-card-gap);
+                    }
+
+                    .bbgl-lib-panel > .bbgl-lib-grid {
+                        flex: 1;
+                    }
+
+                    /* An unread book's card is a sunken recess; once it's been used the card sits proud of
+                       the page instead — a slightly lighter face inside a hairline edge, with a soft, tight
+                       shadow that keeps it seated on the background rather than floating above it. The
+                       sunken/raised contrast is what marks a book as used; its text isn't dimmed. */
+                    .bbgl-lib-row,
+                    .bbgl-lib-item {
+                        position: relative;
+                        border-radius: 4px;
+                        background: var(--bbgl-lib-card-bg);
+                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .04);
+                    }
+
+                    .bbgl-lib-row:not(.is-unread),
+                    .bbgl-lib-item:not(.is-unread) {
+                        background: var(--bbgl-lib-card-raised-bg);
+                        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 1px rgba(0, 0, 0, .3);
+                    }
+
+                    /* Single-stat books, two across. Grows by its row count so each of its rows matches
+                       a full-width row's height. */
+                    .bbgl-lib-pairs {
+                        flex: var(--bbgl-lib-pair-rows) 1 0;
+                        min-height: 0;
+                        display: grid;
+                        grid-template-columns: repeat(2, minmax(0, 1fr));
+                        grid-template-rows: repeat(var(--bbgl-lib-pair-rows), minmax(0, 1fr));
+                        gap: var(--bbgl-lib-card-gap);
+                    }
+
+                    .bbgl-lib-pairs:last-child,
+                    .bbgl-lib-pairs:has(+ .bbgl-lib-group) {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-pairs .bbgl-lib-row.is-last-row {
+                        border-bottom: none;
+                    }
+
+                    .bbgl-lib-text {
+                        width: 100%;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: clamp(0px, .2cqh, 2px);
                         line-height: 1.1;
                         font-family: var(--bbgl-lib-font);
                     }
 
+                    #bbgl-panel.bbgl-compact .bbgl-lib-text {
+                        gap: 1px;
+                    }
+
+                    /* The date and the book's ✓ / In progress marker share the card's top-right corner, out
+                       of the flow, so the title and effect centre on the card on their own. Compact keeps the
+                       marker and drops the date. */
+                    .bbgl-lib-stamp {
+                        position: absolute;
+                        top: clamp(1px, .4cqh, 4px);
+                        right: clamp(3px, 1cqw, 8px);
+                        max-width: calc(100% - var(--bbgl-lib-stamp-clear, .6em));
+                        display: flex;
+                        align-items: baseline;
+                        min-width: 0;
+                    }
+
+                    .bbgl-lib-date {
+                        min-width: 0;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-list {
+                        --bbgl-lib-date-h: clamp(6px, 1.5cqh, 9px);
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-date {
+                        display: none;
+                    }
+
+                    /* A book row's title centres on its text alone, with its ✓ / Reading marker hanging off
+                       the end. Three columns: an empty spacer, the title, and the marker's column. The two
+                       outer columns share the spare width equally, which centres the title, but the marker
+                       column never goes narrower than the marker. So a short title is truly centred, and
+                       a long one can use the whole row except the marker, sliding left rather than being
+                       cut off early; the title text ellipsises only when even that isn't enough. */
+                    .bbgl-lib-row .bbgl-lib-name {
+                        width: 100%;
+                        /* Optical nudge only: a transform moves the title without changing the layout. */
+                        transform: translateY(1px);
+                        display: grid;
+                        grid-template-columns: minmax(0, 1fr) minmax(0, max-content) minmax(max-content, 1fr);
+                        align-items: baseline;
+                        overflow: visible;
+                    }
+
+                    .bbgl-lib-row .bbgl-lib-name::before {
+                        content: '';
+                    }
+
+                    .bbgl-lib-title {
+                        display: contents;
+                    }
+
+                    .bbgl-lib-title-text {
+                        min-width: 0;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+
+                    .bbgl-lib-title > .bbgl-lib-check,
+                    .bbgl-lib-title > .bbgl-lib-reading {
+                        justify-self: start;
+                        white-space: nowrap;
+                    }
+
+                    /* Compact's larger title (up from 12px). The extra line height it adds
+                       is taken back out of the space between the title/effect group and the stats, so the
+                       row's top and bottom spacing stay as they were. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-name {
+                        font-size: clamp(9.5px, 2.6cqh, 14px);
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-lib-row > .bbgl-lib-data {
+                        margin-top: calc((clamp(9.5px, 2.6cqh, 14px) - clamp(8px, 2.1cqh, 12px)) * -1.1);
+                    }
+
+                    /* Extra breathing room between the title/effect group and the stats, on top of the row's
+                       even spacing. */
+                    .bbgl-lib-row > .bbgl-lib-data {
+                        margin-top: clamp(1px, .6cqh, 5px);
+                    }
+
                     .bbgl-lib-data {
+                        width: 100%;
                         min-width: 0;
                         display: flex;
                         align-items: center;
-                        justify-content: flex-end;
+                        justify-content: center;
                         font-family: var(--bbgl-lib-font);
+                    }
+
+                    /* The book's read date or active period, above its title. Both forms are in
+                       the markup: compact shows the short date, expanded and page mode the exact timestamp. */
+                    /* The size lives on the stamp so the ✓ / In progress marker matches its date exactly. */
+                    .bbgl-lib-stamp {
+                        font-family: var(--bbgl-lib-font);
+                        font-size: clamp(7.5px, min(1.75cqh, 2.19cqi), 11px);
+                        line-height: 1.1;
+                    }
+
+                    .bbgl-lib-date {
+                        max-width: 100%;
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        letter-spacing: .03em;
+                        color: rgba(255, 255, 255, .42);
+                    }
+
+                    .bbgl-lib-date .d-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-date .d-full {
+                        display: none;
+                    }
+
+                    #bbgl-panel:not(.bbgl-compact) .bbgl-lib-date .d-full {
+                        display: inline;
+                    }
+
+                    #bbgl-panel:not(.bbgl-compact) .bbgl-lib-date .d-short {
+                        display: none;
                     }
 
                     .bbgl-lib-name,
@@ -4196,25 +4395,26 @@
                     }
 
                     .bbgl-lib-name {
-                        font-size: clamp(8px, 2.1cqh, 12px);
+                        font-size: clamp(10px, min(2.8cqh, 2.92cqi), 15px);
                         font-weight: 600;
                         color: #e6e6e6;
                     }
 
+                    /* The line height stays pinned to the effect's previous size (clamp(7px, 1.7cqh, 10px) × 1.1),
+                       so the larger text doesn't move anything around it. */
                     .bbgl-lib-effect {
-                        font-size: clamp(7px, 1.7cqh, 10px);
+                        font-size: clamp(8px, min(1.9cqh, 2.34cqi), 11px);
+                        line-height: calc(clamp(7.5px, min(1.7cqh, 2.19cqi), 10px) * 1.1);
+                        /* overflow:hidden (for the ellipsis) clips at the padding box, so padding gives the
+                           taller glyphs room to paint and the matching negative margin keeps the layout
+                           exactly where it was. */
+                        padding-block: 2px;
+                        margin-block: -2px;
                         color: rgba(255, 255, 255, .55);
                     }
 
-                    /* Hanging indent: page 1's descriptions sit in from their title. */
-                    .bbgl-lib-row .bbgl-lib-effect {
-                        box-sizing: border-box;
-                        padding-left: .9em;
-                    }
-
-                    /* Book data cells: each number with its coloured label centred beneath it. The cell
-                       group sits against the column's right edge without right-justifying the text.
-                       Compact puts each cell on one line with the abbreviated number and short label. */
+                    /* Book data cells: each number with its coloured stat label beside it, the group
+                       centred in its row. Compact uses the abbreviated number and short label. */
                     .bbgl-lib-cells {
                         flex: 0 0 auto;
                         display: flex;
@@ -4225,36 +4425,91 @@
 
                     .bbgl-lib-cell {
                         display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        text-align: center;
+                        flex-direction: row;
+                        flex-wrap: wrap;
+                        justify-content: center;
+                        align-items: baseline;
+                        column-gap: .3em;
                         line-height: 1.1;
                     }
 
+                    /* Gym-gains books: the book's share of the gain, in parentheses on its own line under
+                       the cell's number. Multi-stat strips drop the "from book" wording to fit their
+                       narrower cells, and abbreviate alongside the numbers above (compact, or a strip that
+                       didn't fit). */
+                    .bbgl-lib-extra {
+                        flex-basis: 100%;
+                        text-align: center;
+                        margin-top: 1px;
+                        line-height: 1.1;
+                        white-space: nowrap;
+                        font-family: 'Inconsolata', monospace;
+                        font-size: clamp(7.5px, min(1.75cqh, 2.19cqi), 11px);
+                        font-weight: 500;
+                        font-variant-numeric: tabular-nums;
+                        color: rgba(255, 255, 255, .5);
+                        pointer-events: none;
+                    }
+
+                    .bbgl-lib-extra .x-abbr,
+                    .bbgl-lib-cells.is-multi .bbgl-lib-extra .x-word {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .bbgl-lib-extra .x-full,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-extra .x-full {
+                        display: none;
+                    }
+
+                    .bbgl-lib-cells.is-tight .bbgl-lib-extra .x-abbr,
+                    #bbgl-panel.bbgl-compact .bbgl-lib-extra .x-abbr {
+                        display: inline;
+                    }
+
+                    /* Multi-stat strips fill the row: every stat gets an equal share of the width, centred
+                       in it, with a hairline divider between neighbours. .is-measure (fitLibraryCells())
+                       briefly collapses the strip to its natural width to test whether it fits. */
+                    .bbgl-lib-cells.is-multi {
+                        width: 100%;
+                        gap: 0;
+                    }
+
+                    /* Stand-ins for a book with no date or data yet: they hold the space so the title sits
+                       where it will once the book is read. */
+                    .bbgl-lib-cells.is-placeholder,
+                    .bbgl-lib-date.is-placeholder {
+                        visibility: hidden;
+                    }
+
+                    .bbgl-lib-cells.is-multi .bbgl-lib-cell {
+                        flex: 1 1 0;
+                        justify-content: center;
+                        padding: 0 clamp(3px, 1.2cqw, 8px);
+                    }
+
+                    .bbgl-lib-cells.is-multi .bbgl-lib-cell + .bbgl-lib-cell {
+                        border-left: 1px solid rgba(255, 255, 255, .12);
+                    }
+
+                    .bbgl-lib-cells.is-multi.is-measure {
+                        width: auto;
+                    }
+
+                    .bbgl-lib-cells.is-multi.is-measure .bbgl-lib-cell {
+                        flex: none;
+                    }
+
+                    /* Same number face as the achievements page's values (.ach-value). */
                     .bbgl-lib-val {
-                        font-size: clamp(8.5px, 2.2cqh, 13px);
-                        font-weight: 600;
-                        color: #e6e6e6;
+                        font-size: clamp(9.5px, min(2.2cqh, 2.78cqi), 13px);
+                        font-family: 'Inconsolata', monospace;
+                        font-weight: 500;
+                        color: #eaeaea;
                         font-variant-numeric: tabular-nums;
                     }
 
-                    /* Every cell reserves room for its largest expected number so centres line up down
-                       the column whatever is showing: full width fits "+999,999,999", the abbreviated
-                       form fits "+999.9m". Compact's inline cells are right-aligned instead. */
-                    .bbgl-lib-val.v-full {
-                        min-width: 12ch;
-                    }
-
-                    .bbgl-lib-val.v-abbr {
-                        min-width: 7ch;
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-lib-val {
-                        min-width: 0;
-                    }
-
                     .bbgl-lib-stat {
-                        font-size: clamp(7px, 1.6cqh, 10px);
+                        font-size: clamp(7.5px, min(1.6cqh, 2.19cqi), 10px);
                         font-weight: 600;
                     }
 
@@ -4280,12 +4535,6 @@
                         display: inline;
                     }
 
-                    #bbgl-panel.bbgl-compact .bbgl-lib-cell {
-                        flex-direction: row;
-                        align-items: baseline;
-                        gap: .3em;
-                    }
-
                     #bbgl-panel.bbgl-compact .bbgl-lib-cell .v-full,
                     #bbgl-panel.bbgl-compact .bbgl-lib-cell .l-full {
                         display: none;
@@ -4296,10 +4545,6 @@
                         display: inline;
                     }
 
-                    /* Compact shows only the Total of a multi-stat book. */
-                    #bbgl-panel.bbgl-compact .bbgl-lib-cells.is-multi .bbgl-lib-cell:not(.s-tot) {
-                        display: none;
-                    }
 
                     /* Page 2: the non-training books as a plain checklist, two columns filled top to
                        bottom, every cell an equal share of the height. */
@@ -4310,7 +4555,7 @@
                         grid-template-columns: repeat(2, minmax(0, 1fr));
                         grid-template-rows: repeat(var(--bbgl-lib-rows), minmax(0, 1fr));
                         grid-auto-flow: column;
-                        column-gap: clamp(10px, 4cqw, 28px);
+                        gap: var(--bbgl-lib-card-gap);
                     }
 
                     .bbgl-lib-item {
@@ -4324,38 +4569,129 @@
                         text-align: center;
                         line-height: 1.1;
                         font-family: var(--bbgl-lib-font);
-                        border-bottom: 1px solid rgba(255, 255, 255, .05);
+
                     }
 
-                    .bbgl-lib-item.is-unread {
-                        opacity: .6;
-                        filter: grayscale(1);
-                    }
-
-                    /* Compact trims each book to its title; the effect text returns in expanded and page mode. */
-                    #bbgl-panel.bbgl-compact .bbgl-lib-effect {
+                    /* Compact trims the Other Books checklist to titles; the training pages keep their effects. */
+                    #bbgl-panel.bbgl-compact .bbgl-lib-item .bbgl-lib-effect {
                         display: none;
                     }
 
                     .bbgl-lib-check {
                         margin-left: .35em;
+                        font-size: 1em;
                         color: #69f0ae;
                         font-weight: 700;
                     }
 
                     /* Page mode's widest tier has room for larger Library type; each size keeps scaling
                        with the page's height, only the ceiling is raised. */
+                    /* A book that has a whole row to itself has width to spare in the expanded panel, so its
+                       type is sized by height alone — only the two-across grids (and the checklist pages)
+                       need the width to pull their type down as the panel narrows. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-name {
+                        font-size: clamp(10px, 2.8cqh, 15px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-effect {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                        line-height: calc(clamp(7.5px, 1.7cqh, 10px) * 1.1);
+                    }
+
+                    /* Their numbers are the one thing that can still outgrow a full row, so they keep a width
+                       term — but a gentle one: it only bites under ~420px and bottoms out at 11px. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-val {
+                        font-size: clamp(11px, min(2.2cqh, 3.1cqi), 13px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-stat {
+                        font-size: clamp(7.5px, 1.6cqh, 10px);
+                    }
+
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-extra {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                    }
+
+                    /* The corner stamp gets the same gentle width term as the numbers: a full timestamp is
+                       long, so it eases down from ~420px to 9px rather than holding its full size. */
+                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-lib-panel > .bbgl-lib-row .bbgl-lib-stamp {
+                        font-size: clamp(9px, min(1.75cqh, 2.6cqi), 11px);
+                    }
+
+                    /* Cards with no numbers on them — every Other Books entry, and any book not yet read —
+                       are a title and a short effect with room to spare, so their type is sized by height
+                       alone and a title too wide for its card wraps instead of shrinking or ellipsising.
+                       Descriptions stay on one line. Side padding keeps the wrapped title clear of the
+                       card's edges. */
+                    .bbgl-lib-item,
+                    .bbgl-lib-row.is-unread {
+                        padding-inline: clamp(4px, 2cqw, 10px);
+                    }
+
+                    /* Set by fitLibraryCells() only on an entry whose title wrapped AND that has a date: it
+                       reserves the stamp's band so the wrapped title centres in what's left under it.
+                       A one-line title stays centred on the whole card. */
+                    .bbgl-lib-item.is-stamp-offset {
+                        padding-top: var(--bbgl-lib-date-h, 0px);
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-name,
+                    .bbgl-lib-row.is-unread .bbgl-lib-name {
+                        font-size: clamp(10px, 2.8cqh, 15px);
+                        white-space: normal;
+                        text-overflow: clip;
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-effect,
+                    .bbgl-lib-row.is-unread .bbgl-lib-effect {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                        line-height: calc(clamp(7.5px, 1.7cqh, 10px) * 1.1);
+                    }
+
+                    .bbgl-lib-item .bbgl-lib-stamp,
+                    .bbgl-lib-row.is-unread .bbgl-lib-stamp {
+                        font-size: clamp(8px, 1.9cqh, 11px);
+                    }
+
+                    /* An unread book row carries the same three placeholders a read one does — an invisible
+                       date, no marker, and an invisible data cell the shape of the stats it will one day
+                       show. With nothing to align to, they're dropped: the row loses the marker grid its
+                       title hung off, the top padding that reserved the date's band, and both placeholders,
+                       so the title stack centres on the card the way an Other Books entry does. */
+                    .bbgl-lib-row.is-unread {
+                        justify-content: center;
+                        padding-block: clamp(0px, .15cqh, 1px);
+                    }
+
+                    .bbgl-lib-row.is-unread > .bbgl-lib-stamp,
+                    .bbgl-lib-row.is-unread > .bbgl-lib-data {
+                        display: none;
+                    }
+
+                    .bbgl-lib-row.is-unread .bbgl-lib-name {
+                        display: block;
+                        /* The optical nudge went with the marker grid. */
+                        transform: none;
+                    }
+
+                    .bbgl-lib-row.is-unread .bbgl-lib-title-text {
+                        white-space: normal;
+                        overflow: visible;
+                        text-overflow: clip;
+                    }
+
                     @container bbgl-page (min-width:784px) {
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-group {
                             font-size: clamp(8.5px, 2.1cqh, 16px);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-name {
-                            font-size: clamp(8px, 2.3cqh, 16px);
+                            font-size: clamp(9px, 3cqh, 20px);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-effect {
-                            font-size: clamp(7px, 1.85cqh, 13px);
+                            font-size: clamp(7.5px, 2.05cqh, 14px);
+                            line-height: calc(clamp(7px, 1.85cqh, 13px) * 1.1);
                         }
 
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-val {
@@ -4365,6 +4701,14 @@
                         #bbgl-panel.bbgl-mode-page .bbgl-lib-stat {
                             font-size: clamp(7px, 1.75cqh, 12.5px);
                         }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-stamp {
+                            font-size: clamp(7.5px, 2.05cqh, 14px);
+                        }
+
+                        #bbgl-panel.bbgl-mode-page .bbgl-lib-list {
+                            --bbgl-lib-date-h: calc(clamp(7.5px, 1.9cqh, 14px) * 1.1);
+                        }
                     }
 
                     /* Read books and headers with a read book are click-to-copy. */
@@ -4372,45 +4716,54 @@
                         cursor: pointer;
                     }
 
-                    /* A book used but not finished yet. */
+                    /* A book still being read, or still inside its 31 days. */
                     .bbgl-lib-reading {
                         margin-left: .5em;
-                        font-size: .72em;
+                        flex: none;
+                        white-space: nowrap;
+                        font-size: .6em;
                         font-weight: 600;
                         letter-spacing: .06em;
                         text-transform: uppercase;
                         color: #8fd3ff;
                     }
 
-                    /* Memories And Mammaries' row and the book it repeated share a soft gold tint. The
-                       Memories row sits a little apart from the rows above it, with no header. */
+                    /* Memories And Mammaries' row and the book it repeated are marked with a repeat symbol in
+                       the top left corner instead of a tint, so their cards match every other book's. */
+                    /* These carry the repeat icon in the opposite corner, so their stamp stops short of it. */
                     .bbgl-lib-row.is-repeat,
-                    .bbgl-lib-row.is-repeated {
-                        background: linear-gradient(90deg, rgba(255, 205, 100, .12), rgba(255, 205, 100, .04));
-                        border-radius: 3px;
+                    .bbgl-lib-row.is-repeated,
+                    .bbgl-lib-item.is-repeat,
+                    .bbgl-lib-item.is-repeated {
+                        position: relative;
+                        --bbgl-lib-stamp-clear: 2.4em;
                     }
 
-                    .bbgl-lib-row.is-repeat {
-                        margin-top: clamp(3px, 1cqh, 8px);
-                        border-bottom: none;
+                    .bbgl-lib-row.is-repeat::after,
+                    .bbgl-lib-row.is-repeated::after,
+                    .bbgl-lib-item.is-repeat::after,
+                    .bbgl-lib-item.is-repeated::after {
+                        content: '';
+                        position: absolute;
+                        top: clamp(1px, .4cqh, 4px);
+                        left: clamp(2px, .8cqw, 6px);
+                        width: clamp(10px, 2.6cqh, 16px);
+                        height: clamp(10px, 2.6cqh, 16px);
+                        opacity: .75;
+                        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23ce93d8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.5 8a5.5 5.5 0 1 1-1.9-4.2'/%3E%3Cpath d='M13.6 1.6v2.8h-2.8'/%3E%3C/svg%3E") center / contain no-repeat;
+                        pointer-events: none;
                     }
 
                     .bbgl-lib-data-inner {
+                        width: 100%;
                         display: flex;
-                        justify-content: flex-end;
+                        justify-content: center;
                         min-width: 0;
                     }
 
                     /* Values that may be incomplete or imprecise read slightly dimmer; the tooltip says why. */
                     .bbgl-lib-data-inner.is-approx .bbgl-lib-val {
                         opacity: .7;
-                    }
-
-                    /* Unread books are greyed out rather than given a status column. Only the title and
-                       description fade: the data column keeps its stat colours either way. */
-                    .bbgl-lib-row.is-unread .bbgl-lib-text {
-                        opacity: .6;
-                        filter: grayscale(1);
                     }
 
                     .viewing-graph #bbgl-graph-container {
@@ -4693,7 +5046,7 @@
                            reserved as real padding and justify-content:centre below, the grid centres in the
                            band between the toolbar (top padding) and the title (bottom padding) rather than
                            filling the whole box underneath the toolbar down to the title. */
-                        --bbgl-sticker-title-clear: 26px;
+                        --bbgl-sticker-title-clear: 22px;
                         padding: 4px var(--bbgl-sticker-arrow-w) var(--bbgl-sticker-title-clear);
                         z-index: 40;
                         transform-origin: center;
@@ -4703,14 +5056,14 @@
 
                     .sticker-nav-btn {
                         position: absolute;
-                        /* Centred vertically within the exact band #bbgl-sticker-grid occupies, not the
-                           container. The grid is flex:1 and these buttons are absolute (no flow height), so
-                           the grid fills the container content box - i.e. from padding-top (4px) to
-                           padding-bottom (12px). Pinning top/bottom to those and letting margin auto centre
-                           a fixed-height button between them tracks that band with no hand-tuned nudge, and
-                           keeps position out of the hover/active transforms (which now carry scale only). */
+                        /* Centred on the gap between the two sticker rows, not the panel. The grid is
+                           centred (justify-content) in the container's content box and its two rows are
+                           equal, so the row gap sits at that box's middle. Pinning top/bottom to the
+                           container's padding (4px top, --bbgl-sticker-title-clear bottom) and letting
+                           margin auto centre the button lands it exactly there in every docked width;
+                           page mode's container has no vertical padding and pins to 0/0 instead. */
                         top: 4px;
-                        bottom: 12px;
+                        bottom: var(--bbgl-sticker-title-clear);
                         margin: auto 0;
                         width: var(--bbgl-sticker-arrow-w);
                         height: 25px;
@@ -4933,7 +5286,7 @@
                     #bbgl-sticker-title {
                         display: none;
                         position: absolute;
-                        bottom: 10px;
+                        bottom: 8px;
                         left: 50%;
                         transform: translateX(-50%);
                         font-size: 12px;
@@ -4977,7 +5330,7 @@
 
                     .bbgl-expanded #bbgl-sticker-title {
                         font-size: clamp(13px, calc(13px + 2px * var(--bbgl-dock-t, 0)), 15px);
-                        bottom: 12px;
+                        bottom: 10px;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-sticker-title {
@@ -4986,7 +5339,7 @@
                         right: 0;
                         bottom: 0;
                         height: var(--bbgl-sticker-footer-h);
-                        padding-bottom: clamp(11px, calc(11px + 3px * var(--bbgl-page-t)), 14px);
+                        padding-bottom: clamp(8px, calc(8px + 2px * var(--bbgl-page-t)), 10px);
                         box-sizing: border-box;
                         justify-content: center;
                         transform: none;
@@ -8408,13 +8761,22 @@
                         max-width: clamp(120px, calc(120px + 32px * var(--bbgl-dock-t)), 152px);
                     }
 
+                    /* As the docked panel narrows, the grid bleeds out into the arrow gutters so the
+                       auto columns (and the stickers capped at their width) shrink later and slower.
+                       Only the outer columns reach the gutters, and their stickers sit in the top and
+                       bottom rows, above and below the vertically centred arrows. None at full width,
+                       ramping to --bbgl-sticker-bleed-max of each gutter at the narrowest. */
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-grid {
                         row-gap: clamp(0px, calc(3px * var(--bbgl-dock-t)), 3px);
+                        --bbgl-sticker-bleed-max: .75;
+                        --bbgl-sticker-bleed: calc(var(--bbgl-sticker-arrow-w) * var(--bbgl-sticker-bleed-max) * (1 - var(--bbgl-dock-t)));
+                        width: calc(100% + 2 * var(--bbgl-sticker-bleed));
+                        margin-inline: calc(-1 * var(--bbgl-sticker-bleed));
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-sticker-container {
                         --bbgl-sticker-arrow-w: clamp(24px, calc(24px + 16px * var(--bbgl-dock-t)), 40px);
-                        --bbgl-sticker-title-clear: clamp(26px, calc(26px + 2px * var(--bbgl-dock-t)), 28px);
+                        --bbgl-sticker-title-clear: clamp(23px, calc(23px + 2px * var(--bbgl-dock-t)), 25px);
                     }
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .sticker-nav-btn {
                         font-size: clamp(20px, calc(20px + 12px * var(--bbgl-dock-t)), 32px);
@@ -17547,13 +17909,15 @@ function achBuildPage2(d) {
 
 // ─── Books: read state, active windows and the gains attributed to each ─────────
 // Built from the book log entries (2050 used / 2051 finished, bookId = the item) and the gym series.
-//   state    'unread' | 'reading' (used, not finished) | 'read' (finished; Memories is read on use)
+//   state    'unread' | 'reading' (a readPeriod book used, not finished) | 'read' (finished, or any
+//            other book once used — those take effect on use)
 //   stats    { str?, def?, spd?, dex?, tot } for window books — only stats trained in the window
+//   extra    same shape, gym-gains books only — the part of `stats` the book's bonus produced
 //   gain     number for stat books — the jump in that stat at payout
 //   partial  the window started before the log
 //   uncertain  a stat jump that doesn't match the book's +5% (a train missing around it)
-// Gym-gains books report only the extra from the book, assuming the bonus multiplies:
-// extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
+// Gym-gains books report the full gains over their window plus the book's share of them, assuming
+// the bonus multiplies: extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
 // read before it: a 31-day window from its use, or a stat payout 31 days after its use.
 const BOOK_USE_LOG = 2050,
     BOOK_FINISH_LOG = 2051,
@@ -17651,7 +18015,8 @@ function computeBookData(s) {
         }
         if (meta.training === 'gym') {
             const bonus = meta.stat ? 0.3 : 0.2;
-            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, 1);
+            out.extra = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
         } else if (meta.training === 'energy' || meta.training === 'happy') {
             out.stats = sumGains(start, Math.min(end, nowTs + 1), null, 1);
         }
@@ -17662,7 +18027,7 @@ function computeBookData(s) {
     Object.keys(BOOK_META).map(Number).forEach(id => {
         const meta = BOOK_META[id];
         if (id === MEMORIES_BOOK) {
-            result[id] = memories ? { state: 'read', start: memories.start, end: memories.end } : { state: 'unread' };
+            result[id] = memories ? { state: 'read', start: memories.start, end: memories.end, repeats: memories.repeats } : { state: 'unread' };
             return;
         }
         const w = windows[id];
@@ -17671,7 +18036,7 @@ function computeBookData(s) {
             return;
         }
         const finished = w.end != null;
-        const entry = { state: finished ? 'read' : 'reading', start: w.start, end: w.end };
+        const entry = { state: finished || !meta.readPeriod ? 'read' : 'reading', start: w.start, end: w.end };
         if (meta.training) Object.assign(entry, effectData(meta, w.start, finished ? w.end : nowTs + 1, w.end));
         result[id] = entry;
     });
@@ -19306,9 +19671,9 @@ const BestGymController = {
         if (aBtn) aBtn.classList.toggle('active', activeL === 'All-Time');
     }
 
-    // Library page: one equal-height row per training book, grouped by training type. A book
-    // counts as read once any 2051 (book finished) entry for it is in the log.
-    const LIBRARY_PAGE_COUNT = 2;
+    // Library pages: 1 Stat Books + Gym Gains, 2 Energy + Happy, 3 and 4 every other book, split in half.
+    // See computeBookData() for when a book counts as read.
+    const LIBRARY_PAGE_COUNT = 4;
 
     function gotoLibraryPage(p) {
         const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
@@ -19323,16 +19688,21 @@ const BestGymController = {
         if (!c) return;
         const bookData = DataController.getBookData();
         const info = id => bookData.books[id] || { state: 'unread' };
-        // Unread books grey out; a book being read shows a marker; a finished (or, for Memories, used)
-        // book gets the ✓.
+        // Unread books grey out; a readPeriod book still being read shows a marker; a finished readPeriod
+        // book, or any other book once used, gets the ✓.
         const stateClass = id => ({ read: ' is-read', reading: ' is-reading', unread: ' is-unread' })[info(id).state];
+        // "In progress" covers both a readPeriod book still being read and any other book whose 31 days
+        // are still running; ✓ once it's done.
+        const PROGRESS_MARK = '<span class="bbgl-lib-reading">In progress</span>',
+            READ_MARK = '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
+        const inProgress = (meta, d) => d.state === 'reading' ||
+            (d.state === 'read' && !meta.readPeriod && (d.start != null || d.end != null) && (d.end == null || d.end > nowTs));
         const marker = id => {
-            const st = info(id).state;
-            if (st === 'read') return '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
-            if (st === 'reading') return '<span class="bbgl-lib-reading">Reading</span>';
-            return '';
+            const d = info(id);
+            if (d.state === 'unread') return '';
+            return inProgress(BOOK_META[id], d) ? PROGRESS_MARK : READ_MARK;
         };
-        // Click-to-copy, only for read books (and a section header once any of its books is read).
+        // Click-to-copy for any book that has been used, read or still being read (and a section header once any of its books has).
         // Each copyable element carries data-lib-copy, a key into runtime._libCopy; headers also
         // list the rows to flash. Text follows the achievements copies: header, blank line, then
         // "Name:" with its details indented beneath.
@@ -19345,26 +19715,37 @@ const BestGymController = {
         const fmtDay = ts => Formatter.datePretty(Formatter.dateLogical(ts * 1000));
         const copyBlock = (name, desc, meta, d) => {
             const lines = [name + ':', '  ' + desc];
-            if (meta.training === 'stat') {
+            if (d.state === 'reading') {
+                // A readPeriod book mid-read: nothing has paid out yet.
+                lines.push('  Started: ' + (d.start != null ? fmtDay(d.start) : 'Before log'));
+                lines.push('  Status: In progress');
+            } else if (meta.readPeriod) {
                 if (d.end != null) lines.push('  Finished: ' + fmtDay(d.end));
-                lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(d.gain || 0));
+                if (meta.training === 'stat') lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(d.gain || 0));
             } else {
                 const from = d.start != null ? fmtDay(d.start) : 'Before log';
-                const to = d.end == null || d.end > nowTs ? 'Active' : fmtDay(d.end);
+                const to = d.end == null || d.end > nowTs ? 'Current' : fmtDay(d.end);
                 if (d.start != null || d.end != null) lines.push('  ' + from + ' – ' + to);
                 const stats = d.stats || {};
+                // Gym-gains books follow each gain with the book's share of it.
+                const fromBook = k => d.extra ? ' (+' + Formatter.number((d.extra[k]) || 0) + ' from book)' : '';
                 if (meta.training === 'gym' && meta.stat) {
-                    lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(stats[meta.stat] || 0));
+                    lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(stats[meta.stat] || 0) + fromBook(meta.stat));
                 } else if (meta.training) {
-                    ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null).forEach(k => lines.push('  ' + COPY_ABBR[k] + ': +' + Formatter.number(stats[k])));
-                    lines.push('  Total: +' + Formatter.number(stats.tot || 0));
+                    ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null).forEach(k => lines.push('  ' + COPY_ABBR[k] + ': +' + Formatter.number(stats[k]) + fromBook(k)));
+                    lines.push('  Total: +' + Formatter.number(stats.tot || 0) + fromBook('tot'));
                 }
             }
             return lines.join('\n');
         };
-        const bookBlock = id => copyBlock(BOOK_META[id].name, BOOK_META[id].short || BOOK_META[id].effect, BOOK_META[id], info(id));
-        const isCopyable = id => info(id).state === 'read';
-        // Returns the attributes for a row: registered in the copy map only when the book is read.
+        // Memories And Mammaries repeating a book with no tracked data (an Other Books book) has no row of
+        // its own; its checklist entry describes the book it repeated instead, and both get the gold tint.
+        const memInfo = info(MEMORIES_BOOK);
+        const memOther = memInfo.repeats != null && BOOK_META[memInfo.repeats] && !BOOK_META[memInfo.repeats].training ? memInfo.repeats : null;
+        const bookDesc = id => id === MEMORIES_BOOK && memOther != null ? 'Repeated ' + BOOK_META[memOther].name : (BOOK_META[id].short || BOOK_META[id].effect);
+        const bookBlock = id => copyBlock(BOOK_META[id].name, bookDesc(id), BOOK_META[id], info(id));
+        const isCopyable = id => info(id).state !== 'unread';
+        // Returns the attributes for a row: registered in the copy map once the book has been used.
         const rowCopyAttrs = id => {
             if (!isCopyable(id)) return '';
             copyMap['b' + id] = LIB_H + '\n\n' + bookBlock(id);
@@ -19388,7 +19769,7 @@ const BestGymController = {
                 navigator.clipboard.writeText(txt).then(() => flashCopied(targets.length ? targets : el));
             });
         }
-        const page = viewState.libraryPage === 1 ? 1 : 0;
+        const page = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, viewState.libraryPage || 0));
         const ind = document.getElementById('bbgl-lib-pagination');
         if (ind) {
             ind.innerHTML = '';
@@ -19400,70 +19781,152 @@ const BestGymController = {
             }
         }
         retryToolbarPaginationLayout(() => dom.topPanel && dom.topPanel.classList.contains('viewing-library'));
-        // Page 2: every non-training book as a two-column checklist, filled top-to-bottom.
-        if (page === 1) {
-            // Memories And Mammaries lives here rather than on the training page: when it repeats a
-            // training book, its effect gets its own row at the bottom of page 1.
-            const others = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
-            const rowsPerCol = Math.ceil(others.length / 2);
-            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"${rowCopyAttrs(id)}><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
-            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group"${headerCopyAttrs('gOther', 'Other Books', others)}>Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
-            return;
-        }
-        const GROUPS = [
+        // Page 3: every non-training book as a two-column checklist, filled top-to-bottom.
+        const GROUPS = page === 0 ? [
             ['stat', 'Stat Books'],
-            ['gym', 'Gym Gains'],
+            ['gym', 'Gym Gains']
+        ] : [
             ['energy', 'Energy'],
             ['happy', 'Happy']
         ];
         const STAT_NAME = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity', tot: 'Total' };
         const STAT_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex', tot: 'Tot' };
-        // One number with its label centred beneath. Both formats are emitted and CSS picks one:
-        // full number over full label, or abbreviated (compact, or a multi-cell group that didn't fit).
-        const cell = (key, gain) => {
+        // One number with its stat label beside it. Both formats are emitted and CSS picks one: full
+        // number and label, or abbreviated (compact, or a multi-cell group that didn't fit).
+        // `extra` (gym-gains books): the book's share of `gain`, shown in parentheses beneath the cell.
+        const cell = (key, gain, extra) => {
             const full = gain == null ? '—' : '+' + Formatter.number(gain);
             const abbr = gain == null ? '—' : '+' + Formatter.achAbbr(gain, ACH_FMT.gains);
-            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span></div>`;
+            const extraHTML = gain != null && extra != null ?
+                `<span class="bbgl-lib-extra"><span class="x-full">(+${Formatter.number(extra)}<span class="x-word"> from book</span>)</span><span class="x-abbr">(+${Formatter.achAbbr(extra, ACH_FMT.gains)})</span></span>` : '';
+            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span>${extraHTML}</div>`;
         };
-        // Right column, from computeBookData(). Stat books: the jump in their stat at payout.
+        // The book's data, from computeBookData(). Stat books: the jump in their stat at payout.
         // Single-stat gym books: the extra gains on their stat. Get Hard Or Go Home, energy and happy
-        // books: a cell per stat trained in the window plus Total (only Total until something is
-        // recorded). `d` is the book's own data, or the Memories row's data for the book it repeated.
+        // books: a cell per stat trained in the window. `d` is the book's own data, or the Memories
+        // row's data for the book it repeated.
+        // Only stats with a recorded gain get a cell; a book with none returns '' and shows no data.
         const dataCell = (b, d) => {
             d = d || {};
             let html = '';
-            if (b.training === 'stat') html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
-            else if (b.training === 'gym' && b.stat) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.stats && d.stats[b.stat] != null ? d.stats[b.stat] : null)}</div>`;
-            else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
-                const stats = d.stats || {};
+            const stats = d.stats || {};
+            if (b.training === 'stat') {
+                if (d.gain != null) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
+            } else if (b.training === 'gym' && b.stat) {
+                if (stats[b.stat] != null) html = `<div class="bbgl-lib-cells">${cell(b.stat, stats[b.stat], d.extra && d.extra[b.stat])}</div>`;
+            } else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
                 const keys = ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null);
-                html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k])).join('')}${cell('tot', keys.length ? stats.tot : null)}</div>`;
+                if (keys.length) html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k], d.extra && d.extra[k])).join('')}</div>`;
+            }
+            // No data yet: an invisible stand-in the same shape as the real data (with a from-book line
+            // for gym-gains books), so the title sits where it would once the book has data and rows
+            // stay aligned beside ones that do.
+            if (!html) {
+                const extra = b.training === 'gym' ? 0 : undefined;
+                return `<div class="bbgl-lib-cells is-placeholder" aria-hidden="true">${cell(b.stat || 'str', 0, extra)}</div>`;
             }
             const note = d.uncertain ? 'This gain could not be measured precisely: a train around the payout is missing from the log.' :
                 d.partial ? 'May be incomplete: part of this book\'s period is before your log.' : '';
             return note ? `<div class="bbgl-lib-data-inner is-approx" data-tooltip="${achEsc(note)}">${html}</div>` : html;
         };
         const memRow = bookData.memories;
-        const row = id => {
+        // The book's read date or active period, shown after its title. `range` forces the from–to
+        // form (Memories' own row, which is always a 31-day period).
+        // `fmt` formats each timestamp: fmtDay for the short date, fmtStamp for date + time.
+        const dateLine = (b, d, range, fmt = fmtDay) => {
+            if (!d || d.state === 'unread') return '';
+            if (d.state === 'reading') return 'Started ' + (d.start != null ? fmt(d.start) : 'before log');
+            if (b.readPeriod && !range) return d.end != null ? 'Finished ' + fmt(d.end) : '';
+            if (d.start == null && d.end == null) return '';
+            const from = d.start != null ? fmt(d.start) : 'Before log';
+            const to = d.end == null || d.end > nowTs ? 'Current' : fmt(d.end);
+            return from + ' – ' + to;
+        };
+        // Exact time the log recorded, in the player's chosen time zone (TCT or local). The zone is
+        // added once at the end of the whole line, and the year only when it isn't this year, which
+        // keeps a from–to range short enough to sit beside the title.
+        const thisYear = new Date().getUTCFullYear();
+        const fmtStamp = ts => {
+            const d = new Date(ts * 1000),
+                local = TimeManager.useLocal(),
+                y = local ? d.getFullYear() : d.getUTCFullYear(),
+                day = `${CONSTANTS.MONTHS_SHORT[local ? d.getMonth() : d.getUTCMonth()]} ${local ? d.getDate() : d.getUTCDate()}${y !== thisYear ? ', ' + y : ''}`,
+                hh = String(local ? d.getHours() : d.getUTCHours()).padStart(2, '0'),
+                mm = String(local ? d.getMinutes() : d.getUTCMinutes()).padStart(2, '0');
+            return day + ' ' + hh + ':' + mm;
+        };
+        // Both date forms are emitted; compact shows the short date, expanded and page mode the
+        // exact timestamp.
+        const dateHTML = (b, d, range) => {
+            const short = dateLine(b, d, range);
+            if (!short) return '';
+            let full = dateLine(b, d, range, fmtStamp);
+            // The zone follows the last timestamp: "Sep 3 09:15 TCT – Current", or at the very end.
+            if (/\d:\d/.test(full)) full = / – Current$/.test(full) ? full.replace(/ – Current$/, ' ' + achTimeZoneSuffix() + ' – Current') : full + ' ' + achTimeZoneSuffix();
+            return `<span class="d-short">${short}</span><span class="d-full">${full}</span>`;
+        };
+        // Pages 3-4: the non-training books as a two-column checklist, filled top-to-bottom and split
+        // across the two pages. Each entry has its date above its title, like the training rows.
+        if (page >= 2) {
+            // Memories And Mammaries lives here rather than on a training page: when it repeats a
+            // training book, its effect gets its own row at the bottom of that book's page.
+            const allOthers = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
+            const half = Math.ceil(allOthers.length / 2);
+            const others = page === 2 ? allOthers.slice(0, half) : allOthers.slice(half);
+            const rowsPerCol = Math.ceil(others.length / 2);
+            const repeatCls = id => memOther == null ? '' : id === MEMORIES_BOOK ? ' is-repeat' : id === memOther ? ' is-repeated' : '';
+            const itemDate = id => {
+                const date = dateHTML(BOOK_META[id], info(id), id === MEMORIES_BOOK);
+                return `<div class="bbgl-lib-stamp"><span class="bbgl-lib-date${date ? '' : ' is-placeholder'}"${date ? '' : ' aria-hidden="true"'}>${date || '&nbsp;'}</span>${marker(id)}</div>`;
+            };
+            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}${repeatCls(id)}" data-book="${id}"${rowCopyAttrs(id)}>${itemDate(id)}<div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}</div><div class="bbgl-lib-effect">${achEsc(bookDesc(id))}</div></div>`).join('');
+            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:1"><div class="bbgl-lib-group"${headerCopyAttrs('gOther' + page, 'Other Books', others)}><span class="bbgl-lib-group-label">Other Books</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div></div></div>`;
+            window.requestAnimationFrame(fitLibraryCells);
+            return;
+        }
+        // One book, centred: its date, title and effect as one tight group, then its data.
+        // The title text alone is centred; its ✓ / In progress marker hangs off its end (see .bbgl-lib-title).
+        const bookHTML = (cls, id, attrs, type, name, mark, effect, data, date) =>
+            `<div class="bbgl-lib-row${cls}" data-book="${id}"${attrs} data-type="${type}"><div class="bbgl-lib-stamp"><span class="bbgl-lib-date${date ? '' : ' is-placeholder'}"${date ? '' : ' aria-hidden="true"'}>${date || '&nbsp;'}</span>${mark}</div><div class="bbgl-lib-text"><div class="bbgl-lib-name"><span class="bbgl-lib-title"><span class="bbgl-lib-title-text">${name}</span></span></div><div class="bbgl-lib-effect">${effect}</div></div><div class="bbgl-lib-data">${data}</div></div>`;
+        const row = (id, extraCls = '') => {
             const b = BOOK_META[id];
             const repeated = memRow && memRow.repeats === id ? ' is-repeated' : '';
-            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}"${rowCopyAttrs(id)} data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
+            return bookHTML(stateClass(id) + repeated + extraCls, id, rowCopyAttrs(id), b.training, achEsc(b.name), marker(id), achEsc(b.short || b.effect), dataCell(b, info(id)), dateHTML(b, info(id)));
         };
-        // Headers sit directly in the list beside the rows (not wrapped per group) so every book
-        // row still takes an equal share of the height.
-        let html = GROUPS.map(([type, label]) => {
-            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type);
-            if (!ids.length) return '';
-            return `<div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}>${label}</div>${ids.map(row).join('')}`;
-        }).join('');
         // Memories And Mammaries' own row, once read, when the book it repeated is a training book:
-        // its title, with the repeated book's effect measured over Memories' own period.
-        if (memRow) {
+        // its title, with the repeated book's effect measured over Memories' own period. It goes at the
+        // bottom of the section holding the book it repeated and takes that book's format throughout:
+        // its data, its date style, its read state and marker, and its copy text. A repeated readPeriod
+        // book (a stat book) is still "being read" until Memories' period ends, when it pays out.
+        let memHTML = '',
+            memType = null;
+        if (memRow && GROUPS.some(([type]) => type === BOOK_META[memRow.repeats].training)) {
             const mem = BOOK_META[MEMORIES_BOOK],
                 rep = BOOK_META[memRow.repeats];
-            copyMap.bMem = LIB_H + '\n\n' + copyBlock(mem.name, 'Repeated ' + rep.name, rep, memRow);
-            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}" data-lib-copy="bMem"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
+            const memD = Object.assign({}, memRow, { state: rep.readPeriod && memRow.end > nowTs ? 'reading' : 'read' });
+            const memMark = inProgress(rep, memD) ? PROGRESS_MARK : READ_MARK;
+            copyMap.bMem = LIB_H + '\n\n' + copyBlock(mem.name, 'Repeated ' + rep.name, rep, memD);
+            memHTML = bookHTML(` is-${memD.state} is-repeat`, MEMORIES_BOOK, ' data-lib-copy="bMem"', rep.training, achEsc(mem.name), memMark, 'Repeated ' + achEsc(rep.name), dataCell(rep, memD), dateHTML(rep, memD));
+            memType = rep.training;
         }
+        // One bordered section per group: the group label runs up a spine on its left, beside the group's
+        // books. Single-stat books share a two-column grid that takes one row's share of the height per
+        // grid row; every other book, and a Memories row, gets a full-width row. Each section is weighted
+        // by its row count so every row on the page keeps an equal share of the height.
+        const html = GROUPS.map(([type, label]) => {
+            // Single-stat books follow the ledger's stat order (Str, Def, Spd, Dex), left to right then
+            // top to bottom; item-id order puts Speed before Defense for the stat books.
+            const statRank = id => BOOK_META[id].stat ? STAT_KEYS.indexOf(BOOK_META[id].stat) : STAT_KEYS.length;
+            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type).sort((x, y) => statRank(x) - statRank(y));
+            if (!ids.length) return '';
+            const paired = ids.filter(id => BOOK_META[id].stat),
+                single = ids.filter(id => !BOOK_META[id].stat),
+                pairRows = Math.ceil(paired.length / 2),
+                lastRowFrom = (pairRows - 1) * 2,
+                mem = memType === type ? memHTML : '';
+            const pairs = paired.length ? `<div class="bbgl-lib-pairs" style="--bbgl-lib-pair-rows:${pairRows}">${paired.map((id, i) => row(id, i >= lastRowFrom ? ' is-last-row' : '')).join('')}</div>` : '';
+            return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${pairRows + single.length + (mem ? 1 : 0)}"><div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel">${pairs}${single.map(id => row(id)).join('')}${mem}</div></div>`;
+        }).join('');
         c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
         window.requestAnimationFrame(fitLibraryCells);
         if (!runtime._libFitObserver && window.ResizeObserver) {
@@ -19477,10 +19940,52 @@ const BestGymController = {
     function fitLibraryCells() {
         const c = dom.libraryContainer;
         if (!c) return;
+        // A group label that's longer than its spine is tall shrinks to fit.
+        c.querySelectorAll('.bbgl-lib-group-label').forEach(l => {
+            l.style.fontSize = '';
+            const room = l.parentElement.clientHeight, need = l.scrollHeight;
+            if (room > 0 && need > room) l.style.fontSize = (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px';
+        });
+        // Other Books: an entry with a date reserves the height of its stamp's letters (~.75em, not the
+        // whole line box) so its title and effect centre in the space under it.
+        c.querySelectorAll('.bbgl-lib-item').forEach(it => {
+            it.classList.remove('is-stamp-offset');
+            it.style.removeProperty('--bbgl-lib-date-h');
+            const date = it.querySelector('.bbgl-lib-date');
+            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return;
+            it.classList.add('is-stamp-offset');
+            it.style.setProperty('--bbgl-lib-date-h', (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px');
+        });
+        // The corner stamp runs as far left as the card allows; once its date no longer fits that width,
+        // the stamp's type shrinks to fit rather than ellipsising, down to 70% of its size.
+        c.querySelectorAll('.bbgl-lib-stamp').forEach(st => {
+            st.style.fontSize = '';
+            const date = st.querySelector('.bbgl-lib-date');
+            if (!date || date.classList.contains('is-placeholder')) return;
+            // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
+            // the date, so deriving the marker's width from it reported more room than there is and the
+            // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
+            const markOf = () => {
+                const m = st.querySelector('.bbgl-lib-check, .bbgl-lib-reading');
+                return m ? m.getBoundingClientRect().width + (parseFloat(getComputedStyle(m).marginLeft) || 0) : 0;
+            };
+            const floor = parseFloat(getComputedStyle(st).fontSize) * .7;
+            for (let pass = 0; pass < 2; pass++) {
+                const avail = st.clientWidth - markOf(),
+                    need = date.scrollWidth;
+                if (!(avail > 0) || need <= avail + .5) break;
+                const base = parseFloat(getComputedStyle(st).fontSize),
+                    next = Math.max(base * (avail / need), floor);
+                if (next >= base - .1) break;
+                st.style.fontSize = next.toFixed(2) + 'px';
+            }
+        });
         c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
             g.classList.remove('is-tight');
+            g.classList.add('is-measure');
             const box = g.closest('.bbgl-lib-data');
             if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
+            g.classList.remove('is-measure');
         });
     }
 
@@ -27032,7 +27537,10 @@ const BestGymController = {
     // in the same shape computeBookData() produces.
     //   clip  — every book read with the longest realistic numbers, for overflow/clipping
     //   mixed — a spread of read/reading/unread with approx/partial flags, for state styling
-    function buildFakeBookData(mode) {
+    // memPage: which Library page Memories' repeated book lands on — 1 repeats Get Hard Or Go Home,
+    // 2 the first Energy book (each gets a Memories row), 3 the first untracked book (no row; the two
+    // checklist entries are tinted instead).
+    function buildFakeBookData(mode, memPage = 1) {
         const HUGE = 987654321987.65;
         const DAY = 86400;
         const now = Math.floor(Date.now() / 1000);
@@ -27040,7 +27548,7 @@ const BestGymController = {
         const books = {};
         Object.keys(BOOK_META).map(Number).forEach((id, i) => {
             const meta = BOOK_META[id];
-            const state = mode === 'clip' ? 'read' : ['read', 'reading', 'unread'][i % 3];
+            const state = mode === 'clip' ? 'read' : ['read', meta.readPeriod ? 'reading' : 'read', 'unread'][i % 3];
             if (state === 'unread') {
                 books[id] = { state };
                 return;
@@ -27051,8 +27559,13 @@ const BestGymController = {
                 if (state === 'read') entry.gain = v;
             } else if (meta.training === 'gym' && meta.stat) {
                 entry.stats = { [meta.stat]: v, tot: v };
+                entry.extra = { [meta.stat]: r2(v * .3 / 1.3), tot: r2(v * .3 / 1.3) };
             } else if (meta.training && meta.training !== 'repeat') {
                 entry.stats = { str: v, def: v, spd: v, dex: v, tot: r2(v * 4) };
+                if (meta.training === 'gym') {
+                    const x = r2(v * .2 / 1.2);
+                    entry.extra = { str: x, def: x, spd: x, dex: x, tot: r2(x * 4) };
+                }
             }
             if (mode === 'mixed') {
                 entry.uncertain = i % 4 === 1;
@@ -27060,8 +27573,14 @@ const BestGymController = {
             }
             books[id] = entry;
         });
-        books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY };
-        const repeats = TRAINING_BOOKS.find(id => ['energy', 'happy'].includes(BOOK_META[id].training) || (BOOK_META[id].training === 'gym' && !BOOK_META[id].stat));
+        if (memPage === 3) {
+            const other = Object.keys(BOOK_META).map(Number).find(id => !BOOK_META[id].training);
+            books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY, repeats: other };
+            if (!books[other] || books[other].state === 'unread') books[other] = { state: 'read', start: now - 60 * DAY, end: now - 29 * DAY };
+            return { books, memories: null };
+        }
+        const repeats = TRAINING_BOOKS.find(id => memPage === 2 ? BOOK_META[id].training === 'energy' : (BOOK_META[id].training === 'gym' && !BOOK_META[id].stat));
+        books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY, repeats };
         const mv = val(3);
         const memories = repeats == null ? null : {
             repeats,
@@ -27070,29 +27589,46 @@ const BestGymController = {
             partial: false,
             stats: { str: mv, def: mv, spd: mv, dex: mv, tot: r2(mv * 4) }
         };
+        if (memories && BOOK_META[repeats].training === 'gym') {
+            const x = r2(mv * .2 / 1.2);
+            memories.extra = { str: x, def: x, spd: x, dex: x, tot: r2(x * 4) };
+        }
         return { books, memories };
     }
 
     function buildBooksSection() {
         let mode = null;
-        const rerender = () => {
-            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) renderLibrary();
-        };
-        const modes = [['clip', 'Max Clip'], ['mixed', 'Mixed'], [null, 'Real']];
-        const modeBtns = modes.map(([m, label]) => buildDevButton(label, () => {
-            mode = m;
-            runtime._devBookOverride = m ? buildFakeBookData(m) : null;
-            modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
-            rerender();
-        }, smallBtn));
-        setActive(modeBtns[2], true);
-
-        const pageBtns = [0, 1].map(p => buildDevButton(`Page ${p + 1}`, () => {
+        let memPage = 1;
+        const openPage = p => {
             if (!dom.topPanel || !dom.topPanel.classList.contains('viewing-library')) toggleLibraryView();
             gotoLibraryPage(p);
+        };
+        const modes = [['clip', 'Max Clip'], ['mixed', 'Mixed'], [null, 'Real']];
+        let modeBtns = [], memBtns = [];
+        const apply = () => {
+            runtime._devBookOverride = mode ? buildFakeBookData(mode, memPage) : null;
+            modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
+            memBtns.forEach((b, i) => setActive(b, !!mode && i + 1 === memPage));
+            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) renderLibrary();
+        };
+        modeBtns = modes.map(([m, label]) => buildDevButton(label, () => {
+            mode = m;
+            apply();
         }, smallBtn));
 
-        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns)]);
+        const pageBtns = [0, 1, 2, 3].map(p => buildDevButton(`Page ${p + 1}`, () => openPage(p), smallBtn));
+
+        // Memories' row follows the book it repeats: these switch which page it lands on (starting
+        // Max Clip if fake data is off) and jump there.
+        memBtns = [1, 2, 3].map(p => buildDevButton(`Mem → P${p}`, () => {
+            memPage = p;
+            if (!mode) mode = 'clip';
+            apply();
+            openPage(p - 1);
+        }, smallBtn));
+        modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
+
+        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)]);
     }
 
     // ─── Sidebar section ────────────────────────────────────────────────────

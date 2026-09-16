@@ -317,7 +317,10 @@
     // in the same shape computeBookData() produces.
     //   clip  — every book read with the longest realistic numbers, for overflow/clipping
     //   mixed — a spread of read/reading/unread with approx/partial flags, for state styling
-    function buildFakeBookData(mode) {
+    // memPage: which Library page Memories' repeated book lands on — 1 repeats Get Hard Or Go Home,
+    // 2 the first Energy book (each gets a Memories row), 3 the first untracked book (no row; the two
+    // checklist entries are tinted instead).
+    function buildFakeBookData(mode, memPage = 1) {
         const HUGE = 987654321987.65;
         const DAY = 86400;
         const now = Math.floor(Date.now() / 1000);
@@ -325,7 +328,7 @@
         const books = {};
         Object.keys(BOOK_META).map(Number).forEach((id, i) => {
             const meta = BOOK_META[id];
-            const state = mode === 'clip' ? 'read' : ['read', 'reading', 'unread'][i % 3];
+            const state = mode === 'clip' ? 'read' : ['read', meta.readPeriod ? 'reading' : 'read', 'unread'][i % 3];
             if (state === 'unread') {
                 books[id] = { state };
                 return;
@@ -336,8 +339,13 @@
                 if (state === 'read') entry.gain = v;
             } else if (meta.training === 'gym' && meta.stat) {
                 entry.stats = { [meta.stat]: v, tot: v };
+                entry.extra = { [meta.stat]: r2(v * .3 / 1.3), tot: r2(v * .3 / 1.3) };
             } else if (meta.training && meta.training !== 'repeat') {
                 entry.stats = { str: v, def: v, spd: v, dex: v, tot: r2(v * 4) };
+                if (meta.training === 'gym') {
+                    const x = r2(v * .2 / 1.2);
+                    entry.extra = { str: x, def: x, spd: x, dex: x, tot: r2(x * 4) };
+                }
             }
             if (mode === 'mixed') {
                 entry.uncertain = i % 4 === 1;
@@ -345,8 +353,14 @@
             }
             books[id] = entry;
         });
-        books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY };
-        const repeats = TRAINING_BOOKS.find(id => ['energy', 'happy'].includes(BOOK_META[id].training) || (BOOK_META[id].training === 'gym' && !BOOK_META[id].stat));
+        if (memPage === 3) {
+            const other = Object.keys(BOOK_META).map(Number).find(id => !BOOK_META[id].training);
+            books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY, repeats: other };
+            if (!books[other] || books[other].state === 'unread') books[other] = { state: 'read', start: now - 60 * DAY, end: now - 29 * DAY };
+            return { books, memories: null };
+        }
+        const repeats = TRAINING_BOOKS.find(id => memPage === 2 ? BOOK_META[id].training === 'energy' : (BOOK_META[id].training === 'gym' && !BOOK_META[id].stat));
+        books[MEMORIES_BOOK] = { state: 'read', start: now - 20 * DAY, end: now + 11 * DAY, repeats };
         const mv = val(3);
         const memories = repeats == null ? null : {
             repeats,
@@ -355,29 +369,46 @@
             partial: false,
             stats: { str: mv, def: mv, spd: mv, dex: mv, tot: r2(mv * 4) }
         };
+        if (memories && BOOK_META[repeats].training === 'gym') {
+            const x = r2(mv * .2 / 1.2);
+            memories.extra = { str: x, def: x, spd: x, dex: x, tot: r2(x * 4) };
+        }
         return { books, memories };
     }
 
     function buildBooksSection() {
         let mode = null;
-        const rerender = () => {
-            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) renderLibrary();
-        };
-        const modes = [['clip', 'Max Clip'], ['mixed', 'Mixed'], [null, 'Real']];
-        const modeBtns = modes.map(([m, label]) => buildDevButton(label, () => {
-            mode = m;
-            runtime._devBookOverride = m ? buildFakeBookData(m) : null;
-            modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
-            rerender();
-        }, smallBtn));
-        setActive(modeBtns[2], true);
-
-        const pageBtns = [0, 1].map(p => buildDevButton(`Page ${p + 1}`, () => {
+        let memPage = 1;
+        const openPage = p => {
             if (!dom.topPanel || !dom.topPanel.classList.contains('viewing-library')) toggleLibraryView();
             gotoLibraryPage(p);
+        };
+        const modes = [['clip', 'Max Clip'], ['mixed', 'Mixed'], [null, 'Real']];
+        let modeBtns = [], memBtns = [];
+        const apply = () => {
+            runtime._devBookOverride = mode ? buildFakeBookData(mode, memPage) : null;
+            modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
+            memBtns.forEach((b, i) => setActive(b, !!mode && i + 1 === memPage));
+            if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) renderLibrary();
+        };
+        modeBtns = modes.map(([m, label]) => buildDevButton(label, () => {
+            mode = m;
+            apply();
         }, smallBtn));
 
-        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns)]);
+        const pageBtns = [0, 1, 2, 3].map(p => buildDevButton(`Page ${p + 1}`, () => openPage(p), smallBtn));
+
+        // Memories' row follows the book it repeats: these switch which page it lands on (starting
+        // Max Clip if fake data is off) and jump there.
+        memBtns = [1, 2, 3].map(p => buildDevButton(`Mem → P${p}`, () => {
+            memPage = p;
+            if (!mode) mode = 'clip';
+            apply();
+            openPage(p - 1);
+        }, smallBtn));
+        modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
+
+        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)]);
     }
 
     // ─── Sidebar section ────────────────────────────────────────────────────

@@ -125,16 +125,18 @@
     };
     // Every Torn book, keyed by item id (bookId = data.item on 2050/2051). `training` is set only on
     // books that affect training: stat (stat +5% on finish), gym (gym gain rate), energy, happy, or
-    // repeat (Memories And Mammaries copies the last book read).
+    // repeat (Memories And Mammaries copies the last book read). `readPeriod` marks the "upon completion"
+    // books, which are read over a period and only pay out when finished (2051); every other book takes
+    // effect as soon as it's used (2050) and its finish log marks the end of its 31 days.
     const BOOK_META = {
-        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str' },
-        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd' },
-        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def' },
-        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex' },
-        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.' },
-        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.' },
-        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.' },
-        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.' },
+        744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str', readPeriod: true },
+        745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd', readPeriod: true },
+        746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def', readPeriod: true },
+        747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex', readPeriod: true },
+        748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.', readPeriod: true },
+        749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.', readPeriod: true },
+        750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.', readPeriod: true },
+        751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.', readPeriod: true },
         752: { name: 'Fight Like An Asshole', short: '+25% all battle stats', effect: 'Provides a passive 25% bonus to all stats for 31 days.' },
         753: { name: 'Mind Over Matter', short: '+100% Strength', effect: 'Provides a passive 100% bonus to Strength for 31 days.' },
         754: { name: 'No Shame No Pain', short: '+100% Defense', effect: 'Provides a passive 100% bonus to Defense for 31 days.' },

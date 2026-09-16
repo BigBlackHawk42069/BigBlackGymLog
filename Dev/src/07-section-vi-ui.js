@@ -262,9 +262,9 @@
         if (aBtn) aBtn.classList.toggle('active', activeL === 'All-Time');
     }
 
-    // Library page: one equal-height row per training book, grouped by training type. A book
-    // counts as read once any 2051 (book finished) entry for it is in the log.
-    const LIBRARY_PAGE_COUNT = 2;
+    // Library pages: 1 Stat Books + Gym Gains, 2 Energy + Happy, 3 and 4 every other book, split in half.
+    // See computeBookData() for when a book counts as read.
+    const LIBRARY_PAGE_COUNT = 4;
 
     function gotoLibraryPage(p) {
         const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
@@ -279,16 +279,21 @@
         if (!c) return;
         const bookData = DataController.getBookData();
         const info = id => bookData.books[id] || { state: 'unread' };
-        // Unread books grey out; a book being read shows a marker; a finished (or, for Memories, used)
-        // book gets the ✓.
+        // Unread books grey out; a readPeriod book still being read shows a marker; a finished readPeriod
+        // book, or any other book once used, gets the ✓.
         const stateClass = id => ({ read: ' is-read', reading: ' is-reading', unread: ' is-unread' })[info(id).state];
+        // "In progress" covers both a readPeriod book still being read and any other book whose 31 days
+        // are still running; ✓ once it's done.
+        const PROGRESS_MARK = '<span class="bbgl-lib-reading">In progress</span>',
+            READ_MARK = '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
+        const inProgress = (meta, d) => d.state === 'reading' ||
+            (d.state === 'read' && !meta.readPeriod && (d.start != null || d.end != null) && (d.end == null || d.end > nowTs));
         const marker = id => {
-            const st = info(id).state;
-            if (st === 'read') return '<span class="bbgl-lib-check" aria-label="Read">✓</span>';
-            if (st === 'reading') return '<span class="bbgl-lib-reading">Reading</span>';
-            return '';
+            const d = info(id);
+            if (d.state === 'unread') return '';
+            return inProgress(BOOK_META[id], d) ? PROGRESS_MARK : READ_MARK;
         };
-        // Click-to-copy, only for read books (and a section header once any of its books is read).
+        // Click-to-copy for any book that has been used, read or still being read (and a section header once any of its books has).
         // Each copyable element carries data-lib-copy, a key into runtime._libCopy; headers also
         // list the rows to flash. Text follows the achievements copies: header, blank line, then
         // "Name:" with its details indented beneath.
@@ -301,26 +306,37 @@
         const fmtDay = ts => Formatter.datePretty(Formatter.dateLogical(ts * 1000));
         const copyBlock = (name, desc, meta, d) => {
             const lines = [name + ':', '  ' + desc];
-            if (meta.training === 'stat') {
+            if (d.state === 'reading') {
+                // A readPeriod book mid-read: nothing has paid out yet.
+                lines.push('  Started: ' + (d.start != null ? fmtDay(d.start) : 'Before log'));
+                lines.push('  Status: In progress');
+            } else if (meta.readPeriod) {
                 if (d.end != null) lines.push('  Finished: ' + fmtDay(d.end));
-                lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(d.gain || 0));
+                if (meta.training === 'stat') lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(d.gain || 0));
             } else {
                 const from = d.start != null ? fmtDay(d.start) : 'Before log';
-                const to = d.end == null || d.end > nowTs ? 'Active' : fmtDay(d.end);
+                const to = d.end == null || d.end > nowTs ? 'Current' : fmtDay(d.end);
                 if (d.start != null || d.end != null) lines.push('  ' + from + ' – ' + to);
                 const stats = d.stats || {};
+                // Gym-gains books follow each gain with the book's share of it.
+                const fromBook = k => d.extra ? ' (+' + Formatter.number((d.extra[k]) || 0) + ' from book)' : '';
                 if (meta.training === 'gym' && meta.stat) {
-                    lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(stats[meta.stat] || 0));
+                    lines.push('  ' + COPY_STAT[meta.stat] + ': +' + Formatter.number(stats[meta.stat] || 0) + fromBook(meta.stat));
                 } else if (meta.training) {
-                    ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null).forEach(k => lines.push('  ' + COPY_ABBR[k] + ': +' + Formatter.number(stats[k])));
-                    lines.push('  Total: +' + Formatter.number(stats.tot || 0));
+                    ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null).forEach(k => lines.push('  ' + COPY_ABBR[k] + ': +' + Formatter.number(stats[k]) + fromBook(k)));
+                    lines.push('  Total: +' + Formatter.number(stats.tot || 0) + fromBook('tot'));
                 }
             }
             return lines.join('\n');
         };
-        const bookBlock = id => copyBlock(BOOK_META[id].name, BOOK_META[id].short || BOOK_META[id].effect, BOOK_META[id], info(id));
-        const isCopyable = id => info(id).state === 'read';
-        // Returns the attributes for a row: registered in the copy map only when the book is read.
+        // Memories And Mammaries repeating a book with no tracked data (an Other Books book) has no row of
+        // its own; its checklist entry describes the book it repeated instead, and both get the gold tint.
+        const memInfo = info(MEMORIES_BOOK);
+        const memOther = memInfo.repeats != null && BOOK_META[memInfo.repeats] && !BOOK_META[memInfo.repeats].training ? memInfo.repeats : null;
+        const bookDesc = id => id === MEMORIES_BOOK && memOther != null ? 'Repeated ' + BOOK_META[memOther].name : (BOOK_META[id].short || BOOK_META[id].effect);
+        const bookBlock = id => copyBlock(BOOK_META[id].name, bookDesc(id), BOOK_META[id], info(id));
+        const isCopyable = id => info(id).state !== 'unread';
+        // Returns the attributes for a row: registered in the copy map once the book has been used.
         const rowCopyAttrs = id => {
             if (!isCopyable(id)) return '';
             copyMap['b' + id] = LIB_H + '\n\n' + bookBlock(id);
@@ -344,7 +360,7 @@
                 navigator.clipboard.writeText(txt).then(() => flashCopied(targets.length ? targets : el));
             });
         }
-        const page = viewState.libraryPage === 1 ? 1 : 0;
+        const page = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, viewState.libraryPage || 0));
         const ind = document.getElementById('bbgl-lib-pagination');
         if (ind) {
             ind.innerHTML = '';
@@ -356,70 +372,152 @@
             }
         }
         retryToolbarPaginationLayout(() => dom.topPanel && dom.topPanel.classList.contains('viewing-library'));
-        // Page 2: every non-training book as a two-column checklist, filled top-to-bottom.
-        if (page === 1) {
-            // Memories And Mammaries lives here rather than on the training page: when it repeats a
-            // training book, its effect gets its own row at the bottom of page 1.
-            const others = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
-            const rowsPerCol = Math.ceil(others.length / 2);
-            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}" data-book="${id}"${rowCopyAttrs(id)}><div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(BOOK_META[id].short || BOOK_META[id].effect)}</div></div>`).join('');
-            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-group"${headerCopyAttrs('gOther', 'Other Books', others)}>Other Books</div><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div>`;
-            return;
-        }
-        const GROUPS = [
+        // Page 3: every non-training book as a two-column checklist, filled top-to-bottom.
+        const GROUPS = page === 0 ? [
             ['stat', 'Stat Books'],
-            ['gym', 'Gym Gains'],
+            ['gym', 'Gym Gains']
+        ] : [
             ['energy', 'Energy'],
             ['happy', 'Happy']
         ];
         const STAT_NAME = { str: 'Strength', def: 'Defense', spd: 'Speed', dex: 'Dexterity', tot: 'Total' };
         const STAT_ABBR = { str: 'Str', def: 'Def', spd: 'Spd', dex: 'Dex', tot: 'Tot' };
-        // One number with its label centred beneath. Both formats are emitted and CSS picks one:
-        // full number over full label, or abbreviated (compact, or a multi-cell group that didn't fit).
-        const cell = (key, gain) => {
+        // One number with its stat label beside it. Both formats are emitted and CSS picks one: full
+        // number and label, or abbreviated (compact, or a multi-cell group that didn't fit).
+        // `extra` (gym-gains books): the book's share of `gain`, shown in parentheses beneath the cell.
+        const cell = (key, gain, extra) => {
             const full = gain == null ? '—' : '+' + Formatter.number(gain);
             const abbr = gain == null ? '—' : '+' + Formatter.achAbbr(gain, ACH_FMT.gains);
-            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span></div>`;
+            const extraHTML = gain != null && extra != null ?
+                `<span class="bbgl-lib-extra"><span class="x-full">(+${Formatter.number(extra)}<span class="x-word"> from book</span>)</span><span class="x-abbr">(+${Formatter.achAbbr(extra, ACH_FMT.gains)})</span></span>` : '';
+            return `<div class="bbgl-lib-cell s-${key}"><span class="bbgl-lib-val v-full">${full}</span><span class="bbgl-lib-val v-abbr">${abbr}</span><span class="bbgl-lib-stat l-full">${STAT_NAME[key]}</span><span class="bbgl-lib-stat l-abbr">${STAT_ABBR[key]}</span>${extraHTML}</div>`;
         };
-        // Right column, from computeBookData(). Stat books: the jump in their stat at payout.
+        // The book's data, from computeBookData(). Stat books: the jump in their stat at payout.
         // Single-stat gym books: the extra gains on their stat. Get Hard Or Go Home, energy and happy
-        // books: a cell per stat trained in the window plus Total (only Total until something is
-        // recorded). `d` is the book's own data, or the Memories row's data for the book it repeated.
+        // books: a cell per stat trained in the window. `d` is the book's own data, or the Memories
+        // row's data for the book it repeated.
+        // Only stats with a recorded gain get a cell; a book with none returns '' and shows no data.
         const dataCell = (b, d) => {
             d = d || {};
             let html = '';
-            if (b.training === 'stat') html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
-            else if (b.training === 'gym' && b.stat) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.stats && d.stats[b.stat] != null ? d.stats[b.stat] : null)}</div>`;
-            else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
-                const stats = d.stats || {};
+            const stats = d.stats || {};
+            if (b.training === 'stat') {
+                if (d.gain != null) html = `<div class="bbgl-lib-cells">${cell(b.stat, d.gain)}</div>`;
+            } else if (b.training === 'gym' && b.stat) {
+                if (stats[b.stat] != null) html = `<div class="bbgl-lib-cells">${cell(b.stat, stats[b.stat], d.extra && d.extra[b.stat])}</div>`;
+            } else if (b.training === 'gym' || b.training === 'energy' || b.training === 'happy') {
                 const keys = ['str', 'def', 'spd', 'dex'].filter(k => stats[k] != null);
-                html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k])).join('')}${cell('tot', keys.length ? stats.tot : null)}</div>`;
+                if (keys.length) html = `<div class="bbgl-lib-cells is-multi">${keys.map(k => cell(k, stats[k], d.extra && d.extra[k])).join('')}</div>`;
+            }
+            // No data yet: an invisible stand-in the same shape as the real data (with a from-book line
+            // for gym-gains books), so the title sits where it would once the book has data and rows
+            // stay aligned beside ones that do.
+            if (!html) {
+                const extra = b.training === 'gym' ? 0 : undefined;
+                return `<div class="bbgl-lib-cells is-placeholder" aria-hidden="true">${cell(b.stat || 'str', 0, extra)}</div>`;
             }
             const note = d.uncertain ? 'This gain could not be measured precisely: a train around the payout is missing from the log.' :
                 d.partial ? 'May be incomplete: part of this book\'s period is before your log.' : '';
             return note ? `<div class="bbgl-lib-data-inner is-approx" data-tooltip="${achEsc(note)}">${html}</div>` : html;
         };
         const memRow = bookData.memories;
-        const row = id => {
+        // The book's read date or active period, shown after its title. `range` forces the from–to
+        // form (Memories' own row, which is always a 31-day period).
+        // `fmt` formats each timestamp: fmtDay for the short date, fmtStamp for date + time.
+        const dateLine = (b, d, range, fmt = fmtDay) => {
+            if (!d || d.state === 'unread') return '';
+            if (d.state === 'reading') return 'Started ' + (d.start != null ? fmt(d.start) : 'before log');
+            if (b.readPeriod && !range) return d.end != null ? 'Finished ' + fmt(d.end) : '';
+            if (d.start == null && d.end == null) return '';
+            const from = d.start != null ? fmt(d.start) : 'Before log';
+            const to = d.end == null || d.end > nowTs ? 'Current' : fmt(d.end);
+            return from + ' – ' + to;
+        };
+        // Exact time the log recorded, in the player's chosen time zone (TCT or local). The zone is
+        // added once at the end of the whole line, and the year only when it isn't this year, which
+        // keeps a from–to range short enough to sit beside the title.
+        const thisYear = new Date().getUTCFullYear();
+        const fmtStamp = ts => {
+            const d = new Date(ts * 1000),
+                local = TimeManager.useLocal(),
+                y = local ? d.getFullYear() : d.getUTCFullYear(),
+                day = `${CONSTANTS.MONTHS_SHORT[local ? d.getMonth() : d.getUTCMonth()]} ${local ? d.getDate() : d.getUTCDate()}${y !== thisYear ? ', ' + y : ''}`,
+                hh = String(local ? d.getHours() : d.getUTCHours()).padStart(2, '0'),
+                mm = String(local ? d.getMinutes() : d.getUTCMinutes()).padStart(2, '0');
+            return day + ' ' + hh + ':' + mm;
+        };
+        // Both date forms are emitted; compact shows the short date, expanded and page mode the
+        // exact timestamp.
+        const dateHTML = (b, d, range) => {
+            const short = dateLine(b, d, range);
+            if (!short) return '';
+            let full = dateLine(b, d, range, fmtStamp);
+            // The zone follows the last timestamp: "Sep 3 09:15 TCT – Current", or at the very end.
+            if (/\d:\d/.test(full)) full = / – Current$/.test(full) ? full.replace(/ – Current$/, ' ' + achTimeZoneSuffix() + ' – Current') : full + ' ' + achTimeZoneSuffix();
+            return `<span class="d-short">${short}</span><span class="d-full">${full}</span>`;
+        };
+        // Pages 3-4: the non-training books as a two-column checklist, filled top-to-bottom and split
+        // across the two pages. Each entry has its date above its title, like the training rows.
+        if (page >= 2) {
+            // Memories And Mammaries lives here rather than on a training page: when it repeats a
+            // training book, its effect gets its own row at the bottom of that book's page.
+            const allOthers = Object.keys(BOOK_META).map(Number).filter(id => !BOOK_META[id].training || BOOK_META[id].training === 'repeat');
+            const half = Math.ceil(allOthers.length / 2);
+            const others = page === 2 ? allOthers.slice(0, half) : allOthers.slice(half);
+            const rowsPerCol = Math.ceil(others.length / 2);
+            const repeatCls = id => memOther == null ? '' : id === MEMORIES_BOOK ? ' is-repeat' : id === memOther ? ' is-repeated' : '';
+            const itemDate = id => {
+                const date = dateHTML(BOOK_META[id], info(id), id === MEMORIES_BOOK);
+                return `<div class="bbgl-lib-stamp"><span class="bbgl-lib-date${date ? '' : ' is-placeholder'}"${date ? '' : ' aria-hidden="true"'}>${date || '&nbsp;'}</span>${marker(id)}</div>`;
+            };
+            const items = others.map(id => `<div class="bbgl-lib-item${stateClass(id)}${repeatCls(id)}" data-book="${id}"${rowCopyAttrs(id)}>${itemDate(id)}<div class="bbgl-lib-name">${achEsc(BOOK_META[id].name)}</div><div class="bbgl-lib-effect">${achEsc(bookDesc(id))}</div></div>`).join('');
+            c.innerHTML = `<div class="bbgl-lib-list"><div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:1"><div class="bbgl-lib-group"${headerCopyAttrs('gOther' + page, 'Other Books', others)}><span class="bbgl-lib-group-label">Other Books</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items}</div></div></div></div>`;
+            window.requestAnimationFrame(fitLibraryCells);
+            return;
+        }
+        // One book, centred: its date, title and effect as one tight group, then its data.
+        // The title text alone is centred; its ✓ / In progress marker hangs off its end (see .bbgl-lib-title).
+        const bookHTML = (cls, id, attrs, type, name, mark, effect, data, date) =>
+            `<div class="bbgl-lib-row${cls}" data-book="${id}"${attrs} data-type="${type}"><div class="bbgl-lib-stamp"><span class="bbgl-lib-date${date ? '' : ' is-placeholder'}"${date ? '' : ' aria-hidden="true"'}>${date || '&nbsp;'}</span>${mark}</div><div class="bbgl-lib-text"><div class="bbgl-lib-name"><span class="bbgl-lib-title"><span class="bbgl-lib-title-text">${name}</span></span></div><div class="bbgl-lib-effect">${effect}</div></div><div class="bbgl-lib-data">${data}</div></div>`;
+        const row = (id, extraCls = '') => {
             const b = BOOK_META[id];
             const repeated = memRow && memRow.repeats === id ? ' is-repeated' : '';
-            return `<div class="bbgl-lib-row${stateClass(id)}${repeated}" data-book="${id}"${rowCopyAttrs(id)} data-type="${b.training}"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(b.name)}${marker(id)}</div><div class="bbgl-lib-effect">${achEsc(b.short || b.effect)}</div></div><div class="bbgl-lib-data">${dataCell(b, info(id))}</div></div>`;
+            return bookHTML(stateClass(id) + repeated + extraCls, id, rowCopyAttrs(id), b.training, achEsc(b.name), marker(id), achEsc(b.short || b.effect), dataCell(b, info(id)), dateHTML(b, info(id)));
         };
-        // Headers sit directly in the list beside the rows (not wrapped per group) so every book
-        // row still takes an equal share of the height.
-        let html = GROUPS.map(([type, label]) => {
-            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type);
-            if (!ids.length) return '';
-            return `<div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}>${label}</div>${ids.map(row).join('')}`;
-        }).join('');
         // Memories And Mammaries' own row, once read, when the book it repeated is a training book:
-        // its title, with the repeated book's effect measured over Memories' own period.
-        if (memRow) {
+        // its title, with the repeated book's effect measured over Memories' own period. It goes at the
+        // bottom of the section holding the book it repeated and takes that book's format throughout:
+        // its data, its date style, its read state and marker, and its copy text. A repeated readPeriod
+        // book (a stat book) is still "being read" until Memories' period ends, when it pays out.
+        let memHTML = '',
+            memType = null;
+        if (memRow && GROUPS.some(([type]) => type === BOOK_META[memRow.repeats].training)) {
             const mem = BOOK_META[MEMORIES_BOOK],
                 rep = BOOK_META[memRow.repeats];
-            copyMap.bMem = LIB_H + '\n\n' + copyBlock(mem.name, 'Repeated ' + rep.name, rep, memRow);
-            html += `<div class="bbgl-lib-row is-read is-repeat" data-book="${MEMORIES_BOOK}" data-type="${rep.training}" data-lib-copy="bMem"><div class="bbgl-lib-text"><div class="bbgl-lib-name">${achEsc(mem.name)}${marker(MEMORIES_BOOK)}</div><div class="bbgl-lib-effect">Repeated ${achEsc(rep.name)}</div></div><div class="bbgl-lib-data">${dataCell(rep, memRow)}</div></div>`;
+            const memD = Object.assign({}, memRow, { state: rep.readPeriod && memRow.end > nowTs ? 'reading' : 'read' });
+            const memMark = inProgress(rep, memD) ? PROGRESS_MARK : READ_MARK;
+            copyMap.bMem = LIB_H + '\n\n' + copyBlock(mem.name, 'Repeated ' + rep.name, rep, memD);
+            memHTML = bookHTML(` is-${memD.state} is-repeat`, MEMORIES_BOOK, ' data-lib-copy="bMem"', rep.training, achEsc(mem.name), memMark, 'Repeated ' + achEsc(rep.name), dataCell(rep, memD), dateHTML(rep, memD));
+            memType = rep.training;
         }
+        // One bordered section per group: the group label runs up a spine on its left, beside the group's
+        // books. Single-stat books share a two-column grid that takes one row's share of the height per
+        // grid row; every other book, and a Memories row, gets a full-width row. Each section is weighted
+        // by its row count so every row on the page keeps an equal share of the height.
+        const html = GROUPS.map(([type, label]) => {
+            // Single-stat books follow the ledger's stat order (Str, Def, Spd, Dex), left to right then
+            // top to bottom; item-id order puts Speed before Defense for the stat books.
+            const statRank = id => BOOK_META[id].stat ? STAT_KEYS.indexOf(BOOK_META[id].stat) : STAT_KEYS.length;
+            const ids = TRAINING_BOOKS.filter(id => BOOK_META[id].training === type).sort((x, y) => statRank(x) - statRank(y));
+            if (!ids.length) return '';
+            const paired = ids.filter(id => BOOK_META[id].stat),
+                single = ids.filter(id => !BOOK_META[id].stat),
+                pairRows = Math.ceil(paired.length / 2),
+                lastRowFrom = (pairRows - 1) * 2,
+                mem = memType === type ? memHTML : '';
+            const pairs = paired.length ? `<div class="bbgl-lib-pairs" style="--bbgl-lib-pair-rows:${pairRows}">${paired.map((id, i) => row(id, i >= lastRowFrom ? ' is-last-row' : '')).join('')}</div>` : '';
+            return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${pairRows + single.length + (mem ? 1 : 0)}"><div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel">${pairs}${single.map(id => row(id)).join('')}${mem}</div></div>`;
+        }).join('');
         c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
         window.requestAnimationFrame(fitLibraryCells);
         if (!runtime._libFitObserver && window.ResizeObserver) {
@@ -433,10 +531,52 @@
     function fitLibraryCells() {
         const c = dom.libraryContainer;
         if (!c) return;
+        // A group label that's longer than its spine is tall shrinks to fit.
+        c.querySelectorAll('.bbgl-lib-group-label').forEach(l => {
+            l.style.fontSize = '';
+            const room = l.parentElement.clientHeight, need = l.scrollHeight;
+            if (room > 0 && need > room) l.style.fontSize = (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px';
+        });
+        // Other Books: an entry with a date reserves the height of its stamp's letters (~.75em, not the
+        // whole line box) so its title and effect centre in the space under it.
+        c.querySelectorAll('.bbgl-lib-item').forEach(it => {
+            it.classList.remove('is-stamp-offset');
+            it.style.removeProperty('--bbgl-lib-date-h');
+            const date = it.querySelector('.bbgl-lib-date');
+            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return;
+            it.classList.add('is-stamp-offset');
+            it.style.setProperty('--bbgl-lib-date-h', (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px');
+        });
+        // The corner stamp runs as far left as the card allows; once its date no longer fits that width,
+        // the stamp's type shrinks to fit rather than ellipsising, down to 70% of its size.
+        c.querySelectorAll('.bbgl-lib-stamp').forEach(st => {
+            st.style.fontSize = '';
+            const date = st.querySelector('.bbgl-lib-date');
+            if (!date || date.classList.contains('is-placeholder')) return;
+            // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
+            // the date, so deriving the marker's width from it reported more room than there is and the
+            // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
+            const markOf = () => {
+                const m = st.querySelector('.bbgl-lib-check, .bbgl-lib-reading');
+                return m ? m.getBoundingClientRect().width + (parseFloat(getComputedStyle(m).marginLeft) || 0) : 0;
+            };
+            const floor = parseFloat(getComputedStyle(st).fontSize) * .7;
+            for (let pass = 0; pass < 2; pass++) {
+                const avail = st.clientWidth - markOf(),
+                    need = date.scrollWidth;
+                if (!(avail > 0) || need <= avail + .5) break;
+                const base = parseFloat(getComputedStyle(st).fontSize),
+                    next = Math.max(base * (avail / need), floor);
+                if (next >= base - .1) break;
+                st.style.fontSize = next.toFixed(2) + 'px';
+            }
+        });
         c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
             g.classList.remove('is-tight');
+            g.classList.add('is-measure');
             const box = g.closest('.bbgl-lib-data');
             if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
+            g.classList.remove('is-measure');
         });
     }
 

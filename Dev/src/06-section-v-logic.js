@@ -2784,13 +2784,15 @@ function achBuildPage2(d) {
 
 // ─── Books: read state, active windows and the gains attributed to each ─────────
 // Built from the book log entries (2050 used / 2051 finished, bookId = the item) and the gym series.
-//   state    'unread' | 'reading' (used, not finished) | 'read' (finished; Memories is read on use)
+//   state    'unread' | 'reading' (a readPeriod book used, not finished) | 'read' (finished, or any
+//            other book once used — those take effect on use)
 //   stats    { str?, def?, spd?, dex?, tot } for window books — only stats trained in the window
+//   extra    same shape, gym-gains books only — the part of `stats` the book's bonus produced
 //   gain     number for stat books — the jump in that stat at payout
 //   partial  the window started before the log
 //   uncertain  a stat jump that doesn't match the book's +5% (a train missing around it)
-// Gym-gains books report only the extra from the book, assuming the bonus multiplies:
-// extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
+// Gym-gains books report the full gains over their window plus the book's share of them, assuming
+// the bonus multiplies: extra = gain × bonus / (1 + bonus). Memories And Mammaries (785) takes the effect of the book
 // read before it: a 31-day window from its use, or a stat payout 31 days after its use.
 const BOOK_USE_LOG = 2050,
     BOOK_FINISH_LOG = 2051,
@@ -2888,7 +2890,8 @@ function computeBookData(s) {
         }
         if (meta.training === 'gym') {
             const bonus = meta.stat ? 0.3 : 0.2;
-            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
+            out.stats = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, 1);
+            out.extra = sumGains(start, Math.min(end, nowTs + 1), meta.stat || null, bonus / (1 + bonus));
         } else if (meta.training === 'energy' || meta.training === 'happy') {
             out.stats = sumGains(start, Math.min(end, nowTs + 1), null, 1);
         }
@@ -2899,7 +2902,7 @@ function computeBookData(s) {
     Object.keys(BOOK_META).map(Number).forEach(id => {
         const meta = BOOK_META[id];
         if (id === MEMORIES_BOOK) {
-            result[id] = memories ? { state: 'read', start: memories.start, end: memories.end } : { state: 'unread' };
+            result[id] = memories ? { state: 'read', start: memories.start, end: memories.end, repeats: memories.repeats } : { state: 'unread' };
             return;
         }
         const w = windows[id];
@@ -2908,7 +2911,7 @@ function computeBookData(s) {
             return;
         }
         const finished = w.end != null;
-        const entry = { state: finished ? 'read' : 'reading', start: w.start, end: w.end };
+        const entry = { state: finished || !meta.readPeriod ? 'read' : 'reading', start: w.start, end: w.end };
         if (meta.training) Object.assign(entry, effectData(meta, w.start, finished ? w.end : nowTs + 1, w.end));
         result[id] = entry;
     });
