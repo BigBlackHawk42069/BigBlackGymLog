@@ -626,8 +626,6 @@
             };
             graphState.mode = (viewState.graphMode === 'gains' ? 'values' : viewState.graphMode) || 'values';
             graphState.activeStats = viewState.graphStats || ['str', 'spd'];
-            if (viewState.calYear) calendarState.year = viewState.calYear;
-            if (viewState.calMonth !== null && viewState.calMonth !== undefined) calendarState.month = viewState.calMonth;
         } catch (e) {
             Log.warn('State load error', e);
         }
@@ -643,7 +641,7 @@
     }
     if (localStorage.getItem(KEYS.DEMO) === '1') runtime.demoMode = true;
     if (sessionStorage.getItem(KEYS.DEV_MODE) === 'true') runtime.devMode = true;
-    if (!viewState.calYear) {
+    {
         const _n = TimeManager.now();
         calendarState.year = _n.year;
         calendarState.month = _n.month;
