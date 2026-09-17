@@ -4,8 +4,8 @@
      *  The Big & Black Part of the script.
      */
     const SEASONAL_HEADER_IMGS = [
-        'fal-hdr', 'fal-hdr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
-        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr'
+        'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
+        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
     ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
