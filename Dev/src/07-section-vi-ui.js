@@ -1781,10 +1781,16 @@
         })).filter(b => b.num && b.fill && b.container);
     }
 
+    function setLevelBarNumber(bar, level) {
+        bar.num.textContent = 'Lv ' + level;
+        bar.container.querySelectorAll('.bbgl-podium-digit').forEach(node => { node.textContent = level; });
+        bar.container.dataset.level = level;
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
-        bar.num.innerHTML = '<span class="bbgl-lv-prefix">Lv </span>' + level;
+        setLevelBarNumber(bar, level);
         bar.fill.style.width = ((pct / 100) * 90).toFixed(2) + '%';
         bar.fill.classList.toggle('level-full', pct >= 99.9);
         if (dom.panel) {
@@ -1880,7 +1886,7 @@
 
                     await new Promise(r => setTimeout(r, 200));
                     const nextLevel = currentProg.level + 1;
-                    bars.forEach(b => { b.num.innerHTML = '<span class="bbgl-lv-prefix">Lv </span>' + nextLevel; });
+                    bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
 
                     await new Promise(r => setTimeout(r, 650));
                     bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash'));
@@ -1951,7 +1957,7 @@
             bars.forEach(b => {
                 b.container.dataset.atrophy = toAtrophy;
                 b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
-                b.num.textContent = 'Lv ' + LEVEL_ATRO_START[toAtrophy];
+                setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
                 b.fill.style.transition = 'none';
                 b.fill.style.width = '0%';
                 b.fill.classList.remove('level-full');
@@ -1983,7 +1989,7 @@
         bars.forEach(b => {
             b.container.classList.remove('bbgl-crown-rise', 'bbgl-atrophied-flash');
             b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
-            b.num.textContent = 'Lv ' + LEVEL_ATRO_START[toAtrophy];
+            setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
             b.fill.style.transition = 'none';
             b.fill.style.width = '0%';
             b.fill.classList.remove('level-full');
@@ -3414,7 +3420,27 @@
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div></div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelPodiumSVG(prefix)}</div>`;
+    }
+
+    function buildLevelPodiumSVG(prefix) {
+        const id = `${prefix}-podium-${++levelTrackSvgSerial}`;
+        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="900">1</text>';
+        return `<svg class="bbgl-level-podium" viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="#85898b"/><stop offset=".12" stop-color="#363b3e"/><stop offset=".5" stop-color="#24282b"/><stop offset=".86" stop-color="#42474a"/><stop offset="1" stop-color="#111416"/></linearGradient>
+                <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#a5bdc5" stop-opacity=".4"/><stop offset=".35" stop-color="#daeef4" stop-opacity=".12"/><stop offset=".55" stop-color="#071015" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient>
+                <mask id="${id}-holes"><rect width="100" height="38" fill="white"/><g fill="black">${digit}</g></mask>
+                <clipPath id="${id}-digits">${digit}</clipPath>
+            </defs>
+            <path d="M3 2H97V5H93V32H99V37H1V32H7V5H3Z" fill="url(#${id}-metal)" stroke="#111" stroke-width="1" mask="url(#${id}-holes)"/>
+            <path d="M4 2H96M8 6H92M2 33H98" stroke="#adb2b5" stroke-opacity=".65"/>
+            <path d="M8 7V31M92 7V31M2 36H98" stroke="#07090b"/>
+            <g fill="none" stroke="#b4c0c5" stroke-opacity=".6" stroke-width=".8">${digit}</g>
+            <rect x="8" y="7" width="84" height="24" fill="url(#${id}-glass)" clip-path="url(#${id}-digits)"/>
+            <text x="17" y="19" fill="#a6adaf" font-family="Arial, sans-serif" font-size="6" font-weight="bold">LV</text>
+            <g fill="#15191b" stroke="#82898c" stroke-width=".6"><circle cx="11" cy="9" r="1.4"/><circle cx="89" cy="9" r="1.4"/><circle cx="11" cy="28" r="1.4"/><circle cx="89" cy="28" r="1.4"/></g>
+        </svg>`;
     }
 
     function getDashboardHTML() {

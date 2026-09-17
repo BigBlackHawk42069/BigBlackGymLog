@@ -2128,7 +2128,7 @@
                        clips the sides and bottom, so the pill shows above the bar. */
                     #bbgl-gym-level-container .bbgl-bestgym {
                         position: absolute;
-                        top: -18px;
+                        top: -28px;
                         left: 0;
                         justify-content: flex-start;
                         z-index: 4;
@@ -5928,10 +5928,19 @@
                         flex: 0 0 var(--bbgl-header-height);
                         --bbgl-header-overlap: 9px;
                         overflow: visible;
-                        z-index: 20;
+                        /* No z-index: the header's layers (level bar z10, open title group z30)
+                           rank directly against .bbgl-grid-container (z11), so the level podium
+                           tucks behind the week row while open dropdowns still paint over the
+                           calendar. */
                         display: flex;
                         flex-direction: column;
                         justify-content: flex-end;
+                    }
+
+                    /* Where the wrapper is its own layer anyway (will-change in narrow page mode),
+                       lift the whole header over the calendar while a dropdown is open. */
+                    .bbgl-header-wrapper:has(.bbgl-dropdown-menu.show) {
+                        z-index: 30;
                     }
 
                     .bbgl-header-bg {
@@ -5946,7 +5955,7 @@
                         background-size: calc(100% + 1px) calc(100% + var(--bbgl-header-crop-b, 0px));
                         background-position: left var(--bbgl-header-pos-y, bottom);
                         opacity: 0.85;
-                        z-index: -1;
+                        z-index: 0;
                         pointer-events: none;
                         border-radius: 3px 3px 0 0;
                         clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
@@ -6356,7 +6365,9 @@
                         overflow: hidden;
                         min-height: 0;
                         position: relative;
-                        z-index: 1;
+                        /* Above #bbgl-level-container (z10) so the level podium tucks behind
+                           the week row; below an open title group (z30). */
+                        z-index: 11;
                     }
 
                     .bbgl-week-row {
@@ -6371,6 +6382,9 @@
                         padding-bottom: 1px;
                         border-top: none;
                         flex: 0 0 auto;
+                        /* Same gray as the panel showing through it, but solid so the level
+                           podium tucks behind it. */
+                        background: #333;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-week-row {
@@ -6380,6 +6394,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-week-row {
+                        background: #2a2a2a;
                         font-size: clamp(11px, calc(11px + 4px * var(--bbgl-page-t)), 15px);
                         padding-top: clamp(3px, calc(3px + 5px * var(--bbgl-page-t)), 8px);
                         margin-bottom: clamp(2px, calc(2px + 2px * var(--bbgl-page-t)), 4px);
@@ -7614,8 +7629,8 @@
                         100% { opacity: 0; transform: translateX(-50%) scale(1); }
                     }
 
-                    /* The container (flag + track + fill) sits at z-index:10, above
-                       .bbgl-grid-container (auto/0), so it always paints in front of the
+                    /* The container (flag + track + fill) sits at z-index:10, just
+                       under .bbgl-grid-container (z11), and normally doesn't overlap the
                        calendar. To let the flag actually dip *behind* the calendar rather than
                        just sliding down over it, drop the whole container below the grid for the
                        middle of the tuck/rise motion, then restore it once the flag is settled
@@ -7707,9 +7722,11 @@
                         --bbgl-exp-growth: 4px;
                     }
 
-                    #bbgl-panel.bbgl-expanded #bbgl-level-bg,
-                    #bbgl-panel.bbgl-expanded #bbgl-level-track {
+                    #bbgl-panel.bbgl-expanded #bbgl-level-bg {
                         height: 18px;
+                    }
+                    #bbgl-panel.bbgl-expanded #bbgl-level-container {
+                        --bbgl-track-box-base: 18px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-num {
@@ -7722,9 +7739,11 @@
                         --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
 
-                    #bbgl-panel.bbgl-mode-page #bbgl-level-bg,
-                    #bbgl-panel.bbgl-mode-page #bbgl-level-track {
+                    #bbgl-panel.bbgl-mode-page #bbgl-level-bg {
                         height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
+                    }
+                    #bbgl-panel.bbgl-mode-page #bbgl-level-container {
+                        --bbgl-track-box-base: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-num {
@@ -7736,7 +7755,7 @@
                         position: relative;
                         top: -1px;
                         width: 100%;
-                        margin-top: 30px;
+                        margin-top: 36px;
                         margin-bottom: -1px;
                         --bbgl-pedestal-track-h: 12px;
                         --bbgl-exp-growth: 4px;
@@ -7746,6 +7765,13 @@
                         align-items: center;
                         container-type: inline-size;
                         clip-path: inset(-9999px 0 0 0);
+                    }
+
+                    /* Torn's gym content (the stat cards) is injected right after the bar; lift it
+                       one layer above so the level podium tucks behind the cards. */
+                    #bbgl-gym-level-container + [class*="gymContent___"] {
+                        position: relative;
+                        z-index: 1;
                     }
 
                     #bbgl-gym-level-num {
@@ -8094,6 +8120,82 @@
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num::before {
                         content: none;
                     }
+
+                    .bbgl-exp-bar {
+                        --bbgl-podium-w: calc(var(--crwn-s, 38px) * 1.3 + 10px);
+                        --bbgl-podium-rise: 2px;
+                        /* Extra tube + housing height, growing upward so the tube centers behind the
+                           podium. The podium itself doesn't move. */
+                        --bbgl-tube-extra: 2px;
+                        --bbgl-podium-lift: 2px;
+                        --bbgl-podium-h: calc(var(--bbgl-track-h) + var(--bbgl-podium-rise) * 2);
+                        /* Track box = the mode's base track height plus the extra. */
+                        --bbgl-track-box: calc(var(--bbgl-track-box-base, var(--bbgl-track-h)) + var(--bbgl-tube-extra));
+                        /* Fill is centered on the track box (its gradient reads from its own center).
+                           The visible band is the middle 30-70% of the track box, and the podium notch
+                           is offset to where the podium actually sits. All measured from the fill's top. */
+                        --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-podium-h)) / 2);
+                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top));
+                        --bbgl-band-bot: calc(var(--bbgl-track-box) * .7 - var(--bbgl-fill-top));
+                        /* Shifts the fill band down without moving the podium notch. */
+                        --bbgl-fill-nudge: 1px;
+                        --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-podium-rise) - var(--bbgl-podium-lift) - var(--bbgl-podium-h) - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
+                        --bbgl-notch-bot: calc(var(--bbgl-notch-top) + var(--bbgl-podium-h));
+                    }
+                    .bbgl-exp-bar::after { content: none; }
+                    .bbgl-exp-bar::before {
+                        content: '';
+                        position: absolute;
+                        left: 50%;
+                        bottom: calc(3px - var(--bbgl-podium-rise) + var(--bbgl-podium-lift));
+                        width: calc(var(--bbgl-podium-w) * .84);
+                        height: calc(var(--bbgl-podium-h) - 7px);
+                        transform: translateX(-50%);
+                        background: linear-gradient(180deg, #0a141b, #52606a 42%, #26343c 62%, #10191f);
+                        z-index: 1;
+                        pointer-events: none;
+                    }
+                    .bbgl-level-podium {
+                        position: absolute;
+                        left: 50%;
+                        bottom: calc(-1px - var(--bbgl-podium-rise) + var(--bbgl-podium-lift));
+                        transform: translateX(-50%);
+                        width: var(--bbgl-podium-w);
+                        height: var(--bbgl-podium-h);
+                        z-index: 4;
+                        overflow: visible;
+                        pointer-events: none;
+                    }
+                    .bbgl-exp-bar .bbgl-exp-track {
+                        height: var(--bbgl-track-box);
+                        overflow: visible;
+                        container-type: inline-size;
+                    }
+                    #bbgl-level-fill,
+                    #bbgl-gym-level-fill {
+                        top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge));
+                        height: var(--bbgl-podium-h);
+                        border-radius: 0;
+                        clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-band-top), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                    }
+                    .bbgl-exp-bar .bbgl-exp-flag {
+                        position: absolute;
+                        bottom: calc(var(--bbgl-podium-h) - var(--bbgl-podium-rise) + var(--bbgl-podium-lift) - 2px);
+                        width: 1px;
+                        height: 0;
+                        clip-path: inset(-9999px -9999px 0 -9999px);
+                    }
+                    #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before { bottom: 0; }
+                    #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
+                    #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
+                        position: absolute;
+                        width: 1px;
+                        height: 1px;
+                        overflow: hidden;
+                        clip-path: inset(50%);
+                    }
+                    .bbgl-level-up-flash .bbgl-level-podium { animation: bbgl-lvl-flash-text .8s ease-out; }
 
                     /* ─── Endocrine Enhancers Page ──────────────────────── */
 
@@ -21421,10 +21523,16 @@ const BestGymController = {
         })).filter(b => b.num && b.fill && b.container);
     }
 
+    function setLevelBarNumber(bar, level) {
+        bar.num.textContent = 'Lv ' + level;
+        bar.container.querySelectorAll('.bbgl-podium-digit').forEach(node => { node.textContent = level; });
+        bar.container.dataset.level = level;
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
-        bar.num.innerHTML = '<span class="bbgl-lv-prefix">Lv </span>' + level;
+        setLevelBarNumber(bar, level);
         bar.fill.style.width = ((pct / 100) * 90).toFixed(2) + '%';
         bar.fill.classList.toggle('level-full', pct >= 99.9);
         if (dom.panel) {
@@ -21520,7 +21628,7 @@ const BestGymController = {
 
                     await new Promise(r => setTimeout(r, 200));
                     const nextLevel = currentProg.level + 1;
-                    bars.forEach(b => { b.num.innerHTML = '<span class="bbgl-lv-prefix">Lv </span>' + nextLevel; });
+                    bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
 
                     await new Promise(r => setTimeout(r, 650));
                     bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash'));
@@ -21591,7 +21699,7 @@ const BestGymController = {
             bars.forEach(b => {
                 b.container.dataset.atrophy = toAtrophy;
                 b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
-                b.num.textContent = 'Lv ' + LEVEL_ATRO_START[toAtrophy];
+                setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
                 b.fill.style.transition = 'none';
                 b.fill.style.width = '0%';
                 b.fill.classList.remove('level-full');
@@ -21623,7 +21731,7 @@ const BestGymController = {
         bars.forEach(b => {
             b.container.classList.remove('bbgl-crown-rise', 'bbgl-atrophied-flash');
             b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
-            b.num.textContent = 'Lv ' + LEVEL_ATRO_START[toAtrophy];
+            setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
             b.fill.style.transition = 'none';
             b.fill.style.width = '0%';
             b.fill.classList.remove('level-full');
@@ -23054,7 +23162,27 @@ const BestGymController = {
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div></div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelPodiumSVG(prefix)}</div>`;
+    }
+
+    function buildLevelPodiumSVG(prefix) {
+        const id = `${prefix}-podium-${++levelTrackSvgSerial}`;
+        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="900">1</text>';
+        return `<svg class="bbgl-level-podium" viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+                <linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="#85898b"/><stop offset=".12" stop-color="#363b3e"/><stop offset=".5" stop-color="#24282b"/><stop offset=".86" stop-color="#42474a"/><stop offset="1" stop-color="#111416"/></linearGradient>
+                <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#a5bdc5" stop-opacity=".4"/><stop offset=".35" stop-color="#daeef4" stop-opacity=".12"/><stop offset=".55" stop-color="#071015" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient>
+                <mask id="${id}-holes"><rect width="100" height="38" fill="white"/><g fill="black">${digit}</g></mask>
+                <clipPath id="${id}-digits">${digit}</clipPath>
+            </defs>
+            <path d="M3 2H97V5H93V32H99V37H1V32H7V5H3Z" fill="url(#${id}-metal)" stroke="#111" stroke-width="1" mask="url(#${id}-holes)"/>
+            <path d="M4 2H96M8 6H92M2 33H98" stroke="#adb2b5" stroke-opacity=".65"/>
+            <path d="M8 7V31M92 7V31M2 36H98" stroke="#07090b"/>
+            <g fill="none" stroke="#b4c0c5" stroke-opacity=".6" stroke-width=".8">${digit}</g>
+            <rect x="8" y="7" width="84" height="24" fill="url(#${id}-glass)" clip-path="url(#${id}-digits)"/>
+            <text x="17" y="19" fill="#a6adaf" font-family="Arial, sans-serif" font-size="6" font-weight="bold">LV</text>
+            <g fill="#15191b" stroke="#82898c" stroke-width=".6"><circle cx="11" cy="9" r="1.4"/><circle cx="89" cy="9" r="1.4"/><circle cx="11" cy="28" r="1.4"/><circle cx="89" cy="28" r="1.4"/></g>
+        </svg>`;
     }
 
     function getDashboardHTML() {
