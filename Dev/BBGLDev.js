@@ -1714,8 +1714,8 @@
      *  The Big & Black Part of the script.
      */
     const SEASONAL_HEADER_IMGS = [
-        'wntr-hdr', 'wntr-hdr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
-        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wntr-hdr'
+        'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
+        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
     ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
@@ -5935,8 +5935,7 @@
                         justify-content: flex-end;
                     }
 
-                    .bbgl-header-wrapper::before {
-                        content: "";
+                    .bbgl-header-bg {
                         position: absolute;
                         top: 0;
                         left: 0;
@@ -5945,8 +5944,8 @@
                         width: auto;
                         height: auto;
                         background-image: var(--bbgl-header-img);
-                        background-size: 100% 100%;
-                        background-position: center bottom;
+                        background-size: calc(100% + 1px) calc(100% + var(--bbgl-header-crop-b, 0px));
+                        background-position: left var(--bbgl-header-pos-y, bottom);
                         opacity: 0.85;
                         z-index: -1;
                         pointer-events: none;
@@ -6986,6 +6985,7 @@
                         height: 12px;
                         --bbgl-tab-w: 28px;
                         --bbgl-track-h: 12px;
+                        --bbgl-pedestal-rise: 6px;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-anchor {
@@ -7337,10 +7337,11 @@
                         bottom: 0;
                         left: 0;
                         right: 0;
-                        height: 18px;
+                        height: 21px;
                         /* Track height for this mode, shared by the flag-clip cut line and the
                            A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
-                        --bbgl-track-h: 9px;
+                        --bbgl-pedestal-track-h: 9px;
+                        --bbgl-exp-growth: 3px;
                         --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
@@ -7361,7 +7362,7 @@
                         bottom: 0;
                         left: 0;
                         right: 0;
-                        height: 9px;
+                        height: 12px;
                         box-shadow: 0 -1px 2px rgba(0,0,0,.45), 0 -3px 6px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.55), 0 3px 5px rgba(0,0,0,.32), 0 6px 9px rgba(0,0,0,.13);
                         pointer-events: none;
                         will-change: transform; /* same reason as #bbgl-level-container */
@@ -7379,7 +7380,7 @@
                        translateY()s through it during the crown-tuck/rise animation, instead of
                        the clip boundary sliding along with the badge (which is what happens if
                        the clip is on the transformed badge itself). */
-                    #bbgl-level-flag-clip {
+                    .bbgl-exp-flag {
                         position: relative;
                         z-index: 3;
                         flex-shrink: 0;
@@ -7395,7 +7396,7 @@
                        block individually — whichever one is actually generated (content: '' set
                        by its own [data-atrophy="N"]-scoped rule) picks this up. */
                     #bbgl-level-flag-clip::before,
-                    #bbgl-gym-level-container::before {
+                    #bbgl-gym-level-container .bbgl-exp-flag::before {
                         pointer-events: auto;
                     }
 
@@ -7416,12 +7417,15 @@
                         display: none;
                     }
 
-                    #bbgl-level-track,
-                    #bbgl-gym-level-track {
+                    .bbgl-exp-bar {
+                        --bbgl-track-h: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-exp-growth));
+                    }
+
+                    .bbgl-exp-track {
                         position: relative;
                         z-index: 2;
                         width: 100%;
-                        height: 9px;
+                        height: var(--bbgl-track-h);
                         flex-shrink: 0;
                         border-radius: 0;
                         overflow: hidden;
@@ -7447,14 +7451,14 @@
                         z-index: 1;
                     }
 
-                    #bbgl-level-container::after {
+                    .bbgl-exp-bar::after {
                         content: '';
                         position: absolute;
                         left: 50%;
                         bottom: -1px;
                         transform: translateX(-50%);
                         width: calc(var(--crwn-s, 38px) * 1.3 + 10px);
-                        height: calc(var(--bbgl-track-h) + var(--bbgl-pedestal-rise) + 1px);
+                        height: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-pedestal-rise) + 1px);
                         border-radius: 2px 2px 1px 1px;
                         clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% 4px, 92% 4px, 88% calc(100% - 4px), 100% calc(100% - 4px), 100% 100%, 0 100%, 0 calc(100% - 4px), 12% calc(100% - 4px), 8% 4px, 0 4px, 0 2px);
                         background: linear-gradient(180deg, #a0a0a0 0 1px, #505050 1px 2px, #292929 2px 4px, #080808 4px 5px, transparent 5px calc(100% - 4px), #626262 calc(100% - 4px) calc(100% - 3px), #303030 calc(100% - 3px) calc(100% - 1px), #101010 calc(100% - 1px)), repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), linear-gradient(90deg, #111 0%, #424242 13%, #272727 30%, #202020 50%, #272727 70%, #424242 87%, #111 100%);
@@ -7467,17 +7471,16 @@
                         display: none;
                     }
 
-                    #bbgl-level-track .bbgl-calendar-glass {
+                    .bbgl-exp-track .bbgl-calendar-glass {
                         display: inline;
                     }
 
                     #bbgl-level-bg,
-                    #bbgl-level-track .bbgl-level-recess {
+                    .bbgl-exp-track .bbgl-level-recess {
                         display: none;
                     }
 
-                    #bbgl-level-bg,
-                    #bbgl-gym-level-track {
+                    #bbgl-level-bg {
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
@@ -7644,12 +7647,12 @@
                     /* Diamond tuck/rise. The tuck class is on the container; gym's diamond is
                        the container's own ::before, main panel's is the flag-clip wrapper's
                        ::before, so both are targeted. */
-                    .bbgl-crown-tuck::before,
+                    .bbgl-crown-tuck .bbgl-exp-flag::before,
                     .bbgl-crown-tuck #bbgl-level-flag-clip::before {
                         animation: bbgl-crown-tuck-kf 0.35s ease-in-out forwards;
                     }
 
-                    .bbgl-crown-rise::before,
+                    .bbgl-crown-rise .bbgl-exp-flag::before,
                     .bbgl-crown-rise #bbgl-level-flag-clip::before {
                         animation: bbgl-crown-rise-kf 0.9s ease-out forwards;
                     }
@@ -7681,7 +7684,7 @@
                         animation: bbgl-atrophied-flash-kf 0.7s ease-out forwards;
                     }
 
-                    .bbgl-level-up-flash::before,
+                    .bbgl-level-up-flash .bbgl-exp-flag::before,
                     .bbgl-level-up-flash #bbgl-level-flag-clip::before {
                         animation: bbgl-lvl-flash-dmnd 0.8s ease-out;
                     }
@@ -7700,13 +7703,14 @@
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-container {
-                        height: 22px;
-                        --bbgl-track-h: 14px;
+                        height: 26px;
+                        --bbgl-pedestal-track-h: 14px;
+                        --bbgl-exp-growth: 4px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-bg,
                     #bbgl-panel.bbgl-expanded #bbgl-level-track {
-                        height: 14px;
+                        height: 18px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-num {
@@ -7714,13 +7718,14 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-container {
-                        height: clamp(18px, calc(18px + 8px * var(--bbgl-page-t)), 26px);
-                        --bbgl-track-h: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        height: clamp(21px, calc(21px + 9px * var(--bbgl-page-t)), 30px);
+                        --bbgl-pedestal-track-h: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-bg,
                     #bbgl-panel.bbgl-mode-page #bbgl-level-track {
-                        height: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-num {
@@ -7730,23 +7735,18 @@
                     /* ─── Gym Page Level Bar — Structural ───────────────── */
                     #bbgl-gym-level-container {
                         position: relative;
-                        top: 1px;
+                        top: -1px;
                         width: 100%;
                         margin-top: 30px;
-                        margin-bottom: 2px;
-                        --bbgl-track-h: 12px;
+                        margin-bottom: -1px;
+                        --bbgl-pedestal-track-h: 12px;
+                        --bbgl-exp-growth: 4px;
+                        --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
                         container-type: inline-size;
                         clip-path: inset(-9999px 0 0 0);
-                    }
-
-                    /* Scoped override: the shared #bbgl-level-track / #bbgl-gym-level-track rule
-                       hardcodes 9px so the main panel bar is unaffected; the gym page bar tracks
-                       --bbgl-track-h so it stays in sync with the crown's anchor position above. */
-                    #bbgl-gym-level-track {
-                        height: var(--bbgl-track-h);
                     }
 
                     #bbgl-gym-level-num {
@@ -7863,7 +7863,7 @@
                        own bottom edge is the bottom of the track, so the top of the track sits
                        --bbgl-track-h above it. Same flush, no-overlap placement as the main
                        panel version. */
-                    #bbgl-gym-level-container[data-atrophy="0"]::before {
+                    #bbgl-gym-level-container[data-atrophy="0"] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         bottom: var(--bbgl-track-h);
@@ -7993,7 +7993,7 @@
 
                     /* A2 badge slot — gym page, old structure (no flag-clip wrapper), keeps its
                        own self-clip. No background image set; see main panel slot above. */
-                    #bbgl-gym-level-container[data-atrophy="2"]::before {
+                    #bbgl-gym-level-container[data-atrophy="2"] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         bottom: var(--dmnd-b);
@@ -8052,7 +8052,7 @@
                     #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
-                    #bbgl-gym-level-container[data-atrophy]::before {
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         left: 50%;
@@ -8065,12 +8065,12 @@
                         pointer-events: none;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before {
-                        bottom: var(--bbgl-pedestal-rise);
+                        bottom: calc(var(--bbgl-pedestal-rise) - var(--bbgl-exp-growth));
                         z-index: -1;
                     }
-                    #bbgl-gym-level-container[data-atrophy]::before {
-                        bottom: var(--bbgl-track-h);
-                        z-index: 1;
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
+                        bottom: var(--bbgl-pedestal-rise);
+                        z-index: -1;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
@@ -8086,6 +8086,9 @@
                         text-shadow: 0 1px 2px #000, 0 0 3px #000;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num {
+                        top: calc(-1 * var(--bbgl-pedestal-rise) + var(--bbgl-exp-growth));
+                    }
+                    #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
                         top: calc(-1 * var(--bbgl-pedestal-rise));
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-num::before,
@@ -14184,6 +14187,7 @@
         dom.graphContainer = root.querySelector('#bbgl-graph-container');
         dom.graphSvg = root.querySelector('#bbgl-graph-svg');
         dom.calContainer = root.querySelector('#bbgl-cal-container');
+        dom.headerBg = root.querySelector('#bbgl-header-bg');
         dom.copyBtn = root.querySelector('#bbgl-copy-btn');
         dom.itemCounters = root.querySelector('#bbgl-item-counters');
         dom.popBtn = root.querySelector('#bbgl-pop-btn');
@@ -20290,6 +20294,9 @@ const BestGymController = {
             yt = dom.yearTrigger;
         dom.monthTrigger.textContent = CONSTANTS.MONTHS[m];
         dom.panel.style.setProperty('--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        const isSummer = m >= 5 && m <= 7;
+        dom.panel.style.setProperty('--bbgl-header-crop-b', isSummer ? '8px' : '0px');
+        dom.panel.style.setProperty('--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
         yt.textContent = y;
         yt.classList.remove('disabled');
         let f = new Date(y, m, 1),
@@ -22355,25 +22362,18 @@ const BestGymController = {
         const gymRoot = document.getElementById('gymroot');
         if (!gymRoot) return;
         if (document.getElementById('bbgl-gym-level-container')) return;
+        const properties = gymRoot.querySelector('[class*="properties___"]');
+        if (!properties) return;
+        const gymContent = properties.closest('[class*="gymContent___"]');
+        if (!gymContent) return;
 
-        const container = document.createElement('div');
-        container.id = 'bbgl-gym-level-container';
+        const template = document.createElement('template');
+        template.innerHTML = buildLevelBarHTML(true);
+        const container = template.content.firstElementChild;
+        const num = container.querySelector('#bbgl-gym-level-num');
+        const fill = container.querySelector('#bbgl-gym-level-fill');
 
-        const num = document.createElement('div');
-        num.id = 'bbgl-gym-level-num';
-
-        const track = document.createElement('div');
-        track.id = 'bbgl-gym-level-track';
-
-        const fill = document.createElement('div');
-        fill.id = 'bbgl-gym-level-fill';
-
-        track.innerHTML = buildEmptyLevelTrackSVG() + buildEmptyLevelTrackSVG(true);
-        track.appendChild(fill);
-        container.appendChild(num);
-        container.appendChild(track);
-
-        gymRoot.querySelector('[class*="gymContent___"]')?.insertAdjacentElement('beforebegin', container);
+        gymContent.insertAdjacentElement('beforebegin', container);
 
         DataController.buildProgressionCache();
         renderLevelBar({ num, fill, container }, getLiveLevelExp());
@@ -23022,12 +23022,11 @@ const BestGymController = {
 
     let levelTrackSvgSerial = 0;
 
-    function buildEmptyLevelTrackSVG(foreground = false) {
+    function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
         const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
-        const body = foreground
-            ? `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
+        const body = `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
                     <rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-smoked-glass)"/>
@@ -23035,9 +23034,7 @@ const BestGymController = {
                     <path d="M27 74H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="3"/>
                     <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
                 </g>
-                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><g class="bbgl-level-recess"><path d="M0 0H500V19H0Z" fill="#0b1109"/>
-                <path d="M0 77H500V100H0Z" fill="url(#lvl-channel-lower)"/>
-                <path d="M0 20H500" stroke="#020502" stroke-opacity=".9" stroke-width="4"/></g>
+                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
                 <rect width="16" height="100" fill="url(#lvl-housing)"/><rect x="484" width="16" height="100" fill="url(#lvl-housing)"/>
                 <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
                 <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
@@ -23051,15 +23048,20 @@ const BestGymController = {
                 <rect x="23" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/><rect x="475" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/>
                 <path d="M25.5 25V75 M474.5 25V75" stroke="#050708" stroke-opacity=".8" stroke-width=".8"/>
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
-                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`
-            : `<rect width="500" height="100" fill="#10160f"/><rect y="23" width="500" height="54" fill="#040805"/><rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="#83b29c" fill-opacity=".12"/>`;
-        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
+                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
+
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
+    }
+
+    function buildLevelBarHTML(gym = false) {
+        const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div></div>`;
     }
 
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div>${buildEmptyLevelTrackSVG(true)}</div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
@@ -25314,6 +25316,31 @@ const BestGymController = {
         ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), {
             once: true
         });
+
+        // Header background only slides when the season it depicts is actually about to change
+        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
+        // season leaves it static, matching how it only changes at season boundaries at all.
+        const hb = dom.headerBg;
+        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        if (headerChanging) {
+            hb.parentElement.querySelectorAll('.bbgl-header-bg-ghost').forEach(g => g.remove());
+            const hbGhost = hb.cloneNode(true);
+            hbGhost.id = '';
+            hbGhost.className += ' bbgl-header-bg-ghost';
+            hbGhost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
+            hb.parentElement.appendChild(hbGhost);
+            const removeHbGhost = () => {
+                if (hbGhost.parentElement) hbGhost.remove();
+            };
+            hbGhost.addEventListener('animationend', removeHbGhost, {
+                once: true
+            });
+            const hbGhostTimer = setTimeout(removeHbGhost, 400);
+            hbGhost.addEventListener('animationend', () => clearTimeout(hbGhostTimer), {
+                once: true
+            });
+        }
+
         calendarState.month = m;
         calendarState.year = y;
         viewState.calYear = y;
@@ -25328,6 +25355,16 @@ const BestGymController = {
         }, {
             once: true
         });
+        if (headerChanging) {
+            hb.style.willChange = 'transform';
+            hb.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
+            hb.addEventListener('animationend', () => {
+                hb.style.animation = '';
+                hb.style.willChange = 'auto';
+            }, {
+                once: true
+            });
+        }
     }
 
     // Steps one page in either direction. Bounds are enforced HERE, not at the call sites, so

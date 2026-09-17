@@ -211,6 +211,31 @@
         ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), {
             once: true
         });
+
+        // Header background only slides when the season it depicts is actually about to change
+        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
+        // season leaves it static, matching how it only changes at season boundaries at all.
+        const hb = dom.headerBg;
+        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        if (headerChanging) {
+            hb.parentElement.querySelectorAll('.bbgl-header-bg-ghost').forEach(g => g.remove());
+            const hbGhost = hb.cloneNode(true);
+            hbGhost.id = '';
+            hbGhost.className += ' bbgl-header-bg-ghost';
+            hbGhost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
+            hb.parentElement.appendChild(hbGhost);
+            const removeHbGhost = () => {
+                if (hbGhost.parentElement) hbGhost.remove();
+            };
+            hbGhost.addEventListener('animationend', removeHbGhost, {
+                once: true
+            });
+            const hbGhostTimer = setTimeout(removeHbGhost, 400);
+            hbGhost.addEventListener('animationend', () => clearTimeout(hbGhostTimer), {
+                once: true
+            });
+        }
+
         calendarState.month = m;
         calendarState.year = y;
         viewState.calYear = y;
@@ -225,6 +250,16 @@
         }, {
             once: true
         });
+        if (headerChanging) {
+            hb.style.willChange = 'transform';
+            hb.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
+            hb.addEventListener('animationend', () => {
+                hb.style.animation = '';
+                hb.style.willChange = 'auto';
+            }, {
+                once: true
+            });
+        }
     }
 
     // Steps one page in either direction. Bounds are enforced HERE, not at the call sites, so

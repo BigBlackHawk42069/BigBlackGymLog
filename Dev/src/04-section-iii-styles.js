@@ -4225,8 +4225,7 @@
                         justify-content: flex-end;
                     }
 
-                    .bbgl-header-wrapper::before {
-                        content: "";
+                    .bbgl-header-bg {
                         position: absolute;
                         top: 0;
                         left: 0;
@@ -4235,8 +4234,8 @@
                         width: auto;
                         height: auto;
                         background-image: var(--bbgl-header-img);
-                        background-size: 100% 100%;
-                        background-position: center bottom;
+                        background-size: calc(100% + 1px) calc(100% + var(--bbgl-header-crop-b, 0px));
+                        background-position: left var(--bbgl-header-pos-y, bottom);
                         opacity: 0.85;
                         z-index: -1;
                         pointer-events: none;
@@ -5276,6 +5275,7 @@
                         height: 12px;
                         --bbgl-tab-w: 28px;
                         --bbgl-track-h: 12px;
+                        --bbgl-pedestal-rise: 6px;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-weekly-anchor {
@@ -5627,10 +5627,11 @@
                         bottom: 0;
                         left: 0;
                         right: 0;
-                        height: 18px;
+                        height: 21px;
                         /* Track height for this mode, shared by the flag-clip cut line and the
                            A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
-                        --bbgl-track-h: 9px;
+                        --bbgl-pedestal-track-h: 9px;
+                        --bbgl-exp-growth: 3px;
                         --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
@@ -5651,7 +5652,7 @@
                         bottom: 0;
                         left: 0;
                         right: 0;
-                        height: 9px;
+                        height: 12px;
                         box-shadow: 0 -1px 2px rgba(0,0,0,.45), 0 -3px 6px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.55), 0 3px 5px rgba(0,0,0,.32), 0 6px 9px rgba(0,0,0,.13);
                         pointer-events: none;
                         will-change: transform; /* same reason as #bbgl-level-container */
@@ -5669,7 +5670,7 @@
                        translateY()s through it during the crown-tuck/rise animation, instead of
                        the clip boundary sliding along with the badge (which is what happens if
                        the clip is on the transformed badge itself). */
-                    #bbgl-level-flag-clip {
+                    .bbgl-exp-flag {
                         position: relative;
                         z-index: 3;
                         flex-shrink: 0;
@@ -5685,7 +5686,7 @@
                        block individually — whichever one is actually generated (content: '' set
                        by its own [data-atrophy="N"]-scoped rule) picks this up. */
                     #bbgl-level-flag-clip::before,
-                    #bbgl-gym-level-container::before {
+                    #bbgl-gym-level-container .bbgl-exp-flag::before {
                         pointer-events: auto;
                     }
 
@@ -5706,12 +5707,15 @@
                         display: none;
                     }
 
-                    #bbgl-level-track,
-                    #bbgl-gym-level-track {
+                    .bbgl-exp-bar {
+                        --bbgl-track-h: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-exp-growth));
+                    }
+
+                    .bbgl-exp-track {
                         position: relative;
                         z-index: 2;
                         width: 100%;
-                        height: 9px;
+                        height: var(--bbgl-track-h);
                         flex-shrink: 0;
                         border-radius: 0;
                         overflow: hidden;
@@ -5737,14 +5741,14 @@
                         z-index: 1;
                     }
 
-                    #bbgl-level-container::after {
+                    .bbgl-exp-bar::after {
                         content: '';
                         position: absolute;
                         left: 50%;
                         bottom: -1px;
                         transform: translateX(-50%);
                         width: calc(var(--crwn-s, 38px) * 1.3 + 10px);
-                        height: calc(var(--bbgl-track-h) + var(--bbgl-pedestal-rise) + 1px);
+                        height: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-pedestal-rise) + 1px);
                         border-radius: 2px 2px 1px 1px;
                         clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% 4px, 92% 4px, 88% calc(100% - 4px), 100% calc(100% - 4px), 100% 100%, 0 100%, 0 calc(100% - 4px), 12% calc(100% - 4px), 8% 4px, 0 4px, 0 2px);
                         background: linear-gradient(180deg, #a0a0a0 0 1px, #505050 1px 2px, #292929 2px 4px, #080808 4px 5px, transparent 5px calc(100% - 4px), #626262 calc(100% - 4px) calc(100% - 3px), #303030 calc(100% - 3px) calc(100% - 1px), #101010 calc(100% - 1px)), repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), linear-gradient(90deg, #111 0%, #424242 13%, #272727 30%, #202020 50%, #272727 70%, #424242 87%, #111 100%);
@@ -5757,17 +5761,16 @@
                         display: none;
                     }
 
-                    #bbgl-level-track .bbgl-calendar-glass {
+                    .bbgl-exp-track .bbgl-calendar-glass {
                         display: inline;
                     }
 
                     #bbgl-level-bg,
-                    #bbgl-level-track .bbgl-level-recess {
+                    .bbgl-exp-track .bbgl-level-recess {
                         display: none;
                     }
 
-                    #bbgl-level-bg,
-                    #bbgl-gym-level-track {
+                    #bbgl-level-bg {
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
                     }
 
@@ -5934,12 +5937,12 @@
                     /* Diamond tuck/rise. The tuck class is on the container; gym's diamond is
                        the container's own ::before, main panel's is the flag-clip wrapper's
                        ::before, so both are targeted. */
-                    .bbgl-crown-tuck::before,
+                    .bbgl-crown-tuck .bbgl-exp-flag::before,
                     .bbgl-crown-tuck #bbgl-level-flag-clip::before {
                         animation: bbgl-crown-tuck-kf 0.35s ease-in-out forwards;
                     }
 
-                    .bbgl-crown-rise::before,
+                    .bbgl-crown-rise .bbgl-exp-flag::before,
                     .bbgl-crown-rise #bbgl-level-flag-clip::before {
                         animation: bbgl-crown-rise-kf 0.9s ease-out forwards;
                     }
@@ -5971,7 +5974,7 @@
                         animation: bbgl-atrophied-flash-kf 0.7s ease-out forwards;
                     }
 
-                    .bbgl-level-up-flash::before,
+                    .bbgl-level-up-flash .bbgl-exp-flag::before,
                     .bbgl-level-up-flash #bbgl-level-flag-clip::before {
                         animation: bbgl-lvl-flash-dmnd 0.8s ease-out;
                     }
@@ -5990,13 +5993,14 @@
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-container {
-                        height: 22px;
-                        --bbgl-track-h: 14px;
+                        height: 26px;
+                        --bbgl-pedestal-track-h: 14px;
+                        --bbgl-exp-growth: 4px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-bg,
                     #bbgl-panel.bbgl-expanded #bbgl-level-track {
-                        height: 14px;
+                        height: 18px;
                     }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-num {
@@ -6004,13 +6008,14 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-container {
-                        height: clamp(18px, calc(18px + 8px * var(--bbgl-page-t)), 26px);
-                        --bbgl-track-h: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        height: clamp(21px, calc(21px + 9px * var(--bbgl-page-t)), 30px);
+                        --bbgl-pedestal-track-h: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-bg,
                     #bbgl-panel.bbgl-mode-page #bbgl-level-track {
-                        height: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
+                        height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-num {
@@ -6020,23 +6025,18 @@
                     /* ─── Gym Page Level Bar — Structural ───────────────── */
                     #bbgl-gym-level-container {
                         position: relative;
-                        top: 1px;
+                        top: -1px;
                         width: 100%;
                         margin-top: 30px;
-                        margin-bottom: 2px;
-                        --bbgl-track-h: 12px;
+                        margin-bottom: -1px;
+                        --bbgl-pedestal-track-h: 12px;
+                        --bbgl-exp-growth: 4px;
+                        --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
                         container-type: inline-size;
                         clip-path: inset(-9999px 0 0 0);
-                    }
-
-                    /* Scoped override: the shared #bbgl-level-track / #bbgl-gym-level-track rule
-                       hardcodes 9px so the main panel bar is unaffected; the gym page bar tracks
-                       --bbgl-track-h so it stays in sync with the crown's anchor position above. */
-                    #bbgl-gym-level-track {
-                        height: var(--bbgl-track-h);
                     }
 
                     #bbgl-gym-level-num {
@@ -6153,7 +6153,7 @@
                        own bottom edge is the bottom of the track, so the top of the track sits
                        --bbgl-track-h above it. Same flush, no-overlap placement as the main
                        panel version. */
-                    #bbgl-gym-level-container[data-atrophy="0"]::before {
+                    #bbgl-gym-level-container[data-atrophy="0"] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         bottom: var(--bbgl-track-h);
@@ -6283,7 +6283,7 @@
 
                     /* A2 badge slot — gym page, old structure (no flag-clip wrapper), keeps its
                        own self-clip. No background image set; see main panel slot above. */
-                    #bbgl-gym-level-container[data-atrophy="2"]::before {
+                    #bbgl-gym-level-container[data-atrophy="2"] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         bottom: var(--dmnd-b);
@@ -6342,7 +6342,7 @@
                     #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
-                    #bbgl-gym-level-container[data-atrophy]::before {
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         left: 50%;
@@ -6355,12 +6355,12 @@
                         pointer-events: none;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before {
-                        bottom: var(--bbgl-pedestal-rise);
+                        bottom: calc(var(--bbgl-pedestal-rise) - var(--bbgl-exp-growth));
                         z-index: -1;
                     }
-                    #bbgl-gym-level-container[data-atrophy]::before {
-                        bottom: var(--bbgl-track-h);
-                        z-index: 1;
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
+                        bottom: var(--bbgl-pedestal-rise);
+                        z-index: -1;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
@@ -6376,6 +6376,9 @@
                         text-shadow: 0 1px 2px #000, 0 0 3px #000;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num {
+                        top: calc(-1 * var(--bbgl-pedestal-rise) + var(--bbgl-exp-growth));
+                    }
+                    #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
                         top: calc(-1 * var(--bbgl-pedestal-rise));
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-num::before,
@@ -12474,6 +12477,7 @@
         dom.graphContainer = root.querySelector('#bbgl-graph-container');
         dom.graphSvg = root.querySelector('#bbgl-graph-svg');
         dom.calContainer = root.querySelector('#bbgl-cal-container');
+        dom.headerBg = root.querySelector('#bbgl-header-bg');
         dom.copyBtn = root.querySelector('#bbgl-copy-btn');
         dom.itemCounters = root.querySelector('#bbgl-item-counters');
         dom.popBtn = root.querySelector('#bbgl-pop-btn');
