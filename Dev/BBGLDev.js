@@ -1714,7 +1714,7 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/wntr-hdr.webp"),
+        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/sprng-hdr.png"),
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
         NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.webp"),
@@ -23014,7 +23014,10 @@ const BestGymController = {
         return `<div class="close-settings-btn" title="Close Settings">${ICONS.CHECK}</div><div class="bbgl-settings-scroll-area">${buildSettingsFeaturesSection()}${buildSettingsLogFormatSection()}${buildSettingsDataSection()}${buildSettingsApiSection()}${buildSettingsInfoSection()}</div>`;
     }
 
+    let levelTrackSvgSerial = 0;
+
     function buildEmptyLevelTrackSVG(foreground = false) {
+        const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
         const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
         const body = foreground
@@ -23044,7 +23047,7 @@ const BestGymController = {
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
                 <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`
             : `<rect width="500" height="100" fill="#10160f"/><rect y="23" width="500" height="54" fill="#040805"/><rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="#83b29c" fill-opacity=".12"/>`;
-        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`;
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
 
     function getDashboardHTML() {
