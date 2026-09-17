@@ -414,14 +414,15 @@
                         margin-top: 8px;
                     }
 
-                    /* Gym page: sits in the empty top-right of the EXP bar top margin (30px, see
+                    /* Gym page: sits in the empty top-left of the EXP bar top margin (30px, see
                        #bbgl-gym-level-container). Absolute, so the bar layout and size never move;
                        top -24px sits the 24px pill just above the bar. The container clip-path only
                        clips the sides and bottom, so the pill shows above the bar. */
                     #bbgl-gym-level-container .bbgl-bestgym {
                         position: absolute;
-                        top: -24px;
-                        right: 0;
+                        top: -18px;
+                        left: 0;
+                        justify-content: flex-start;
                         z-index: 4;
                         margin-top: 0;
                     }

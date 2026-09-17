@@ -2122,14 +2122,15 @@
                         margin-top: 8px;
                     }
 
-                    /* Gym page: sits in the empty top-right of the EXP bar top margin (30px, see
+                    /* Gym page: sits in the empty top-left of the EXP bar top margin (30px, see
                        #bbgl-gym-level-container). Absolute, so the bar layout and size never move;
                        top -24px sits the 24px pill just above the bar. The container clip-path only
                        clips the sides and bottom, so the pill shows above the bar. */
                     #bbgl-gym-level-container .bbgl-bestgym {
                         position: absolute;
-                        top: -24px;
-                        right: 0;
+                        top: -18px;
+                        left: 0;
+                        justify-content: flex-start;
                         z-index: 4;
                         margin-top: 0;
                     }
@@ -26846,6 +26847,30 @@ const BestGymController = {
             this.blur();
             openFeatureGuideModal();
         };
+        // Torn's fly-out sidebar treats any element under a `data-prevent-flyout-swipe="true"`
+        // ancestor as ineligible for its own edge-swipe gesture detection (checked live via
+        // closest() on each touchstart), so the panel carries it by default to keep our own
+        // left/right paging swipes from also flinging Torn's sidebar open. A rightward swipe that
+        // actually changes a page arms a 900ms pass-through window (attribute removed) so a second
+        // rightward page-change swipe in that window reaches Torn too, in case the first one was
+        // swallowed instead of registering as the intentional gesture; it re-guards immediately once
+        // that second swipe lands, or automatically once the window elapses.
+        root.setAttribute('data-prevent-flyout-swipe', 'true');
+        const FLYOUT_SWIPE_GATE_MS = 900;
+        let _flyoutGateTimer = null;
+        const onRightSwipePageChange = () => {
+            if (_flyoutGateTimer) {
+                clearTimeout(_flyoutGateTimer);
+                _flyoutGateTimer = null;
+                root.setAttribute('data-prevent-flyout-swipe', 'true');
+                return;
+            }
+            root.removeAttribute('data-prevent-flyout-swipe');
+            _flyoutGateTimer = setTimeout(() => {
+                _flyoutGateTimer = null;
+                root.setAttribute('data-prevent-flyout-swipe', 'true');
+            }, FLYOUT_SWIPE_GATE_MS);
+        };
         const sa = get('swipe-area');
         if (sa) {
             let _sX = 0,
@@ -26860,7 +26885,10 @@ const BestGymController = {
                 if (window._bbglScrubbing) return;
                 const dx = e.changedTouches[0].clientX - _sX,
                     dy = e.changedTouches[0].clientY - _sY;
-                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) changeMonth(dx < 0 ? 1 : -1);
+                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    changeMonth(dx < 0 ? 1 : -1);
+                    if (dx > 0) onRightSwipePageChange();
+                }
             }, {
                 passive: true
             });
@@ -26879,7 +26907,11 @@ const BestGymController = {
                 if (window._bbglScrubbing) return;
                 const dx = e.changedTouches[0].clientX - _sgX,
                     dy = e.changedTouches[0].clientY - _sgY;
-                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) changeStickerPage(dx < 0 ? 1 : -1);
+                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+                    const beforePage = runtime.currentStickerPage;
+                    changeStickerPage(dx < 0 ? 1 : -1);
+                    if (dx > 0 && runtime.currentStickerPage !== beforePage) onRightSwipePageChange();
+                }
             }, {
                 passive: true
             });
@@ -26936,7 +26968,12 @@ const BestGymController = {
                     dx = touch.clientX - _achX,
                     dy = touch.clientY - _achY;
                 if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    gotoAchievementsPage(dx < 0 ? 1 : -1);
+                    // gotoAchievementsPage() applies its page bump asynchronously (mid-animation),
+                    // so its own bounds/animating guard is mirrored here rather than checked after.
+                    const dir = dx < 0 ? 1 : -1,
+                        willChangePage = !runtime._achAnimating && runtime._achPage + dir >= 0 && runtime._achPage + dir <= 5;
+                    gotoAchievementsPage(dir);
+                    if (dx > 0 && willChangePage) onRightSwipePageChange();
                     _achTouchStar = null;
                     return;
                 }
