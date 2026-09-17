@@ -372,85 +372,85 @@
         {
             id: 1,
             name: "Just Checking the Mirror",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vanN0LWNoay1taXJyci5wbmc=')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vanN0LWNoay1taXJyci53ZWJw')
         }, {
             id: 2,
             name: "Up, Down, Repeat",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXAtZG4tcnB0LnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXAtZG4tcnB0LndlYnA=')
         }, {
             id: 3,
             name: "Flat Bench Therapy",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vZmx0LWJuY2gtdGhycHkucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vZmx0LWJuY2gtdGhycHkud2VicA==')
         }, {
             id: 4,
             name: "Bring Home the Feed",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYnJuZy1obS1mZWVkLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYnJuZy1obS1mZWVkLndlYnA=')
         }, {
             id: 5,
             name: "Never Skip Leg Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vbnZyLXNrcC1sZWcucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vbnZyLXNrcC1sZWcud2VicA==')
         }, {
             id: 6,
             name: "Tire Rotation",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdGlyZS1yb3RuLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdGlyZS1yb3RuLndlYnA=')
         }, {
             id: 7,
             name: "Back End Engagement",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYmNrLWVuZC1lbmdtdC5wbmc=')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYmNrLWVuZC1lbmdtdC53ZWJw')
         }, {
             id: 8,
             name: "The Upside of Exercise",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXBzZC1leHJjc2UucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXBzZC1leHJjc2Uud2VicA==')
         }, {
             id: 9,
             name: "Shellshock Stretches",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vc2hsc2hrLXN0cmNoLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vc2hsc2hrLXN0cmNoLndlYnA=')
         }, {
             id: 10,
             name: "Certified Cardio",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vY3J0ZmQtY3JkaW8ucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vY3J0ZmQtY3JkaW8ud2VicA==')
         },
         //Casino Collection
         {
             id: 11,
             name: "Just One More Spin",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vanN0LW9uZS1zcG4ucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vanN0LW9uZS1zcG4ud2VicA==')
         }, {
             id: 12,
             name: "Bingo! I Think...",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vYmluZ28taS10aG5rLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vYmluZ28taS10aG5rLndlYnA=')
         }, {
             id: 13,
             name: "Lucky Shot",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbGNreS1zaHQucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbGNreS1zaHQud2VicA==')
         }, {
             id: 14,
             name: "Holy Craps",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaG9seS1jcnBzLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaG9seS1jcnBzLndlYnA=')
         }, {
             id: 15,
             name: "Tilted in My Favor",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdGx0ZC1teS1mdnIucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdGx0ZC1teS1mdnIud2VicA==')
         }, {
             id: 16,
             name: "Choose Wisely",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vY2hzZS13c2x5LnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vY2hzZS13c2x5LndlYnA=')
         }, {
             id: 17,
             name: "Hit Me",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaGl0LW1lLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaGl0LW1lLndlYnA=')
         }, {
             id: 18,
             name: "Dead Men's Hand",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vZGVhZC1tZW5zLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vZGVhZC1tZW5zLndlYnA=')
         }, {
             id: 19,
             name: "Trigger Warning",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdHJnci13cm5nLnBuZw==')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdHJnci13cm5nLndlYnA=')
         }, {
             id: 20,
             name: "Leslie's Sick Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbHNscy1zY2stZHkucG5n')
+            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbHNscy1zY2stZHkud2VicA==')
         }
     ];
     CUSTOM_STICKERS.forEach(s => { s.url = cdnize(s.url); });
@@ -1714,10 +1714,10 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/wntr-hdr.png"),
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.jpg"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.png"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.png"),
+        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/wntr-hdr.webp"),
+        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
+        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
+        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -1775,7 +1775,43 @@
     // (data URI) so it can sit behind the level bar like the A2 diamond does.
     // The path here is modified to remove the bottom arch and halo for a completely solid flush bottom.
     const EXP_CROWN_PATH = "M193.636 22.044 C 182.529 27.985,180.338 45.621,189.593 54.592 C 193.384 58.266,193.325 58.939,188.176 70.810 C 163.707 127.227,143.908 132.713,103.872 94.170 C 97.232 87.778,97.187 87.704,98.234 84.744 C 102.964 71.365,85.668 57.225,74.917 65.683 C 65.274 73.267,71.102 91.707,83.674 93.393 C 86.535 93.777,87.611 94.407,88.243 96.069 C 89.543 99.488,100.349 139.625,104.966 158.182 C 107.267 167.432,109.322 175.494,109.532 176.099 C 109.800 176.869,111.627 176.423,115.639 174.608 L 286.205 174.613 C 293.432 177.890,291.721 180.896,299.107 151.950 C 311.947 101.626,314.454 93.636,317.401 93.636 C 326.599 93.636,334.579 79.275,330.342 70.347 C 322.578 53.985,297.084 68.675,303.582 85.767 C 305.874 91.794,271.086 117.463,258.740 118.855 C 242.368 120.700,226.759 103.733,212.306 68.380 L 208.113 58.124 211.323 55.097 C 226.571 40.716,211.474 12.503,193.636 22.044 M138.379 65.055 C 132.851 68.927,132.526 85.309,137.973 85.475 C 138.338 85.486,139.582 86.223,140.738 87.112 L 142.839 88.729 139.512 98.673 C 137.682 104.142,135.612 109.726,134.911 111.082 C 133.185 114.418,133.200 114.456,136.789 115.955 C 146.318 119.937,155.721 116.589,165.869 105.601 L 168.556 102.692 162.196 96.119 C 152.170 85.755,152.287 85.936,154.000 83.490 C 160.757 73.843,147.749 58.492,138.379 65.055 M254.135 66.447 C 249.029 70.930,247.780 79.527,251.606 83.864 C 253.281 85.763,253.294 85.744,242.310 97.108 L 235.000 104.671 239.263 108.569 C 247.293 115.913,255.483 117.954,264.959 114.973 C 271.221 113.003,271.405 112.722,269.230 108.440 C 267.406 104.849,262.723 90.706,262.733 88.817 C 262.736 88.218,263.983 87.019,265.504 86.154 C 267.186 85.196,268.997 82.935,270.127 80.379 C 275.243 68.813,263.295 58.404,254.135 66.447";
-    const CROWN_BADGE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 20 280 154.6" preserveAspectRatio="none">${ASSETS.GRADIENT}<g><path fill="url(#bbgl_silver_grad)" d="${EXP_CROWN_PATH}"></path></g></svg>`;
+    function buildLevelCrownSVG(tier) {
+        const metals = [
+            ['#191e22', '#727b80', '#b0b7ba', '#444d52', '#252c30'],
+            ['#202c34', '#b4c4ce', '#ffffff', '#70858f', '#344650'],
+            ['#492606', '#d39725', '#fff0a5', '#b87a16', '#613606'],
+            ['#344359', '#b2dfe7', '#ffffff', '#beaee0', '#597b90']
+        ][tier];
+        const ramp = metals.map((c, i) => `<stop offset="${[0, .25, .38, .65, 1][i]}" stop-color="${c}"/>`).join('');
+        const outline = tier === 0
+            ? 'M18 80L8 29Q28 58 37 53L60 10L83 53Q92 58 112 29L102 80Z'
+            : tier === 1
+                ? 'M18 80L7 30L27 43L32 19L47 38L60 5L73 38L88 19L93 43L113 30L102 80Z'
+                : 'M18 80L6 27L21 38L27 12L43 32L60 3L77 32L93 12L99 38L114 27L102 80Z';
+        const gem = (x, y, r, color) => `<g transform="translate(${x} ${y})"><path d="M0 ${-r-2}L${r+2} 0L0 ${r+2}L${-r-2} 0Z" fill="url(#metal)" stroke="${metals[0]}" stroke-width="1"/><path d="M0 ${-r}L${r} 0L0 ${r}L${-r} 0Z" fill="${color}"/><path d="M0 ${-r}L0 0L${-r} 0Z" fill="#fff" opacity=".75"/><path d="M0 0L${r} 0L0 ${r}Z" fill="#00120f" opacity=".6"/><path d="M0 ${-r}L${r} 0L0 0Z" fill="#fff" opacity=".25"/></g>`;
+        let details = '';
+        if (tier === 0) {
+            details = Array.from({ length: 10 }, (_, i) => `<path d="M20 ${53+i*2}H100" stroke="#e0e6e8" stroke-opacity=".09" stroke-width=".5"/>`).join('');
+        } else {
+            details = `<path d="M22 65Q34 48 45 59L60 30L75 59Q86 48 98 65 M23 70Q60 57 97 70" fill="none" stroke="${metals[2]}" stroke-width="1.5" opacity=".8"/>`;
+            details += gem(60, 43, tier === 3 ? 10 : 8, tier === 3 ? '#d8f8ff' : '#17be68');
+            details += gem(32, 53, 5, tier === 3 ? '#f0e9ff' : tier === 2 ? '#d32132' : '#159c55');
+            details += gem(88, 53, 5, tier === 3 ? '#d7fff1' : tier === 2 ? '#d32132' : '#159c55');
+        }
+        if (tier >= 2) {
+            details += `<path d="M22 72Q24 55 36 66T60 64T84 66T98 72 M26 31Q34 33 38 43 M94 31Q86 33 82 43" fill="none" stroke="${metals[2]}" stroke-width="1.4"/>`;
+            details += [27, 60, 93].map((x, i) => `<circle cx="${x}" cy="${i === 1 ? 7 : 16}" r="3" fill="url(#metal)" stroke="${metals[2]}" stroke-width=".8"/>`).join('');
+        }
+        if (tier === 3) {
+            details += `<path d="M30 48Q33 6 60 16Q87 6 90 48" fill="none" stroke="url(#metal)" stroke-width="4"/><path d="M32 45Q36 10 60 18Q84 10 88 45" fill="none" stroke="#fff" stroke-width="1"/>`;
+            details += [22, 40, 80, 98].map(x => gem(x, 69, 3, '#e4f7ff')).join('');
+            details += `<path d="M60 0V12M54 6H66 M91 30V40M86 35H96" stroke="#fff" stroke-width="1.5"/>`;
+        }
+        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 84"><defs><linearGradient id="metal" x1="0" y1="0" x2=".2" y2="1">${ramp}</linearGradient><linearGradient id="band" x1="0" y1="0" x2="1" y2="0"><stop stop-color="${metals[0]}"/><stop offset=".25" stop-color="${metals[1]}"/><stop offset=".46" stop-color="${metals[2]}"/><stop offset=".7" stop-color="${metals[3]}"/><stop offset="1" stop-color="${metals[0]}"/></linearGradient><clipPath id="shape"><path d="${outline}"/></clipPath></defs><path d="${outline}" transform="translate(0 2)" fill="${metals[0]}" stroke="${metals[0]}" stroke-width="2"/><path d="${outline}" fill="url(#metal)" stroke="${metals[2]}" stroke-width="1.2"/><g clip-path="url(#shape)">${details}</g><path d="M18 73Q60 69 102 73V82H18Z" fill="url(#band)" stroke="${metals[0]}" stroke-width="1"/><path d="M19 74Q60 70 101 74M19 80H101" fill="none" stroke="${metals[2]}" stroke-width="1.1" opacity=".85"/></svg>`;
+    }
+    const CROWN_BADGE_SVGS = [0, 1, 2, 3].map(buildLevelCrownSVG);
+    const CROWN_BADGE_URLS = CROWN_BADGE_SVGS.map(svg => `data:image/svg+xml,${encodeURIComponent(svg)}`);
+    const CROWN_BADGE_SVG = CROWN_BADGE_SVGS[0];
     const CROWN_BADGE_URL = `data:image/svg+xml,${encodeURIComponent(CROWN_BADGE_SVG)}`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
@@ -7785,19 +7821,19 @@
                        Same icon-badge treatment as A2's diamond: the crown sits behind the
                        bar via a ::before background-image, "Lv X" floats above it as plain
                        text (no flag box). */
-                    #bbgl-panel[data-atrophy="0"] #bbgl-level-container {
+                    #bbgl-panel[data-atrophy] #bbgl-level-container {
                         --crwn-s: clamp(30px, 8cqi, 38px);
                     }
 
-                    #bbgl-gym-level-container[data-atrophy="0"] {
+                    #bbgl-gym-level-container[data-atrophy] {
                         --crwn-s: clamp(30px, 7.5cqi, 34px);
                     }
 
-                    #bbgl-panel[data-atrophy="0"].bbgl-expanded #bbgl-level-container {
+                    #bbgl-panel[data-atrophy].bbgl-expanded #bbgl-level-container {
                         --crwn-s: clamp(42px, calc(42px + 10px * var(--bbgl-dock-t)), 52px);
                     }
 
-                    #bbgl-panel[data-atrophy="0"].bbgl-mode-page #bbgl-level-container {
+                    #bbgl-panel[data-atrophy].bbgl-mode-page #bbgl-level-container {
                         --crwn-s: calc(clamp(30px, 8cqi, 38px) + 18px * var(--bbgl-page-t));
                     }
 
@@ -8004,6 +8040,53 @@
                     }
 
                     /* ─────────────────────────────────────────────────────── */
+
+                    #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); }
+                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); }
+                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); }
+                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); }
+
+                    #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
+                    #bbgl-gym-level-container[data-atrophy]::before {
+                        content: '';
+                        position: absolute;
+                        left: 50%;
+                        width: calc(var(--crwn-s) * 1.3);
+                        height: calc(var(--crwn-s) * .91);
+                        transform: translateX(-50%);
+                        transform-origin: 50% 100%;
+                        background: var(--bbgl-crown-art) center bottom / 100% 100% no-repeat;
+                        clip-path: none;
+                        pointer-events: none;
+                    }
+                    #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before {
+                        bottom: var(--bbgl-pedestal-rise);
+                        z-index: -1;
+                    }
+                    #bbgl-gym-level-container[data-atrophy]::before {
+                        bottom: var(--bbgl-track-h);
+                        z-index: 1;
+                    }
+                    #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
+                    #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
+                        padding: 0;
+                        border: none;
+                        border-radius: 0;
+                        background: none;
+                        backdrop-filter: none;
+                        -webkit-backdrop-filter: none;
+                        box-shadow: none;
+                        margin-bottom: 1px;
+                        color: #f4f5f6;
+                        text-shadow: 0 1px 2px #000, 0 0 3px #000;
+                    }
+                    #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num {
+                        top: calc(-1 * var(--bbgl-pedestal-rise));
+                    }
+                    #bbgl-panel[data-atrophy] #bbgl-level-num::before,
+                    #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num::before {
+                        content: none;
+                    }
 
                     /* ─── Endocrine Enhancers Page ──────────────────────── */
 
@@ -20245,7 +20328,7 @@ const BestGymController = {
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.jpg)`);
+        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`);
         const todayStr = Formatter.dateLogical();
         // Per-render constants that renderCell() used to recompute for every one of the 42 cells:
         // dateLogical() allocates a Date and runs three TimeManager calls, getWarMarkers()'s memo
@@ -20409,7 +20492,7 @@ const BestGymController = {
         if (isFlipped && sl.meta.tier > 0) {
             let url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`;
             if (sl.meta.tier === 2) url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`;
-            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}cal-grid-dmnd.jpg)`;
+            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`;
             cell.style.backgroundImage = url;
             cell.style.backgroundSize = "700% 600%";
             cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
@@ -20418,13 +20501,13 @@ const BestGymController = {
             const wrap = document.createElement('div'),
                 img = document.createElement('img');
             let tType = 'green',
-                url = `${CAL_IMG_BASE}rwrd-grn.png`;
+                url = `${CAL_IMG_BASE}rwrd-grn.webp`;
             if (sl.meta.tier === 2) {
                 tType = 'gold';
-                url = `${CAL_IMG_BASE}rwrd-gold.png`;
+                url = `${CAL_IMG_BASE}rwrd-gold.webp`;
             } else if (sl.meta.tier === 3) {
                 tType = 'diamond';
-                url = `${CAL_IMG_BASE}rwrd-dmnd.png`;
+                url = `${CAL_IMG_BASE}rwrd-dmnd.webp`;
             }
             wrap.className = `jewel-wrapper jewel-type-${tType}`;
             img.className = 'jewel-asset';
@@ -20464,12 +20547,12 @@ const BestGymController = {
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
-            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.png');
-            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.png');
+            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.webp');
+            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.webp');
             if ((sl.exODs || 0) > 0) eventImgs.push('PLACEHOLDER_EX_OD_URL');
-            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.png');
-            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.png');
-            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.png');
+            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.webp');
+            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.webp');
+            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.webp');
             eventImgs.forEach((url, i) => {
                 const ep = document.createElement('div');
                 ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : '');

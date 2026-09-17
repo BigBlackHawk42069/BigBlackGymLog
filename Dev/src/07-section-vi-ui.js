@@ -696,7 +696,7 @@
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.jpg)`);
+        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`);
         const todayStr = Formatter.dateLogical();
         // Per-render constants that renderCell() used to recompute for every one of the 42 cells:
         // dateLogical() allocates a Date and runs three TimeManager calls, getWarMarkers()'s memo
@@ -860,7 +860,7 @@
         if (isFlipped && sl.meta.tier > 0) {
             let url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`;
             if (sl.meta.tier === 2) url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`;
-            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}cal-grid-dmnd.jpg)`;
+            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`;
             cell.style.backgroundImage = url;
             cell.style.backgroundSize = "700% 600%";
             cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
@@ -869,13 +869,13 @@
             const wrap = document.createElement('div'),
                 img = document.createElement('img');
             let tType = 'green',
-                url = `${CAL_IMG_BASE}rwrd-grn.png`;
+                url = `${CAL_IMG_BASE}rwrd-grn.webp`;
             if (sl.meta.tier === 2) {
                 tType = 'gold';
-                url = `${CAL_IMG_BASE}rwrd-gold.png`;
+                url = `${CAL_IMG_BASE}rwrd-gold.webp`;
             } else if (sl.meta.tier === 3) {
                 tType = 'diamond';
-                url = `${CAL_IMG_BASE}rwrd-dmnd.png`;
+                url = `${CAL_IMG_BASE}rwrd-dmnd.webp`;
             }
             wrap.className = `jewel-wrapper jewel-type-${tType}`;
             img.className = 'jewel-asset';
@@ -915,12 +915,12 @@
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
-            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.png');
-            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.png');
+            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.webp');
+            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.webp');
             if ((sl.exODs || 0) > 0) eventImgs.push('PLACEHOLDER_EX_OD_URL');
-            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.png');
-            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.png');
-            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.png');
+            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.webp');
+            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.webp');
+            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.webp');
             eventImgs.forEach((url, i) => {
                 const ep = document.createElement('div');
                 ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : '');
