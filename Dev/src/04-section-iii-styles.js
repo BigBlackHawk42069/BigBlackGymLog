@@ -4,8 +4,8 @@
      *  The Big & Black Part of the script.
      */
     const SEASONAL_HEADER_IMGS = [
-        'wntr-hdr', 'wntr-hdr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
-        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wntr-hdr'
+        'fal-hdr', 'fal-hdr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
+        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr'
     ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
@@ -717,6 +717,7 @@
                     }
 
                     #bbgl-panel {
+                        --bbgl-header-img: url('${ASSETS.HEADER_IMG}');
                         --bbgl-f-label: 10px;
                         --bbgl-f-top: 10px;
                         --bbgl-f-bot: 9px;
@@ -4233,7 +4234,7 @@
                         bottom: 0;
                         width: auto;
                         height: auto;
-                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-image: var(--bbgl-header-img);
                         background-size: 100% 100%;
                         background-position: center bottom;
                         opacity: 0.85;
@@ -5726,7 +5727,7 @@
                         width: 90%;
                         height: calc(var(--bbgl-header-overlap) * .54);
                         border-radius: 2px / 35%;
-                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-image: var(--bbgl-header-img);
                         background-size: 120% calc(var(--bbgl-header-height) * 1.65);
                         background-position: center calc(100% + 2px);
                         opacity: .85;

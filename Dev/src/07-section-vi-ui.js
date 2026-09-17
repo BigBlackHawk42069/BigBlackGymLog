@@ -652,6 +652,7 @@
             m = calendarState.month,
             yt = dom.yearTrigger;
         dom.monthTrigger.textContent = CONSTANTS.MONTHS[m];
+        dom.panel.style.setProperty('--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
         yt.textContent = y;
         yt.classList.remove('disabled');
         let f = new Date(y, m, 1),

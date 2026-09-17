@@ -1713,8 +1713,12 @@
      *  ========================================================================
      *  The Big & Black Part of the script.
      */
+    const SEASONAL_HEADER_IMGS = [
+        'wntr-hdr', 'wntr-hdr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
+        'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wntr-hdr'
+    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
-        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/sprng-hdr.png"),
+        HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
         NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.webp"),
@@ -2423,6 +2427,7 @@
                     }
 
                     #bbgl-panel {
+                        --bbgl-header-img: url('${ASSETS.HEADER_IMG}');
                         --bbgl-f-label: 10px;
                         --bbgl-f-top: 10px;
                         --bbgl-f-bot: 9px;
@@ -5939,7 +5944,7 @@
                         bottom: 0;
                         width: auto;
                         height: auto;
-                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-image: var(--bbgl-header-img);
                         background-size: 100% 100%;
                         background-position: center bottom;
                         opacity: 0.85;
@@ -7432,7 +7437,7 @@
                         width: 90%;
                         height: calc(var(--bbgl-header-overlap) * .54);
                         border-radius: 2px / 35%;
-                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-image: var(--bbgl-header-img);
                         background-size: 120% calc(var(--bbgl-header-height) * 1.65);
                         background-position: center calc(100% + 2px);
                         opacity: .85;
@@ -20284,6 +20289,7 @@ const BestGymController = {
             m = calendarState.month,
             yt = dom.yearTrigger;
         dom.monthTrigger.textContent = CONSTANTS.MONTHS[m];
+        dom.panel.style.setProperty('--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
         yt.textContent = y;
         yt.classList.remove('disabled');
         let f = new Date(y, m, 1),
