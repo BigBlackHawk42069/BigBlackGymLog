@@ -4,7 +4,7 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-headr.png"),
+        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/wntr-hdr.png"),
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.jpg"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.png"),
         NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.png"),
@@ -867,7 +867,9 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
-                        flex: 0 0 clamp(108px, calc(108px + 89px * var(--bbgl-page-t)), 197px);
+                        --bbgl-header-height: calc(clamp(108px, calc(108px + 89px * var(--bbgl-page-t)), 197px) - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-month-header {
@@ -4172,7 +4174,9 @@
                         padding: 0 0 2px 0;
                         margin-bottom: 0;
                         border-bottom: none;
-                        flex: 0 0 95px;
+                        --bbgl-header-height: calc(95px - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: 9px;
                         overflow: visible;
                         z-index: 20;
                         display: flex;
@@ -4191,7 +4195,7 @@
                         height: auto;
                         background-image: url('${ASSETS.HEADER_IMG}');
                         background-size: 100% 100%;
-                        background-position: center;
+                        background-position: center bottom;
                         opacity: 0.85;
                         z-index: -1;
                         pointer-events: none;
@@ -4200,7 +4204,9 @@
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
-                        flex: 0 0 130px;
+                        --bbgl-header-height: calc(130px - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: 14px;
                     }
 
                     .bbgl-month-header {
@@ -5213,7 +5219,7 @@
                     .bbgl-weekly-anchor,
                     #bbgl-level-track,
                     #bbgl-gym-level-track {
-                        --bbgl-cast-texture: repeating-linear-gradient(112deg, transparent 0 1px, rgba(190,194,174,.1) 1px 1.5px, transparent 1.5px 3px), repeating-linear-gradient(23deg, transparent 0 2px, rgba(13,19,12,.17) 2px 2.6px, transparent 2.6px 4px);
+                        --bbgl-cast-texture: repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), repeating-linear-gradient(23deg, transparent 0 2px, rgba(12,12,12,.17) 2px 2.6px, transparent 2.6px 4px);
                     }
 
                     .bbgl-weekly-anchor {
@@ -5280,7 +5286,7 @@
                         inset: 0;
                         z-index: 1;
                         pointer-events: none;
-                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                     }
 
@@ -5443,13 +5449,13 @@
                         border-radius: 5px 5px 0 0;
                         box-sizing: border-box;
                         padding: 3px 5px 3px;
-                        background-color: #32352a;
-                        background-image: var(--bbgl-cast-texture), linear-gradient(180deg, #34362c 0%, #45483a 22%, #32362b 55%, #191d16 100%);
+                        background-color: #202020;
+                        background-image: var(--bbgl-cast-texture), linear-gradient(180deg, #242424 0%, #333333 22%, #202020 55%, #101010 100%);
                         background-size: 100% 100%, 100% 100%, 100% var(--bbgl-track-h);
                         background-position: bottom center;
                         background-repeat: no-repeat;
                         /* 3D edge highlights on raised tab — no right-edge shadow to avoid junction seam */
-                        box-shadow: inset 0 1px 0 rgba(189,193,163,.22), inset 1px 0 0 rgba(189,193,163,.14), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
+                        box-shadow: inset 0 1px 0 rgba(193,193,193,.22), inset 1px 0 0 rgba(193,193,193,.14), inset 0 -2px 1px rgba(5,5,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                         transition: height .2s cubic-bezier(.18, .89, .32, 1.28), box-shadow .15s ease;
                     }
 
@@ -5519,7 +5525,7 @@
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 32px;
                         --bbgl-handle-active-h: 32px;
-                        box-shadow: inset 0 1px 0 rgba(189,193,163,.32), inset 1px 0 0 rgba(189,193,163,.22), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
+                        box-shadow: inset 0 1px 0 rgba(193,193,193,.32), inset 1px 0 0 rgba(193,193,193,.22), inset 0 -2px 1px rgba(5,5,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                     }
 
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before,
@@ -5584,6 +5590,7 @@
                         /* Track height for this mode, shared by the flag-clip cut line and the
                            A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
                         --bbgl-track-h: 9px;
+                        --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
@@ -5672,6 +5679,52 @@
                         pointer-events: auto;
                     }
 
+                    .bbgl-level-lens {
+                        position: absolute;
+                        left: 5%;
+                        bottom: calc(var(--bbgl-header-overlap) * .23);
+                        width: 90%;
+                        height: calc(var(--bbgl-header-overlap) * .54);
+                        border-radius: 2px / 35%;
+                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-size: 120% calc(var(--bbgl-header-height) * 1.65);
+                        background-position: center calc(100% + 2px);
+                        opacity: .85;
+                        filter: blur(.2px);
+                        mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+                        pointer-events: none;
+                        z-index: 1;
+                    }
+
+                    #bbgl-level-container::after {
+                        content: '';
+                        position: absolute;
+                        left: 50%;
+                        bottom: -1px;
+                        transform: translateX(-50%);
+                        width: calc(var(--crwn-s, 38px) * 1.3 + 10px);
+                        height: calc(var(--bbgl-track-h) + var(--bbgl-pedestal-rise) + 1px);
+                        border-radius: 2px 2px 1px 1px;
+                        clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% 4px, 92% 4px, 88% calc(100% - 4px), 100% calc(100% - 4px), 100% 100%, 0 100%, 0 calc(100% - 4px), 12% calc(100% - 4px), 8% 4px, 0 4px, 0 2px);
+                        background: linear-gradient(180deg, #a0a0a0 0 1px, #505050 1px 2px, #292929 2px 4px, #080808 4px 5px, transparent 5px calc(100% - 4px), #626262 calc(100% - 4px) calc(100% - 3px), #303030 calc(100% - 3px) calc(100% - 1px), #101010 calc(100% - 1px)), repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), linear-gradient(90deg, #111 0%, #424242 13%, #272727 30%, #202020 50%, #272727 70%, #424242 87%, #111 100%);
+                        box-shadow: inset 1px 0 0 #666, inset -1px 0 0 #666;
+                        pointer-events: none;
+                        z-index: 1;
+                    }
+
+                    .bbgl-calendar-glass {
+                        display: none;
+                    }
+
+                    #bbgl-level-track .bbgl-calendar-glass {
+                        display: inline;
+                    }
+
+                    #bbgl-level-bg,
+                    #bbgl-level-track .bbgl-level-recess {
+                        display: none;
+                    }
+
                     #bbgl-level-bg,
                     #bbgl-gym-level-track {
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
@@ -5710,7 +5763,7 @@
                         inset: 0;
                         z-index: 4;
                         pointer-events: none;
-                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                     }
 
@@ -6038,14 +6091,10 @@
                         --crwn-s: calc(clamp(30px, 8cqi, 38px) + 18px * var(--bbgl-page-t));
                     }
 
-                    /* Main panel crown — lives on the flag-clip wrapper. The wrapper's own
-                       bottom edge already sits at the top of the bar (see the flag-clip
-                       comment above), so bottom:0 here lands the crown's bottom edge flush
-                       with the top of the track — no overlap into the bar. */
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-flag-clip::before {
                         content: '';
                         position: absolute;
-                        bottom: 0;
+                        bottom: var(--bbgl-pedestal-rise);
                         left: 50%;
                         transform-origin: 50% 100%;
                         transform: translateX(-50%);
@@ -6053,6 +6102,10 @@
                         height: calc(var(--crwn-s) * 0.85 + 1px);
                         background: url("${CROWN_BADGE_URL}") center bottom / 100% 100% no-repeat;
                         z-index: -1;
+                    }
+
+                    #bbgl-panel[data-atrophy="0"] #bbgl-level-num {
+                        top: calc(-1 * var(--bbgl-pedestal-rise));
                     }
 
                     /* Gym page crown — old structure (no flag-clip wrapper): the container's
@@ -6863,7 +6916,8 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-header-wrapper {
-                        flex: 0 0 clamp(140px, calc(140px + 23px * var(--bbgl-dock-t, 0)), 163px);
+                        --bbgl-header-height: calc(clamp(140px, calc(140px + 23px * var(--bbgl-dock-t, 0)), 163px) - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-header-wrapper::before {

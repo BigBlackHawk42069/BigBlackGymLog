@@ -1714,7 +1714,7 @@
      *  The Big & Black Part of the script.
      */
     const ASSETS = {
-        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-headr.png"),
+        HEADER_IMG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/wntr-hdr.png"),
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.jpg"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.png"),
         NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.png"),
@@ -2577,7 +2577,9 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
-                        flex: 0 0 clamp(108px, calc(108px + 89px * var(--bbgl-page-t)), 197px);
+                        --bbgl-header-height: calc(clamp(108px, calc(108px + 89px * var(--bbgl-page-t)), 197px) - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-month-header {
@@ -5882,7 +5884,9 @@
                         padding: 0 0 2px 0;
                         margin-bottom: 0;
                         border-bottom: none;
-                        flex: 0 0 95px;
+                        --bbgl-header-height: calc(95px - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: 9px;
                         overflow: visible;
                         z-index: 20;
                         display: flex;
@@ -5901,7 +5905,7 @@
                         height: auto;
                         background-image: url('${ASSETS.HEADER_IMG}');
                         background-size: 100% 100%;
-                        background-position: center;
+                        background-position: center bottom;
                         opacity: 0.85;
                         z-index: -1;
                         pointer-events: none;
@@ -5910,7 +5914,9 @@
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
-                        flex: 0 0 130px;
+                        --bbgl-header-height: calc(130px - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
+                        --bbgl-header-overlap: 14px;
                     }
 
                     .bbgl-month-header {
@@ -6923,7 +6929,7 @@
                     .bbgl-weekly-anchor,
                     #bbgl-level-track,
                     #bbgl-gym-level-track {
-                        --bbgl-cast-texture: repeating-linear-gradient(112deg, transparent 0 1px, rgba(190,194,174,.1) 1px 1.5px, transparent 1.5px 3px), repeating-linear-gradient(23deg, transparent 0 2px, rgba(13,19,12,.17) 2px 2.6px, transparent 2.6px 4px);
+                        --bbgl-cast-texture: repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), repeating-linear-gradient(23deg, transparent 0 2px, rgba(12,12,12,.17) 2px 2.6px, transparent 2.6px 4px);
                     }
 
                     .bbgl-weekly-anchor {
@@ -6990,7 +6996,7 @@
                         inset: 0;
                         z-index: 1;
                         pointer-events: none;
-                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                     }
 
@@ -7153,13 +7159,13 @@
                         border-radius: 5px 5px 0 0;
                         box-sizing: border-box;
                         padding: 3px 5px 3px;
-                        background-color: #32352a;
-                        background-image: var(--bbgl-cast-texture), linear-gradient(180deg, #34362c 0%, #45483a 22%, #32362b 55%, #191d16 100%);
+                        background-color: #202020;
+                        background-image: var(--bbgl-cast-texture), linear-gradient(180deg, #242424 0%, #333333 22%, #202020 55%, #101010 100%);
                         background-size: 100% 100%, 100% 100%, 100% var(--bbgl-track-h);
                         background-position: bottom center;
                         background-repeat: no-repeat;
                         /* 3D edge highlights on raised tab — no right-edge shadow to avoid junction seam */
-                        box-shadow: inset 0 1px 0 rgba(189,193,163,.22), inset 1px 0 0 rgba(189,193,163,.14), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
+                        box-shadow: inset 0 1px 0 rgba(193,193,193,.22), inset 1px 0 0 rgba(193,193,193,.14), inset 0 -2px 1px rgba(5,5,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                         transition: height .2s cubic-bezier(.18, .89, .32, 1.28), box-shadow .15s ease;
                     }
 
@@ -7229,7 +7235,7 @@
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle {
                         height: 32px;
                         --bbgl-handle-active-h: 32px;
-                        box-shadow: inset 0 1px 0 rgba(189,193,163,.32), inset 1px 0 0 rgba(189,193,163,.22), inset 0 -2px 1px rgba(6,9,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
+                        box-shadow: inset 0 1px 0 rgba(193,193,193,.32), inset 1px 0 0 rgba(193,193,193,.22), inset 0 -2px 1px rgba(5,5,5,.65), 0 -1px 2px rgba(0,0,0,.65), 0 -3px 6px rgba(0,0,0,.28), 0 1px 2px rgba(0,0,0,.85), 0 3px 5px rgba(0,0,0,.5), 0 6px 9px rgba(0,0,0,.2);
                     }
 
                     body:not(.is-touch-device) .bbgl-weekly-track.is-hover-intent ~ .bbgl-bar-handle::before,
@@ -7294,6 +7300,7 @@
                         /* Track height for this mode, shared by the flag-clip cut line and the
                            A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
                         --bbgl-track-h: 9px;
+                        --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
                         align-items: center;
@@ -7382,6 +7389,52 @@
                         pointer-events: auto;
                     }
 
+                    .bbgl-level-lens {
+                        position: absolute;
+                        left: 5%;
+                        bottom: calc(var(--bbgl-header-overlap) * .23);
+                        width: 90%;
+                        height: calc(var(--bbgl-header-overlap) * .54);
+                        border-radius: 2px / 35%;
+                        background-image: url('${ASSETS.HEADER_IMG}');
+                        background-size: 120% calc(var(--bbgl-header-height) * 1.65);
+                        background-position: center calc(100% + 2px);
+                        opacity: .85;
+                        filter: blur(.2px);
+                        mask-image: linear-gradient(180deg, transparent, #000 22%, #000 78%, transparent);
+                        pointer-events: none;
+                        z-index: 1;
+                    }
+
+                    #bbgl-level-container::after {
+                        content: '';
+                        position: absolute;
+                        left: 50%;
+                        bottom: -1px;
+                        transform: translateX(-50%);
+                        width: calc(var(--crwn-s, 38px) * 1.3 + 10px);
+                        height: calc(var(--bbgl-track-h) + var(--bbgl-pedestal-rise) + 1px);
+                        border-radius: 2px 2px 1px 1px;
+                        clip-path: polygon(2px 0, calc(100% - 2px) 0, 100% 2px, 100% 4px, 92% 4px, 88% calc(100% - 4px), 100% calc(100% - 4px), 100% 100%, 0 100%, 0 calc(100% - 4px), 12% calc(100% - 4px), 8% 4px, 0 4px, 0 2px);
+                        background: linear-gradient(180deg, #a0a0a0 0 1px, #505050 1px 2px, #292929 2px 4px, #080808 4px 5px, transparent 5px calc(100% - 4px), #626262 calc(100% - 4px) calc(100% - 3px), #303030 calc(100% - 3px) calc(100% - 1px), #101010 calc(100% - 1px)), repeating-linear-gradient(112deg, transparent 0 1px, rgba(194,194,194,.1) 1px 1.5px, transparent 1.5px 3px), linear-gradient(90deg, #111 0%, #424242 13%, #272727 30%, #202020 50%, #272727 70%, #424242 87%, #111 100%);
+                        box-shadow: inset 1px 0 0 #666, inset -1px 0 0 #666;
+                        pointer-events: none;
+                        z-index: 1;
+                    }
+
+                    .bbgl-calendar-glass {
+                        display: none;
+                    }
+
+                    #bbgl-level-track .bbgl-calendar-glass {
+                        display: inline;
+                    }
+
+                    #bbgl-level-bg,
+                    #bbgl-level-track .bbgl-level-recess {
+                        display: none;
+                    }
+
                     #bbgl-level-bg,
                     #bbgl-gym-level-track {
                         background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
@@ -7420,7 +7473,7 @@
                         inset: 0;
                         z-index: 4;
                         pointer-events: none;
-                        background: linear-gradient(180deg, transparent 76%, rgba(6,9,5,.18) 82%, rgba(6,9,5,.65) 100%);
+                        background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                     }
 
@@ -7748,14 +7801,10 @@
                         --crwn-s: calc(clamp(30px, 8cqi, 38px) + 18px * var(--bbgl-page-t));
                     }
 
-                    /* Main panel crown — lives on the flag-clip wrapper. The wrapper's own
-                       bottom edge already sits at the top of the bar (see the flag-clip
-                       comment above), so bottom:0 here lands the crown's bottom edge flush
-                       with the top of the track — no overlap into the bar. */
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-flag-clip::before {
                         content: '';
                         position: absolute;
-                        bottom: 0;
+                        bottom: var(--bbgl-pedestal-rise);
                         left: 50%;
                         transform-origin: 50% 100%;
                         transform: translateX(-50%);
@@ -7763,6 +7812,10 @@
                         height: calc(var(--crwn-s) * 0.85 + 1px);
                         background: url("${CROWN_BADGE_URL}") center bottom / 100% 100% no-repeat;
                         z-index: -1;
+                    }
+
+                    #bbgl-panel[data-atrophy="0"] #bbgl-level-num {
+                        top: calc(-1 * var(--bbgl-pedestal-rise));
                     }
 
                     /* Gym page crown — old structure (no flag-clip wrapper): the container's
@@ -8573,7 +8626,8 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-header-wrapper {
-                        flex: 0 0 clamp(140px, calc(140px + 23px * var(--bbgl-dock-t, 0)), 163px);
+                        --bbgl-header-height: calc(clamp(140px, calc(140px + 23px * var(--bbgl-dock-t, 0)), 163px) - var(--bbgl-header-overlap));
+                        flex: 0 0 var(--bbgl-header-height);
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-header-wrapper::before {
@@ -19559,10 +19613,11 @@ const BestGymController = {
         `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
         `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
         `<linearGradient id="bbc-socket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080b08"/><stop offset=".5" stop-color="#111611"/><stop offset="1" stop-color="#070a07"/></linearGradient>` +
+        `<linearGradient id="bbc-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="bbc-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
-        `<stop offset="0" stop-color="#34362c"/><stop offset=".22" stop-color="#45483a"/><stop offset=".55" stop-color="#32362b"/><stop offset="1" stop-color="#191d16"/></linearGradient>` +
-        `<radialGradient id="bbc-cast-bevel" cx=".3" cy=".15" r=".85"><stop offset="0" stop-color="#737b70" stop-opacity=".38"/><stop offset=".55" stop-color="#525b50" stop-opacity=".16"/><stop offset="1" stop-color="#353c34" stop-opacity="0"/></radialGradient>` +
-        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#484f46"/><stop offset=".28" stop-color="#353d34"/><stop offset=".7" stop-color="#242b24"/><stop offset="1" stop-color="#141914"/></linearGradient>` +
+        `<stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient>` +
+        `<radialGradient id="bbc-cast-bevel" cx=".3" cy=".15" r=".85"><stop offset="0" stop-color="#777777" stop-opacity=".38"/><stop offset=".55" stop-color="#555555" stop-opacity=".16"/><stop offset="1" stop-color="#333333" stop-opacity="0"/></radialGradient>` +
+        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
         BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
@@ -19683,6 +19738,22 @@ const BestGymController = {
             if (i < n - 1) {
                 out += `<rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-recess)"/><rect x="${f(bx + slotW)}" y="4" width="${gap}" height="92" rx="1.5" ry="5" fill="url(#bbc-joint-wall)"/><path d="M${f(bx + slotW + .7)} 11Q${f(bx + slotW + gap / 2)} 5 ${f(bx + slotW + gap - .7)} 11 M${f(bx + slotW + .7)} 88Q${f(bx + slotW + gap / 2)} 94 ${f(bx + slotW + gap - .7)} 88" fill="none" stroke="#84917f" stroke-opacity=".24" stroke-width=".8"/>`;
                 out += `<rect x="${f(bx + slotW - 1)}" y="${by + 19}" width="${gap + 2}" height="${slotH - 38}" rx="1" fill="url(#bbc-term)"/><path d="M${f(bx + slotW + gap / 2)} ${by + 21}v${slotH - 42}" stroke="#111" stroke-width="1.5"/>`;
+                out += `<rect x="${f(bx + slotW)}" y="${by + 20}" width="${gap}" height="${slotH - 40}" rx=".8" fill="url(#bbc-collar-depth)"/>
+                    <path d="M${f(bx + slotW + 1)} ${by + 22}v${slotH - 44} M${f(bx + slotW + gap - 1)} ${by + 22}v${slotH - 44}" stroke="url(#bbc-collar-rim)" stroke-width=".8"/>
+                    <path d="M${f(bx + slotW + gap / 2 + .8)} ${by + 22}v${slotH - 44}" stroke="#cdd4d5" stroke-opacity=".3" stroke-width=".5"/>`;
+            }
+
+            if (!color) {
+                out += `<rect class="bbgl-empty-capsule-bay" x="${f(bx)}" y="5" width="${f(slotW)}" height="90" rx="3" ry="12" fill="url(#bbc-joint-recess)" stroke="#454a47" stroke-width="1"/>
+                    <rect x="${f(bx + 3)}" y="12" width="${f(slotW - 6)}" height="76" rx="3" ry="14" fill="#090c0b"/>
+                    <path d="M${f(bx + 4)} 29Q${f(bx + slotW / 2)} 13 ${f(bx + slotW - 4)} 29" fill="none" stroke="#000" stroke-opacity=".7" stroke-width="8"/>
+                    <path d="M${f(bx + 5)} 79Q${f(bx + slotW / 2)} 96 ${f(bx + slotW - 5)} 79" fill="none" stroke="#707a73" stroke-opacity=".4" stroke-width="2"/>`;
+                for (const sx of [bx + 3, bx + slotW - 7]) {
+                    out += `<rect x="${f(sx)}" y="31" width="4" height="38" rx="1" ry="7" fill="url(#bbc-collar-rim)"/>
+                        <rect x="${f(sx + .8)}" y="36" width="2.4" height="28" rx=".6" ry="5" fill="#020403"/>
+                        <path d="M${f(sx + 1)} 61h2" stroke="#768079" stroke-opacity=".6" stroke-width="1.5"/>`;
+                }
+                continue;
             }
 
             const gx = bx + termW, gw = slotW - 2 * termW;
@@ -19717,6 +19788,11 @@ const BestGymController = {
             // Collars cover the glass ends.
             for (const [tx, innerX] of [[bx, gx - 1], [bx + slotW - termW, gx + gw]]) {
                 out += `<rect x="${f(tx)}" y="${by}" width="${termW}" height="${slotH}" rx="1.5" ry="5" fill="url(#bbc-term)"/>`;
+                const rimX = tx === bx ? tx + termW - 2 : tx;
+                out += `<rect x="${f(tx)}" y="${by}" width="${termW}" height="${slotH}" rx="1.5" ry="5" fill="url(#bbc-collar-depth)"/>
+                    <path d="M${f(tx + 1.4)} ${by + 5}v${slotH - 10} M${f(tx + 3.2)} ${by + 3}v${slotH - 6}" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
+                    <rect x="${f(rimX)}" y="${by + 3}" width="2" height="${slotH - 6}" rx=".6" ry="4" fill="url(#bbc-collar-rim)"/>
+                    <path d="M${f(tx + .8)} ${by + 5}v${slotH * .23}" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>`;
                 out += `<rect x="${f(innerX)}" y="${by + 4}" width="1" height="${slotH - 8}" fill="#101310"/><path d="M${f(tx + 2)} ${by + 8}v${slotH - 16}" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
             }
             if (lit && color && color !== 'silver') {
@@ -22857,16 +22933,32 @@ const BestGymController = {
 
     function buildEmptyLevelTrackSVG(foreground = false) {
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34362c"/><stop offset=".22" stop-color="#45483a"/><stop offset=".55" stop-color="#32362b"/><stop offset="1" stop-color="#191d16"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#484f46"/><stop offset=".28" stop-color="#353d34"/><stop offset=".7" stop-color="#242b24"/><stop offset="1" stop-color="#141914"/></linearGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
         const body = foreground
             ? `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
-                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><path d="M0 0H500V19H0Z" fill="#0b1109"/>
+                <g class="bbgl-calendar-glass">
+                    <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
+                    <rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-smoked-glass)"/>
+                    <path d="M27 27H473" stroke="url(#lvl-rim-reflection)" stroke-width="5"/>
+                    <path d="M27 74H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="3"/>
+                    <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
+                </g>
+                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><g class="bbgl-level-recess"><path d="M0 0H500V19H0Z" fill="#0b1109"/>
                 <path d="M0 77H500V100H0Z" fill="url(#lvl-channel-lower)"/>
-                <path d="M0 20H500" stroke="#020502" stroke-opacity=".9" stroke-width="4"/>
+                <path d="M0 20H500" stroke="#020502" stroke-opacity=".9" stroke-width="4"/></g>
                 <rect width="16" height="100" fill="url(#lvl-housing)"/><rect x="484" width="16" height="100" fill="url(#lvl-housing)"/>
                 <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
                 <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
+                <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
+                <path d="M16.2 24V76 M483.8 24V76" stroke="#050708" stroke-width=".7"/>
+                <path d="M17.2 25V75 M482.8 25V75" stroke="#dce2e3" stroke-opacity=".45" stroke-width=".5"/>
+                <path d="M16.5 43H18 M16.5 59H18 M482 43H483.5 M482 59H483.5" stroke="#080a0c" stroke-opacity=".75" stroke-width="2"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
+                <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
+                <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
+                <rect x="23" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/><rect x="475" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/>
+                <path d="M25.5 25V75 M474.5 25V75" stroke="#050708" stroke-opacity=".8" stroke-width=".8"/>
+                <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
                 <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`
             : `<rect width="500" height="100" fill="#10160f"/><rect y="23" width="500" height="54" fill="#040805"/><rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="#83b29c" fill-opacity=".12"/>`;
         return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:${foreground ? 3 : 1};display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`;
@@ -22875,7 +22967,7 @@ const BestGymController = {
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div>${buildEmptyLevelTrackSVG(true)}</div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div><div id="bbgl-level-bg">${buildEmptyLevelTrackSVG()}</div><div id="bbgl-level-container"><div id="bbgl-level-flag-clip"><span id="bbgl-level-num">Lv 1</span></div><div id="bbgl-level-track"><div id="bbgl-level-fill"></div>${buildEmptyLevelTrackSVG(true)}</div></div></div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
