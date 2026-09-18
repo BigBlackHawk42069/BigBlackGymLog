@@ -1741,7 +1741,7 @@
         PASTE: `<svg viewBox="0 0 24 24"><path d="M19,20H5V4H7V7H17V4H19M12,2A1,1 0 0,1 13,3A1,1 0 0,1 12,4A1,1 0 0,1 11,3A1,1 0 0,1 12,2M19,2H14.82C14.4,0.84 13.3,0 12,0C10.7,0 9.6,0.84 9.18,2H5A2,2 0 0,0 3,4V20A2,2 0 0,0 5,22H19A2,2 0 0,0 21,20V4A2,2 0 0,0 19,2Z"/></svg>`,
         CHECK: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17 4 12" fill="none"/></svg>`,
         // Titles page — one shared crown for all 40 stat-title tiers, derived from LOGO_PATH's
-        // silhouette subpath (not the level badge's own EXP_CROWN_PATH). Two geometric edits from
+        // silhouette subpath. Two geometric edits from
         // the source logo: the leg curves down to the base rim are extended taller, and the
         // spike/ball cluster is scaled 8% wider — both confirmed to introduce no seam kinks. The
         // silhouette winds counterclockwise starting at the top spike, so stroke-dashoffset
@@ -1773,78 +1773,11 @@
         // maintain.
         CHEVRON: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>`
     };
-    // A0 level badge: the script's own gray crown logo, reused as a CSS background-image
-    // (data URI) so it can sit behind the level bar like the A2 diamond does.
-    // The path here is modified to remove the bottom arch and halo for a completely solid flush bottom.
-    const EXP_CROWN_PATH = "M193.636 22.044 C 182.529 27.985,180.338 45.621,189.593 54.592 C 193.384 58.266,193.325 58.939,188.176 70.810 C 163.707 127.227,143.908 132.713,103.872 94.170 C 97.232 87.778,97.187 87.704,98.234 84.744 C 102.964 71.365,85.668 57.225,74.917 65.683 C 65.274 73.267,71.102 91.707,83.674 93.393 C 86.535 93.777,87.611 94.407,88.243 96.069 C 89.543 99.488,100.349 139.625,104.966 158.182 C 107.267 167.432,109.322 175.494,109.532 176.099 C 109.800 176.869,111.627 176.423,115.639 174.608 L 286.205 174.613 C 293.432 177.890,291.721 180.896,299.107 151.950 C 311.947 101.626,314.454 93.636,317.401 93.636 C 326.599 93.636,334.579 79.275,330.342 70.347 C 322.578 53.985,297.084 68.675,303.582 85.767 C 305.874 91.794,271.086 117.463,258.740 118.855 C 242.368 120.700,226.759 103.733,212.306 68.380 L 208.113 58.124 211.323 55.097 C 226.571 40.716,211.474 12.503,193.636 22.044 M138.379 65.055 C 132.851 68.927,132.526 85.309,137.973 85.475 C 138.338 85.486,139.582 86.223,140.738 87.112 L 142.839 88.729 139.512 98.673 C 137.682 104.142,135.612 109.726,134.911 111.082 C 133.185 114.418,133.200 114.456,136.789 115.955 C 146.318 119.937,155.721 116.589,165.869 105.601 L 168.556 102.692 162.196 96.119 C 152.170 85.755,152.287 85.936,154.000 83.490 C 160.757 73.843,147.749 58.492,138.379 65.055 M254.135 66.447 C 249.029 70.930,247.780 79.527,251.606 83.864 C 253.281 85.763,253.294 85.744,242.310 97.108 L 235.000 104.671 239.263 108.569 C 247.293 115.913,255.483 117.954,264.959 114.973 C 271.221 113.003,271.405 112.722,269.230 108.440 C 267.406 104.849,262.723 90.706,262.733 88.817 C 262.736 88.218,263.983 87.019,265.504 86.154 C 267.186 85.196,268.997 82.935,270.127 80.379 C 275.243 68.813,263.295 58.404,254.135 66.447";
-    function buildLevelCrownSVG(tier) {
-        if (tier === 0) {
-            const parts = EXP_CROWN_PATH.match(/M[^M]+/g);
-            const surfaces = [1, 2, 0].map(i => `<g>
-                <defs><path id="point-${i}" d="${parts[i]}" transform="matrix(.4 0 0 .45 -20 -5)"/><clipPath id="face-${i}"><use href="#point-${i}"/></clipPath></defs>
-                <use href="#point-${i}" transform="translate(1.1 1.5)" fill="#26343c" stroke="#17232a" stroke-width="1.6" stroke-linejoin="round"/>
-                <use href="#point-${i}" fill="url(#aluminum)"/>
-                <g clip-path="url(#face-${i})">
-                    <rect width="120" height="84" fill="url(#reflection)" opacity=".5"/>
-                    <rect width="120" height="84" fill="url(#brushed)"/>
-                    <use href="#point-${i}" transform="translate(-.7 -.9)" fill="none" stroke="#14242d" stroke-width="4" stroke-linejoin="round"/>
-                    <use href="#point-${i}" transform="translate(.65 .85)" fill="none" stroke="#f2f5ee" stroke-opacity=".85" stroke-width="3" stroke-linejoin="round"/>
-                    <use href="#point-${i}" fill="none" stroke="url(#edge)" stroke-width="1.4" stroke-linejoin="round"/>
-                </g>
-            </g>`).join('');
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 84">
-                <defs>
-                    <linearGradient id="aluminum" x1=".12" y1="0" x2=".82" y2="1"><stop stop-color="#eff1ea"/><stop offset=".18" stop-color="#8d999e"/><stop offset=".32" stop-color="#e2e7e8"/><stop offset=".43" stop-color="#a0adb2"/><stop offset=".48" stop-color="#546369"/><stop offset=".66" stop-color="#303c42"/><stop offset=".86" stop-color="#7d8b90"/><stop offset="1" stop-color="#b9c1c1"/></linearGradient>
-                    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fafbef"/><stop offset=".3" stop-color="#c6d0d2"/><stop offset=".5" stop-color="#69777d"/><stop offset=".75" stop-color="#1c272d"/><stop offset="1" stop-color="#afbabd"/></linearGradient>
-                    <linearGradient id="band" x2="1" y2="0"><stop stop-color="#263239"/><stop offset=".12" stop-color="#7d898d"/><stop offset=".3" stop-color="#edf0ec"/><stop offset=".44" stop-color="#aab4b6"/><stop offset=".68" stop-color="#46545b"/><stop offset=".88" stop-color="#87959b"/><stop offset="1" stop-color="#28353c"/></linearGradient>
-                    <linearGradient id="reflection" x2="1" y2=".2"><stop stop-color="#fff" stop-opacity="0"/><stop offset=".34" stop-color="#f8f9ee" stop-opacity=".45"/><stop offset=".42" stop-color="#fff" stop-opacity=".04"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient>
-                    <pattern id="brushed" width="7" height="2" patternUnits="userSpaceOnUse"><path d="M0 .3H5M3 1.3H7" stroke="#f0f4ee" stroke-opacity=".16" stroke-width=".22"/><path d="M1 .8H6" stroke="#17262e" stroke-opacity=".22" stroke-width=".25"/></pattern>
-                </defs>
-                ${surfaces}
-                <path d="M24 73Q60 70 97 73V83H24Z" fill="#17242b"/>
-                <path d="M24 72Q60 69 97 72V81H24Z" fill="url(#band)" stroke="#35434a" stroke-width=".7"/>
-                <path d="M25 73Q60 70 96 73M25 79.7H96" fill="none" stroke="#e1e7e3" stroke-width=".8" opacity=".85"/>
-                <path d="M25 76H96" stroke="#15262d" stroke-opacity=".5" stroke-width=".7"/>
-                <path d="M24 82H97" stroke="#8b989c" stroke-width=".65"/>
-            </svg>`;
-        }
-        const metals = [
-            ['#191e22', '#727b80', '#b0b7ba', '#444d52', '#252c30'],
-            ['#202c34', '#b4c4ce', '#ffffff', '#70858f', '#344650'],
-            ['#492606', '#d39725', '#fff0a5', '#b87a16', '#613606'],
-            ['#344359', '#b2dfe7', '#ffffff', '#beaee0', '#597b90']
-        ][tier];
-        const ramp = metals.map((c, i) => `<stop offset="${[0, .25, .38, .65, 1][i]}" stop-color="${c}"/>`).join('');
-        const outline = tier === 0
-            ? 'M18 80L8 29Q28 58 37 53L60 10L83 53Q92 58 112 29L102 80Z'
-            : tier === 1
-                ? 'M18 80L7 30L27 43L32 19L47 38L60 5L73 38L88 19L93 43L113 30L102 80Z'
-                : 'M18 80L6 27L21 38L27 12L43 32L60 3L77 32L93 12L99 38L114 27L102 80Z';
-        const gem = (x, y, r, color) => `<g transform="translate(${x} ${y})"><path d="M0 ${-r-2}L${r+2} 0L0 ${r+2}L${-r-2} 0Z" fill="url(#metal)" stroke="${metals[0]}" stroke-width="1"/><path d="M0 ${-r}L${r} 0L0 ${r}L${-r} 0Z" fill="${color}"/><path d="M0 ${-r}L0 0L${-r} 0Z" fill="#fff" opacity=".75"/><path d="M0 0L${r} 0L0 ${r}Z" fill="#00120f" opacity=".6"/><path d="M0 ${-r}L${r} 0L0 0Z" fill="#fff" opacity=".25"/></g>`;
-        let details = '';
-        if (tier === 0) {
-            details = Array.from({ length: 10 }, (_, i) => `<path d="M20 ${53+i*2}H100" stroke="#e0e6e8" stroke-opacity=".09" stroke-width=".5"/>`).join('');
-        } else {
-            details = `<path d="M22 65Q34 48 45 59L60 30L75 59Q86 48 98 65 M23 70Q60 57 97 70" fill="none" stroke="${metals[2]}" stroke-width="1.5" opacity=".8"/>`;
-            details += gem(60, 43, tier === 3 ? 10 : 8, tier === 3 ? '#d8f8ff' : '#17be68');
-            details += gem(32, 53, 5, tier === 3 ? '#f0e9ff' : tier === 2 ? '#d32132' : '#159c55');
-            details += gem(88, 53, 5, tier === 3 ? '#d7fff1' : tier === 2 ? '#d32132' : '#159c55');
-        }
-        if (tier >= 2) {
-            details += `<path d="M22 72Q24 55 36 66T60 64T84 66T98 72 M26 31Q34 33 38 43 M94 31Q86 33 82 43" fill="none" stroke="${metals[2]}" stroke-width="1.4"/>`;
-            details += [27, 60, 93].map((x, i) => `<circle cx="${x}" cy="${i === 1 ? 7 : 16}" r="3" fill="url(#metal)" stroke="${metals[2]}" stroke-width=".8"/>`).join('');
-        }
-        if (tier === 3) {
-            details += `<path d="M30 48Q33 6 60 16Q87 6 90 48" fill="none" stroke="url(#metal)" stroke-width="4"/><path d="M32 45Q36 10 60 18Q84 10 88 45" fill="none" stroke="#fff" stroke-width="1"/>`;
-            details += [22, 40, 80, 98].map(x => gem(x, 69, 3, '#e4f7ff')).join('');
-            details += `<path d="M60 0V12M54 6H66 M91 30V40M86 35H96" stroke="#fff" stroke-width="1.5"/>`;
-        }
-        return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 84"><defs><linearGradient id="metal" x1="0" y1="0" x2=".2" y2="1">${ramp}</linearGradient><linearGradient id="band" x1="0" y1="0" x2="1" y2="0"><stop stop-color="${metals[0]}"/><stop offset=".25" stop-color="${metals[1]}"/><stop offset=".46" stop-color="${metals[2]}"/><stop offset=".7" stop-color="${metals[3]}"/><stop offset="1" stop-color="${metals[0]}"/></linearGradient><clipPath id="shape"><path d="${outline}"/></clipPath></defs><path d="${outline}" transform="translate(0 2)" fill="${metals[0]}" stroke="${metals[0]}" stroke-width="2"/><path d="${outline}" fill="url(#metal)" stroke="${metals[2]}" stroke-width="1.2"/><g clip-path="url(#shape)">${details}</g><path d="M18 73Q60 69 102 73V82H18Z" fill="url(#band)" stroke="${metals[0]}" stroke-width="1"/><path d="M19 74Q60 70 101 74M19 80H101" fill="none" stroke="${metals[2]}" stroke-width="1.1" opacity=".85"/></svg>`;
-    }
-    const CROWN_BADGE_SVGS = [0, 1, 2, 3].map(buildLevelCrownSVG);
-    const CROWN_BADGE_URLS = CROWN_BADGE_SVGS.map(svg => `data:image/svg+xml,${encodeURIComponent(svg)}`);
-    const CROWN_BADGE_SVG = CROWN_BADGE_SVGS[0];
-    const CROWN_BADGE_URL = `data:image/svg+xml,${encodeURIComponent(CROWN_BADGE_SVG)}`;
+    // Level badge crowns, one per atrophy state: A0/A1/A2 follow data-atrophy, F is atrophy 2 at
+    // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
+    // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
+    const CROWN_BADGE_URLS = ['A0crwn', 'A1crwn', 'A2crwn', 'Fcrwn']
+        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
@@ -7914,38 +7847,8 @@
                         --crwn-s: calc(clamp(30px, 8cqi, 38px) + 18px * var(--bbgl-page-t));
                     }
 
-                    #bbgl-panel[data-atrophy="0"] #bbgl-level-flag-clip::before {
-                        content: '';
-                        position: absolute;
-                        bottom: var(--bbgl-pedestal-rise);
-                        left: 50%;
-                        transform-origin: 50% 100%;
-                        transform: translateX(-50%);
-                        width: calc(var(--crwn-s) * 1.3);
-                        height: calc(var(--crwn-s) * 0.85 + 1px);
-                        background: url("${CROWN_BADGE_URL}") center bottom / 100% 100% no-repeat;
-                        z-index: -1;
-                    }
-
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-num {
                         top: calc(-1 * var(--bbgl-pedestal-rise));
-                    }
-
-                    /* Gym page crown — old structure (no flag-clip wrapper): the container's
-                       own bottom edge is the bottom of the track, so the top of the track sits
-                       --bbgl-track-h above it. Same flush, no-overlap placement as the main
-                       panel version. */
-                    #bbgl-gym-level-container[data-atrophy="0"] .bbgl-exp-flag::before {
-                        content: '';
-                        position: absolute;
-                        bottom: var(--bbgl-track-h);
-                        left: 50%;
-                        transform-origin: 50% 100%;
-                        transform: translateX(-50%);
-                        width: calc(var(--crwn-s) * 1.3);
-                        height: calc(var(--crwn-s) * 0.85 + 1px);
-                        background: url("${CROWN_BADGE_URL}") center bottom / 100% 100% no-repeat;
-                        z-index: 1;
                     }
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-num,
@@ -8023,62 +7926,6 @@
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
-                    #bbgl-panel[data-atrophy="2"] #bbgl-level-container {
-                        --dmnd-s: clamp(60px, 16cqi, 76px);
-                        --dmnd-b: calc(var(--dmnd-s) * -0.25);
-                    }
-
-                    #bbgl-gym-level-container[data-atrophy="2"] {
-                        --dmnd-s: clamp(76px, 12cqi, 90px);
-                        --dmnd-b: calc(var(--dmnd-s) * -0.25);
-                    }
-
-                    #bbgl-panel[data-atrophy="2"].bbgl-expanded #bbgl-level-container {
-                        --dmnd-s: clamp(70px, calc(70px + 18px * var(--bbgl-dock-t)), 88px);
-                        --dmnd-b: calc(var(--dmnd-s) * -0.23);
-                    }
-
-                    #bbgl-panel[data-atrophy="2"].bbgl-mode-page #bbgl-level-container {
-                        --dmnd-s: calc(clamp(60px, 16cqi, 76px) + 28px * var(--bbgl-page-t));
-                        --dmnd-b: calc(var(--dmnd-s) * (-0.25 + 0.02 * var(--bbgl-page-t)));
-                    }
-
-                    /* A2 badge slot — main panel. Lives on the flag-clip wrapper so it shares the
-                       wrapper's screen-fixed cut line and tucks behind the bar like the text
-                       flag. Its offset parent (the wrapper) sits --bbgl-track-h above the
-                       container bottom, so the bottom anchor subtracts that to land the badge
-                       at the same spot the old container-relative anchor did. No self-clip — the
-                       wrapper does the clipping. z-index:-1 keeps the number text in front.
-                       No background image set — the diamond placeholder was pulled pending a
-                       replacement A2 tier asset; set the background property here once one exists. */
-                    #bbgl-panel[data-atrophy="2"] #bbgl-level-flag-clip::before {
-                        content: '';
-                        position: absolute;
-                        bottom: calc(var(--dmnd-b) - var(--bbgl-track-h));
-                        left: 50%;
-                        transform-origin: 50% calc(100% + var(--dmnd-b));
-                        transform: translateX(-50%);
-                        width: var(--dmnd-s);
-                        height: var(--dmnd-s);
-                        z-index: -1;
-                    }
-
-                    /* A2 badge slot — gym page, old structure (no flag-clip wrapper), keeps its
-                       own self-clip. No background image set; see main panel slot above. */
-                    #bbgl-gym-level-container[data-atrophy="2"] .bbgl-exp-flag::before {
-                        content: '';
-                        position: absolute;
-                        bottom: var(--dmnd-b);
-                        left: 50%;
-                        transform-origin: 50% calc(100% + var(--dmnd-b));
-                        transform: translateX(-50%);
-                        width: var(--dmnd-s);
-                        height: var(--dmnd-s);
-                        clip-path: inset(0 0 calc(var(--dmnd-b) * -1 + 2px) 0);
-                        z-index: 1;
-                        pointer-events: none;
-                    }
-
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-num {
                         color: #b3ffb3;
@@ -8118,30 +7965,29 @@
 
                     /* ─────────────────────────────────────────────────────── */
 
-                    #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); --bbgl-crown-height: .74; }
-                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); }
-                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); }
-                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); }
+                    /* --bbgl-crown-drop is the empty strip under each crown's base, as a share of the
+                       image's height: the art doesn't sit on the bottom edge of its canvas, and by a
+                       different amount per tier. Measured off the shipped 264px webps (rows below the
+                       last one with alpha > 200). Re-measure if a crown is re-exported. */
+                    #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); --bbgl-crown-drop: .159; }
+                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .117; }
+                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .061; }
+                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .053; }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
                         content: '';
                         position: absolute;
                         left: 50%;
-                        width: calc(var(--crwn-s) * 1.3);
-                        height: calc(var(--crwn-s) * var(--bbgl-crown-height, .91));
+                        /* Square, like the art, and as wide as the crown the valve is built around
+                           (--bbgl-crown-w on .bbgl-exp-bar). One size for every tier. */
+                        width: var(--bbgl-crown-w);
+                        height: var(--bbgl-crown-w);
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
-                        background: var(--bbgl-crown-art) center bottom / 100% 100% no-repeat;
+                        background: var(--bbgl-crown-art) center bottom / contain no-repeat;
                         clip-path: none;
                         pointer-events: none;
-                    }
-                    #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before {
-                        bottom: calc(var(--bbgl-pedestal-rise) - var(--bbgl-exp-growth));
-                        z-index: -1;
-                    }
-                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
-                        bottom: var(--bbgl-pedestal-rise);
                         z-index: -1;
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
@@ -8169,7 +8015,9 @@
                     }
 
                     .bbgl-exp-bar {
-                        --bbgl-valve-w: calc(var(--crwn-s, 38px) * 1.3 + 22px);
+                        /* The crown's width, and the valve is that plus its sockets. */
+                        --bbgl-crown-w: calc(var(--crwn-s, 38px) * 1.3);
+                        --bbgl-valve-w: calc(var(--bbgl-crown-w) + 22px);
                         --bbgl-valve-rise: 5px;
                         --bbgl-tube-extra: 6px;
                         --bbgl-valve-lift: 4px;
@@ -8222,12 +8070,24 @@
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
                         bottom: calc(var(--bbgl-valve-h) * 34 / 38 - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) - 3px);
-                        width: 1px;
+                        /* Anchored the same way as .bbgl-level-valve (left: 50%) so the crown and the
+                           valve share one reference point. Left to the flex column's centring, this 1px
+                           box sat at (W - 1) / 2 - a half-pixel on an even-width bar - and as its own
+                           paint layer (clip-path, z-index) it got snapped to a whole pixel while the
+                           valve didn't, which put the crown half a pixel off the valve's centre.
+                           Zero width so the crown's own left: 50% lands on this edge exactly. */
+                        left: 50%;
+                        width: 0;
                         height: 0;
                         clip-path: inset(-9999px -9999px 0 -9999px);
                     }
+                    /* The flag's clip-path cuts everything below its bottom edge, which sits 2px inside
+                       the valve's top. Dropping the crown by its own empty strip pushes exactly that
+                       strip under the cut, so what's left is the solid base, seated on the valve. */
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
-                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before { bottom: 0; }
+                    #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
+                        bottom: calc(var(--bbgl-crown-w) * var(--bbgl-crown-drop, 0) * -1);
+                    }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
                         position: absolute;
