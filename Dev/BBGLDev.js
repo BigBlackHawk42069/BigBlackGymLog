@@ -1719,7 +1719,7 @@
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.webp"),
+        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -2423,6 +2423,15 @@
                     body.bbgl-page-mode-active #bbgl-page-container #bbgl-page-demo-exit svg {
                         width: clamp(20px, calc(24px - 4px * (100cqw - 280px) / 440px), 24px) !important;
                         height: clamp(20px, calc(24px - 4px * (100cqw - 280px) / 440px), 24px) !important;
+                    }
+
+                    #bbgl-panel,
+                    #bbgl-gym-level-container,
+                    #nav-gym-log-desktop,
+                    #nav-gym-log-mobile,
+                    #nav-gym-log-flyout,
+                    #bbgl-gym-tab {
+                        -webkit-tap-highlight-color: transparent;
                     }
 
                     #bbgl-panel {
@@ -6502,17 +6511,18 @@
                     /* Event post-it notes — War and OD visual indicators on calendar cells. */
                     .bbgl-event-post-it {
                         position: absolute;
-                        top: calc(4% - max(0, var(--stack-total, 1) - 1) * 6% + var(--ei, 0) * 9%);
-                        left: 4%;
-                        width: 92%;
-                        height: 92%;
+                        /* --pi-base / --pi-step come from renderCell (07-section-vi-ui.js), which
+                           sizes the stack so it always fits the cell; the fallbacks are the lone-post-it case. */
+                        top: calc(var(--pi-base, 15%) + var(--ei, 0) * var(--pi-step, 0%));
+                        left: 15%;
+                        width: 70%;
+                        height: 70%;
                         background: no-repeat center / contain;
                         z-index: 17;
                         filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
                         transform-origin: top right;
                         transition: transform .35s ease-out, top .35s ease-out;
                         pointer-events: none;
-                        transform: rotate(calc(-4deg + var(--ei, 0) * -3deg));
                     }
 
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
@@ -7415,7 +7425,7 @@
                     }
 
                     #bbgl-level-num {
-                        font-family: 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -7775,7 +7785,7 @@
                     }
 
                     #bbgl-gym-level-num {
-                        font-family: 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(6.5px, 1.0cqi, 8.5px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -8123,7 +8133,7 @@
 
                     .bbgl-exp-bar {
                         --bbgl-podium-w: calc(var(--crwn-s, 38px) * 1.3 + 10px);
-                        --bbgl-podium-rise: 2px;
+                        --bbgl-podium-rise: 3px;
                         /* Extra tube + housing height, growing upward so the tube centers behind the
                            podium. The podium itself doesn't move. */
                         --bbgl-tube-extra: 2px;
@@ -14256,7 +14266,7 @@
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
@@ -20453,6 +20463,7 @@ const BestGymController = {
         const cellCtx = {
             today: todayStr,
             warMarkers: getWarMarkers(),
+            bookMarkers: getBookMarkers(),
             firstDate: _tl.length > 0 ? _tl[0].date : (s ? s.today.date : null)
         };
         const frag = document.createDocumentFragment();
@@ -20540,6 +20551,43 @@ const BestGymController = {
     // `raw` starts as a sentinel (false) that no localStorage value can equal — otherwise an
     // absent key (getItem -> null) would match an initial null and return the uninitialized map.
     let _warMarkerCache = { raw: false, cutoff: -1, map: {} };
+    // Book post-its. A book window lands on at most two days: the day it was used and the day it
+    // ended. Which start marker it gets follows `training` - the tracked books on the library's
+    // first two pages; which end marker it gets follows `readPeriod`, since those pay a perk out on
+    // completion while every other book's end is just its 31 days running out. Memories And
+    // Mammaries takes the kind of the book it repeats, the same way its library row does. Ends in
+    // the future (a buff still running) aren't events yet, so they don't get a post-it.
+    // The library's first two pages are built from the `stat`/`gym`/`energy`/`happy` training
+    // groups; `repeat` is not one of them, so Memories falls through to the Other Books pages. Same
+    // test as the allOthers filter that renders them.
+    const isTrainingBook = meta => !!meta.training && meta.training !== 'repeat';
+
+    function getBookMarkers() {
+        const books = (DataController.getBookData() || {}).books || {};
+        const nowTs = Math.floor(Date.now() / 1000);
+        const map = {};
+        const mark = (ts, key) => {
+            if (ts == null || ts > nowTs) return;
+            const ds = Formatter.dateLogical(ts * 1000);
+            (map[ds] || (map[ds] = {}))[key] = true;
+        };
+        Object.keys(books).forEach(k => {
+            const id = Number(k),
+                d = books[id],
+                meta = BOOK_META[id];
+            if (!meta || !d || d.state === 'unread') return;
+            // Memories And Mammaries has no effect of its own - it takes the one from the book read
+            // before it - so it gets whichever post-its that book would have got, start and end
+            // alike. Until the log says what it repeated, its own metadata stands, which lands it on
+            // the perk side: `repeat` isn't one of the training groups the library's first two pages
+            // are built from, so Memories is an Other Book there and should read as one here too.
+            const eff = (id === MEMORIES_BOOK && d.repeats != null && BOOK_META[d.repeats]) || meta;
+            mark(d.start, isTrainingBook(eff) ? 'trainStart' : 'perkStart');
+            mark(d.end, eff.readPeriod ? 'perkReceived' : 'perkEnded');
+        });
+        return map;
+    }
+
     function getWarMarkers() {
         const raw = localStorage.getItem(KEYS.WARS_DATA);
         const meta = getActiveHistory().meta;
@@ -20572,6 +20620,17 @@ const BestGymController = {
 
     // `ctx` carries the per-render constants hoisted out of this function by renderPanelContent()
     // (see there) — single call site, so the extra parameter stays contained.
+    // Event post-it stack geometry, in % of the day cell. These pair with .bbgl-event-post-it in
+    // 04-section-iii-styles.js, which is 70% tall - so a post-it's top can sit anywhere in 0-30%
+    // before it hangs out of the cell. POST_IT_TOP is where a lone post-it sits and every stack
+    // stays centred on it. The two limits do different jobs: POST_IT_STEP is how far apart a small
+    // stack wants to sit, and POST_IT_BAND is the total spread a large one compresses into, which
+    // is what actually keeps the last post-it's bottom edge inside the cell (1 + 28 + 70 = 99).
+    const POST_IT_TOP = 15,
+        POST_IT_STEP = 18,
+        POST_IT_BAND = 28,
+        POST_IT_LIFT = 0.5;
+
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
             sl = DataController.getSlice('DAY', ds),
@@ -20661,12 +20720,28 @@ const BestGymController = {
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
-            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.webp');
-            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.webp');
-            if ((sl.exODs || 0) > 0) eventImgs.push('PLACEHOLDER_EX_OD_URL');
-            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.webp');
-            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.webp');
-            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.webp');
+            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsod.webp');
+            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xanx-od.webp');
+            if ((sl.exODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'x-od.webp');
+            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'wr-strt.webp');
+            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'wr-wn.webp');
+            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'wr-lst.webp');
+            const bm = ctx.bookMarkers[ds];
+            if (bm) {
+                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-train-book-started.webp');
+                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-perk-book-started.webp');
+                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-ended.webp');
+                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-received.webp');
+            }
+            // The stack spreads across a fixed window in the cell rather than stepping by a fixed
+            // amount, so it can't outgrow the day. Up to three it steps by POST_IT_STEP and looks
+            // exactly as it always has; past that the step shrinks to keep the last one's bottom
+            // edge on POST_IT_BAND's far side. The lift keeps the stack centred as it grows.
+            const nEvents = eventImgs.length,
+                piStep = nEvents > 1 ? Math.min(POST_IT_STEP, POST_IT_BAND / (nEvents - 1)) : 0,
+                piBase = POST_IT_TOP - (nEvents - 1) * piStep * POST_IT_LIFT;
+            cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%');
+            cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%');
             eventImgs.forEach((url, i) => {
                 const ep = document.createElement('div');
                 ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : '');
@@ -23167,7 +23242,7 @@ const BestGymController = {
 
     function buildLevelPodiumSVG(prefix) {
         const id = `${prefix}-podium-${++levelTrackSvgSerial}`;
-        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="900">1</text>';
+        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="27" font-weight="300" letter-spacing="2">1</text>';
         return `<svg class="bbgl-level-podium" viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true">
             <defs>
                 <linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="#85898b"/><stop offset=".12" stop-color="#363b3e"/><stop offset=".5" stop-color="#24282b"/><stop offset=".86" stop-color="#42474a"/><stop offset="1" stop-color="#111416"/></linearGradient>

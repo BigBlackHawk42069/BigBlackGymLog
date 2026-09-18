@@ -711,6 +711,7 @@
         const cellCtx = {
             today: todayStr,
             warMarkers: getWarMarkers(),
+            bookMarkers: getBookMarkers(),
             firstDate: _tl.length > 0 ? _tl[0].date : (s ? s.today.date : null)
         };
         const frag = document.createDocumentFragment();
@@ -798,6 +799,43 @@
     // `raw` starts as a sentinel (false) that no localStorage value can equal — otherwise an
     // absent key (getItem -> null) would match an initial null and return the uninitialized map.
     let _warMarkerCache = { raw: false, cutoff: -1, map: {} };
+    // Book post-its. A book window lands on at most two days: the day it was used and the day it
+    // ended. Which start marker it gets follows `training` - the tracked books on the library's
+    // first two pages; which end marker it gets follows `readPeriod`, since those pay a perk out on
+    // completion while every other book's end is just its 31 days running out. Memories And
+    // Mammaries takes the kind of the book it repeats, the same way its library row does. Ends in
+    // the future (a buff still running) aren't events yet, so they don't get a post-it.
+    // The library's first two pages are built from the `stat`/`gym`/`energy`/`happy` training
+    // groups; `repeat` is not one of them, so Memories falls through to the Other Books pages. Same
+    // test as the allOthers filter that renders them.
+    const isTrainingBook = meta => !!meta.training && meta.training !== 'repeat';
+
+    function getBookMarkers() {
+        const books = (DataController.getBookData() || {}).books || {};
+        const nowTs = Math.floor(Date.now() / 1000);
+        const map = {};
+        const mark = (ts, key) => {
+            if (ts == null || ts > nowTs) return;
+            const ds = Formatter.dateLogical(ts * 1000);
+            (map[ds] || (map[ds] = {}))[key] = true;
+        };
+        Object.keys(books).forEach(k => {
+            const id = Number(k),
+                d = books[id],
+                meta = BOOK_META[id];
+            if (!meta || !d || d.state === 'unread') return;
+            // Memories And Mammaries has no effect of its own - it takes the one from the book read
+            // before it - so it gets whichever post-its that book would have got, start and end
+            // alike. Until the log says what it repeated, its own metadata stands, which lands it on
+            // the perk side: `repeat` isn't one of the training groups the library's first two pages
+            // are built from, so Memories is an Other Book there and should read as one here too.
+            const eff = (id === MEMORIES_BOOK && d.repeats != null && BOOK_META[d.repeats]) || meta;
+            mark(d.start, isTrainingBook(eff) ? 'trainStart' : 'perkStart');
+            mark(d.end, eff.readPeriod ? 'perkReceived' : 'perkEnded');
+        });
+        return map;
+    }
+
     function getWarMarkers() {
         const raw = localStorage.getItem(KEYS.WARS_DATA);
         const meta = getActiveHistory().meta;
@@ -830,6 +868,17 @@
 
     // `ctx` carries the per-render constants hoisted out of this function by renderPanelContent()
     // (see there) — single call site, so the extra parameter stays contained.
+    // Event post-it stack geometry, in % of the day cell. These pair with .bbgl-event-post-it in
+    // 04-section-iii-styles.js, which is 70% tall - so a post-it's top can sit anywhere in 0-30%
+    // before it hangs out of the cell. POST_IT_TOP is where a lone post-it sits and every stack
+    // stays centred on it. The two limits do different jobs: POST_IT_STEP is how far apart a small
+    // stack wants to sit, and POST_IT_BAND is the total spread a large one compresses into, which
+    // is what actually keeps the last post-it's bottom edge inside the cell (1 + 28 + 70 = 99).
+    const POST_IT_TOP = 15,
+        POST_IT_STEP = 18,
+        POST_IT_BAND = 28,
+        POST_IT_LIFT = 0.5;
+
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
             sl = DataController.getSlice('DAY', ds),
@@ -919,12 +968,28 @@
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
-            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsd-od.webp');
-            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xan-od.webp');
-            if ((sl.exODs || 0) > 0) eventImgs.push('PLACEHOLDER_EX_OD_URL');
-            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'war-strt.webp');
-            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'war-win.webp');
-            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lost.webp');
+            if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsod.webp');
+            if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xanx-od.webp');
+            if ((sl.exODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'x-od.webp');
+            if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'wr-strt.webp');
+            if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'wr-wn.webp');
+            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'wr-lst.webp');
+            const bm = ctx.bookMarkers[ds];
+            if (bm) {
+                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-train-book-started.webp');
+                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-perk-book-started.webp');
+                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-ended.webp');
+                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-received.webp');
+            }
+            // The stack spreads across a fixed window in the cell rather than stepping by a fixed
+            // amount, so it can't outgrow the day. Up to three it steps by POST_IT_STEP and looks
+            // exactly as it always has; past that the step shrinks to keep the last one's bottom
+            // edge on POST_IT_BAND's far side. The lift keeps the stack centred as it grows.
+            const nEvents = eventImgs.length,
+                piStep = nEvents > 1 ? Math.min(POST_IT_STEP, POST_IT_BAND / (nEvents - 1)) : 0,
+                piBase = POST_IT_TOP - (nEvents - 1) * piStep * POST_IT_LIFT;
+            cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%');
+            cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%');
             eventImgs.forEach((url, i) => {
                 const ep = document.createElement('div');
                 ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : '');
@@ -3425,7 +3490,7 @@
 
     function buildLevelPodiumSVG(prefix) {
         const id = `${prefix}-podium-${++levelTrackSvgSerial}`;
-        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="900">1</text>';
+        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="27" font-weight="300" letter-spacing="2">1</text>';
         return `<svg class="bbgl-level-podium" viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true">
             <defs>
                 <linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="#85898b"/><stop offset=".12" stop-color="#363b3e"/><stop offset=".5" stop-color="#24282b"/><stop offset=".86" stop-color="#42474a"/><stop offset="1" stop-color="#111416"/></linearGradient>

@@ -11,7 +11,7 @@
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/new-stkr.webp"),
+        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -715,6 +715,15 @@
                     body.bbgl-page-mode-active #bbgl-page-container #bbgl-page-demo-exit svg {
                         width: clamp(20px, calc(24px - 4px * (100cqw - 280px) / 440px), 24px) !important;
                         height: clamp(20px, calc(24px - 4px * (100cqw - 280px) / 440px), 24px) !important;
+                    }
+
+                    #bbgl-panel,
+                    #bbgl-gym-level-container,
+                    #nav-gym-log-desktop,
+                    #nav-gym-log-mobile,
+                    #nav-gym-log-flyout,
+                    #bbgl-gym-tab {
+                        -webkit-tap-highlight-color: transparent;
                     }
 
                     #bbgl-panel {
@@ -4794,17 +4803,18 @@
                     /* Event post-it notes — War and OD visual indicators on calendar cells. */
                     .bbgl-event-post-it {
                         position: absolute;
-                        top: calc(4% - max(0, var(--stack-total, 1) - 1) * 6% + var(--ei, 0) * 9%);
-                        left: 4%;
-                        width: 92%;
-                        height: 92%;
+                        /* --pi-base / --pi-step come from renderCell (07-section-vi-ui.js), which
+                           sizes the stack so it always fits the cell; the fallbacks are the lone-post-it case. */
+                        top: calc(var(--pi-base, 15%) + var(--ei, 0) * var(--pi-step, 0%));
+                        left: 15%;
+                        width: 70%;
+                        height: 70%;
                         background: no-repeat center / contain;
                         z-index: 17;
                         filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
                         transform-origin: top right;
                         transition: transform .35s ease-out, top .35s ease-out;
                         pointer-events: none;
-                        transform: rotate(calc(-4deg + var(--ei, 0) * -3deg));
                     }
 
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
@@ -5707,7 +5717,7 @@
                     }
 
                     #bbgl-level-num {
-                        font-family: 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -6067,7 +6077,7 @@
                     }
 
                     #bbgl-gym-level-num {
-                        font-family: 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(6.5px, 1.0cqi, 8.5px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -6415,7 +6425,7 @@
 
                     .bbgl-exp-bar {
                         --bbgl-podium-w: calc(var(--crwn-s, 38px) * 1.3 + 10px);
-                        --bbgl-podium-rise: 2px;
+                        --bbgl-podium-rise: 3px;
                         /* Extra tube + housing height, growing upward so the tube centers behind the
                            podium. The podium itself doesn't move. */
                         --bbgl-tube-extra: 2px;
@@ -12548,7 +12558,7 @@
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
