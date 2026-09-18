@@ -1778,6 +1778,36 @@
     // The path here is modified to remove the bottom arch and halo for a completely solid flush bottom.
     const EXP_CROWN_PATH = "M193.636 22.044 C 182.529 27.985,180.338 45.621,189.593 54.592 C 193.384 58.266,193.325 58.939,188.176 70.810 C 163.707 127.227,143.908 132.713,103.872 94.170 C 97.232 87.778,97.187 87.704,98.234 84.744 C 102.964 71.365,85.668 57.225,74.917 65.683 C 65.274 73.267,71.102 91.707,83.674 93.393 C 86.535 93.777,87.611 94.407,88.243 96.069 C 89.543 99.488,100.349 139.625,104.966 158.182 C 107.267 167.432,109.322 175.494,109.532 176.099 C 109.800 176.869,111.627 176.423,115.639 174.608 L 286.205 174.613 C 293.432 177.890,291.721 180.896,299.107 151.950 C 311.947 101.626,314.454 93.636,317.401 93.636 C 326.599 93.636,334.579 79.275,330.342 70.347 C 322.578 53.985,297.084 68.675,303.582 85.767 C 305.874 91.794,271.086 117.463,258.740 118.855 C 242.368 120.700,226.759 103.733,212.306 68.380 L 208.113 58.124 211.323 55.097 C 226.571 40.716,211.474 12.503,193.636 22.044 M138.379 65.055 C 132.851 68.927,132.526 85.309,137.973 85.475 C 138.338 85.486,139.582 86.223,140.738 87.112 L 142.839 88.729 139.512 98.673 C 137.682 104.142,135.612 109.726,134.911 111.082 C 133.185 114.418,133.200 114.456,136.789 115.955 C 146.318 119.937,155.721 116.589,165.869 105.601 L 168.556 102.692 162.196 96.119 C 152.170 85.755,152.287 85.936,154.000 83.490 C 160.757 73.843,147.749 58.492,138.379 65.055 M254.135 66.447 C 249.029 70.930,247.780 79.527,251.606 83.864 C 253.281 85.763,253.294 85.744,242.310 97.108 L 235.000 104.671 239.263 108.569 C 247.293 115.913,255.483 117.954,264.959 114.973 C 271.221 113.003,271.405 112.722,269.230 108.440 C 267.406 104.849,262.723 90.706,262.733 88.817 C 262.736 88.218,263.983 87.019,265.504 86.154 C 267.186 85.196,268.997 82.935,270.127 80.379 C 275.243 68.813,263.295 58.404,254.135 66.447";
     function buildLevelCrownSVG(tier) {
+        if (tier === 0) {
+            const parts = EXP_CROWN_PATH.match(/M[^M]+/g);
+            const surfaces = [1, 2, 0].map(i => `<g>
+                <defs><path id="point-${i}" d="${parts[i]}" transform="matrix(.4 0 0 .45 -20 -5)"/><clipPath id="face-${i}"><use href="#point-${i}"/></clipPath></defs>
+                <use href="#point-${i}" transform="translate(1.1 1.5)" fill="#26343c" stroke="#17232a" stroke-width="1.6" stroke-linejoin="round"/>
+                <use href="#point-${i}" fill="url(#aluminum)"/>
+                <g clip-path="url(#face-${i})">
+                    <rect width="120" height="84" fill="url(#reflection)" opacity=".5"/>
+                    <rect width="120" height="84" fill="url(#brushed)"/>
+                    <use href="#point-${i}" transform="translate(-.7 -.9)" fill="none" stroke="#14242d" stroke-width="4" stroke-linejoin="round"/>
+                    <use href="#point-${i}" transform="translate(.65 .85)" fill="none" stroke="#f2f5ee" stroke-opacity=".85" stroke-width="3" stroke-linejoin="round"/>
+                    <use href="#point-${i}" fill="none" stroke="url(#edge)" stroke-width="1.4" stroke-linejoin="round"/>
+                </g>
+            </g>`).join('');
+            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 84">
+                <defs>
+                    <linearGradient id="aluminum" x1=".12" y1="0" x2=".82" y2="1"><stop stop-color="#eff1ea"/><stop offset=".18" stop-color="#8d999e"/><stop offset=".32" stop-color="#e2e7e8"/><stop offset=".43" stop-color="#a0adb2"/><stop offset=".48" stop-color="#546369"/><stop offset=".66" stop-color="#303c42"/><stop offset=".86" stop-color="#7d8b90"/><stop offset="1" stop-color="#b9c1c1"/></linearGradient>
+                    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fafbef"/><stop offset=".3" stop-color="#c6d0d2"/><stop offset=".5" stop-color="#69777d"/><stop offset=".75" stop-color="#1c272d"/><stop offset="1" stop-color="#afbabd"/></linearGradient>
+                    <linearGradient id="band" x2="1" y2="0"><stop stop-color="#263239"/><stop offset=".12" stop-color="#7d898d"/><stop offset=".3" stop-color="#edf0ec"/><stop offset=".44" stop-color="#aab4b6"/><stop offset=".68" stop-color="#46545b"/><stop offset=".88" stop-color="#87959b"/><stop offset="1" stop-color="#28353c"/></linearGradient>
+                    <linearGradient id="reflection" x2="1" y2=".2"><stop stop-color="#fff" stop-opacity="0"/><stop offset=".34" stop-color="#f8f9ee" stop-opacity=".45"/><stop offset=".42" stop-color="#fff" stop-opacity=".04"/><stop offset=".75" stop-color="#000" stop-opacity=".2"/><stop offset="1" stop-color="#fff" stop-opacity=".1"/></linearGradient>
+                    <pattern id="brushed" width="7" height="2" patternUnits="userSpaceOnUse"><path d="M0 .3H5M3 1.3H7" stroke="#f0f4ee" stroke-opacity=".16" stroke-width=".22"/><path d="M1 .8H6" stroke="#17262e" stroke-opacity=".22" stroke-width=".25"/></pattern>
+                </defs>
+                ${surfaces}
+                <path d="M24 73Q60 70 97 73V83H24Z" fill="#17242b"/>
+                <path d="M24 72Q60 69 97 72V81H24Z" fill="url(#band)" stroke="#35434a" stroke-width=".7"/>
+                <path d="M25 73Q60 70 96 73M25 79.7H96" fill="none" stroke="#e1e7e3" stroke-width=".8" opacity=".85"/>
+                <path d="M25 76H96" stroke="#15262d" stroke-opacity=".5" stroke-width=".7"/>
+                <path d="M24 82H97" stroke="#8b989c" stroke-width=".65"/>
+            </svg>`;
+        }
         const metals = [
             ['#191e22', '#727b80', '#b0b7ba', '#444d52', '#252c30'],
             ['#202c34', '#b4c4ce', '#ffffff', '#70858f', '#344650'],
@@ -2449,7 +2479,11 @@
                         text-size-adjust: 100%;
                         position: fixed;
                         bottom: ${LAYOUT.LIFT_HEIGHT}px;
-                        right: 10px;
+                        /* First-paint position only - updatePanelPosition() overwrites this inline on
+                           every layout pass, off the same constant. Both read LAYOUT.BASE_RIGHT so the
+                           two can't drift: they did, at 10 here against 5 there, which is what left
+                           the expanded panel's margins lopsided on narrow viewports. */
+                        right: ${LAYOUT.BASE_RIGHT}px;
                         z-index: 999989;
                         font-family: Arial, sans-serif;
                         display: none;
@@ -2501,7 +2535,10 @@
                            "Staged width curves" below) so it is spent before the pills give up any
                            type size — it was fully rigid before, which meant the pills paid first. */
                         --bbgl-toolbar-min-gap: clamp(8px, calc(8px + 4px * var(--bbgl-t-gaps)), 12px);
-                        width: min(576px, calc(100vw - 20px));
+                        /* Capped at the notes panel's width; below that cap the panel is whatever the
+                           viewport leaves once both margins are taken, so it sits with the same gap on
+                           each side as it does on the right when docked. */
+                        width: min(576px, calc(100vw - ${LAYOUT.BASE_RIGHT * 2}px));
                         height: 633px;
                         max-height: calc(100vh - 50px) !important;
                         overflow-y: auto;
@@ -8081,7 +8118,7 @@
 
                     /* ─────────────────────────────────────────────────────── */
 
-                    #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); }
+                    #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); --bbgl-crown-height: .74; }
                     #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); }
                     #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); }
                     #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); }
@@ -8092,7 +8129,7 @@
                         position: absolute;
                         left: 50%;
                         width: calc(var(--crwn-s) * 1.3);
-                        height: calc(var(--crwn-s) * .91);
+                        height: calc(var(--crwn-s) * var(--bbgl-crown-height, .91));
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
                         background: var(--bbgl-crown-art) center bottom / 100% 100% no-repeat;
@@ -8132,46 +8169,40 @@
                     }
 
                     .bbgl-exp-bar {
-                        --bbgl-podium-w: calc(var(--crwn-s, 38px) * 1.3 + 10px);
-                        --bbgl-podium-rise: 3px;
-                        /* Extra tube + housing height, growing upward so the tube centers behind the
-                           podium. The podium itself doesn't move. */
-                        --bbgl-tube-extra: 2px;
-                        --bbgl-podium-lift: 2px;
-                        --bbgl-podium-h: calc(var(--bbgl-track-h) + var(--bbgl-podium-rise) * 2);
-                        /* Track box = the mode's base track height plus the extra. */
+                        --bbgl-valve-w: calc(var(--crwn-s, 38px) * 1.3 + 22px);
+                        --bbgl-valve-rise: 5px;
+                        --bbgl-tube-extra: 6px;
+                        --bbgl-valve-lift: 4px;
+                        --bbgl-valve-h: calc(var(--bbgl-track-h) + var(--bbgl-valve-rise) * 2);
                         --bbgl-track-box: calc(var(--bbgl-track-box-base, var(--bbgl-track-h)) + var(--bbgl-tube-extra));
-                        /* Fill is centered on the track box (its gradient reads from its own center).
-                           The visible band is the middle 30-70% of the track box, and the podium notch
-                           is offset to where the podium actually sits. All measured from the fill's top. */
-                        --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-podium-h)) / 2);
+                        --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-valve-h)) / 2);
                         --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top));
                         --bbgl-band-bot: calc(var(--bbgl-track-box) * .7 - var(--bbgl-fill-top));
-                        /* Shifts the fill band down without moving the podium notch. */
                         --bbgl-fill-nudge: 1px;
-                        --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-podium-rise) - var(--bbgl-podium-lift) - var(--bbgl-podium-h) - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
-                        --bbgl-notch-bot: calc(var(--bbgl-notch-top) + var(--bbgl-podium-h));
+                        --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
+                        --bbgl-notch-bot: calc(var(--bbgl-notch-top) + var(--bbgl-valve-h) * .68);
                     }
                     .bbgl-exp-bar::after { content: none; }
                     .bbgl-exp-bar::before {
                         content: '';
                         position: absolute;
                         left: 50%;
-                        bottom: calc(3px - var(--bbgl-podium-rise) + var(--bbgl-podium-lift));
-                        width: calc(var(--bbgl-podium-w) * .84);
-                        height: calc(var(--bbgl-podium-h) - 7px);
+                        bottom: calc(3px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift));
+                        width: calc(var(--bbgl-valve-w) * .56);
+                        height: calc(var(--bbgl-valve-h) - 7px);
                         transform: translateX(-50%);
-                        background: linear-gradient(180deg, #0a141b, #52606a 42%, #26343c 62%, #10191f);
+                        border-radius: 5px;
+                        background: linear-gradient(180deg, #050b10, #25343e 45%, #14212a 70%, #070d12);
                         z-index: 1;
                         pointer-events: none;
                     }
-                    .bbgl-level-podium {
+                    .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
-                        bottom: calc(-1px - var(--bbgl-podium-rise) + var(--bbgl-podium-lift));
+                        bottom: calc(-1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
                         transform: translateX(-50%);
-                        width: var(--bbgl-podium-w);
-                        height: var(--bbgl-podium-h);
+                        width: var(--bbgl-valve-w);
+                        height: calc(var(--bbgl-valve-h) * 30 / 38);
                         z-index: 4;
                         overflow: visible;
                         pointer-events: none;
@@ -8184,13 +8215,13 @@
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge));
-                        height: var(--bbgl-podium-h);
+                        height: var(--bbgl-valve-h);
                         border-radius: 0;
-                        clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-band-top), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-podium-w) * .42) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-podium-w) * .42) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                        clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
                     }
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
-                        bottom: calc(var(--bbgl-podium-h) - var(--bbgl-podium-rise) + var(--bbgl-podium-lift) - 2px);
+                        bottom: calc(var(--bbgl-valve-h) * 34 / 38 - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) - 3px);
                         width: 1px;
                         height: 0;
                         clip-path: inset(-9999px -9999px 0 -9999px);
@@ -8205,7 +8236,11 @@
                         overflow: hidden;
                         clip-path: inset(50%);
                     }
-                    .bbgl-level-up-flash .bbgl-level-podium { animation: bbgl-lvl-flash-text .8s ease-out; }
+                    .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-bar .8s ease-out; }
+
+                    .bbgl-exp-track .bbgl-level-svg {
+                        mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% + var(--bbgl-valve-w) * .36), #000 calc(50% + var(--bbgl-valve-w) * .36));
+                    }
 
                     /* ─── Endocrine Enhancers Page ──────────────────────── */
 
@@ -10842,6 +10877,21 @@
                         font-weight: 500;
                         letter-spacing: .08em;
                         line-height: 1;
+                        --bbgl-t-title-hit-x: 12px;
+                        --bbgl-t-title-hit-y: 9px;
+                    }
+
+                    /* Hit area only. A rank title sits alone above the groove with nothing else to
+                       aim at, so the box it answers to runs well past its own ink - a locked glyph is
+                       a few px of engraving and an unlocked name is one short line. Absolutely
+                       positioned, so it adds no layout (inside .is-locked's inline-flex a static
+                       ::after would become a flex item) and paints nothing: the row looks identical,
+                       it is just easier to hit. Hover and tap both come along, since the tooltip
+                       resolves through closest('[data-tooltip]') on the element this belongs to. */
+                    .bbgl-rank-title::after {
+                        content: '';
+                        position: absolute;
+                        inset: calc(-1 * var(--bbgl-t-title-hit-y)) calc(-1 * var(--bbgl-t-title-hit-x));
                     }
 
                     .bbgl-rank-title.is-milestone {
@@ -11353,8 +11403,8 @@
                     }
 
                     .bbgl-rank-title.is-locked svg {
-                        width: calc(var(--bbgl-t-fs-notch, 10px) * .9);
-                        height: calc(var(--bbgl-t-fs-notch, 10px) * .9);
+                        width: calc(var(--bbgl-t-fs-notch, 10px) * 1.25);
+                        height: calc(var(--bbgl-t-fs-notch, 10px) * 1.25);
                     }
 
                     /* The live coordinate mirrors the title milestones below the groove: the same
@@ -17904,7 +17954,11 @@ function achTitleStarHTML(stat, phase, unlockedPhase, statE, role) {
     let tip;
     if (!unlocked) {
         const inProgress = phase === unlockedPhase + 1;
+        // What to do about it, named before the numbers: every star on the board is locked the same
+        // way and only the in-progress one carries an E readout, so without this line the rest say
+        // nothing but "Locked".
         tip = '<strong><em>Locked</em></strong>' +
+            `<i>Spend Energy training ${achStatFull(stat)} to unlock this title</i>` +
             (inProgress ? `<i>${Formatter.number(Math.min(statE, need))} / ${Formatter.number(need)} E</i>` : '');
     } else {
         tip = `<strong>${words.adj} • ${words.noun}</strong><i>${achStatFull(stat)} · Tier ${phase + 1}</i>`;
@@ -21600,7 +21654,7 @@ const BestGymController = {
 
     function setLevelBarNumber(bar, level) {
         bar.num.textContent = 'Lv ' + level;
-        bar.container.querySelectorAll('.bbgl-podium-digit').forEach(node => { node.textContent = level; });
+        bar.container.querySelectorAll('.bbgl-valve-digit').forEach(node => { node.textContent = level; });
         bar.container.dataset.level = level;
     }
 
@@ -23237,26 +23291,64 @@ const BestGymController = {
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelPodiumSVG(prefix)}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}</div>`;
     }
 
-    function buildLevelPodiumSVG(prefix) {
-        const id = `${prefix}-podium-${++levelTrackSvgSerial}`;
-        const digit = '<text class="bbgl-podium-digit" x="50" y="28" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="27" font-weight="300" letter-spacing="2">1</text>';
-        return `<svg class="bbgl-level-podium" viewBox="0 0 100 38" preserveAspectRatio="none" aria-hidden="true">
+    function buildLevelValveSVG(prefix) {
+        const id = `${prefix}-valve-${++levelTrackSvgSerial}`;
+        const bolts = [[20, 12], [80, 12], [20, 26], [80, 26]].map(([x, y]) => `<circle cx="${x}" cy="${y + .35}" r="2.05" fill="#050809"/><circle cx="${x}" cy="${y}" r="1.85" fill="url(#${id}-bevel)"/><circle cx="${x}" cy="${y - .15}" r="1.3" fill="url(#${id}-bolt)"/><path d="M${x - .6} ${y + .45}l1.2-1.2" stroke="#080d0e" stroke-width=".65"/><path d="M${x - 1.1} ${y - .3}q.2-.8 1-.85" fill="none" stroke="#ecedda" stroke-opacity=".65" stroke-width=".35"/>`).join('');
+        const sockets = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
+            <path d="M24 6L18 7.6H14V28.5C18 29.5 20 31 24 32L22 27V11Z" fill="url(#${id}-shoulder)"/>
+            <path d="M23 7L18 8.5H14 M14.5 27.5C18 28.5 20 30 23 31" fill="none" stroke="url(#${id}-bevel)" stroke-width=".8"/>
+            <ellipse cx="14" cy="19" rx="2.8" ry="9.9" fill="url(#${id}-bevel)"/>
+            <ellipse cx="13.7" cy="19" rx="1.9" ry="8.6" fill="#030708"/>
+            <path d="M10 12.8H13.5C15.2 12.8 15.2 25.2 13.5 25.2H10Z" fill="url(#${id}-fitting)"/>
+            <path d="M12 13.3C13.5 14 13.5 24 12 24.7" fill="none" stroke="#060b0d" stroke-width=".65"/>
+            <path d="M13.6 13.2C14.8 15 14.8 23 13.6 24.8" fill="none" stroke="#ced8d1" stroke-opacity=".55" stroke-width=".55"/>
+            <path d="M11.2 11.5V10.2Q11.2 7.6 14 7.6H18L24 6L22.5 7.7L18 9.7H14.5V11.5Z" fill="url(#${id}-shoulder)"/>
+            <path d="M11.8 10.5V10.2Q11.8 8.3 14 8.3H18L23 6.5" fill="none" stroke="#b8c3b9" stroke-opacity=".55" stroke-width=".55"/>
+            <path d="M14.5 11.1V10H18" fill="none" stroke="#080e10" stroke-width=".6"/>
+            <path d="M10 14H12.5" stroke="#edf1df" stroke-opacity=".65" stroke-width=".6"/>
+        </g>`).join('');
+        return `<svg class="bbgl-level-valve" viewBox="0 4 100 30" preserveAspectRatio="none" aria-hidden="true">
             <defs>
-                <linearGradient id="${id}-metal" x2="0" y2="1"><stop stop-color="#85898b"/><stop offset=".12" stop-color="#363b3e"/><stop offset=".5" stop-color="#24282b"/><stop offset=".86" stop-color="#42474a"/><stop offset="1" stop-color="#111416"/></linearGradient>
-                <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#a5bdc5" stop-opacity=".4"/><stop offset=".35" stop-color="#daeef4" stop-opacity=".12"/><stop offset=".55" stop-color="#071015" stop-opacity=".1"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient>
-                <mask id="${id}-holes"><rect width="100" height="38" fill="white"/><g fill="black">${digit}</g></mask>
-                <clipPath id="${id}-digits">${digit}</clipPath>
+                <linearGradient id="${id}-steel" x2="0" y2="1"><stop stop-color="#c0c0b6"/><stop offset=".08" stop-color="#707675"/><stop offset=".19" stop-color="#3f4749"/><stop offset=".44" stop-color="#252c2e"/><stop offset=".66" stop-color="#171d1f"/><stop offset=".86" stop-color="#505654"/><stop offset=".94" stop-color="#858983"/><stop offset="1" stop-color="#14191a"/></linearGradient>
+                <linearGradient id="${id}-fitting" x2="0" y2="1"><stop stop-color="#12191d"/><stop offset=".22" stop-color="#8e999e"/><stop offset=".34" stop-color="#c5cdd0"/><stop offset=".48" stop-color="#626e74"/><stop offset=".73" stop-color="#263036"/><stop offset=".9" stop-color="#515d63"/><stop offset="1" stop-color="#11181c"/></linearGradient>
+                <linearGradient id="${id}-shoulder" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#929991"/><stop offset=".17" stop-color="#5c6869"/><stop offset=".3" stop-color="#929b97"/><stop offset=".43" stop-color="#434f51"/><stop offset=".64" stop-color="#1e292c"/><stop offset=".85" stop-color="#101719"/><stop offset="1" stop-color="#58615b"/></linearGradient>
+                <radialGradient id="${id}-bolt" cx=".3" cy=".2" r=".8"><stop stop-color="#e1e3d4"/><stop offset=".3" stop-color="#9ca7a3"/><stop offset=".6" stop-color="#4c595b"/><stop offset="1" stop-color="#141d20"/></radialGradient>
+                <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#02090e" stop-opacity=".7"/><stop offset=".18" stop-color="#d8f1fa" stop-opacity=".26"/><stop offset=".42" stop-color="#b6d9e8" stop-opacity=".07"/><stop offset=".7" stop-color="#07151f" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
+                <linearGradient id="${id}-bevel" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#e0e0cd"/><stop offset=".2" stop-color="#7d898b"/><stop offset=".43" stop-color="#262f32"/><stop offset=".7" stop-color="#090e10"/><stop offset=".9" stop-color="#737f80"/><stop offset="1" stop-color="#b0b8ae"/></linearGradient>
+                <radialGradient id="${id}-reflection" cx=".3" cy="0" r=".8"><stop stop-color="#f2efdc" stop-opacity=".4"/><stop offset=".4" stop-color="#c8dce1" stop-opacity=".12"/><stop offset="1" stop-color="#b8d3df" stop-opacity="0"/></radialGradient>
+                <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
+                <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
+                <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
+                <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
-            <path d="M3 2H97V5H93V32H99V37H1V32H7V5H3Z" fill="url(#${id}-metal)" stroke="#111" stroke-width="1" mask="url(#${id}-holes)"/>
-            <path d="M4 2H96M8 6H92M2 33H98" stroke="#adb2b5" stroke-opacity=".65"/>
-            <path d="M8 7V31M92 7V31M2 36H98" stroke="#07090b"/>
-            <g fill="none" stroke="#b4c0c5" stroke-opacity=".6" stroke-width=".8">${digit}</g>
-            <rect x="8" y="7" width="84" height="24" fill="url(#${id}-glass)" clip-path="url(#${id}-digits)"/>
-            <text x="17" y="19" fill="#a6adaf" font-family="Arial, sans-serif" font-size="6" font-weight="bold">LV</text>
-            <g fill="#15191b" stroke="#82898c" stroke-width=".6"><circle cx="11" cy="9" r="1.4"/><circle cx="89" cy="9" r="1.4"/><circle cx="11" cy="28" r="1.4"/><circle cx="89" cy="28" r="1.4"/></g>
+            <g fill="url(#${id}-fitting)" stroke="#10171b" stroke-width=".8">
+                <path d="M0 12H15V26H0Z M85 12H100V26H85Z"/>
+                <path d="M7 9H14L18 13V25L14 29H7L5 26V12Z M86 9H93L95 12V26L93 29H86L82 25V13Z"/>
+            </g>
+            <path d="M1 13V25M3 13V25M8 11V27M11 11V27M89 11V27M92 11V27M97 13V25M99 13V25" stroke="#0b1216" stroke-opacity=".7" stroke-width=".8"/>
+            <path d="M6 14H15M85 14H94" stroke="#d6e0e4" stroke-opacity=".5" stroke-width=".7"/>
+            <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-steel)" fill-rule="evenodd" stroke="#090e11" stroke-width="1"/>
+            <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-grain)" fill-rule="evenodd" stroke="none"/>
+            <path d="M15 12L24 6H76L85 12 M17 27L24 32H76L83 27" fill="none" stroke="#b7c4cb" stroke-opacity=".4" stroke-width=".7"/>
+            ${sockets}
+            <rect x="22.6" y="6.6" width="54.8" height="24.8" rx="7.4" fill="none" stroke="url(#${id}-bevel)" stroke-width="1.8"/>
+            <rect x="23.7" y="7.7" width="52.6" height="22.6" rx="6.3" fill="none" stroke="#030708" stroke-width="1.3"/>
+            <rect x="24" y="8" width="52" height="22" rx="6" fill="url(#${id}-glass)" stroke="#8a9ba4" stroke-opacity=".65" stroke-width=".7"/>
+            <text class="bbgl-valve-digit" x="50" y="24.5" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="17" font-weight="500" fill="#edf4f7" stroke="#071015" stroke-width="1.3" paint-order="stroke">1</text>
+            <g clip-path="url(#${id}-window)" pointer-events="none">
+                <rect x="24" y="8" width="52" height="22" fill="url(#${id}-edge)"/>
+                <path d="M24 8H76V13C58 10 43 17 24 14Z" fill="url(#${id}-reflection)"/>
+                <path d="M29 9H36L47 30H42Z" fill="#e4eef0" opacity=".045"/>
+                <path d="M25 17V14Q25 9 31 9H69" fill="none" stroke="url(#${id}-glint)" stroke-width="1.15"/>
+                <path d="M31 28.8H69Q74.8 28.8 74.8 23" fill="none" stroke="url(#${id}-glint)" stroke-width=".8" opacity=".65"/>
+                <path d="M26 22V15Q26 10.5 31 10.5H69" fill="none" stroke="#03080a" stroke-opacity=".5" stroke-width="1"/>
+            </g>
+            <path d="M25 5.8H75M27 32H73" stroke="url(#${id}-glint)" stroke-width=".65"/>
+            ${bolts}
+            <path d="M34 5V4H66V5" fill="#313b41" stroke="#9aa7ae" stroke-width=".7"/>
         </svg>`;
     }
 

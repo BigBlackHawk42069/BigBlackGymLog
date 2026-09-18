@@ -2436,7 +2436,11 @@ function achTitleStarHTML(stat, phase, unlockedPhase, statE, role) {
     let tip;
     if (!unlocked) {
         const inProgress = phase === unlockedPhase + 1;
+        // What to do about it, named before the numbers: every star on the board is locked the same
+        // way and only the in-progress one carries an E readout, so without this line the rest say
+        // nothing but "Locked".
         tip = '<strong><em>Locked</em></strong>' +
+            `<i>Spend Energy training ${achStatFull(stat)} to unlock this title</i>` +
             (inProgress ? `<i>${Formatter.number(Math.min(statE, need))} / ${Formatter.number(need)} E</i>` : '');
     } else {
         tip = `<strong>${words.adj} • ${words.noun}</strong><i>${achStatFull(stat)} · Tier ${phase + 1}</i>`;
