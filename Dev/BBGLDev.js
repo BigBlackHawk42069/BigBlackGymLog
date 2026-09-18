@@ -1776,7 +1776,7 @@
     // Level badge crowns, one per atrophy state: A0/A1/A2 follow data-atrophy, F is atrophy 2 at
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
-    const CROWN_BADGE_URLS = ['A0crwn', 'A1crwn', 'A2crwn', 'Fcrwn']
+    const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
         .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
@@ -6398,6 +6398,13 @@
                     }
 
                     .bbgl-cal-container {
+                        /* Dims the grid art without touching anything drawn on it: a flat layer of this
+                           colour sits in the background stack above the grid image, so stickers, post-its
+                           and day numbers - which are the cells' content, not their background - keep
+                           their full brightness. Read by .bbgl-row-slice below and by the reward-tier
+                           cells renderCell() paints inline (07-section-vi-ui.js). Raise the alpha to dim
+                           further; 0 turns it off. */
+                        --bbgl-grid-dim: rgba(0, 0, 0, .18);
                         display: flex;
                         flex-direction: column;
                         width: 100%;
@@ -6436,9 +6443,10 @@
                     .bbgl-row-slice {
                         display: flex;
                         width: 100%;
-                        background-image: var(--bg-url);
-                        background-size: 100% calc(100% * var(--total-rows));
-                        background-position: center calc(var(--row-idx) * 100% / (var(--total-rows) - 1));
+                        /* First layer is the dim (see --bbgl-grid-dim on .bbgl-cal-container). */
+                        background-image: linear-gradient(var(--bbgl-grid-dim), var(--bbgl-grid-dim)), var(--bg-url);
+                        background-size: 100% 100%, 100% calc(100% * var(--total-rows));
+                        background-position: 0 0, center calc(var(--row-idx) * 100% / (var(--total-rows) - 1));
                         background-repeat: no-repeat;
                     }
 
@@ -6474,6 +6482,43 @@
                         will-change: transform;
                         user-select: none;
                         -webkit-user-select: none;
+                    }
+
+                    /* Reward-tier grid for a past day, sliced to this cell (renderCell() sets --tier-bg and
+                       --tier-bg-pos). It lives on ::before rather than the cell's own background so a
+                       tier can take a filter: the cell is its own stacking context (isolation above), so
+                       z-index -1 keeps this over the row's grid but under everything the cell holds.
+                       Same dim layer as .bbgl-row-slice, see --bbgl-grid-dim. */
+                    .bbgl-day-cell.has-tier-bg::before {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        z-index: -1;
+                        pointer-events: none;
+                        background-image: linear-gradient(var(--bbgl-grid-dim), var(--bbgl-grid-dim)), var(--tier-bg);
+                        background-size: 100% 100%, 700% 600%;
+                        background-position: 0 0, var(--tier-bg-pos);
+                        background-repeat: no-repeat;
+                    }
+
+                    /* The green art is a muted olive-grey; this pulls its green forward without touching
+                       the rust. #bbgl-green-sat (an SVG filter beside #bbgl-cal-container in the panel
+                       markup) saturates by 1.5 only where a pixel is green: its mask is
+                       20 x (G - R/2 - B/2), so rust (red over green) and grey metal score 0 and pass
+                       through unchanged, and green metal takes the full boost. The 20 is tuned for the
+                       grid as seen through the dim layer. Plain saturate(1.5) boosted the rust as well. */
+                    .bbgl-day-cell.tier-bg-green::before {
+                        filter: url(#bbgl-green-sat);
+                    }
+
+                    /* Holds shared SVG filters. Zero-size rather than display:none, which stops some
+                       browsers resolving the filter references. */
+                    .bbgl-svg-defs {
+                        position: absolute;
+                        width: 0;
+                        height: 0;
+                        overflow: hidden;
+                        pointer-events: none;
                     }
 
                     .bbgl-day-cell.empty {
@@ -6544,6 +6589,29 @@
                         filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .5));
                     }
 
+                    /* Per-type boxes for the newer grid art, whose pans leave a little more room. Both
+                       images are square and drawn with contain, so a box only grows the art when it
+                       grows both ways; these keep the VISIBLE art's top and right edges where the
+                       shared box put them and let it grow down-left. Visible = box x the type's own
+                       scale on .jewel-asset (green 1.23, gold 1.25), which is why the numbers aren't
+                       round: green grows ~2% of the cell, gold shifts right 1% then grows ~3.5%. */
+                    .jewel-wrapper.jewel-type-green {
+                        /* Grown evenly (80.9 x 1.23 = 99.5% visible), so the asset and both shines -
+                           all sized off this box - scale together and need no changes of their own.
+                           Top edge held; the centre sits .5% right of where it was. */
+                        left: 52.5%;
+                        top: calc(50% - var(--bbgl-cell-lift) + 1.8%);
+                        width: 80.9%;
+                        height: 80.9%;
+                    }
+
+                    .jewel-wrapper.jewel-type-gold {
+                        left: 52.25%;
+                        top: calc(50% - var(--bbgl-cell-lift) + 1.75%);
+                        width: 80.8%;
+                        height: 80.8%;
+                    }
+
                     .jewel-asset {
                         width: 100%;
                         height: 100%;
@@ -6592,8 +6660,14 @@
                         }
                     }
 
+                    /* rwrd-gold2 is the bars already turned 90deg; this used to rotate rwrd-gold in CSS.
+                       The shine's mask is the same image, and a mask can't be rotated on its own without
+                       turning the shine's sweep with it - so the shine traced the UNrotated bars and
+                       missed a strip down their left and bottom. Baking the turn into the file puts
+                       the art and its mask in the same orientation, and the shine's scale matches
+                       below, so the two line up exactly. */
                     .jewel-type-gold .jewel-asset {
-                        transform: rotate(90deg) scale(1.25) translateZ(0);
+                        transform: scale(1.25) translateZ(0);
                         backface-visibility: hidden;
                         -webkit-backface-visibility: hidden;
                     }
@@ -6604,7 +6678,7 @@
                        rasterized once and only moved. overflow:hidden limits the band to this box,
                        which is exactly where the background used to paint. */
                     .jewel-type-gold .jewel-shine {
-                        transform: scale(1.2);
+                        transform: scale(1.25);
                         filter: brightness(1.2);
                         overflow: hidden;
                         mix-blend-mode: soft-light;
@@ -7975,9 +8049,9 @@
                        different amount per tier. Measured off the shipped 264px webps (rows below the
                        last one with alpha > 200). Re-measure if a crown is re-exported. */
                     #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); --bbgl-crown-drop: .159; }
-                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .117; }
-                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .061; }
-                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .053; }
+                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .155; }
+                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .155; }
+                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .152; }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
@@ -8020,9 +8094,14 @@
                     }
 
                     .bbgl-exp-bar {
-                        /* The crown's width, and the valve is that plus its sockets. */
-                        --bbgl-crown-w: calc(var(--crwn-s, 38px) * 1.3);
-                        --bbgl-valve-w: calc(var(--bbgl-crown-w) + 22px);
+                        --bbgl-valve-w: calc(var(--crwn-s, 38px) * 1.3 + 22px);
+                        /* The crown is a fixed share of the valve, so it reads the same against it in
+                           every mode. The share is compact's: there --crwn-s sits on its 30px floor
+                           (8cqi of a 300px panel is under it), giving a 39px crown on a 61px valve.
+                           Deriving the crown from --crwn-s instead let the valve's fixed 22px of
+                           sockets shrink in proportion as the bar scaled up, so expanded and page
+                           mode crowns ran wide. */
+                        --bbgl-crown-w: calc(var(--bbgl-valve-w) * 39 / 61);
                         --bbgl-valve-rise: 5px;
                         --bbgl-tube-extra: 6px;
                         --bbgl-valve-lift: 4px;
@@ -20583,12 +20662,15 @@ const BestGymController = {
         });
         const isToday = (ds === ctx.today);
         if (isFlipped && sl.meta.tier > 0) {
-            let url = `url(${CAL_IMG_BASE}calgrd2-past-grn.webp)`;
-            if (sl.meta.tier === 2) url = `url(${CAL_IMG_BASE}calgrd2-past-gld.webp)`;
-            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}calgrd2-past-dmd.webp)`;
-            cell.style.backgroundImage = url;
-            cell.style.backgroundSize = "700% 600%";
-            cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
+            // The tier's grid is painted by .has-tier-bg::before (04-section-iii-styles.js), not the
+            // cell's own background, so a tier can carry a filter without it reaching the stickers,
+            // jewels and numbers inside the cell. This only says which grid and which slice of it.
+            let tier = 'green', url = `url(${CAL_IMG_BASE}calgrd2-past-grn.webp)`;
+            if (sl.meta.tier === 2) { tier = 'gold'; url = `url(${CAL_IMG_BASE}calgrd2-past-gld.webp)`; }
+            else if (sl.meta.tier === 3) { tier = 'diamond'; url = `url(${CAL_IMG_BASE}calgrd2-past-dmd.webp)`; }
+            cell.classList.add('has-tier-bg', `tier-bg-${tier}`);
+            cell.style.setProperty('--tier-bg', url);
+            cell.style.setProperty('--tier-bg-pos', `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`);
         }
         if (!isFlipped && sl.meta.tier > 0) {
             const wrap = document.createElement('div'),
@@ -20597,7 +20679,7 @@ const BestGymController = {
                 url = `${CAL_IMG_BASE}rwrd-grn.webp`;
             if (sl.meta.tier === 2) {
                 tType = 'gold';
-                url = `${CAL_IMG_BASE}rwrd-gold.webp`;
+                url = `${CAL_IMG_BASE}rwrd-gold2.webp`;
             } else if (sl.meta.tier === 3) {
                 tType = 'diamond';
                 url = `${CAL_IMG_BASE}rwrd-dmnd.webp`;
@@ -20645,7 +20727,7 @@ const BestGymController = {
             if ((sl.exODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'x-od.webp');
             if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'wr-strt.webp');
             if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'wr-wn.webp');
-            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'wr-lst.webp');
+            if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lst.webp');
             const bm = ctx.bookMarkers[ds];
             if (bm) {
                 if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-train-book-started.webp');
@@ -23221,7 +23303,7 @@ const BestGymController = {
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div><svg class="bbgl-svg-defs" width="0" height="0" aria-hidden="true" focusable="false"><filter id="bbgl-green-sat" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="saturate" values="1.5" result="sat"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -10 20 -10 0 0" result="greenness"/><feComposite in="sat" in2="greenness" operator="in" result="greenSat"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="greenSat"/></feMerge></filter></svg></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**

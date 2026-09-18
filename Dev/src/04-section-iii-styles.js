@@ -68,7 +68,7 @@
     // Level badge crowns, one per atrophy state: A0/A1/A2 follow data-atrophy, F is atrophy 2 at
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
-    const CROWN_BADGE_URLS = ['A0crwn', 'A1crwn', 'A2crwn', 'Fcrwn']
+    const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
         .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
@@ -4690,6 +4690,13 @@
                     }
 
                     .bbgl-cal-container {
+                        /* Dims the grid art without touching anything drawn on it: a flat layer of this
+                           colour sits in the background stack above the grid image, so stickers, post-its
+                           and day numbers - which are the cells' content, not their background - keep
+                           their full brightness. Read by .bbgl-row-slice below and by the reward-tier
+                           cells renderCell() paints inline (07-section-vi-ui.js). Raise the alpha to dim
+                           further; 0 turns it off. */
+                        --bbgl-grid-dim: rgba(0, 0, 0, .18);
                         display: flex;
                         flex-direction: column;
                         width: 100%;
@@ -4728,9 +4735,10 @@
                     .bbgl-row-slice {
                         display: flex;
                         width: 100%;
-                        background-image: var(--bg-url);
-                        background-size: 100% calc(100% * var(--total-rows));
-                        background-position: center calc(var(--row-idx) * 100% / (var(--total-rows) - 1));
+                        /* First layer is the dim (see --bbgl-grid-dim on .bbgl-cal-container). */
+                        background-image: linear-gradient(var(--bbgl-grid-dim), var(--bbgl-grid-dim)), var(--bg-url);
+                        background-size: 100% 100%, 100% calc(100% * var(--total-rows));
+                        background-position: 0 0, center calc(var(--row-idx) * 100% / (var(--total-rows) - 1));
                         background-repeat: no-repeat;
                     }
 
@@ -4766,6 +4774,43 @@
                         will-change: transform;
                         user-select: none;
                         -webkit-user-select: none;
+                    }
+
+                    /* Reward-tier grid for a past day, sliced to this cell (renderCell() sets --tier-bg and
+                       --tier-bg-pos). It lives on ::before rather than the cell's own background so a
+                       tier can take a filter: the cell is its own stacking context (isolation above), so
+                       z-index -1 keeps this over the row's grid but under everything the cell holds.
+                       Same dim layer as .bbgl-row-slice, see --bbgl-grid-dim. */
+                    .bbgl-day-cell.has-tier-bg::before {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        z-index: -1;
+                        pointer-events: none;
+                        background-image: linear-gradient(var(--bbgl-grid-dim), var(--bbgl-grid-dim)), var(--tier-bg);
+                        background-size: 100% 100%, 700% 600%;
+                        background-position: 0 0, var(--tier-bg-pos);
+                        background-repeat: no-repeat;
+                    }
+
+                    /* The green art is a muted olive-grey; this pulls its green forward without touching
+                       the rust. #bbgl-green-sat (an SVG filter beside #bbgl-cal-container in the panel
+                       markup) saturates by 1.5 only where a pixel is green: its mask is
+                       20 x (G - R/2 - B/2), so rust (red over green) and grey metal score 0 and pass
+                       through unchanged, and green metal takes the full boost. The 20 is tuned for the
+                       grid as seen through the dim layer. Plain saturate(1.5) boosted the rust as well. */
+                    .bbgl-day-cell.tier-bg-green::before {
+                        filter: url(#bbgl-green-sat);
+                    }
+
+                    /* Holds shared SVG filters. Zero-size rather than display:none, which stops some
+                       browsers resolving the filter references. */
+                    .bbgl-svg-defs {
+                        position: absolute;
+                        width: 0;
+                        height: 0;
+                        overflow: hidden;
+                        pointer-events: none;
                     }
 
                     .bbgl-day-cell.empty {
@@ -4836,6 +4881,29 @@
                         filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .5));
                     }
 
+                    /* Per-type boxes for the newer grid art, whose pans leave a little more room. Both
+                       images are square and drawn with contain, so a box only grows the art when it
+                       grows both ways; these keep the VISIBLE art's top and right edges where the
+                       shared box put them and let it grow down-left. Visible = box x the type's own
+                       scale on .jewel-asset (green 1.23, gold 1.25), which is why the numbers aren't
+                       round: green grows ~2% of the cell, gold shifts right 1% then grows ~3.5%. */
+                    .jewel-wrapper.jewel-type-green {
+                        /* Grown evenly (80.9 x 1.23 = 99.5% visible), so the asset and both shines -
+                           all sized off this box - scale together and need no changes of their own.
+                           Top edge held; the centre sits .5% right of where it was. */
+                        left: 52.5%;
+                        top: calc(50% - var(--bbgl-cell-lift) + 1.8%);
+                        width: 80.9%;
+                        height: 80.9%;
+                    }
+
+                    .jewel-wrapper.jewel-type-gold {
+                        left: 52.25%;
+                        top: calc(50% - var(--bbgl-cell-lift) + 1.75%);
+                        width: 80.8%;
+                        height: 80.8%;
+                    }
+
                     .jewel-asset {
                         width: 100%;
                         height: 100%;
@@ -4884,8 +4952,14 @@
                         }
                     }
 
+                    /* rwrd-gold2 is the bars already turned 90deg; this used to rotate rwrd-gold in CSS.
+                       The shine's mask is the same image, and a mask can't be rotated on its own without
+                       turning the shine's sweep with it - so the shine traced the UNrotated bars and
+                       missed a strip down their left and bottom. Baking the turn into the file puts
+                       the art and its mask in the same orientation, and the shine's scale matches
+                       below, so the two line up exactly. */
                     .jewel-type-gold .jewel-asset {
-                        transform: rotate(90deg) scale(1.25) translateZ(0);
+                        transform: scale(1.25) translateZ(0);
                         backface-visibility: hidden;
                         -webkit-backface-visibility: hidden;
                     }
@@ -4896,7 +4970,7 @@
                        rasterized once and only moved. overflow:hidden limits the band to this box,
                        which is exactly where the background used to paint. */
                     .jewel-type-gold .jewel-shine {
-                        transform: scale(1.2);
+                        transform: scale(1.25);
                         filter: brightness(1.2);
                         overflow: hidden;
                         mix-blend-mode: soft-light;
@@ -6267,9 +6341,9 @@
                        different amount per tier. Measured off the shipped 264px webps (rows below the
                        last one with alpha > 200). Re-measure if a crown is re-exported. */
                     #bbgl-panel[data-atrophy="0"], #bbgl-gym-level-container[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[0]}"); --bbgl-crown-drop: .159; }
-                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .117; }
-                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .061; }
-                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .053; }
+                    #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .155; }
+                    #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .155; }
+                    #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .152; }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
@@ -6312,9 +6386,14 @@
                     }
 
                     .bbgl-exp-bar {
-                        /* The crown's width, and the valve is that plus its sockets. */
-                        --bbgl-crown-w: calc(var(--crwn-s, 38px) * 1.3);
-                        --bbgl-valve-w: calc(var(--bbgl-crown-w) + 22px);
+                        --bbgl-valve-w: calc(var(--crwn-s, 38px) * 1.3 + 22px);
+                        /* The crown is a fixed share of the valve, so it reads the same against it in
+                           every mode. The share is compact's: there --crwn-s sits on its 30px floor
+                           (8cqi of a 300px panel is under it), giving a 39px crown on a 61px valve.
+                           Deriving the crown from --crwn-s instead let the valve's fixed 22px of
+                           sockets shrink in proportion as the bar scaled up, so expanded and page
+                           mode crowns ran wide. */
+                        --bbgl-crown-w: calc(var(--bbgl-valve-w) * 39 / 61);
                         --bbgl-valve-rise: 5px;
                         --bbgl-tube-extra: 6px;
                         --bbgl-valve-lift: 4px;
