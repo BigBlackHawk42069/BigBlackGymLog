@@ -980,10 +980,10 @@
             if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lst.webp');
             const bm = ctx.bookMarkers[ds];
             if (bm) {
-                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-train-book-started.webp');
-                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-perk-book-started.webp');
-                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-ended.webp');
-                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-received.webp');
+                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'trnbk-strt.webp');
+                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'prkbk-strt.webp');
+                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'bkprk-end.webp');
+                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'bkprk-rec.webp');
             }
             // The stack spreads across a fixed window in the cell rather than stepping by a fixed
             // amount, so it can't outgrow the day: centred on POST_IT_TOP, then pushed back inside
@@ -1465,13 +1465,13 @@
             });
             starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
             // The level-bar tooltip's title text copies the expanded page's size. That text is
-            // min(14cqw, 25cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
+            // min(15cqw, 27cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
             // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
             // resolved px goes on the root. Only measured in expanded, so other modes keep the last
             // expanded value.
             const sign = main.closest('#bbgl-panel.bbgl-expanded') && main.querySelector('.bbgl-title-card-sign');
             if (sign && sign.clientWidth > 0 && sign.clientHeight > 0) {
-                const fs = Math.min(sign.clientWidth * .14, sign.clientHeight * .25);
+                const fs = Math.min(sign.clientWidth * .15, sign.clientHeight * .27);
                 // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
                 if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
             }
@@ -1585,6 +1585,11 @@
         const lineTop = titleLayoutTopWithin(line, page);
         if (lineTop === null) return false;
         const lineCenter = lineTop + titleTranslateYWithin(line, page) + line.offsetHeight / 2;
+        // One title slot's width, for the titles' hit columns (.bbgl-rank-title::before). The slot
+        // grid spans the groove plus half a milestone gap each side, so a slot is exactly one gap:
+        // the groove's width over (titles - 1). Read here with the other measurements, written last.
+        const slotCount = line.querySelectorAll('.bbgl-rank-title-slot').length;
+        const slotWidth = slotCount > 1 ? line.offsetWidth / (slotCount - 1) : 0;
 
         const floorValue = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-floor'));
         const assemblyFloor = Number.isFinite(floorValue) ? floorValue : RANK_ASSEMBLY_FLOOR;
@@ -1689,6 +1694,7 @@
         // Apply label tightening after centring so it cannot move the slider.
         const titlesY = lineHeight / 2 - labelGap + labelDrop;
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
+        setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
         return true;
     }
 
@@ -3469,7 +3475,7 @@
                     <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
                 </g>
                 <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
-                <rect width="16" height="100" fill="url(#lvl-housing)"/><rect x="484" width="16" height="100" fill="url(#lvl-housing)"/>
+                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
                 <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
                 <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
                 <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
@@ -3489,7 +3495,7 @@
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {

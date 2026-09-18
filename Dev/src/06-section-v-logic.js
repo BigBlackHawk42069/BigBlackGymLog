@@ -2701,17 +2701,21 @@ function achBuildPage2(d) {
     };
     const bestRow = (longLabel, shortLabel, rec, key, tip) => {
         if (!rec || !rec.stats) {
-            return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line"><span class="ach-null">No jumps recorded yet</span></div></div><div class="bbgl-ach-hh-cells"><div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total"><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val"><span class="ach-null">—</span></span></div></div></div>`;
+            return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span>:</span><div class="bbgl-ach-hh-date-line"><span class="ach-null">No jumps recorded yet</span></div></div><div class="bbgl-ach-hh-cells"><div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total"><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val"><span class="ach-null">—</span></span></div></div></div>`;
         }
         const dateStr = achFmtDate(rec.date);
         const timeStr = achFmtTimeHM(rec.ts) + ' – ' + achFmtTimeHM(rec.tsEnd || rec.ts) + ' ' + achTimeZoneSuffix();
         const timeStrClip = achFmtTimeHMClip(rec.ts) + ' – ' + achFmtTimeHMClip(rec.tsEnd || rec.ts) + ' TCT';
         const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0);
         const statCells = trained.map(sk => `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-stat bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${sk}" data-tooltip="Total ${achEsc(STAT_FULL[sk])} gained during this jump."><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[sk]))}</span><span class="bbgl-ach-hh-tag ach-stat-${sk}">${STAT_ABBR[sk]}</span></div>`).join('');
-        const totalCell = `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
+        const loneStat = trained.length === 1 ? trained[0] : null;
+        const totalCell = loneStat
+            ? `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${loneStat}" data-tooltip="Total ${achEsc(STAT_FULL[loneStat])} gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-${loneStat}">${STAT_ABBR[loneStat]}</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[loneStat]))}</span></div>`
+            : `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
+        const visibleStatCells = loneStat ? '' : statCells;
         const clipParts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
         clipParts.push('Total: +' + achFmtGain(rec.value));
-        return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${statCells}${totalCell}</div></div>`;
+        return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span>:</span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${visibleStatCells}${totalCell}</div></div>`;
     };
     const hjCount = countRow('Happy Jumps Performed', 'Happy Jumps', d.happyJumps || 0, 'hj-count', 'Total number of Happy Jumps performed.<br><i>HJ = 1000E+ spent within 15m of using Ecstasy</i>', true);
     const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
@@ -2721,7 +2725,7 @@ function achBuildPage2(d) {
     let helpersHTML = '';
     if (d.happyItemTotals) {
         const hhOrder = { 2180: 1, 2210: 2, 2020: 3, 8983: 4 };
-        const helpers = HAPPY_LOGS.map(id => {
+        const allHelpers = HAPPY_LOGS.map(id => {
             const rec = d.happyItemTotals[id] || { count: 0, happy: 0 };
             const meta = ITEM_LOG_META[id];
             const odRec = id === ECSTASY_LOG && d.odItemTotals ? d.odItemTotals[EX_OD_LOG] : null;
@@ -2734,7 +2738,18 @@ function achBuildPage2(d) {
                 odCount,
                 happy: rec.happy
             };
-        }).filter(h => h.count > 0).sort((a, b) => (hhOrder[a.id] || 99) - (hhOrder[b.id] || 99));
+        }).sort((a, b) => (hhOrder[a.id] || 99) - (hhOrder[b.id] || 99));
+        const helpers = allHelpers.filter(h => h.count > 0);
+
+        const clipHelpers = allHelpers.map(h => {
+            let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
+            if (h.id === ECSTASY_LOG && h.odCount > 0) {
+                const exRec = d.odItemTotals[EX_OD_LOG];
+                line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
+            }
+            return line;
+        }).join('\n\n');
+        clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
 
         if (helpers.length > 0) {
             const helperRow = (h) => {
@@ -2770,15 +2785,6 @@ function achBuildPage2(d) {
                     cols.push(`<div class="bbgl-ach-col">${chunk.map(helperRow).join('')}</div>`);
                 }
             }
-            const clipHelpers = helpers.map(h => {
-                let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
-                if (h.id === ECSTASY_LOG && h.odCount > 0) {
-                    const exRec = d.odItemTotals[EX_OD_LOG];
-                    line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
-                }
-                return line;
-            }).join('\n\n');
-            clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
             helpersHTML = `<div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
         }
     }
@@ -3382,8 +3388,9 @@ function handleAchCopy(el) {
             const clipTitle = title.getAttribute('data-clip-title') || 'Endocrine Enhancers';
             if (clip) {
                 const txt = '👑BBGL Achievements\n\n— ' + clipTitle + ' —\n' + clip;
-                const cols = el.closest('.bbgl-ach-section-energy').querySelector('.bbgl-ach-cols');
-                navigator.clipboard.writeText(txt).then(() => flashCopied(cols || el.closest('.bbgl-ach-section-energy')));
+                const section = el.closest('.bbgl-ach-section-energy');
+                const rows = Array.from(section.querySelectorAll('.bbgl-ach-enh-row'));
+                navigator.clipboard.writeText(txt).then(() => flashCopied(rows.length ? rows : section));
             }
             return;
         }

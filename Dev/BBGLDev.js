@@ -2605,7 +2605,6 @@
                         padding-left: clamp(14px, calc(14px + 3px * var(--bbgl-page-t)), 17px);
                         padding-right: clamp(16px, calc(16px + 16px * var(--bbgl-page-t)), 32px);
                         gap: clamp(8px, calc(8px + 8px * var(--bbgl-page-t)), 16px);
-                        margin-bottom: clamp(4px, calc(4px + 4px * var(--bbgl-page-t)), 8px);
                         padding-bottom: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                     }
 
@@ -2694,15 +2693,15 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page .day-num {
-                        --day-num-size: clamp(22px, calc(22px + 14px * var(--bbgl-page-t)), 36px);
-                        top: clamp(2px, calc(2px + 4px * var(--bbgl-page-t)), 6px);
-                        left: clamp(2px, calc(2px + 4px * var(--bbgl-page-t)), 6px);
+                        --day-num-size: clamp(18px, calc(18px + 18px * var(--bbgl-page-t)), 36px);
+                        top: clamp(.5px, calc(.5px + 2.5px * var(--bbgl-page-t)), 3px);
+                        left: clamp(.5px, calc(.5px + 2.5px * var(--bbgl-page-t)), 3px);
                         font-size: clamp(10px, calc(10px + 8px * var(--bbgl-page-t)), 18px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-day-cell.is-viewing .day-num {
-                        --day-num-size: clamp(26px, calc(26px + 14px * var(--bbgl-page-t)), 40px);
-                        font-size: clamp(14px, calc(14px + 10px * var(--bbgl-page-t)), 24px) !important;
+                        --day-num-size: clamp(20px, calc(20px + 20px * var(--bbgl-page-t)), 40px);
+                        font-size: clamp(11px, calc(11px + 13px * var(--bbgl-page-t)), 24px) !important;
                     }
 
                     #bbgl-panel.bbgl-mode-page .ui-floating-label,
@@ -2917,6 +2916,17 @@
                         position: relative;
                         top: .5px;
                         left: .5px;
+                    }
+
+                    /* Hit area 4px past the icon on every side. The icon's path fills its whole 24px box,
+                       so the target used to be exactly the symbol - and a click that just missed it landed
+                       on the header bar, whose click handler closes the panel. A click here is reported on
+                       #bbgl-pop-btn itself, so the header's closest('#bbgl-pop-btn') guard still skips it.
+                       The 16px gap to #bbgl-close-btn leaves room for this without the two overlapping. */
+                    #bbgl-pop-btn::after {
+                        content: '';
+                        position: absolute;
+                        inset: -4px;
                     }
 
                     #bbgl-pop-btn svg {
@@ -3735,6 +3745,14 @@
                         border-radius: inherit;
                     }
 
+                    #bbgl-top-panel.viewing-achievements .glass-overlay {
+                        z-index: 21;
+                    }
+
+                    #bbgl-top-panel:is(.viewing-graph, .viewing-library) .glass-overlay {
+                        z-index: 41;
+                    }
+
                     .ui-floating-label,
                     .ui-floating-summary {
                         position: absolute;
@@ -3890,6 +3908,7 @@
                     #bbgl-achievements-container.bbgl-ach-titles-page {
                         padding-left: 0;
                         padding-right: 0;
+                        filter: contrast(1.1) saturate(1.08);
                     }
 
                     .stat-column {
@@ -5727,16 +5746,33 @@
                         display: flex;
                     }
 
-                    /* Flat px throughout: .viewer-obj's scale() already sizes this along with the sticker,
-                       so it stays proportional without a query unit. cq units would be wrong here anyway -
-                       the nearest container is inline-size, where cqmin/cqb silently fall back to viewport
-                       units. */
+                    /* Size container for the brand's cqmin. It already fills .viewer-obj at a fixed 100%, so
+                       size containment changes nothing about its layout; nothing else inside uses cq units. */
+                    .layer-back {
+                        container-type: size;
+                    }
+
+                    /* Page mode's sticker is far bigger relative to the text it has always carried, so it
+                       takes a smaller share: at full width this lands about 10% above the old size, and
+                       being a share of the sticker it shrinks with it at each of page mode's steps. */
+                    .bbgl-mode-page .lb-brand {
+                        --lb-scale: .71;
+                    }
+
+                    /* Sized as a share of the sticker, not in px. .viewer-obj's scale() only nudges the
+                       sticker within a mode; between modes it's the viewer box that changes, and flat px
+                       left compact's text about half again too big for its smaller sticker. .layer-back is
+                       a size container (below), so cqmin here is the smaller side of the face - the size a
+                       contained sticker actually renders at. The ratios put expanded at 31/15.6/9px on its
+                       352px face; compact follows proportionally, and expanded barely moves as the panel
+                       narrows because its face is height-bound there. --lb-scale sets each mode's share
+                       (page mode's is smaller, see .bbgl-mode-page .lb-brand). */
                     .lb-brand-sm {
-                        font-size: 11px;
+                        font-size: calc(4.43cqmin * var(--lb-scale, 1));
                     }
 
                     .lb-brand-lg {
-                        font-size: 22px;
+                        font-size: calc(8.87cqmin * var(--lb-scale, 1));
                         margin: -1px 0 0;
                     }
 
@@ -5749,8 +5785,8 @@
                     .lb-brand-tag {
                         font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
                         font-weight: 500;
-                        font-size: 6.5px;
-                        letter-spacing: 1.9px;
+                        font-size: calc(2.61cqmin * var(--lb-scale, 1));
+                        letter-spacing: calc(0.77cqmin * var(--lb-scale, 1));
                         text-transform: uppercase;
                         margin-top: 4px;
                         padding-top: 2px;
@@ -5953,12 +5989,17 @@
                         padding: 4px 8px 0 12px;
                         gap: 8px;
                         position: relative;
-                        margin-bottom: 4px;
+                        /* Sits a fixed gap above the top of the level bar's tube in every mode. The wrapper
+                           stacks this row on its bottom edge, where the tube sits too (both over the
+                           wrapper's 2px bottom padding), so clearing the tube is its box height - the same
+                           sum as --bbgl-track-box on .bbgl-exp-bar, whose 5px is --bbgl-tube-extra there -
+                           plus the gap. Replaces three hand-set per-mode margins that ignored the tube. */
+                        --bbgl-header-tube-gap: -2px;
+                        margin-bottom: calc(var(--bbgl-track-box-base, calc(var(--bbgl-pedestal-track-h) + var(--bbgl-exp-growth))) + 5px + var(--bbgl-header-tube-gap));
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-month-header {
                         gap: clamp(6px, calc(6px + 6px * var(--bbgl-dock-t)), 12px);
-                        margin-bottom: 12px;
                     }
 
                     .arrow-btn {
@@ -6144,7 +6185,11 @@
                         align-items: flex-end;
                         justify-content: center;
                         pointer-events: none;
-                        opacity: .95;
+                        opacity: 1;
+                        /* Dark outline and a slight lift so the muted bars read against the header photo
+                           at rest. The hover/active rule below restates the outline under its glow, since a
+                           filter there replaces this one rather than adding to it. */
+                        filter: brightness(1.12) saturate(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .75));
                         transition: all .2s;
                         align-self: flex-end;
                         transform-origin: center bottom;
@@ -6160,7 +6205,7 @@
                     .stats-btn:hover, .stats-btn.active {
                         opacity: 1;
                         transform: translate(-5px, calc(-6px + var(--btn-lift, 0px))) scale(1.15);
-                        filter: drop-shadow(0 0 6px rgba(216, 150, 224, 0.9)) drop-shadow(0 0 2px rgba(171, 71, 188, 1));
+                        filter: brightness(1.12) saturate(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .75)) drop-shadow(0 0 6px rgba(216, 150, 224, 0.9)) drop-shadow(0 0 2px rgba(171, 71, 188, 1));
                     }
 
                     #bbgl-panel.bbgl-compact .header-row {
@@ -6428,14 +6473,21 @@
                         will-change: transform;
                     }
 
-                    .bbgl-week + .bbgl-week::before {
+                    /* The shadow the weekly bar above casts across the top of each later week. Drawn per
+                       cell rather than as one strip over the week: every cell is its own stacking context,
+                       so a week-level strip could only sit above a cell or below it as a whole, and it
+                       shaded the day number and its circle along with everything else. Inside the cell it
+                       slots in between: z-index 19 is over the jewels (10), stickers (15) and event
+                       post-its (17), which stay shaded, and under the day number (20, 50 when viewed).
+                       The new-sticker post-it (also 20) now clears it too. Same 9px gradient as before. */
+                    .bbgl-week + .bbgl-week .bbgl-day-cell::after {
                         content: '';
                         position: absolute;
                         top: 0;
                         left: 0;
                         right: 0;
                         height: 9px;
-                        z-index: 21;
+                        z-index: 19;
                         pointer-events: none;
                         background: linear-gradient(180deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.42) 25%, rgba(0,0,0,.16) 60%, transparent 100%);
                     }
@@ -6999,12 +7051,16 @@
                     .day-num {
                         --day-num-size: 18px;
                         position: absolute;
-                        top: 3px;
-                        left: 2px;
+                        top: 1.5px;
+                        left: .5px;
                         font-size: 10px;
                         width: var(--day-num-size);
                         height: var(--day-num-size);
                         color: #fff;
+                        /* A tight dark outline plus a soft drop, so the number reads over any pan art. It
+                           used to be on past days only (.is-archived), leaving current and future days
+                           bare white against the metal. */
+                        text-shadow: 0 0 1px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, .9), 0 1px 4px rgba(0, 0, 0, .85);
                         font-weight: 400;
                         font-family: 'Fjalla One', 'Arial', sans-serif;
                         pointer-events: none;
@@ -7021,7 +7077,7 @@
                     }
 
                     .bbgl-day-cell.ghost-cell .day-num {
-                        color: #999;
+                        color: #b3b3b3;
                     }
 
                     body:not(.is-touch-device) .bbgl-day-cell:not(.empty):not(.is-viewing).is-hover-intent .day-num,
@@ -7036,7 +7092,7 @@
                         background: #888;
                         transform: none;
                         z-index: 50;
-                        font-size: 12px !important;
+                        font-size: 10.5px !important;
                     }
 
                     .bbgl-weekly-anchor,
@@ -7407,14 +7463,12 @@
                     /* ─── Level EXP Bar — Structural ────────────────────── */
                     #bbgl-level-container {
                         position: absolute;
-                        bottom: 0;
+                        bottom: 2px;
                         left: 0;
                         right: 0;
                         height: 21px;
                         /* Track height for this mode, shared by the flag-clip cut line and the
                            A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
-                        --bbgl-pedestal-track-h: 9px;
-                        --bbgl-exp-growth: 3px;
                         --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
@@ -7426,6 +7480,15 @@
                            the month row's chart-button glow, so every header button hover regrouped and
                            repainted it — badge, crown and level number included. */
                         will-change: transform;
+                    }
+
+                    /* The panel level bar's track size, declared on the header wrapper rather than on
+                       #bbgl-level-container so .bbgl-month-header - a sibling of the bar, not inside it -
+                       can size its gap above the tube from the same numbers (see .bbgl-month-header).
+                       The bar inherits them unchanged. Overridden per mode further down. */
+                    .bbgl-header-wrapper {
+                        --bbgl-pedestal-track-h: 9px;
+                        --bbgl-exp-growth: 3px;
                     }
 
                     /* Sibling of #bbgl-level-container, painted behind it, holding the housing
@@ -7492,6 +7555,29 @@
 
                     .bbgl-exp-bar {
                         --bbgl-track-h: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-exp-growth));
+                    }
+
+                    /* The panel's level bar answers the pointer only through .bbgl-exp-hit below. The
+                       track used to be the hit area, and it runs the bar's full width, under the month
+                       arrows, labels and summary buttons at either side. */
+                    #bbgl-level-container .bbgl-exp-track {
+                        pointer-events: none;
+                    }
+
+                    /* One square over the middle of the bar: the valve's width plus 4px either side, and
+                       as tall as it is wide from 4px under the tube, which takes in the crown, the valve
+                       and the tube around them in every mode (the crown's top clears it by 16px or more).
+                       Inside the container that carries the tooltip, so hovering or tapping it shows the
+                       level tooltip; sized off --bbgl-valve-w so it scales with them. */
+                    .bbgl-exp-hit {
+                        position: absolute;
+                        left: 50%;
+                        bottom: -4px;
+                        width: calc(var(--bbgl-valve-w) + 8px);
+                        height: calc(var(--bbgl-valve-w) + 8px);
+                        transform: translateX(-50%);
+                        pointer-events: auto;
+                        z-index: 5;
                     }
 
                     .bbgl-exp-track {
@@ -7575,7 +7661,7 @@
                     #bbgl-gym-level-track::after {
                         content: '';
                         position: absolute;
-                        inset: 0;
+                        inset: 10% 0;
                         z-index: 4;
                         pointer-events: none;
                         background-image: var(--bbgl-cast-texture);
@@ -7587,7 +7673,7 @@
                     #bbgl-gym-level-track::before {
                         content: '';
                         position: absolute;
-                        inset: 0;
+                        inset: 10% 0;
                         z-index: 4;
                         pointer-events: none;
                         background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
@@ -7777,6 +7863,9 @@
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-container {
                         height: 26px;
+                    }
+
+                    #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
                         --bbgl-pedestal-track-h: 14px;
                         --bbgl-exp-growth: 4px;
                     }
@@ -7784,7 +7873,7 @@
                     #bbgl-panel.bbgl-expanded #bbgl-level-bg {
                         height: 18px;
                     }
-                    #bbgl-panel.bbgl-expanded #bbgl-level-container {
+                    #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
                         --bbgl-track-box-base: 18px;
                     }
 
@@ -7794,6 +7883,9 @@
 
                     #bbgl-panel.bbgl-mode-page #bbgl-level-container {
                         height: clamp(21px, calc(21px + 9px * var(--bbgl-page-t)), 30px);
+                    }
+
+                    #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
                         --bbgl-pedestal-track-h: clamp(8px, calc(8px + 6px * var(--bbgl-page-t)), 14px);
                         --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
@@ -7801,7 +7893,7 @@
                     #bbgl-panel.bbgl-mode-page #bbgl-level-bg {
                         height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
-                    #bbgl-panel.bbgl-mode-page #bbgl-level-container {
+                    #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
                         --bbgl-track-box-base: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
 
@@ -7812,7 +7904,7 @@
                     /* ─── Gym Page Level Bar — Structural ───────────────── */
                     #bbgl-gym-level-container {
                         position: relative;
-                        top: -1px;
+                        top: -2px;
                         width: 100%;
                         margin-top: 36px;
                         margin-bottom: -1px;
@@ -8103,7 +8195,7 @@
                            mode crowns ran wide. */
                         --bbgl-crown-w: calc(var(--bbgl-valve-w) * 39 / 61);
                         --bbgl-valve-rise: 5px;
-                        --bbgl-tube-extra: 6px;
+                        --bbgl-tube-extra: 5px;
                         --bbgl-valve-lift: 4px;
                         --bbgl-valve-h: calc(var(--bbgl-track-h) + var(--bbgl-valve-rise) * 2);
                         --bbgl-track-box: calc(var(--bbgl-track-box-base, var(--bbgl-track-h)) + var(--bbgl-tube-extra));
@@ -8141,6 +8233,8 @@
                     }
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
+                        z-index: 5;
+                        transform: translateY(-.5px);
                         overflow: visible;
                         container-type: inline-size;
                     }
@@ -8742,7 +8836,6 @@
                     }
 
                     .bbgl-day-cell.is-archived .day-num {
-                        text-shadow: 0 1px 4px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, 1);
                         z-index: 20;
                     }
 
@@ -8848,15 +8941,18 @@
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .day-num {
-                        --day-num-size: clamp(20px, calc(20px + 10px * var(--bbgl-dock-t)), 30px);
+                        --day-num-size: clamp(18px, calc(18px + 9px * var(--bbgl-dock-t)), 27px);
                         font-size: clamp(11px, calc(11px + 5px * var(--bbgl-dock-t)), 16px) !important;
-                        top: clamp(3px, calc(3px + 3px * var(--bbgl-dock-t)), 6px) !important;
-                        left: clamp(3px, calc(3px + 3px * var(--bbgl-dock-t)), 6px) !important;
+                        top: clamp(1.5px, calc(1.5px + 1.5px * var(--bbgl-dock-t)), 3px) !important;
+                        left: clamp(1.5px, calc(1.5px + 1.5px * var(--bbgl-dock-t)), 3px) !important;
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .bbgl-day-cell.is-viewing .day-num {
-                        --day-num-size: clamp(22px, calc(22px + 11px * var(--bbgl-dock-t)), 33px);
-                        font-size: clamp(15px, calc(15px + 7px * var(--bbgl-dock-t)), 22px);
+                        --day-num-size: clamp(20px, calc(20px + 10px * var(--bbgl-dock-t)), 30px);
+                        /* !important because the resting expanded rule's font-size is: without it this
+                           never applied, and the active number kept its resting size inside a bigger
+                           circle, which read as shrinking. Grows about a pixel over resting. */
+                        font-size: clamp(12px, calc(12px + 5.5px * var(--bbgl-dock-t)), 17.5px) !important;
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #bbgl-ledger-toggle,
@@ -9820,6 +9916,7 @@
                         --bbgl-t-name-scale: 1.3;
                         --bbgl-t-fs-line: clamp(7.2px, 2.6cqi, 13px);
                         --bbgl-t-fs-line-label: clamp(5.6px, 2cqi, 10px);
+                        --bbgl-t-fs-notch: clamp(8.5px, 2.1cqi, 10.5px);
                         --bbgl-t-fs-label: 9px;
                         --bbgl-t-fs-block-label: clamp(7.8px, 2.6cqi, 13px);
                         --bbgl-t-stack-frame-offset: calc(clamp(7.2px, 2.6cqi, 13px) * .6 + 2px + 2.5px);
@@ -9926,6 +10023,7 @@
                         --bbgl-t-rank-tag-pad-x: clamp(3px, .6cqi, 5px);
                         --bbgl-t-display-w: clamp(24px, 4.8cqi, 30px);
                         --bbgl-t-display-fs: clamp(9px, 1.8cqi, 11px);
+                        --bbgl-t-reset: clamp(11px, 2.8cqi, 14px);
                     }
 
                     /* Compact, in full. Fixed px throughout — its width never changes, so there is
@@ -9938,7 +10036,7 @@
                         --bbgl-t-name-scale: 1.29;
                         --bbgl-t-fs-line: 8px;
                         --bbgl-t-fs-line-label: 6px;
-                        --bbgl-t-fs-notch: 7px;
+                        --bbgl-t-fs-notch: 7.25px;
                         --bbgl-t-fs-label: 5px;
                         --bbgl-t-fs-block-label: 8px;
                         --bbgl-t-stack-frame-offset: calc(8.5px * .6 + 2px + 2.5px);
@@ -9978,7 +10076,7 @@
 
                         --bbgl-t-star: 13px;
                         --bbgl-t-star-cgap: 1px;
-                        --bbgl-t-reset: 9px;
+                        --bbgl-t-reset: 10px;
 
                         --bbgl-t-win-pad: 3px;
                         --bbgl-t-win-pad-y: 3px;
@@ -10468,7 +10566,7 @@
                     .bbgl-title-card-connector::after { right: 0; }
 
                     .bbgl-title-card-title-label {
-                        position: relative;
+                        position: static;
                         top: auto;
                         left: auto;
                         transform: none;
@@ -10523,7 +10621,7 @@
                         z-index: -1;
                     }
                     .bbgl-title-card-value {
-                        position: relative;
+                        position: static;
                         z-index: 1;
                         display: flex;
                         align-items: baseline;
@@ -10540,7 +10638,7 @@
                     .bbgl-title-card-value .bbgl-titles-title {
                         display: block;
                         max-width: 100%;
-                        font-size: min(14cqw, 25cqh);
+                        font-size: min(15cqw, 27cqh);
                         line-height: 1.05;
                         overflow-wrap: normal;
                         word-break: keep-all;
@@ -10548,18 +10646,19 @@
                     }
 
                     .bbgl-title-card-value .bbgl-titles-title:has(.bbgl-title-word.is-long) {
-                        font-size: min(11cqw, 22cqh);
+                        font-size: min(12cqw, 24cqh);
                     }
 
                     .bbgl-title-card-value .bbgl-titles-title:has(.bbgl-title-word.is-very-long) {
-                        font-size: min(9.5cqw, 20cqh);
+                        font-size: min(10.25cqw, 22cqh);
                     }
 
                     .bbgl-title-card-sign-face .bbgl-title-word {
-                        color: #fff0c7;
+                        color: rgba(255, 240, 199, .88);
                         background: none;
                         -webkit-text-fill-color: currentColor;
-                        text-shadow: 0 1px 1px rgba(38, 8, 52, .9);
+                        text-shadow: 0 1px rgba(255, 255, 255, .08), 0 -1px 1px rgba(24, 12, 20, .72);
+                        mix-blend-mode: soft-light;
                         filter: none;
                         animation: none;
                     }
@@ -10605,15 +10704,14 @@
                         display: block;
                     }
 
-                    /* Hangs off the right edge of the card's The label. Absolutely positioned, so it
-                       never shifts that label or the title under it; the label itself is
-                       pointer-events none, so the button opts back in. */
                     .bbgl-title-card-title-label .bbgl-title-reset {
                         position: absolute;
-                        left: 100%;
-                        top: 50%;
-                        margin-left: .2em;
-                        translate: 0 calc(-50% + .5px);
+                        left: auto;
+                        right: 13%;
+                        top: 12%;
+                        bottom: auto;
+                        margin-left: 0;
+                        translate: none;
                         pointer-events: auto;
                     }
 
@@ -10821,21 +10919,26 @@
                         font-weight: 500;
                         letter-spacing: .08em;
                         line-height: 1;
-                        --bbgl-t-title-hit-x: 12px;
-                        --bbgl-t-title-hit-y: 9px;
                     }
 
-                    /* Hit area only. A rank title sits alone above the groove with nothing else to
-                       aim at, so the box it answers to runs well past its own ink - a locked glyph is
-                       a few px of engraving and an unlocked name is one short line. Absolutely
-                       positioned, so it adds no layout (inside .is-locked's inline-flex a static
-                       ::after would become a flex item) and paints nothing: the row looks identical,
-                       it is just easier to hit. Hover and tap both come along, since the tooltip
-                       resolves through closest('[data-tooltip]') on the element this belongs to. */
-                    .bbgl-rank-title::after {
+                    /* Hit column. A milestone title's own box is 0px wide (see .is-milestone), so only
+                       its letters or lock glyph answered the pointer. This paints nothing and spans the
+                       title's whole slot: one milestone gap wide (--bbgl-t-title-slot-w, measured by
+                       layoutRankBarCenter(), 07-section-vi-ui.js), from twice --bbgl-t-titles-y above
+                       the groove - short of the cards, since titles sit 42% of the way up - to
+                       --bbgl-t-title-hit-below under it, so the groove beneath a title answers too.
+                       Slots tile, so neighbouring columns never overlap, and the level knob paints
+                       above (z-index 3) and keeps its own tooltip. ::before because ::after is the
+                       milestone tick. Belongs to the title, so hover and tap resolve to its tooltip
+                       and the tooltip still anchors to the title. */
+                    .bbgl-rank-title::before {
+                        --bbgl-t-title-hit-below: 12px;
                         content: '';
                         position: absolute;
-                        inset: calc(-1 * var(--bbgl-t-title-hit-y)) calc(-1 * var(--bbgl-t-title-hit-x));
+                        left: calc(var(--bbgl-t-title-slot-w, 0px) / -2);
+                        width: var(--bbgl-t-title-slot-w, 0px);
+                        top: var(--bbgl-t-titles-y, -20px);
+                        bottom: calc(-1 * var(--bbgl-t-title-hit-below));
                     }
 
                     .bbgl-rank-title.is-milestone {
@@ -10999,20 +11102,6 @@
                             drop-shadow(0 1px 0 #090b0b)
                             drop-shadow(0 -1px 0 #090b0b)
                             drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                    }
-
-                    /* Rank scale labels only: T2 gets the same black letter outline as T3 above.
-                       Its fluorescent glow lives in text-shadow, and a filter outline would trace
-                       that haze instead of the letters, so the outline rides as the top text-shadow
-                       layer through --rank-steel-outline. The steel rule and its ignition keyframes
-                       read it with a transparent fallback, so the card plaque (which shares both)
-                       is unchanged. */
-                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-notch-line {
-                        --rank-steel-outline:
-                            1px 0 0 #090b0b,
-                            -1px 0 0 #090b0b,
-                            0 1px 0 #090b0b,
-                            0 -1px 0 #090b0b;
                     }
 
                     /* T4 gets a silver outline. Its emerald face is background-clipped text with a
@@ -11347,8 +11436,8 @@
                     }
 
                     .bbgl-rank-title.is-locked svg {
-                        width: calc(var(--bbgl-t-fs-notch, 10px) * 1.25);
-                        height: calc(var(--bbgl-t-fs-notch, 10px) * 1.25);
+                        width: calc(var(--bbgl-t-fs-notch, 10px) * 1.5);
+                        height: calc(var(--bbgl-t-fs-notch, 10px) * 1.5);
                     }
 
                     /* The live coordinate mirrors the title milestones below the groove: the same
@@ -11949,10 +12038,6 @@
                         line-height: 1.08;
                     }
 
-                    #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-title-text {
-                        font-size: min(14.3cqw, 37.4cqh);
-                    }
-
                     #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
                         padding: 1px;
                         box-shadow:
@@ -11984,11 +12069,19 @@
                         display: flex;
                         align-items: center;
                         justify-content: center;
-                        padding: calc(var(--rank-lightbox-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px);
+                        padding: calc((var(--rank-lightbox-rim) + var(--rank-lightbox-thin-rim)) / 2 + 2px) calc(var(--rank-lightbox-thin-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px);
                         border: 0;
                         border-radius: clamp(3px, 5cqw, 7px);
                         background: linear-gradient(165deg, #7d928d, #4c6462 48%, #344b4b);
-                        box-shadow: none;
+                        box-shadow:
+                            inset 0 2px 0 rgba(255, 255, 255, .95),
+                            inset 2px 0 1px rgba(238, 244, 246, .72),
+                            inset -2px 0 1px rgba(67, 79, 84, .62),
+                            inset 0 -3px 0 rgba(86, 99, 105, .9),
+                            0 2px 1px rgba(0, 0, 0, .78),
+                            0 5px 7px rgba(0, 0, 0, .42);
+                        animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
+                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
                         mask: none;
                         -webkit-mask: none;
                         overflow: hidden;
@@ -11996,12 +12089,19 @@
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx {
                         inset: var(--rank-lightbox-thin-rim);
-                        border: 1px solid #0c1011;
-                        border-radius: clamp(2px, 3cqw, 4px);
+                        border: clamp(.4px, .8cqmin, 1px) solid #1a2428;
+                        border-radius: clamp(3px, 6cqmin, 6px);
                         background: linear-gradient(160deg, #1c2325, #090d0e 65%, #111719);
-                        box-shadow: inset 0 1px 3px #000, 0 1px 0 rgba(255, 255, 255, .09);
-                        -webkit-mask-image: radial-gradient(ellipse 34cqmin calc(var(--rank-lightbox-rim) * .65) at 50% 0, transparent calc(100% - .5px), #000 100%);
-                        mask-image: radial-gradient(ellipse 34cqmin calc(var(--rank-lightbox-rim) * .65) at 50% 0, transparent calc(100% - .5px), #000 100%);
+                        box-shadow:
+                            inset 0 2cqmin 4cqmin rgba(0, 0, 0, .88),
+                            inset 1.2cqmin 0 2.5cqmin rgba(0, 0, 0, .5),
+                            inset -1cqmin -1cqmin 2cqmin rgba(157, 174, 181, .14),
+                            0 .7cqmin 0 rgba(255, 255, 255, .1);
+                        filter:
+                            drop-shadow(0 -.7cqmin .5cqmin rgba(255, 255, 255, .5))
+                            drop-shadow(0 1.2cqmin 1cqmin rgba(0, 0, 0, .7));
+                        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx::before,
@@ -12025,11 +12125,14 @@
                         inset: 0;
                         z-index: 0;
                         border-radius: inherit;
-                        background: #d9dddf;
+                        background: linear-gradient(145deg, #fff 0%, #edf2f3 28%, #c5ced1 68%, #89969b 100%);
                         box-shadow:
-                            inset 0 0 3px rgba(232, 239, 242, .82),
-                            inset 0 0 8px rgba(216, 229, 234, .48),
-                            inset 0 0 14px rgba(201, 219, 225, .20);
+                            inset 0 1px 0 #fff,
+                            inset 1px 0 0 rgba(255, 255, 255, .75),
+                            inset -1px 0 0 rgba(70, 82, 87, .5),
+                            inset 0 -2px 0 rgba(78, 90, 95, .72),
+                            inset 0 0 3px rgba(232, 239, 242, .42),
+                            inset 0 0 6px rgba(216, 229, 234, .16);
                         opacity: 1;
                         animation: bbgl-rank-lightbox-on 2.5s step-end 1 both;
                         animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
@@ -12043,32 +12146,125 @@
                         z-index: 2;
                         display: flex;
                         align-items: center;
-                        height: var(--rank-lightbox-rim);
+                        justify-content: center;
+                        width: 40%;
+                        height: calc(var(--rank-lightbox-thin-rim) + var(--rank-lightbox-rim) * .65);
                         padding: 0;
                         font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(calc(var(--rank-lightbox-rim) * 1.12), 22cqw);
-                        font-weight: 500;
+                        font-size: min(8cqw, 16cqh);
+                        font-weight: 600;
                         line-height: 1;
-                        letter-spacing: .16em;
+                        letter-spacing: .14em;
                         color: #263c39;
                         text-shadow: none;
+                        white-space: nowrap;
                     }
 
                     .bbgl-rank-lightbox-heading > span {
                         display: block;
-                        text-box-trim: trim-both;
-                        text-box-edge: cap alphabetic;
+                    }
+
+                    #bbgl-panel.bbgl-expanded .bbgl-rank-lightbox-heading,
+                    #bbgl-panel.bbgl-mode-page .bbgl-rank-lightbox-heading {
+                        font-size: max(7.5px, min(8.4cqw, 16.8cqh));
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-rank-lightbox-heading {
+                        font-size: min(8.4cqw, 16.8cqh);
                     }
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
                         min-width: 0;
                         min-height: 0;
-                        font-size: min(13cqw, 25cqh);
+                        width: 100%;
+                        font-size: min(15cqw, 28cqh);
                         line-height: 1.12;
+                        text-align: center;
                     }
 
-                    #bbgl-panel.bbgl-expanded .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
-                        font-size: min(15cqw, 28cqh);
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
+                        color: #e3e8ea;
+                        font-weight: 450;
+                        letter-spacing: .015em;
+                        -webkit-text-stroke: .012em rgba(238, 245, 247, .48);
+                        text-shadow:
+                            -.025em -.025em .02em rgba(255, 255, 255, .82),
+                            -.025em 0 .02em #b8c3c7,
+                            .025em 0 .02em #718087,
+                            0 .03em .02em #66747a,
+                            .035em .035em .04em #354248,
+                            0 .07em .08em rgba(0, 0, 0, .52),
+                            0 0 .14em rgba(232, 239, 242, .76),
+                            0 0 .32em rgba(216, 229, 234, .42),
+                            0 0 .58em rgba(201, 219, 225, .19);
+                        animation: bbgl-rank-lightbox-title-on 2.5s step-end 1 both;
+                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-machined.material-steel.is-revealed .bbgl-rank-notch-line {
+                        width: 100%;
+                        text-align: center;
+                    }
+
+                    @keyframes bbgl-rank-lightbox-title-on {
+                        0%, 30%, 33%, 40%, 45%, 64%, 74% {
+                            color: #536764;
+                            -webkit-text-stroke-color: rgba(87, 109, 106, .3);
+                            text-shadow:
+                                -.025em -.025em .02em rgba(190, 207, 203, .26),
+                                -.025em 0 .02em #647774,
+                                .025em 0 .02em #354744,
+                                0 .03em .02em #2c3d3b,
+                                .035em .035em .04em #202d2c,
+                                0 .07em .08em rgba(0, 0, 0, .62);
+                        }
+                        30.01%, 38%, 44% {
+                            color: #879391;
+                            -webkit-text-stroke-color: rgba(177, 193, 194, .36);
+                            text-shadow:
+                                -.025em -.025em .02em rgba(226, 235, 233, .46),
+                                -.025em 0 .02em #7e8e8c,
+                                .025em 0 .02em #4b5d5b,
+                                0 .03em .02em #405250,
+                                .035em .035em .04em #293836,
+                                0 .07em .08em rgba(0, 0, 0, .52),
+                                0 0 .14em rgba(232, 239, 242, .2),
+                                0 0 .3em rgba(216, 229, 234, .08);
+                        }
+                        53%, 72% {
+                            color: #bcc5c6;
+                            -webkit-text-stroke-color: rgba(218, 229, 231, .43);
+                            text-shadow:
+                                -.025em -.025em .02em rgba(255, 255, 255, .7),
+                                -.025em 0 .02em #aab5b8,
+                                .025em 0 .02em #68767c,
+                                0 .03em .02em #5d6b71,
+                                .035em .035em .04em #354248,
+                                0 .07em .08em rgba(0, 0, 0, .52),
+                                0 0 .14em rgba(232, 239, 242, .5),
+                                0 0 .32em rgba(216, 229, 234, .24);
+                        }
+                        76%, 100% {
+                            color: #e3e8ea;
+                            -webkit-text-stroke-color: rgba(238, 245, 247, .48);
+                            text-shadow:
+                                -.025em -.025em .02em rgba(255, 255, 255, .82),
+                                -.025em 0 .02em #b8c3c7,
+                                .025em 0 .02em #718087,
+                                0 .03em .02em #66747a,
+                                .035em .035em .04em #354248,
+                                0 .07em .08em rgba(0, 0, 0, .52),
+                                0 0 .14em rgba(232, 239, 242, .76),
+                                0 0 .32em rgba(216, 229, 234, .42),
+                                0 0 .58em rgba(201, 219, 225, .19);
+                        }
+                    }
+
+                    @keyframes bbgl-rank-lightbox-frame-on {
+                        0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: drop-shadow(0 0 0 rgba(232, 239, 242, 0)); }
+                        30.01%, 38%, 44% { filter: drop-shadow(0 0 1px rgba(232, 239, 242, .16)); }
+                        53%, 72% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .32)) drop-shadow(0 0 4px rgba(216, 229, 234, .1)); }
+                        76%, 100% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18)); }
                     }
 
                     @keyframes bbgl-rank-lightbox-on {
@@ -12081,6 +12277,11 @@
                     #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::before {
                         animation: none;
                         opacity: 1;
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face {
+                        animation: none;
+                        filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
                     }
 
                     .bbgl-title-card[data-rank-finish="polished"] .bbgl-title-card-rank-label {
@@ -13896,7 +14097,12 @@
                     }
 
                     #bbgl-panel.bbgl-compact .bbgl-ach-hh-date-line {
-                        font-size: 10px;
+                        font-size: 8px;
+                        line-height: 1;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-ach-hh-label {
+                        align-items: baseline;
                     }
 
                     .bbgl-ach-section-page1 .ach-streak-date {
@@ -14130,6 +14336,7 @@
                         gap: clamp(8px, calc(8px + 6px * var(--bbgl-dock-t, 0)), 14px);
                         align-items: center;
                         flex-shrink: 0;
+                        padding-right: 10px;
                     }
 
                     #bbgl-panel:is(.bbgl-expanded, .bbgl-mode-page) .bbgl-ach-hh-cells {
@@ -14179,6 +14386,10 @@
                         flex-direction: row;
                         align-items: baseline;
                         gap: 4px;
+                    }
+
+                    #bbgl-panel.bbgl-compact .bbgl-ach-hh-cell-total .bbgl-ach-hh-tag {
+                        order: 1;
                     }
 
                     #bbgl-panel:is(.bbgl-expanded, .bbgl-mode-page) .bbgl-ach-hh-cell-total {
@@ -18163,17 +18374,21 @@ function achBuildPage2(d) {
     };
     const bestRow = (longLabel, shortLabel, rec, key, tip) => {
         if (!rec || !rec.stats) {
-            return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line"><span class="ach-null">No jumps recorded yet</span></div></div><div class="bbgl-ach-hh-cells"><div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total"><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val"><span class="ach-null">—</span></span></div></div></div>`;
+            return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span>:</span><div class="bbgl-ach-hh-date-line"><span class="ach-null">No jumps recorded yet</span></div></div><div class="bbgl-ach-hh-cells"><div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total"><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val"><span class="ach-null">—</span></span></div></div></div>`;
         }
         const dateStr = achFmtDate(rec.date);
         const timeStr = achFmtTimeHM(rec.ts) + ' – ' + achFmtTimeHM(rec.tsEnd || rec.ts) + ' ' + achTimeZoneSuffix();
         const timeStrClip = achFmtTimeHMClip(rec.ts) + ' – ' + achFmtTimeHMClip(rec.tsEnd || rec.ts) + ' TCT';
         const trained = STATS.filter(sk => (rec.stats[sk] || 0) > 0);
         const statCells = trained.map(sk => `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-stat bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${sk}" data-tooltip="Total ${achEsc(STAT_FULL[sk])} gained during this jump."><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[sk]))}</span><span class="bbgl-ach-hh-tag ach-stat-${sk}">${STAT_ABBR[sk]}</span></div>`).join('');
-        const totalCell = `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
+        const loneStat = trained.length === 1 ? trained[0] : null;
+        const totalCell = loneStat
+            ? `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="${loneStat}" data-tooltip="Total ${achEsc(STAT_FULL[loneStat])} gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-${loneStat}">${STAT_ABBR[loneStat]}</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.stats[loneStat]))}</span></div>`
+            : `<div class="bbgl-ach-hh-cell bbgl-ach-hh-cell-total bbgl-ach-stat-cell" data-ach-key="${key}" data-stat="total" data-tooltip="Total overall stats gained during this jump."><span class="bbgl-ach-hh-tag ach-stat-tot">Total</span><span class="bbgl-ach-hh-val">+${achEsc(achFmtGain(rec.value))}</span></div>`;
+        const visibleStatCells = loneStat ? '' : statCells;
         const clipParts = trained.map(sk => achStatAbbr(sk) + ': +' + achFmtGain(rec.stats[sk]));
         clipParts.push('Total: +' + achFmtGain(rec.value));
-        return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span></span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${statCells}${totalCell}</div></div>`;
+        return `<div class="bbgl-ach-hh-best-row" data-tooltip="${achEsc(tip)}" data-ach-key="${key}" data-clip="${achEsc(longLabel + ' (' + dateStr + ', ' + timeStrClip + '): ' + clipParts.join(' | '))}" data-clip-date="${achEsc(dateStr + '  ' + timeStrClip)}"><div class="bbgl-ach-hh-label"><span class="ach-k"><span class="ach-title-long">${achEsc(longLabel)}</span><span class="ach-title-short">${achEsc(shortLabel)}</span>:</span><div class="bbgl-ach-hh-date-line">${achEsc(dateStr)}<span class="bbgl-ach-hh-time"> &nbsp; ${achEsc(timeStr)}</span></div></div><div class="bbgl-ach-hh-cells">${visibleStatCells}${totalCell}</div></div>`;
     };
     const hjCount = countRow('Happy Jumps Performed', 'Happy Jumps', d.happyJumps || 0, 'hj-count', 'Total number of Happy Jumps performed.<br><i>HJ = 1000E+ spent within 15m of using Ecstasy</i>', true);
     const hjBest = bestRow('Best Happy Jump', 'Best Jump', d.bestHappyJump && d.bestHappyJump.total, 'best-hj', 'The single Happy Jump that yielded the highest combined stat gain.');
@@ -18183,7 +18398,7 @@ function achBuildPage2(d) {
     let helpersHTML = '';
     if (d.happyItemTotals) {
         const hhOrder = { 2180: 1, 2210: 2, 2020: 3, 8983: 4 };
-        const helpers = HAPPY_LOGS.map(id => {
+        const allHelpers = HAPPY_LOGS.map(id => {
             const rec = d.happyItemTotals[id] || { count: 0, happy: 0 };
             const meta = ITEM_LOG_META[id];
             const odRec = id === ECSTASY_LOG && d.odItemTotals ? d.odItemTotals[EX_OD_LOG] : null;
@@ -18196,7 +18411,18 @@ function achBuildPage2(d) {
                 odCount,
                 happy: rec.happy
             };
-        }).filter(h => h.count > 0).sort((a, b) => (hhOrder[a.id] || 99) - (hhOrder[b.id] || 99));
+        }).sort((a, b) => (hhOrder[a.id] || 99) - (hhOrder[b.id] || 99));
+        const helpers = allHelpers.filter(h => h.count > 0);
+
+        const clipHelpers = allHelpers.map(h => {
+            let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
+            if (h.id === ECSTASY_LOG && h.odCount > 0) {
+                const exRec = d.odItemTotals[EX_OD_LOG];
+                line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
+            }
+            return line;
+        }).join('\n\n');
+        clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
 
         if (helpers.length > 0) {
             const helperRow = (h) => {
@@ -18232,15 +18458,6 @@ function achBuildPage2(d) {
                     cols.push(`<div class="bbgl-ach-col">${chunk.map(helperRow).join('')}</div>`);
                 }
             }
-            const clipHelpers = helpers.map(h => {
-                let line = `${h.label}: ${h.count} (${Formatter.number(h.happy)} Happy)`;
-                if (h.id === ECSTASY_LOG && h.odCount > 0) {
-                    const exRec = d.odItemTotals[EX_OD_LOG];
-                    line += `\n  - ODs: ${h.odCount} (-${Formatter.number(exRec.happyLost || 0)} H, -${Formatter.number(exRec.energyLost || 0)} E)`;
-                }
-                return line;
-            }).join('\n\n');
-            clipAll += '\n\n— Happy Helpers —\n' + clipHelpers;
             helpersHTML = `<div class="bbgl-ach-cols" style="grid-template-columns:repeat(${colCount},minmax(0,1fr)); padding-top:1px; padding-bottom:0;">${cols.join('')}</div>`;
         }
     }
@@ -18844,8 +19061,9 @@ function handleAchCopy(el) {
             const clipTitle = title.getAttribute('data-clip-title') || 'Endocrine Enhancers';
             if (clip) {
                 const txt = '👑BBGL Achievements\n\n— ' + clipTitle + ' —\n' + clip;
-                const cols = el.closest('.bbgl-ach-section-energy').querySelector('.bbgl-ach-cols');
-                navigator.clipboard.writeText(txt).then(() => flashCopied(cols || el.closest('.bbgl-ach-section-energy')));
+                const section = el.closest('.bbgl-ach-section-energy');
+                const rows = Array.from(section.querySelectorAll('.bbgl-ach-enh-row'));
+                navigator.clipboard.writeText(txt).then(() => flashCopied(rows.length ? rows : section));
             }
             return;
         }
@@ -20730,10 +20948,10 @@ const BestGymController = {
             if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lst.webp');
             const bm = ctx.bookMarkers[ds];
             if (bm) {
-                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-train-book-started.webp');
-                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-perk-book-started.webp');
-                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-ended.webp');
-                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-received.webp');
+                if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'trnbk-strt.webp');
+                if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'prkbk-strt.webp');
+                if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'bkprk-end.webp');
+                if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'bkprk-rec.webp');
             }
             // The stack spreads across a fixed window in the cell rather than stepping by a fixed
             // amount, so it can't outgrow the day: centred on POST_IT_TOP, then pushed back inside
@@ -21215,13 +21433,13 @@ const BestGymController = {
             });
             starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
             // The level-bar tooltip's title text copies the expanded page's size. That text is
-            // min(14cqw, 25cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
+            // min(15cqw, 27cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
             // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
             // resolved px goes on the root. Only measured in expanded, so other modes keep the last
             // expanded value.
             const sign = main.closest('#bbgl-panel.bbgl-expanded') && main.querySelector('.bbgl-title-card-sign');
             if (sign && sign.clientWidth > 0 && sign.clientHeight > 0) {
-                const fs = Math.min(sign.clientWidth * .14, sign.clientHeight * .25);
+                const fs = Math.min(sign.clientWidth * .15, sign.clientHeight * .27);
                 // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
                 if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
             }
@@ -21335,6 +21553,11 @@ const BestGymController = {
         const lineTop = titleLayoutTopWithin(line, page);
         if (lineTop === null) return false;
         const lineCenter = lineTop + titleTranslateYWithin(line, page) + line.offsetHeight / 2;
+        // One title slot's width, for the titles' hit columns (.bbgl-rank-title::before). The slot
+        // grid spans the groove plus half a milestone gap each side, so a slot is exactly one gap:
+        // the groove's width over (titles - 1). Read here with the other measurements, written last.
+        const slotCount = line.querySelectorAll('.bbgl-rank-title-slot').length;
+        const slotWidth = slotCount > 1 ? line.offsetWidth / (slotCount - 1) : 0;
 
         const floorValue = parseFloat(getComputedStyle(scale).getPropertyValue('--bbgl-t-rank-floor'));
         const assemblyFloor = Number.isFinite(floorValue) ? floorValue : RANK_ASSEMBLY_FLOOR;
@@ -21439,6 +21662,7 @@ const BestGymController = {
         // Apply label tightening after centring so it cannot move the slider.
         const titlesY = lineHeight / 2 - labelGap + labelDrop;
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
+        setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
         return true;
     }
 
@@ -23219,7 +23443,7 @@ const BestGymController = {
                     <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
                 </g>
                 <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
-                <rect width="16" height="100" fill="url(#lvl-housing)"/><rect x="484" width="16" height="100" fill="url(#lvl-housing)"/>
+                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
                 <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
                 <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
                 <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
@@ -23239,7 +23463,7 @@ const BestGymController = {
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
