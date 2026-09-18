@@ -4735,6 +4735,11 @@
                     }
 
                     .bbgl-day-cell {
+                        /* How far everything that sits on the pan rides above the cell's centre line -
+                           the pans' flat faces run higher than the old grid art's did. Stickers, jewels
+                           and the new-sticker post-it read it here; the event post-it stack bakes the
+                           same 2 into POST_IT_TOP (07-section-vi-ui.js), since it's placed from JS. */
+                        --bbgl-cell-lift: 2%;
                         flex: 1;
                         aspect-ratio: 1/1;
                         display: block;
@@ -4775,7 +4780,7 @@
                         position: absolute;
                         /* --pi-base / --pi-step come from renderCell (07-section-vi-ui.js), which
                            sizes the stack so it always fits the cell; the fallbacks are the lone-post-it case. */
-                        top: calc(var(--pi-base, 15%) + var(--ei, 0) * var(--pi-step, 0%));
+                        top: calc(var(--pi-base, 13%) + var(--ei, 0) * var(--pi-step, 0%));
                         left: 15%;
                         width: 70%;
                         height: 70%;
@@ -4821,7 +4826,7 @@
 
                     .jewel-wrapper {
                         position: absolute;
-                        top: 50%;
+                        top: calc(50% - var(--bbgl-cell-lift));
                         left: 53%;
                         width: 80%;
                         height: 78%;
@@ -5041,7 +5046,7 @@
 
                     .sticker-wrapper {
                         position: absolute;
-                        top: 50%;
+                        top: calc(50% - var(--bbgl-cell-lift));
                         left: 50%;
                         width: 80%;
                         height: 80%;
@@ -5061,7 +5066,7 @@
 
                     .new-sticker-post-it {
                         position: absolute;
-                        top: 4%;
+                        top: calc(4% - var(--bbgl-cell-lift));
                         left: 4%;
                         width: 92%;
                         height: 92%;

@@ -6443,6 +6443,11 @@
                     }
 
                     .bbgl-day-cell {
+                        /* How far everything that sits on the pan rides above the cell's centre line -
+                           the pans' flat faces run higher than the old grid art's did. Stickers, jewels
+                           and the new-sticker post-it read it here; the event post-it stack bakes the
+                           same 2 into POST_IT_TOP (07-section-vi-ui.js), since it's placed from JS. */
+                        --bbgl-cell-lift: 2%;
                         flex: 1;
                         aspect-ratio: 1/1;
                         display: block;
@@ -6483,7 +6488,7 @@
                         position: absolute;
                         /* --pi-base / --pi-step come from renderCell (07-section-vi-ui.js), which
                            sizes the stack so it always fits the cell; the fallbacks are the lone-post-it case. */
-                        top: calc(var(--pi-base, 15%) + var(--ei, 0) * var(--pi-step, 0%));
+                        top: calc(var(--pi-base, 13%) + var(--ei, 0) * var(--pi-step, 0%));
                         left: 15%;
                         width: 70%;
                         height: 70%;
@@ -6529,7 +6534,7 @@
 
                     .jewel-wrapper {
                         position: absolute;
-                        top: 50%;
+                        top: calc(50% - var(--bbgl-cell-lift));
                         left: 53%;
                         width: 80%;
                         height: 78%;
@@ -6749,7 +6754,7 @@
 
                     .sticker-wrapper {
                         position: absolute;
-                        top: 50%;
+                        top: calc(50% - var(--bbgl-cell-lift));
                         left: 50%;
                         width: 80%;
                         height: 80%;
@@ -6769,7 +6774,7 @@
 
                     .new-sticker-post-it {
                         position: absolute;
-                        top: 4%;
+                        top: calc(4% - var(--bbgl-cell-lift));
                         left: 4%;
                         width: 92%;
                         height: 92%;
@@ -20366,7 +20371,7 @@ const BestGymController = {
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`);
+        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}calgrd2-fut.webp)`);
         const todayStr = Formatter.dateLogical();
         // Per-render constants that renderCell() used to recompute for every one of the 42 cells:
         // dateLogical() allocates a Date and runs three TimeManager calls, getWarMarkers()'s memo
@@ -20397,7 +20402,7 @@ const BestGymController = {
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.jpg)`);
+                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}calgrd2-past.webp)`);
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx);
@@ -20535,15 +20540,16 @@ const BestGymController = {
     // `ctx` carries the per-render constants hoisted out of this function by renderPanelContent()
     // (see there) — single call site, so the extra parameter stays contained.
     // Event post-it stack geometry, in % of the day cell. These pair with .bbgl-event-post-it in
-    // 04-section-iii-styles.js, which is 70% tall - so a post-it's top can sit anywhere in 0-30%
-    // before it hangs out of the cell. POST_IT_TOP is where a lone post-it sits and every stack
-    // stays centred on it. The two limits do different jobs: POST_IT_STEP is how far apart a small
-    // stack wants to sit, and POST_IT_BAND is the total spread a large one compresses into, which
-    // is what actually keeps the last post-it's bottom edge inside the cell (1 + 28 + 70 = 99).
-    const POST_IT_TOP = 15,
+    // 04-section-iii-styles.js, which is 70% tall. POST_IT_TOP is where a lone post-it sits, and a
+    // stack stays centred on it until it reaches one of the band's edges. The band bounds the TOPS:
+    // POST_IT_BAND_BOT keeps the last post-it's bottom edge inside the cell (29 + 70 = 99), and
+    // POST_IT_BAND_TOP lets the first ride a touch above the cell's top edge. POST_IT_STEP is how
+    // far apart a small stack wants to sit; past what the band can hold, the step shrinks to fit.
+    // POST_IT_TOP includes the cell's 2% --bbgl-cell-lift (a lone post-it used to sit at 15).
+    const POST_IT_TOP = 13,
         POST_IT_STEP = 18,
-        POST_IT_BAND = 28,
-        POST_IT_LIFT = 0.5;
+        POST_IT_BAND_TOP = -1,
+        POST_IT_BAND_BOT = 29;
 
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
@@ -20577,9 +20583,9 @@ const BestGymController = {
         });
         const isToday = (ds === ctx.today);
         if (isFlipped && sl.meta.tier > 0) {
-            let url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`;
-            if (sl.meta.tier === 2) url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`;
-            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`;
+            let url = `url(${CAL_IMG_BASE}calgrd2-past-grn.webp)`;
+            if (sl.meta.tier === 2) url = `url(${CAL_IMG_BASE}calgrd2-past-gld.webp)`;
+            else if (sl.meta.tier === 3) url = `url(${CAL_IMG_BASE}calgrd2-past-dmd.webp)`;
             cell.style.backgroundImage = url;
             cell.style.backgroundSize = "700% 600%";
             cell.style.backgroundPosition = `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`;
@@ -20648,12 +20654,12 @@ const BestGymController = {
                 if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'PLACEHOLDER-book-perk-received.webp');
             }
             // The stack spreads across a fixed window in the cell rather than stepping by a fixed
-            // amount, so it can't outgrow the day. Up to three it steps by POST_IT_STEP and looks
-            // exactly as it always has; past that the step shrinks to keep the last one's bottom
-            // edge on POST_IT_BAND's far side. The lift keeps the stack centred as it grows.
+            // amount, so it can't outgrow the day: centred on POST_IT_TOP, then pushed back inside
+            // the band if either end would cross it, with the step shrinking once the band is full.
             const nEvents = eventImgs.length,
-                piStep = nEvents > 1 ? Math.min(POST_IT_STEP, POST_IT_BAND / (nEvents - 1)) : 0,
-                piBase = POST_IT_TOP - (nEvents - 1) * piStep * POST_IT_LIFT;
+                piStep = nEvents > 1 ? Math.min(POST_IT_STEP, (POST_IT_BAND_BOT - POST_IT_BAND_TOP) / (nEvents - 1)) : 0,
+                piSpan = (nEvents - 1) * piStep,
+                piBase = Math.min(Math.max(POST_IT_TOP - piSpan / 2, POST_IT_BAND_TOP), POST_IT_BAND_BOT - piSpan);
             cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%');
             cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%');
             eventImgs.forEach((url, i) => {
