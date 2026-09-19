@@ -1863,6 +1863,14 @@
         bar.container.dataset.level = level;
     }
 
+    // Chrome doesn't re-lay out SVG text when its web font arrives, so a digit first drawn in the
+    // fallback font keeps that font's centring until the text is rewritten.
+    if (document.fonts && document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', () => {
+            document.querySelectorAll('.bbgl-valve-digit').forEach(node => { node.textContent = node.textContent; });
+        });
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
@@ -3491,12 +3499,12 @@
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
                 <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
 
-        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}</div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
@@ -3505,15 +3513,17 @@
         const sockets = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
             <path d="M24 6L18 7.6H14V28.5C18 29.5 20 31 24 32L22 27V11Z" fill="url(#${id}-shoulder)"/>
             <path d="M23 7L18 8.5H14 M14.5 27.5C18 28.5 20 30 23 31" fill="none" stroke="url(#${id}-bevel)" stroke-width=".8"/>
-            <ellipse cx="14" cy="19" rx="2.8" ry="9.9" fill="url(#${id}-bevel)"/>
-            <ellipse cx="13.7" cy="19" rx="1.9" ry="8.6" fill="#030708"/>
-            <path d="M10 12.8H13.5C15.2 12.8 15.2 25.2 13.5 25.2H10Z" fill="url(#${id}-fitting)"/>
-            <path d="M12 13.3C13.5 14 13.5 24 12 24.7" fill="none" stroke="#060b0d" stroke-width=".65"/>
-            <path d="M13.6 13.2C14.8 15 14.8 23 13.6 24.8" fill="none" stroke="#ced8d1" stroke-opacity=".55" stroke-width=".55"/>
+            <ellipse cx="14" cy="19" rx="2.8" ry="9.9" fill="url(#${id}-shoulder)"/>
             <path d="M11.2 11.5V10.2Q11.2 7.6 14 7.6H18L24 6L22.5 7.7L18 9.7H14.5V11.5Z" fill="url(#${id}-shoulder)"/>
             <path d="M11.8 10.5V10.2Q11.8 8.3 14 8.3H18L23 6.5" fill="none" stroke="#b8c3b9" stroke-opacity=".55" stroke-width=".55"/>
             <path d="M14.5 11.1V10H18" fill="none" stroke="#080e10" stroke-width=".6"/>
-            <path d="M10 14H12.5" stroke="#edf1df" stroke-opacity=".65" stroke-width=".6"/>
+        </g>`).join('');
+        // The tube's coupling plugs into each socket: it's drawn over the socket, cut at x 12.4, and
+        // the lip (dark metal filled back from its curve, then the rim line) sits over its end.
+        const lips = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
+            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9H15.5V9.1Z" fill="url(#${id}-shoulder)"/>
+            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
+            <path d="M12.4 9.8A.96 9.2 0 0 0 12.4 28.2" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
         </g>`).join('');
         return `<svg class="bbgl-level-valve" viewBox="0 4 100 30" preserveAspectRatio="none" aria-hidden="true">
             <defs>
@@ -3527,18 +3537,21 @@
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
+                <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
-            <g fill="url(#${id}-fitting)" stroke="#10171b" stroke-width=".8">
-                <path d="M0 12H15V26H0Z M85 12H100V26H85Z"/>
-                <path d="M7 9H14L18 13V25L14 29H7L5 26V12Z M86 9H93L95 12V26L93 29H86L82 25V13Z"/>
-            </g>
-            <path d="M1 13V25M3 13V25M8 11V27M11 11V27M89 11V27M92 11V27M97 13V25M99 13V25" stroke="#0b1216" stroke-opacity=".7" stroke-width=".8"/>
-            <path d="M6 14H15M85 14H94" stroke="#d6e0e4" stroke-opacity=".5" stroke-width=".7"/>
             <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-steel)" fill-rule="evenodd" stroke="#090e11" stroke-width="1"/>
             <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-grain)" fill-rule="evenodd" stroke="none"/>
             <path d="M15 12L24 6H76L85 12 M17 27L24 32H76L83 27" fill="none" stroke="#b7c4cb" stroke-opacity=".4" stroke-width=".7"/>
             ${sockets}
+            <g clip-path="url(#${id}-ends)">
+                <g fill="url(#${id}-fitting)" stroke="#10171b" stroke-width=".8">
+                    <path d="M7 9H14L18 13V25L14 29H7L5 26V12Z M86 9H93L95 12V26L93 29H86L82 25V13Z"/>
+                </g>
+                <path d="M8 11V27M11 11V27M89 11V27M92 11V27" stroke="#0b1216" stroke-opacity=".7" stroke-width=".8"/>
+                <path d="M6 14H15M85 14H94" stroke="#d6e0e4" stroke-opacity=".5" stroke-width=".7"/>
+            </g>
+            ${lips}
             <rect x="22.6" y="6.6" width="54.8" height="24.8" rx="7.4" fill="none" stroke="url(#${id}-bevel)" stroke-width="1.8"/>
             <rect x="23.7" y="7.7" width="52.6" height="22.6" rx="6.3" fill="none" stroke="#030708" stroke-width="1.3"/>
             <rect x="24" y="8" width="52" height="22" rx="6" fill="url(#${id}-glass)" stroke="#8a9ba4" stroke-opacity=".65" stroke-width=".7"/>

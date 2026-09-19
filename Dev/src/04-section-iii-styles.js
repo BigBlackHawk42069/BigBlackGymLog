@@ -4303,7 +4303,7 @@
                         font-weight: 700;
                         user-select: none;
                         line-height: 1;
-                        text-shadow: 0 1px 3px #000;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 1px 3px #000;
                         align-self: flex-end;
                         margin-bottom: 6px;
                         transition: transform .2s, text-shadow .2s;
@@ -4491,7 +4491,8 @@
                         cursor: pointer;
                         text-transform: capitalize;
                         user-select: none;
-                        text-shadow: 0 2px 4px #000;
+                        /* Tight dark outline under the soft drop, so labels read over light header art. */
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 2px 4px #000;
                         line-height: 1;
                         /* Fjalla One at line-height:1 puts its baseline .124em above the box bottom. */
                         margin-bottom: -.124em;
@@ -5298,8 +5299,10 @@
                         /* A tight dark outline plus a soft drop, so the number reads over any pan art. It
                            used to be on past days only (.is-archived), leaving current and future days
                            bare white against the metal. */
-                        text-shadow: 0 0 1px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, .9), 0 1px 4px rgba(0, 0, 0, .85);
+                        text-shadow: 1.5px 0 0 rgba(0, 0, 0, .85), -1.5px 0 0 rgba(0, 0, 0, .85), 0 1px 0 rgba(0, 0, 0, .85), 0 -1px 0 rgba(0, 0, 0, .85), 1px 1px 0 rgba(0, 0, 0, .85), -1px 1px 0 rgba(0, 0, 0, .85), 1px -1px 0 rgba(0, 0, 0, .85), -1px -1px 0 rgba(0, 0, 0, .85), 0 1px 4px rgba(0, 0, 0, .9);
                         font-weight: 400;
+                        /* Fjalla One has no bold; a hairline stroke in the text colour thickens it slightly. */
+                        -webkit-text-stroke: .15px currentColor;
                         font-family: 'Fjalla One', 'Arial', sans-serif;
                         pointer-events: none;
                         display: flex;
@@ -5900,7 +5903,7 @@
                         content: '';
                         position: absolute;
                         inset: 10% 0;
-                        z-index: 4;
+                        z-index: 6;
                         pointer-events: none;
                         background-image: var(--bbgl-cast-texture);
                         background-position: bottom left;
@@ -5912,7 +5915,7 @@
                         content: '';
                         position: absolute;
                         inset: 10% 0;
-                        z-index: 4;
+                        z-index: 6;
                         pointer-events: none;
                         background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
@@ -5983,10 +5986,12 @@
                         100% { transform: translateX(-50%) translateY(130%); }
                     }
 
+                    /* Each stop ends with the crown's resting edge shadow: fill-mode forwards holds the
+                       100% filter after the rise, so it has to carry it. */
                     @keyframes bbgl-crown-rise-kf {
-                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
-                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)); }
-                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
+                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
                     }
 
                     /* Same tuck/rise motion, for the current text-badge flags (A0/A1) which are
@@ -6395,6 +6400,8 @@
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
                         background: var(--bbgl-crown-art) center bottom / contain no-repeat;
+                        /* Same edge as the tube and valve, to lift it off the header art. */
+                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
                         clip-path: none;
                         pointer-events: none;
                         z-index: -1;
@@ -6458,10 +6465,13 @@
                         z-index: 1;
                         pointer-events: none;
                     }
+                    /* Inside the track, so it layers between the fill (2) and the glass tube and housing
+                       SVG (5), with the housing texture (6) on top. The track is the bar's full width and
+                       sits on its bottom; the extra -.5px cancels the track's own translateY(-.5px). */
                     .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
-                        bottom: calc(-1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
+                        bottom: calc(-1.5px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
                         transform: translateX(-50%);
                         width: var(--bbgl-valve-w);
                         height: calc(var(--bbgl-valve-h) * 30 / 38);
@@ -6469,7 +6479,6 @@
                         overflow: visible;
                         pointer-events: none;
                     }
-                    /* Under .bbgl-level-valve (4): the fill's centre notch shows only through the glass. */
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
                         z-index: 3;
@@ -6483,6 +6492,20 @@
                         height: var(--bbgl-valve-h);
                         border-radius: 0;
                         clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                    }
+                    /* The fill's own colours again, spread over the window's height only, so behind the
+                       glass it reads as a full chamber rather than the thin tube's gradient seen through a
+                       taller hole. Width stops at the fill's leading edge, so it fills in as the bar passes. */
+                    #bbgl-level-fill::before,
+                    #bbgl-gym-level-fill::before {
+                        content: '';
+                        position: absolute;
+                        left: calc(45cqi - var(--bbgl-valve-w) * .28);
+                        top: var(--bbgl-notch-top);
+                        width: max(0px, min(var(--bbgl-valve-w) * .56, 100% - (45cqi - var(--bbgl-valve-w) * .28)));
+                        height: calc(var(--bbgl-notch-bot) - var(--bbgl-notch-top));
+                        background: inherit;
+                        pointer-events: none;
                     }
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
@@ -6513,10 +6536,18 @@
                         overflow: hidden;
                         clip-path: inset(50%);
                     }
+                    /* Dark edge and short drop to lift the tube and valve (inside the track) off the header
+                       art. On the track rather than the whole container: a filter there would cut the badge
+                       flags' backdrop-filter off from the header behind them. */
+                    #bbgl-level-container .bbgl-exp-track {
+                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                    }
                     .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-bar .8s ease-out; }
 
+                    /* Cut back to the outer end of the valve's wide collar (x 5 of its 100-unit viewBox),
+                       so the glass slips over the narrow nipple only. */
                     .bbgl-exp-track .bbgl-level-svg {
-                        mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% + var(--bbgl-valve-w) * .36), #000 calc(50% + var(--bbgl-valve-w) * .36));
+                        mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% + var(--bbgl-valve-w) * .45), #000 calc(50% + var(--bbgl-valve-w) * .45));
                     }
 
                     /* ─── Endocrine Enhancers Page ──────────────────────── */
@@ -7096,7 +7127,7 @@
 
                         .arrow-btn:hover {
                             transform: none !important;
-                            text-shadow: 0 1px 3px #000 !important;
+                            text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 1px 3px #000 !important;
                         }
 
                         .sticker-nav-btn:active {

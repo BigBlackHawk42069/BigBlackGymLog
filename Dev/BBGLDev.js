@@ -6011,7 +6011,7 @@
                         font-weight: 700;
                         user-select: none;
                         line-height: 1;
-                        text-shadow: 0 1px 3px #000;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 1px 3px #000;
                         align-self: flex-end;
                         margin-bottom: 6px;
                         transition: transform .2s, text-shadow .2s;
@@ -6199,7 +6199,8 @@
                         cursor: pointer;
                         text-transform: capitalize;
                         user-select: none;
-                        text-shadow: 0 2px 4px #000;
+                        /* Tight dark outline under the soft drop, so labels read over light header art. */
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 2px 4px #000;
                         line-height: 1;
                         /* Fjalla One at line-height:1 puts its baseline .124em above the box bottom. */
                         margin-bottom: -.124em;
@@ -7006,8 +7007,10 @@
                         /* A tight dark outline plus a soft drop, so the number reads over any pan art. It
                            used to be on past days only (.is-archived), leaving current and future days
                            bare white against the metal. */
-                        text-shadow: 0 0 1px rgba(0, 0, 0, 1), 0 0 2px rgba(0, 0, 0, .9), 0 1px 4px rgba(0, 0, 0, .85);
+                        text-shadow: 1.5px 0 0 rgba(0, 0, 0, .85), -1.5px 0 0 rgba(0, 0, 0, .85), 0 1px 0 rgba(0, 0, 0, .85), 0 -1px 0 rgba(0, 0, 0, .85), 1px 1px 0 rgba(0, 0, 0, .85), -1px 1px 0 rgba(0, 0, 0, .85), 1px -1px 0 rgba(0, 0, 0, .85), -1px -1px 0 rgba(0, 0, 0, .85), 0 1px 4px rgba(0, 0, 0, .9);
                         font-weight: 400;
+                        /* Fjalla One has no bold; a hairline stroke in the text colour thickens it slightly. */
+                        -webkit-text-stroke: .15px currentColor;
                         font-family: 'Fjalla One', 'Arial', sans-serif;
                         pointer-events: none;
                         display: flex;
@@ -7608,7 +7611,7 @@
                         content: '';
                         position: absolute;
                         inset: 10% 0;
-                        z-index: 4;
+                        z-index: 6;
                         pointer-events: none;
                         background-image: var(--bbgl-cast-texture);
                         background-position: bottom left;
@@ -7620,7 +7623,7 @@
                         content: '';
                         position: absolute;
                         inset: 10% 0;
-                        z-index: 4;
+                        z-index: 6;
                         pointer-events: none;
                         background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
@@ -7691,10 +7694,12 @@
                         100% { transform: translateX(-50%) translateY(130%); }
                     }
 
+                    /* Each stop ends with the crown's resting edge shadow: fill-mode forwards holds the
+                       100% filter after the rise, so it has to carry it. */
                     @keyframes bbgl-crown-rise-kf {
-                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
-                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)); }
-                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
+                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
                     }
 
                     /* Same tuck/rise motion, for the current text-badge flags (A0/A1) which are
@@ -8103,6 +8108,8 @@
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
                         background: var(--bbgl-crown-art) center bottom / contain no-repeat;
+                        /* Same edge as the tube and valve, to lift it off the header art. */
+                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
                         clip-path: none;
                         pointer-events: none;
                         z-index: -1;
@@ -8166,10 +8173,13 @@
                         z-index: 1;
                         pointer-events: none;
                     }
+                    /* Inside the track, so it layers between the fill (2) and the glass tube and housing
+                       SVG (5), with the housing texture (6) on top. The track is the bar's full width and
+                       sits on its bottom; the extra -.5px cancels the track's own translateY(-.5px). */
                     .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
-                        bottom: calc(-1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
+                        bottom: calc(-1.5px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
                         transform: translateX(-50%);
                         width: var(--bbgl-valve-w);
                         height: calc(var(--bbgl-valve-h) * 30 / 38);
@@ -8177,7 +8187,6 @@
                         overflow: visible;
                         pointer-events: none;
                     }
-                    /* Under .bbgl-level-valve (4): the fill's centre notch shows only through the glass. */
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
                         z-index: 3;
@@ -8191,6 +8200,20 @@
                         height: var(--bbgl-valve-h);
                         border-radius: 0;
                         clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                    }
+                    /* The fill's own colours again, spread over the window's height only, so behind the
+                       glass it reads as a full chamber rather than the thin tube's gradient seen through a
+                       taller hole. Width stops at the fill's leading edge, so it fills in as the bar passes. */
+                    #bbgl-level-fill::before,
+                    #bbgl-gym-level-fill::before {
+                        content: '';
+                        position: absolute;
+                        left: calc(45cqi - var(--bbgl-valve-w) * .28);
+                        top: var(--bbgl-notch-top);
+                        width: max(0px, min(var(--bbgl-valve-w) * .56, 100% - (45cqi - var(--bbgl-valve-w) * .28)));
+                        height: calc(var(--bbgl-notch-bot) - var(--bbgl-notch-top));
+                        background: inherit;
+                        pointer-events: none;
                     }
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
@@ -8221,10 +8244,18 @@
                         overflow: hidden;
                         clip-path: inset(50%);
                     }
+                    /* Dark edge and short drop to lift the tube and valve (inside the track) off the header
+                       art. On the track rather than the whole container: a filter there would cut the badge
+                       flags' backdrop-filter off from the header behind them. */
+                    #bbgl-level-container .bbgl-exp-track {
+                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                    }
                     .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-bar .8s ease-out; }
 
+                    /* Cut back to the outer end of the valve's wide collar (x 5 of its 100-unit viewBox),
+                       so the glass slips over the narrow nipple only. */
                     .bbgl-exp-track .bbgl-level-svg {
-                        mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% - var(--bbgl-valve-w) * .36), transparent calc(50% + var(--bbgl-valve-w) * .36), #000 calc(50% + var(--bbgl-valve-w) * .36));
+                        mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% + var(--bbgl-valve-w) * .45), #000 calc(50% + var(--bbgl-valve-w) * .45));
                     }
 
                     /* ─── Endocrine Enhancers Page ──────────────────────── */
@@ -8804,7 +8835,7 @@
 
                         .arrow-btn:hover {
                             transform: none !important;
-                            text-shadow: 0 1px 3px #000 !important;
+                            text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 2px rgba(0, 0, 0, .7), 0 1px 3px #000 !important;
                         }
 
                         .sticker-nav-btn:active {
@@ -21911,6 +21942,14 @@ const BestGymController = {
         bar.container.dataset.level = level;
     }
 
+    // Chrome doesn't re-lay out SVG text when its web font arrives, so a digit first drawn in the
+    // fallback font keeps that font's centring until the text is rewritten.
+    if (document.fonts && document.fonts.addEventListener) {
+        document.fonts.addEventListener('loadingdone', () => {
+            document.querySelectorAll('.bbgl-valve-digit').forEach(node => { node.textContent = node.textContent; });
+        });
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
@@ -23539,12 +23578,12 @@ const BestGymController = {
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
                 <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
 
-        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:3;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
+        return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelTrackSVG()}</div>${buildLevelValveSVG(prefix)}${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}</div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
@@ -23553,15 +23592,17 @@ const BestGymController = {
         const sockets = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
             <path d="M24 6L18 7.6H14V28.5C18 29.5 20 31 24 32L22 27V11Z" fill="url(#${id}-shoulder)"/>
             <path d="M23 7L18 8.5H14 M14.5 27.5C18 28.5 20 30 23 31" fill="none" stroke="url(#${id}-bevel)" stroke-width=".8"/>
-            <ellipse cx="14" cy="19" rx="2.8" ry="9.9" fill="url(#${id}-bevel)"/>
-            <ellipse cx="13.7" cy="19" rx="1.9" ry="8.6" fill="#030708"/>
-            <path d="M10 12.8H13.5C15.2 12.8 15.2 25.2 13.5 25.2H10Z" fill="url(#${id}-fitting)"/>
-            <path d="M12 13.3C13.5 14 13.5 24 12 24.7" fill="none" stroke="#060b0d" stroke-width=".65"/>
-            <path d="M13.6 13.2C14.8 15 14.8 23 13.6 24.8" fill="none" stroke="#ced8d1" stroke-opacity=".55" stroke-width=".55"/>
+            <ellipse cx="14" cy="19" rx="2.8" ry="9.9" fill="url(#${id}-shoulder)"/>
             <path d="M11.2 11.5V10.2Q11.2 7.6 14 7.6H18L24 6L22.5 7.7L18 9.7H14.5V11.5Z" fill="url(#${id}-shoulder)"/>
             <path d="M11.8 10.5V10.2Q11.8 8.3 14 8.3H18L23 6.5" fill="none" stroke="#b8c3b9" stroke-opacity=".55" stroke-width=".55"/>
             <path d="M14.5 11.1V10H18" fill="none" stroke="#080e10" stroke-width=".6"/>
-            <path d="M10 14H12.5" stroke="#edf1df" stroke-opacity=".65" stroke-width=".6"/>
+        </g>`).join('');
+        // The tube's coupling plugs into each socket: it's drawn over the socket, cut at x 12.4, and
+        // the lip (dark metal filled back from its curve, then the rim line) sits over its end.
+        const lips = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
+            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9H15.5V9.1Z" fill="url(#${id}-shoulder)"/>
+            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
+            <path d="M12.4 9.8A.96 9.2 0 0 0 12.4 28.2" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
         </g>`).join('');
         return `<svg class="bbgl-level-valve" viewBox="0 4 100 30" preserveAspectRatio="none" aria-hidden="true">
             <defs>
@@ -23575,18 +23616,21 @@ const BestGymController = {
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
+                <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
-            <g fill="url(#${id}-fitting)" stroke="#10171b" stroke-width=".8">
-                <path d="M0 12H15V26H0Z M85 12H100V26H85Z"/>
-                <path d="M7 9H14L18 13V25L14 29H7L5 26V12Z M86 9H93L95 12V26L93 29H86L82 25V13Z"/>
-            </g>
-            <path d="M1 13V25M3 13V25M8 11V27M11 11V27M89 11V27M92 11V27M97 13V25M99 13V25" stroke="#0b1216" stroke-opacity=".7" stroke-width=".8"/>
-            <path d="M6 14H15M85 14H94" stroke="#d6e0e4" stroke-opacity=".5" stroke-width=".7"/>
             <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-steel)" fill-rule="evenodd" stroke="#090e11" stroke-width="1"/>
             <path d="M24 5H76L87 12V26L76 33H24L13 26V12Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-grain)" fill-rule="evenodd" stroke="none"/>
             <path d="M15 12L24 6H76L85 12 M17 27L24 32H76L83 27" fill="none" stroke="#b7c4cb" stroke-opacity=".4" stroke-width=".7"/>
             ${sockets}
+            <g clip-path="url(#${id}-ends)">
+                <g fill="url(#${id}-fitting)" stroke="#10171b" stroke-width=".8">
+                    <path d="M7 9H14L18 13V25L14 29H7L5 26V12Z M86 9H93L95 12V26L93 29H86L82 25V13Z"/>
+                </g>
+                <path d="M8 11V27M11 11V27M89 11V27M92 11V27" stroke="#0b1216" stroke-opacity=".7" stroke-width=".8"/>
+                <path d="M6 14H15M85 14H94" stroke="#d6e0e4" stroke-opacity=".5" stroke-width=".7"/>
+            </g>
+            ${lips}
             <rect x="22.6" y="6.6" width="54.8" height="24.8" rx="7.4" fill="none" stroke="url(#${id}-bevel)" stroke-width="1.8"/>
             <rect x="23.7" y="7.7" width="52.6" height="22.6" rx="6.3" fill="none" stroke="#030708" stroke-width="1.3"/>
             <rect x="24" y="8" width="52" height="22" rx="6" fill="url(#${id}-glass)" stroke="#8a9ba4" stroke-opacity=".65" stroke-width=".7"/>
