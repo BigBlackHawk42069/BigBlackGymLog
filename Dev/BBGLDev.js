@@ -1805,11 +1805,22 @@
         const tiers = {
             silver: h => ramp([[0, '#1c1f22'], [.35, '#6f757a'], [.65, '#c3c8cc'], [1, '#fbfcfd']])(Math.pow(lum(h), .8) * 1.12),
             gold: h => ramp([[0, '#3a2300'], [.22, '#8c5c06'], [.42, '#cf9612'], [.6, '#f2c226'], [.78, '#ffe072'], [1, '#fffbe2']])(Math.pow(lum(h), .7) * 1.3),
-            platinum: h => ramp([[0, '#4a4750'], [.4, '#a7a3ad'], [.7, '#e3e0e8'], [1, '#fdfbff']])(.22 + Math.pow(lum(h), .8) * .95)
+            platinum: h => ramp([[0, '#34333a'], [.3, '#85838d'], [.55, '#cfcdd6'], [.75, '#f4f3f8'], [1, '#ffffff']])(.12 + Math.pow(lum(h), .75) * 1.1)
         };
         const vars = map => Object.entries(VALVE_METAL).map(([g, cs]) => cs.map((c, i) => `--vm-${g}-${i}: ${map(c)};`).join(' ')).join(' ');
         return { steel: vars(c => c), silver: vars(tiers.silver), gold: vars(tiers.gold), platinum: vars(tiers.platinum) };
     })();
+    // Level fill: dormant neon gas, one call per tier. A static fractal-noise smoke texture (stretched
+    // wide so it streaks rather than bands) soft-lit over an ember core line and a tinted body that's
+    // darkest at the glass. Static, so it costs nothing per frame.
+    const GAS_SMOKE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='30' preserveAspectRatio='none'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .16' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 2.2 -.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E") 0 0 / 300px 100% repeat-x`;
+    const gasFill = (tint, core, deep) => `background:
+                            ${GAS_SMOKE},
+                            linear-gradient(180deg, transparent 36%, ${core}60 47%, ${core}90 50%, ${core}60 53%, transparent 64%),
+                            linear-gradient(180deg, #06080b 0%, ${deep} 28%, ${tint}70 50%, ${deep} 72%, #06080b 100%),
+                            ${deep};
+                        background-blend-mode: soft-light, normal, normal;
+                        box-shadow: none;`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
@@ -7135,6 +7146,7 @@
                         pointer-events: none;
                         background-image: var(--bbgl-cast-texture);
                         background-position: bottom left;
+                        -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                     }
 
@@ -7149,6 +7161,7 @@
                         z-index: 1;
                         pointer-events: none;
                         background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
+                        -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 99%, #000 99.4%);
                     }
 
@@ -7634,10 +7647,20 @@
                         width: 0%;
                         z-index: 2;
                         border-radius: 1px / 35%;
-                        mask-image: linear-gradient(90deg, #000 calc(100% - 1px), transparent 100%);
+                        /* Leading edge dissolves over 20px on an eased curve, so the gas thins out rather
+                           than ending in a wall. The fade lives in 20px of right padding past the width JS
+                           sets, so the solid gas ends exactly at the EXP position (a full bar reaches the
+                           end) and the tail trails beyond it, under the coupling when full. */
+                        box-sizing: content-box;
+                        padding-right: 20px;
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                         will-change: width;
                     }
+
+                    #bbgl-panel.bbgl-no-animations #bbgl-level-fill,
+                    #bbgl-panel.bbgl-no-animations #bbgl-level-fill::after { animation: none; }
 
                     #bbgl-level-track::after,
                     #bbgl-gym-level-track::after {
@@ -7648,6 +7671,7 @@
                         pointer-events: none;
                         background-image: var(--bbgl-cast-texture);
                         background-position: bottom left;
+                        -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                     }
 
@@ -7659,6 +7683,7 @@
                         z-index: 6;
                         pointer-events: none;
                         background: linear-gradient(180deg, transparent 76%, rgba(5,5,5,.18) 82%, rgba(5,5,5,.65) 100%);
+                        -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                         mask-image: linear-gradient(90deg, #000 0%, #000 2.4%, transparent 3.2%, transparent 96.8%, #000 97.6%);
                     }
 
@@ -7672,16 +7697,18 @@
                         background: linear-gradient(180deg, rgba(0,0,0,.3), transparent 45%, rgba(0,0,0,.18));
                     }
 
+                    /* Level-up flashes light up only; nothing scales. The crown's stops carry its resting
+                       edge shadow so it doesn't drop out for the flash. */
+                    /* Matches the valve's flash (bbgl-lvl-flash-valve): same brightness and tier-coloured
+                       glow, so crown and valve light as one piece. */
                     @keyframes bbgl-lvl-flash-dmnd {
-                        0% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
-                        20% { filter: brightness(1.4) drop-shadow(0 0 8px rgba(255,255,255,0.4)); transform: translateX(-50%) scale(1.15); }
-                        100% { filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); transform: translateX(-50%) scale(1); }
+                        0%   { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        20%  { filter: brightness(1.5) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
 
                     @keyframes bbgl-lvl-flash-text {
-                        0% { transform: scale(1); }
-                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #66ff33, 0 0 60px #66ff33; transform: scale(1.4); }
-                        100% { transform: scale(1); }
+                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #66ff33, 0 0 60px #66ff33; }
                     }
 
                     @keyframes bbgl-lvl-flash-bar {
@@ -7690,28 +7717,11 @@
                         100% { filter: brightness(1); }
                     }
 
-                    @keyframes bbgl-lvl-flash-track {
-                        0%   { filter: none; }
-                        20%  { filter: brightness(1.3) drop-shadow(0 0 10px rgba(217, 160, 255, 1)) drop-shadow(0 0 22px rgba(180, 100, 255, 0.6)); }
-                        100% { filter: none; }
-                    }
 
-                    @keyframes bbgl-lvl-flash-track-a0 {
-                        0%   { filter: none; }
-                        20%  { filter: brightness(1.3) drop-shadow(0 0 10px rgba(100, 255, 60, 1)) drop-shadow(0 0 22px rgba(60, 200, 20, 0.6)); }
-                        100% { filter: none; }
-                    }
 
-                    @keyframes bbgl-lvl-flash-track-a0-white {
-                        0%   { filter: none; }
-                        20%  { filter: brightness(1.5) drop-shadow(0 0 12px rgba(255, 255, 255, 1)) drop-shadow(0 0 24px rgba(255, 255, 255, 0.8)); }
-                        100% { filter: none; }
-                    }
 
                     @keyframes bbgl-lvl-flash-text-white {
-                        0% { transform: scale(1); }
-                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #cccccc, 0 0 60px #cccccc; transform: scale(1.4); }
-                        100% { transform: scale(1); }
+                        20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #cccccc, 0 0 60px #cccccc; }
                     }
 
                     /* ─── Atrophy Tier-Complete Sequence ────────────────────
@@ -7840,10 +7850,6 @@
                         animation: bbgl-lvl-flash-bar 0.8s ease-out;
                     }
 
-                    .bbgl-level-up-flash #bbgl-level-track,
-                    .bbgl-level-up-flash #bbgl-gym-level-track {
-                        animation: bbgl-lvl-flash-track 0.8s ease-out;
-                    }
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-container {
                         height: 26px;
@@ -8049,21 +8055,10 @@
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill {
-                        background:
-                            linear-gradient(112deg, transparent 5%, #ffffff30 17%, #11182030 24%, transparent 32%, #ffffff45 49%, transparent 56%, #10182035 71%, #ffffff30 85%, transparent 94%),
-                            linear-gradient(180deg, #252e32 0%, #818c90 16%, #edf1ee 32%, #b9c3c4 44%, #626e74 55%, #97a4a6 73%, #d4dcda 86%, #394447 100%);
-                        box-shadow: inset 0 1px 2px #10182060;
+                        ${gasFill('#a9c2d8', '#e2eef8', '#26323d')}
                     }
 
-                    #bbgl-panel[data-atrophy="1"] .bbgl-level-up-flash #bbgl-level-track,
-                    #bbgl-gym-level-container[data-atrophy="1"].bbgl-level-up-flash #bbgl-gym-level-track {
-                        animation: bbgl-lvl-flash-track-a0 0.8s ease-out;
-                    }
 
-                    #bbgl-panel[data-atrophy="0"] .bbgl-level-up-flash #bbgl-level-track,
-                    #bbgl-gym-level-container[data-atrophy="0"].bbgl-level-up-flash #bbgl-gym-level-track {
-                        animation: bbgl-lvl-flash-track-a0-white 0.8s ease-out;
-                    }
 
                     #bbgl-panel[data-atrophy="0"] .bbgl-level-up-flash #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy="0"].bbgl-level-up-flash #bbgl-gym-level-num {
@@ -8073,11 +8068,7 @@
                     /* ─── Level Bar — A1: Green ──────────────────────────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill {
-                        background:
-                            repeating-linear-gradient(118deg, transparent 0 37px, #011e1850 38px 55px, #b2ffd626 56px 57px, transparent 58px 103px),
-                            linear-gradient(72deg, #00291e40, transparent 24%, #8bffc333 41%, transparent 55%, #001e2045 79%, transparent),
-                            linear-gradient(180deg, #04271f 0%, #096245 19%, #59c999 32%, #159867 45%, #07563f 58%, #0b925c 78%, #40b582 87%, #032b21 100%);
-                        box-shadow: inset 0 1px 2px #001b1660;
+                        ${gasFill('#4dff6a', '#c8ffd0', '#123d1d')}
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
@@ -8098,24 +8089,13 @@
 
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill {
-                        background:
-                            linear-gradient(108deg, #69300c30 5%, transparent 17%, #fff0ad50 28%, transparent 34%, #6b35052e 55%, #fff4c43d 73%, transparent 81%),
-                            repeating-linear-gradient(0deg, transparent 0 2px, #ffe8a30d 2px 3px),
-                            linear-gradient(180deg, #4a2c10 0%, #b48229 18%, #ffe59a 33%, #e5b64a 45%, #9c651d 57%, #cb932f 72%, #efcc70 87%, #624019 100%);
-                        box-shadow: inset 0 1px 2px #32150060;
+                        ${gasFill('#ffb42a', '#fff0b8', '#44280a')}
                     }
 
-                    #bbgl-panel[data-atrophy="2"] #bbgl-level-fill.level-full,
-                    #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill.level-full {
-                        box-shadow: inset 0 1px 2px #32150060;
-                    }
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full {
-                        background:
-                            linear-gradient(180deg, #122133a0, #ffffff30 22%, #ffffff95 34%, transparent 47%, #24283e60 59%, #ffffff30 84%, #142337a0),
-                            linear-gradient(112deg, #91c6d0 0%, #c5b0e3 16%, #e3b9d2 29%, #a9dbea 43%, #c5ebd7 57%, #e5dfb6 70%, #cbbce4 83%, #9ed8dd 100%);
-                        box-shadow: inset 0 1px 2px #182a3860;
+                        ${gasFill('#d49bff', '#e6f8ff', '#2c1f46')}
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -8189,10 +8169,14 @@
                         --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-valve-h)) / 2);
                         /* Mirrors the bottom edge's gap to the tube glass: the fill's nudge pushes both edges
                            down, so the top takes most of it back (1.25x, a touch lower than an exact mirror). */
-                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge) * 1.25);
-                        --bbgl-band-bot: calc(var(--bbgl-track-box) * .7 - var(--bbgl-fill-top));
+                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3405 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge) * 1.25);
+                        /* Band edges sit the glass's 27.05/72.95 (of the tube SVG) in by the same margins
+                           they had against the original 23/77 glass. */
+                        --bbgl-band-bot: calc(var(--bbgl-track-box) * .6595 - var(--bbgl-fill-top));
                         --bbgl-fill-nudge: 1px;
-                        --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
+                        /* The notch (the fill behind the valve's window) starts ~1px above the window and
+                           stays inside the valve body's top edge, so it never peeks out past the steel. */
+                        --bbgl-notch-top: calc(var(--bbgl-track-box) + 2.2px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
                         --bbgl-notch-bot: calc(var(--bbgl-notch-top) + var(--bbgl-valve-h) * .68);
                     }
                     .bbgl-exp-bar::after { content: none; }
@@ -8214,24 +8198,10 @@
                        sits on its bottom; the extra -1px cancels the track's own translateY(-1px). */
                     /* Valve and end-coupling finish per crown tier: A0 steel, A1 silver, A2 gold, level 100
                        platinum. On the bar so both the valve and the tube SVG inherit them. */
-                    .bbgl-exp-bar { ${valveMetalVars.steel} }
-                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} }
-                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} }
-                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} }
-                    /* Platinum sheen: an overlay over the valve's whole silhouette, window left clear,
-                       its hue slowly cycling for the shimmer. */
-                    .bbgl-level-valve { isolation: isolate; }
-                    .bbgl-level-valve .bbgl-valve-iris { display: none; }
-                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] .bbgl-level-valve .bbgl-valve-iris {
-                        display: inline;
-                        animation: bbgl-valve-iris 6s linear infinite;
-                    }
-                    @keyframes bbgl-valve-iris {
-                        0%   { filter: hue-rotate(0deg) brightness(1); }
-                        50%  { filter: hue-rotate(180deg) brightness(1.15); }
-                        100% { filter: hue-rotate(360deg) brightness(1); }
-                    }
-                    #bbgl-panel.bbgl-no-animations .bbgl-valve-iris { animation: none; }
+                    .bbgl-exp-bar { ${valveMetalVars.steel} --bbgl-valve-flash: rgba(170, 190, 200, .85); }
+                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} --bbgl-valve-flash: rgba(235, 242, 250, .95); }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: rgba(255, 200, 60, .95); }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} --bbgl-valve-flash: rgba(215, 170, 255, .95); }
                     .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
@@ -8255,7 +8225,7 @@
                         top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge));
                         height: var(--bbgl-valve-h);
                         border-radius: 0;
-                        clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .28) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                        clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
                     }
                     /* The fill's own colours again, spread over the window's height only, so behind the
                        glass it reads as a full chamber rather than the thin tube's gradient seen through a
@@ -8264,9 +8234,9 @@
                     #bbgl-gym-level-fill::before {
                         content: '';
                         position: absolute;
-                        left: calc(45cqi - var(--bbgl-valve-w) * .28);
+                        left: calc(45cqi - var(--bbgl-valve-w) * .27);
                         top: var(--bbgl-notch-top);
-                        width: max(0px, min(var(--bbgl-valve-w) * .56, 100% - (45cqi - var(--bbgl-valve-w) * .28)));
+                        width: max(0px, min(var(--bbgl-valve-w) * .54, 100% - (45cqi - var(--bbgl-valve-w) * .27)));
                         height: calc(var(--bbgl-notch-bot) - var(--bbgl-notch-top));
                         background: inherit;
                         pointer-events: none;
@@ -8309,11 +8279,153 @@
                     #bbgl-level-container .bbgl-exp-track {
                         filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
                     }
-                    .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-bar .8s ease-out; }
+                    /* Level-up charge, grown from the right terminal to the left over LEVEL_CHARGE_MS, then
+                       the flash. Two layers: .bbgl-exp-charge inside the fill lights the chamber behind
+                       the valve's glass; .bbgl-exp-glow sits over the tube glass (z 5, after the SVG) in
+                       the band only, cut away round the valve like the glass, and hard-light blends so the
+                       glass's shading still reads through it. Both are revealed by a sliding soft-edged
+                       mask (220% wide, eased 28% ramp) so the front fades in like energy rather than a hard
+                       band, with a hot spot (::after) riding that front. */
+                    .bbgl-exp-charge,
+                    .bbgl-exp-glow {
+                        position: absolute;
+                        pointer-events: none;
+                        opacity: 0;
+                        --bbgl-charge-reveal: linear-gradient(90deg, transparent 32%, rgba(0, 0, 0, .35) 45%, #000 60%);
+                    }
+                    /* The white-hot core stops at the valve (split into left and right pieces), so the
+                       chamber behind the valve's glass takes the charge colour without washing out the
+                       digits. */
+                    .bbgl-exp-charge {
+                        inset: 0;
+                        background:
+                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, #fff 50%, var(--bbgl-charge-hot) 56%, transparent 72%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .3) 100% no-repeat,
+                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, #fff 50%, var(--bbgl-charge-hot) 56%, transparent 72%) calc(45cqi + var(--bbgl-valve-w) * .3) 0 / 100% 100% no-repeat,
+                            linear-gradient(180deg, var(--bbgl-charge-deep) 0%, var(--bbgl-charge) 30%, var(--bbgl-charge) 70%, var(--bbgl-charge-deep) 100%);
+                        -webkit-mask-image: var(--bbgl-charge-reveal);
+                        mask-image: var(--bbgl-charge-reveal);
+                        -webkit-mask-size: 220% 100%;
+                        mask-size: 220% 100%;
+                        -webkit-mask-repeat: no-repeat;
+                        mask-repeat: no-repeat;
+                        -webkit-mask-position: 0% 0;
+                        mask-position: 0% 0;
+                    }
+                    /* Each layer is painted as a left and a right copy that stop short of the valve
+                       (45cqi is the valve's centre in this box), so nothing lands on the valve. */
+                    .bbgl-exp-glow {
+                        background:
+                            linear-gradient(180deg, transparent 22%, color-mix(in srgb, var(--bbgl-charge-hot) 70%, transparent) 42%, var(--bbgl-charge-hot) 50%, color-mix(in srgb, var(--bbgl-charge-hot) 70%, transparent) 58%, transparent 78%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .45) 100% no-repeat,
+                            linear-gradient(180deg, transparent 22%, color-mix(in srgb, var(--bbgl-charge-hot) 70%, transparent) 42%, var(--bbgl-charge-hot) 50%, color-mix(in srgb, var(--bbgl-charge-hot) 70%, transparent) 58%, transparent 78%) calc(45cqi + var(--bbgl-valve-w) * .45) 0 / 100% 100% no-repeat,
+                            linear-gradient(180deg, var(--bbgl-charge-deep) 0%, var(--bbgl-charge) 40%, var(--bbgl-charge) 60%, var(--bbgl-charge-deep) 100%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .45) 100% no-repeat,
+                            linear-gradient(180deg, var(--bbgl-charge-deep) 0%, var(--bbgl-charge) 40%, var(--bbgl-charge) 60%, var(--bbgl-charge-deep) 100%) calc(45cqi + var(--bbgl-valve-w) * .45) 0 / 100% 100% no-repeat;
+                        filter: blur(.6px);
+                        left: 5%;
+                        width: 90%;
+                        top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge));
+                        height: var(--bbgl-valve-h);
+                        z-index: 5;
+                        mix-blend-mode: hard-light;
+                        clip-path: polygon(0 var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
+                        -webkit-mask-image: var(--bbgl-charge-reveal);
+                        mask-image: var(--bbgl-charge-reveal);
+                        -webkit-mask-size: 220% 100%;
+                        mask-size: 220% 100%;
+                        -webkit-mask-repeat: no-repeat;
+                        mask-repeat: no-repeat;
+                        -webkit-mask-position: 0% 0;
+                        mask-position: 0% 0;
+                    }
+                    .bbgl-exp-glow::after {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        bottom: 0;
+                        left: 100%;
+                        width: 48px;
+                        margin-left: -24px;
+                        background: radial-gradient(closest-side, rgba(255, 255, 255, .9), color-mix(in srgb, var(--bbgl-charge-hot) 55%, transparent) 40%, transparent);
+                        opacity: 0;
+                    }
+                    .bbgl-exp-charging .bbgl-exp-charge {
+                        opacity: 1;
+                        animation: bbgl-exp-charge-kf .2s cubic-bezier(.35, 0, .65, 1) forwards;
+                    }
+                    .bbgl-exp-charging .bbgl-exp-glow {
+                        opacity: .8;
+                        animation: bbgl-exp-glow-kf .2s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-exp-flicker .1s steps(2) 3;
+                    }
+                    .bbgl-exp-charging .bbgl-exp-glow::after {
+                        animation: bbgl-exp-front-kf .2s cubic-bezier(.35, 0, .65, 1) forwards;
+                    }
+                    @keyframes bbgl-exp-charge-kf {
+                        from { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+                        to   { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+                    }
+                    @keyframes bbgl-exp-glow-kf {
+                        from { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
+                        to   { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+                    }
+                    /* Fades out 38-62% while crossing the valve; the symmetric easing puts it there. */
+                    @keyframes bbgl-exp-front-kf {
+                        0%   { left: 100%; opacity: 0; }
+                        15%  { opacity: 1; }
+                        36%  { opacity: 1; }
+                        40%, 60% { opacity: 0; }
+                        64%  { opacity: 1; }
+                        85%  { opacity: 1; }
+                        100% { left: 0; opacity: 0; }
+                    }
+                    @keyframes bbgl-exp-flicker {
+                        0%, 100% { filter: blur(.6px); }
+                        50% { filter: blur(.6px) brightness(1.25); }
+                    }
+                    /* Lv 100 on the last tier has no dormant state: the charge is iridescent (while it
+                       sweeps in, .bbgl-exp-final) and then stays lit for good. */
+                    :is(.bbgl-exp-final, .bbgl-exp-bar[data-atrophy="2"][data-level="100"]) .bbgl-exp-charge {
+                        background:
+                            linear-gradient(180deg, transparent 28%, rgba(255, 255, 255, .75) 44%, #fff 50%, rgba(255, 255, 255, .75) 56%, transparent 72%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .3) 100% no-repeat,
+                            linear-gradient(180deg, transparent 28%, rgba(255, 255, 255, .75) 44%, #fff 50%, rgba(255, 255, 255, .75) 56%, transparent 72%) calc(45cqi + var(--bbgl-valve-w) * .3) 0 / 100% 100% no-repeat,
+                            linear-gradient(180deg, rgba(40, 20, 70, .85), transparent 32%, transparent 68%, rgba(40, 20, 70, .85)),
+                            linear-gradient(100deg, #ff6fbf, #a47bff 20%, #52d2ff 40%, #8dffd6 55%, #ffe36a 72%, #ff8fd0 88%, #ff6fbf);
+                    }
+                    :is(.bbgl-exp-final, .bbgl-exp-bar[data-atrophy="2"][data-level="100"]) .bbgl-exp-glow {
+                        background:
+                            linear-gradient(180deg, transparent 28%, rgba(255, 255, 255, .75) 44%, #fff 50%, rgba(255, 255, 255, .75) 56%, transparent 72%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .45) 100% no-repeat,
+                            linear-gradient(180deg, transparent 28%, rgba(255, 255, 255, .75) 44%, #fff 50%, rgba(255, 255, 255, .75) 56%, transparent 72%) calc(45cqi + var(--bbgl-valve-w) * .45) 0 / 100% 100% no-repeat,
+                            linear-gradient(180deg, rgba(40, 20, 70, .85), transparent 32%, transparent 68%, rgba(40, 20, 70, .85)) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .45) 100% no-repeat,
+                            linear-gradient(180deg, rgba(40, 20, 70, .85), transparent 32%, transparent 68%, rgba(40, 20, 70, .85)) calc(45cqi + var(--bbgl-valve-w) * .45) 0 / 100% 100% no-repeat,
+                            linear-gradient(100deg, #ff6fbf, #a47bff 20%, #52d2ff 40%, #8dffd6 55%, #ffe36a 72%, #ff8fd0 88%, #ff6fbf) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .45) 100% no-repeat,
+                            linear-gradient(100deg, #ff6fbf, #a47bff 20%, #52d2ff 40%, #8dffd6 55%, #ffe36a 72%, #ff8fd0 88%, #ff6fbf) calc(45cqi + var(--bbgl-valve-w) * .45) 0 / 100% 100% no-repeat;
+                    }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] .bbgl-exp-charge {
+                        opacity: 1;
+                        -webkit-mask-position: 100% 0;
+                        mask-position: 100% 0;
+                    }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] .bbgl-exp-glow {
+                        opacity: .8;
+                        -webkit-mask-position: 100% 0;
+                        mask-position: 100% 0;
+                    }
+                    #bbgl-panel.bbgl-no-animations :is(.bbgl-exp-charge, .bbgl-exp-glow) { animation: none; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+                    #bbgl-panel.bbgl-no-animations .bbgl-exp-glow::after { animation: none; }
+                    .bbgl-exp-bar { --bbgl-charge: #dfe8ee; --bbgl-charge-hot: #ffffff; --bbgl-charge-deep: #5e6b73; }
+                    .bbgl-exp-bar[data-atrophy="1"] { --bbgl-charge: #4dff3a; --bbgl-charge-hot: #d4ffb0; --bbgl-charge-deep: #0f6a12; }
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #ffc21a; --bbgl-charge-hot: #fff2a8; --bbgl-charge-deep: #8a4a00; }
+
+                    /* Valve level-up flash glows in its tier's metal (--bbgl-valve-flash). */
+                    .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-valve .8s ease-out; }
+                    @keyframes bbgl-lvl-flash-valve {
+                        0%   { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+                        20%  { filter: brightness(1.5) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+                    }
 
                     /* Cut back to the outer end of the valve's wide collar (x 5 of its 100-unit viewBox),
                        so the glass slips over the narrow nipple only. */
                     .bbgl-exp-track .bbgl-level-svg {
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% + var(--bbgl-valve-w) * .45), #000 calc(50% + var(--bbgl-valve-w) * .45));
                         mask-image: linear-gradient(90deg, #000 calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% - var(--bbgl-valve-w) * .45), transparent calc(50% + var(--bbgl-valve-w) * .45), #000 calc(50% + var(--bbgl-valve-w) * .45));
                     }
 
@@ -14500,7 +14612,7 @@
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
@@ -22011,7 +22123,7 @@ const BestGymController = {
         });
     }
 
-    function renderLevelBar(bar, expVal) {
+        function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
@@ -22074,6 +22186,8 @@ const BestGymController = {
             });
         }
 
+        const LEVEL_CHARGE_MS = 200;
+
         async function runLevelAnimationQueue() {
             runtime._isAnimatingLevel = true;
             const BASE_SPEED_MS = 1000; // 1 second for a full 100% bar
@@ -22106,14 +22220,20 @@ const BestGymController = {
                     });
 
                     await new Promise(r => setTimeout(r, durationMs + 50));
+                    const nextLevel = currentProg.level + 1;
+                    // Lv 100 on the last tier: the charge is the permanent iridescent glow, and stays.
+                    const finalLevel = nextLevel >= 100 && currentProg.atrophy >= 2;
+                    // Full bar closes the circuit: the charge lights the fill from the right terminal
+                    // back to the left (LEVEL_CHARGE_MS, matching .bbgl-exp-charge), then the flash.
+                    bars.forEach(b => b.container.classList.add('bbgl-exp-charging', ...(finalLevel ? ['bbgl-exp-final'] : [])));
+                    await new Promise(r => setTimeout(r, LEVEL_CHARGE_MS));
                     bars.forEach(b => b.container.classList.add('bbgl-level-up-flash'));
 
                     await new Promise(r => setTimeout(r, 200));
-                    const nextLevel = currentProg.level + 1;
                     bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
 
                     await new Promise(r => setTimeout(r, 650));
-                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash'));
+                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging', 'bbgl-exp-final'));
 
                     runtime._lastLevelExp += expNeededToFill;
 
@@ -22122,7 +22242,7 @@ const BestGymController = {
                         // ordinary "snap fill back to 0%" reset below.
                         await runAtrophyAnimation(currentProg.atrophy, bars);
                         forcedNextTier = currentProg.atrophy + 1;
-                    } else {
+                    } else if (!finalLevel) {
                         bars.forEach(b => {
                             b.fill.style.transition = 'none';
                             b.fill.style.width = '0%';
@@ -23615,15 +23735,15 @@ const BestGymController = {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
         const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
-        const body = `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
+        const body = `<rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
-                    <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
-                    <rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-smoked-glass)"/>
-                    <path d="M27 27H473" stroke="url(#lvl-rim-reflection)" stroke-width="5"/>
-                    <path d="M27 74H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="3"/>
-                    <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
+                    <path d="M27 77.2H473" stroke="#000" stroke-opacity=".3" stroke-width="4.25"/>
+                    <rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-smoked-glass)"/>
+                    <path d="M27 30.45H473" stroke="url(#lvl-rim-reflection)" stroke-width="4.25"/>
+                    <path d="M27 70.4H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="2.55"/>
+                    <path d="M65 38.1H285" stroke="url(#lvl-rim-reflection)" stroke-width="2.55"/>
                 </g>
-                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
+                <rect x="72" y="28.75" width="338" height="20.4" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
                 <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
@@ -23644,7 +23764,7 @@ const BestGymController = {
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}</div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
@@ -23677,7 +23797,6 @@ const BestGymController = {
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
-                <linearGradient id="${id}-iris" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#ff5fb0"/><stop offset=".25" stop-color="#9a6bff"/><stop offset=".5" stop-color="#3fc8ff"/><stop offset=".75" stop-color="#ffd84a"/><stop offset="1" stop-color="#ff5fb0"/></linearGradient>
                 <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
@@ -23696,7 +23815,7 @@ const BestGymController = {
             <rect x="22.6" y="6.6" width="54.8" height="24.8" rx="7.4" fill="none" stroke="url(#${id}-bevel)" stroke-width="1.8"/>
             <rect x="23.7" y="7.7" width="52.6" height="22.6" rx="6.3" fill="none" stroke="#030708" stroke-width="1.3"/>
             <rect x="24" y="8" width="52" height="22" rx="6" fill="url(#${id}-glass)" stroke="#8a9ba4" stroke-opacity=".65" stroke-width=".7"/>
-            <text class="bbgl-valve-digit" x="50" y="24.5" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="17" font-weight="500" fill="#edf4f7" stroke="#071015" stroke-width="1.3" paint-order="stroke">1</text>
+            <text class="bbgl-valve-digit" x="50" y="24.5" text-anchor="middle" font-family="&apos;Chakra Petch&apos;, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="17" font-weight="600" fill="#edf4f7" stroke="#071015" stroke-width="1.3" paint-order="stroke">1</text>
             <g clip-path="url(#${id}-window)" pointer-events="none">
                 <rect x="24" y="8" width="52" height="22" fill="url(#${id}-edge)"/>
                 <path d="M24 8H76V13C58 10 43 17 24 14Z" fill="url(#${id}-reflection)"/>
@@ -23708,7 +23827,6 @@ const BestGymController = {
             <path d="M25 5.8H75M27 32H73" stroke="url(#${id}-glint)" stroke-width=".65"/>
             ${bolts}
             <path d="M34 5V4H66V5" fill="#313b41" stroke="#9aa7ae" stroke-width=".7"/>
-            <path class="bbgl-valve-iris" d="M5 12L7 9H11.2V8Q11.2 7.6 14 7.6H18L24 5H76L82 7.6H86Q88.8 7.6 88.8 8V9H93L95 12V26L93 29H88.8V30H86L82 30.4L76 33H24L18 30.4L14 30H11.2V29H7L5 26Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-iris)" fill-rule="evenodd" opacity=".5" style="mix-blend-mode:overlay" pointer-events="none"/>
         </svg>`;
     }
 

@@ -1873,7 +1873,7 @@
         });
     }
 
-    function renderLevelBar(bar, expVal) {
+        function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
@@ -1936,6 +1936,8 @@
             });
         }
 
+        const LEVEL_CHARGE_MS = 200;
+
         async function runLevelAnimationQueue() {
             runtime._isAnimatingLevel = true;
             const BASE_SPEED_MS = 1000; // 1 second for a full 100% bar
@@ -1968,14 +1970,20 @@
                     });
 
                     await new Promise(r => setTimeout(r, durationMs + 50));
+                    const nextLevel = currentProg.level + 1;
+                    // Lv 100 on the last tier: the charge is the permanent iridescent glow, and stays.
+                    const finalLevel = nextLevel >= 100 && currentProg.atrophy >= 2;
+                    // Full bar closes the circuit: the charge lights the fill from the right terminal
+                    // back to the left (LEVEL_CHARGE_MS, matching .bbgl-exp-charge), then the flash.
+                    bars.forEach(b => b.container.classList.add('bbgl-exp-charging', ...(finalLevel ? ['bbgl-exp-final'] : [])));
+                    await new Promise(r => setTimeout(r, LEVEL_CHARGE_MS));
                     bars.forEach(b => b.container.classList.add('bbgl-level-up-flash'));
 
                     await new Promise(r => setTimeout(r, 200));
-                    const nextLevel = currentProg.level + 1;
                     bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
 
                     await new Promise(r => setTimeout(r, 650));
-                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash'));
+                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging', 'bbgl-exp-final'));
 
                     runtime._lastLevelExp += expNeededToFill;
 
@@ -1984,7 +1992,7 @@
                         // ordinary "snap fill back to 0%" reset below.
                         await runAtrophyAnimation(currentProg.atrophy, bars);
                         forcedNextTier = currentProg.atrophy + 1;
-                    } else {
+                    } else if (!finalLevel) {
                         bars.forEach(b => {
                             b.fill.style.transition = 'none';
                             b.fill.style.width = '0%';
@@ -3477,15 +3485,15 @@
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
         const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
-        const body = `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
+        const body = `<rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
-                    <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
-                    <rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-smoked-glass)"/>
-                    <path d="M27 27H473" stroke="url(#lvl-rim-reflection)" stroke-width="5"/>
-                    <path d="M27 74H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="3"/>
-                    <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
+                    <path d="M27 77.2H473" stroke="#000" stroke-opacity=".3" stroke-width="4.25"/>
+                    <rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-smoked-glass)"/>
+                    <path d="M27 30.45H473" stroke="url(#lvl-rim-reflection)" stroke-width="4.25"/>
+                    <path d="M27 70.4H473" stroke="#e3f3fa" stroke-opacity=".4" stroke-width="2.55"/>
+                    <path d="M65 38.1H285" stroke="url(#lvl-rim-reflection)" stroke-width="2.55"/>
                 </g>
-                <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
+                <rect x="72" y="28.75" width="338" height="20.4" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
                 <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
@@ -3506,7 +3514,7 @@
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}</div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
@@ -3539,7 +3547,6 @@
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
-                <linearGradient id="${id}-iris" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#ff5fb0"/><stop offset=".25" stop-color="#9a6bff"/><stop offset=".5" stop-color="#3fc8ff"/><stop offset=".75" stop-color="#ffd84a"/><stop offset="1" stop-color="#ff5fb0"/></linearGradient>
                 <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
@@ -3558,7 +3565,7 @@
             <rect x="22.6" y="6.6" width="54.8" height="24.8" rx="7.4" fill="none" stroke="url(#${id}-bevel)" stroke-width="1.8"/>
             <rect x="23.7" y="7.7" width="52.6" height="22.6" rx="6.3" fill="none" stroke="#030708" stroke-width="1.3"/>
             <rect x="24" y="8" width="52" height="22" rx="6" fill="url(#${id}-glass)" stroke="#8a9ba4" stroke-opacity=".65" stroke-width=".7"/>
-            <text class="bbgl-valve-digit" x="50" y="24.5" text-anchor="middle" font-family="Orbitron, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="17" font-weight="500" fill="#edf4f7" stroke="#071015" stroke-width="1.3" paint-order="stroke">1</text>
+            <text class="bbgl-valve-digit" x="50" y="24.5" text-anchor="middle" font-family="&apos;Chakra Petch&apos;, &apos;Roboto Mono&apos;, Arial, sans-serif" font-size="17" font-weight="600" fill="#edf4f7" stroke="#071015" stroke-width="1.3" paint-order="stroke">1</text>
             <g clip-path="url(#${id}-window)" pointer-events="none">
                 <rect x="24" y="8" width="52" height="22" fill="url(#${id}-edge)"/>
                 <path d="M24 8H76V13C58 10 43 17 24 14Z" fill="url(#${id}-reflection)"/>
@@ -3570,7 +3577,6 @@
             <path d="M25 5.8H75M27 32H73" stroke="url(#${id}-glint)" stroke-width=".65"/>
             ${bolts}
             <path d="M34 5V4H66V5" fill="#313b41" stroke="#9aa7ae" stroke-width=".7"/>
-            <path class="bbgl-valve-iris" d="M5 12L7 9H11.2V8Q11.2 7.6 14 7.6H18L24 5H76L82 7.6H86Q88.8 7.6 88.8 8V9H93L95 12V26L93 29H88.8V30H86L82 30.4L76 33H24L18 30.4L14 30H11.2V29H7L5 26Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-iris)" fill-rule="evenodd" opacity=".5" style="mix-blend-mode:overlay" pointer-events="none"/>
         </svg>`;
     }
 
