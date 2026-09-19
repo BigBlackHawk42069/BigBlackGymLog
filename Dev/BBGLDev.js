@@ -1777,6 +1777,39 @@
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
         .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
+    // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
+    // so the valve's shading holds while the finish changes. Offsets live with the SVG.
+    const VALVE_METAL = {
+        steel: ['#c0c0b6', '#707675', '#3f4749', '#252c2e', '#171d1f', '#505654', '#858983', '#14191a'],
+        fitting: ['#12191d', '#8e999e', '#c5cdd0', '#626e74', '#263036', '#515d63', '#11181c'],
+        shoulder: ['#929991', '#5c6869', '#929b97', '#434f51', '#1e292c', '#101719', '#58615b'],
+        bolt: ['#e1e3d4', '#9ca7a3', '#4c595b', '#141d20'],
+        bevel: ['#e0e0cd', '#7d898b', '#262f32', '#090e10', '#737f80', '#b0b8ae'],
+        collar: ['#161616', '#353535', '#4b4b4b', '#555555', '#494949', '#2e2e2e', '#111111'],
+        collarRim: ['#171a1c', '#81888b', '#e2e5e5', '#62696b', '#25292b', '#8a9192', '#141719']
+    };
+    const valveMetalVars = (() => {
+        const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+        const out = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+        const lum = h => { const [r, g, b] = hex(h); return (.2126 * r + .7152 * g + .0722 * b) / 255; };
+        // Piecewise ramp: [[t, '#rrggbb'], ...], t ascending 0..1.
+        const ramp = stops => t => {
+            t = Math.max(0, Math.min(1, t));
+            let i = 1;
+            while (i < stops.length - 1 && stops[i][0] < t) i++;
+            const [t0, c0] = stops[i - 1], [t1, c1] = stops[i], k = (t - t0) / (t1 - t0 || 1);
+            const a = hex(c0), b = hex(c1);
+            return out(a.map((v, j) => v + (b[j] - v) * k));
+        };
+        const tiers = {
+            silver: h => ramp([[0, '#1c1f22'], [.35, '#6f757a'], [.65, '#c3c8cc'], [1, '#fbfcfd']])(Math.pow(lum(h), .8) * 1.12),
+            gold: h => ramp([[0, '#3a2300'], [.22, '#8c5c06'], [.42, '#cf9612'], [.6, '#f2c226'], [.78, '#ffe072'], [1, '#fffbe2']])(Math.pow(lum(h), .7) * 1.3),
+            platinum: h => ramp([[0, '#4a4750'], [.4, '#a7a3ad'], [.7, '#e3e0e8'], [1, '#fdfbff']])(.22 + Math.pow(lum(h), .8) * .95)
+        };
+        const vars = map => Object.entries(VALVE_METAL).map(([g, cs]) => cs.map((c, i) => `--vm-${g}-${i}: ${map(c)};`).join(' ')).join(' ');
+        return { steel: vars(c => c), silver: vars(tiers.silver), gold: vars(tiers.gold), platinum: vars(tiers.platinum) };
+    })();
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
@@ -7697,9 +7730,9 @@
                     /* Each stop ends with the crown's resting edge shadow: fill-mode forwards holds the
                        100% filter after the rise, so it has to carry it. */
                     @keyframes bbgl-crown-rise-kf {
-                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
-                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
-                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
 
                     /* Same tuck/rise motion, for the current text-badge flags (A0/A1) which are
@@ -8108,8 +8141,9 @@
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
                         background: var(--bbgl-crown-art) center bottom / contain no-repeat;
-                        /* Same edge as the tube and valve, to lift it off the header art. */
-                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                        /* Softer than the tube and valve's edge, and cast upward, so the crown's base reads as
+                           resting on the valve rather than outlined against it. */
+                        filter: drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3));
                         clip-path: none;
                         pointer-events: none;
                         z-index: -1;
@@ -8153,7 +8187,9 @@
                         --bbgl-valve-h: calc(var(--bbgl-track-h) + var(--bbgl-valve-rise) * 2);
                         --bbgl-track-box: calc(var(--bbgl-track-box-base, var(--bbgl-track-h)) + var(--bbgl-tube-extra));
                         --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-valve-h)) / 2);
-                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top));
+                        /* Mirrors the bottom edge's gap to the tube glass: the fill's nudge pushes both edges
+                           down, so the top takes most of it back (1.25x, a touch lower than an exact mirror). */
+                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge) * 1.25);
                         --bbgl-band-bot: calc(var(--bbgl-track-box) * .7 - var(--bbgl-fill-top));
                         --bbgl-fill-nudge: 1px;
                         --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
@@ -8175,11 +8211,31 @@
                     }
                     /* Inside the track, so it layers between the fill (2) and the glass tube and housing
                        SVG (5), with the housing texture (6) on top. The track is the bar's full width and
-                       sits on its bottom; the extra -.5px cancels the track's own translateY(-.5px). */
+                       sits on its bottom; the extra -1px cancels the track's own translateY(-1px). */
+                    /* Valve and end-coupling finish per crown tier: A0 steel, A1 silver, A2 gold, level 100
+                       platinum. On the bar so both the valve and the tube SVG inherit them. */
+                    .bbgl-exp-bar { ${valveMetalVars.steel} }
+                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} }
+                    /* Platinum sheen: an overlay over the valve's whole silhouette, window left clear,
+                       its hue slowly cycling for the shimmer. */
+                    .bbgl-level-valve { isolation: isolate; }
+                    .bbgl-level-valve .bbgl-valve-iris { display: none; }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] .bbgl-level-valve .bbgl-valve-iris {
+                        display: inline;
+                        animation: bbgl-valve-iris 6s linear infinite;
+                    }
+                    @keyframes bbgl-valve-iris {
+                        0%   { filter: hue-rotate(0deg) brightness(1); }
+                        50%  { filter: hue-rotate(180deg) brightness(1.15); }
+                        100% { filter: hue-rotate(360deg) brightness(1); }
+                    }
+                    #bbgl-panel.bbgl-no-animations .bbgl-valve-iris { animation: none; }
                     .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
-                        bottom: calc(-1.5px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
+                        bottom: calc(-2px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
                         transform: translateX(-50%);
                         width: var(--bbgl-valve-w);
                         height: calc(var(--bbgl-valve-h) * 30 / 38);
@@ -8190,7 +8246,7 @@
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
                         z-index: 3;
-                        transform: translateY(-.5px);
+                        transform: translateY(-1px);
                         overflow: visible;
                         container-type: inline-size;
                     }
@@ -8215,8 +8271,10 @@
                         background: inherit;
                         pointer-events: none;
                     }
+                    /* Above the track (3), so the crown sits over the valve inside it. */
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
+                        z-index: 4;
                         bottom: calc(var(--bbgl-valve-h) * 34 / 38 - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) - 3px);
                         /* Anchored the same way as .bbgl-level-valve (left: 50%) so the crown and the
                            valve share one reference point. Left to the flex column's centring, this 1px
@@ -8231,10 +8289,11 @@
                     }
                     /* The flag's clip-path cuts everything below its bottom edge, which sits 2px inside
                        the valve's top. Dropping the crown by its own empty strip pushes exactly that
-                       strip under the cut, so what's left is the solid base, seated on the valve. */
+                       strip under the cut, so what's left is the solid base, seated on the valve. The +1.5px
+                       keeps the base's own bottom edge clear of the cut. */
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
-                        bottom: calc(var(--bbgl-crown-w) * var(--bbgl-crown-drop, 0) * -1);
+                        bottom: calc(var(--bbgl-crown-w) * var(--bbgl-crown-drop, 0) * -1 + 1.5px);
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
@@ -20120,6 +20179,8 @@ const BestGymController = {
     const CAP_TERM_W = 7;
     const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
 
+    // Level bar metal stops read the tier's --vm-* vars (VALVE_METAL in the styles section).
+    const vmStops = (name, offsets) => offsets.map((o, i) => `<stop offset="${o}" style="stop-color:var(--vm-${name}-${i})"/>`).join('');
     const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
 
     function buildTubeBrackets(x, width, paint = 'bbc-term') {
@@ -23552,8 +23613,8 @@ const BestGymController = {
 
     function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
-        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
+        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
         const body = `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
@@ -23563,20 +23624,20 @@ const BestGymController = {
                     <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
                 </g>
                 <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
-                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
-                <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
-                <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
-                <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
-                <path d="M16.2 24V76 M483.8 24V76" stroke="#050708" stroke-width=".7"/>
-                <path d="M17.2 25V75 M482.8 25V75" stroke="#dce2e3" stroke-opacity=".45" stroke-width=".5"/>
-                <path d="M16.5 43H18 M16.5 59H18 M482 43H483.5 M482 59H483.5" stroke="#080a0c" stroke-opacity=".75" stroke-width="2"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
                 <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
                 <rect x="23" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/><rect x="475" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/>
                 <path d="M25.5 25V75 M474.5 25V75" stroke="#050708" stroke-opacity=".8" stroke-width=".8"/>
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
-                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
+                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>
+                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
+                <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
+                <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
+                <path d="M16.2 24V76 M483.8 24V76" stroke="#050708" stroke-width=".7"/>
+                <path d="M17.2 25V75 M482.8 25V75" stroke="#dce2e3" stroke-opacity=".45" stroke-width=".5"/>
+                <path d="M16.5 43H18 M16.5 59H18 M482 43H483.5 M482 59H483.5" stroke="#080a0c" stroke-opacity=".75" stroke-width="2"/>
+                <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>`;
 
         return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
@@ -23600,22 +23661,23 @@ const BestGymController = {
         // The tube's coupling plugs into each socket: it's drawn over the socket, cut at x 12.4, and
         // the lip (dark metal filled back from its curve, then the rim line) sits over its end.
         const lips = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
-            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9H15.5V9.1Z" fill="url(#${id}-shoulder)"/>
-            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
-            <path d="M12.4 9.8A.96 9.2 0 0 0 12.4 28.2" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
+            <path d="M12.4 8.3A1.2 10.7 0 0 0 12.4 29.7H15.5V8.3Z" fill="url(#${id}-shoulder)"/>
+            <path d="M12.4 8.3A1.2 10.7 0 0 0 12.4 29.7" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
+            <path d="M12.4 9A.96 10 0 0 0 12.4 29" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
         </g>`).join('');
         return `<svg class="bbgl-level-valve" viewBox="0 4 100 30" preserveAspectRatio="none" aria-hidden="true">
             <defs>
-                <linearGradient id="${id}-steel" x2="0" y2="1"><stop stop-color="#c0c0b6"/><stop offset=".08" stop-color="#707675"/><stop offset=".19" stop-color="#3f4749"/><stop offset=".44" stop-color="#252c2e"/><stop offset=".66" stop-color="#171d1f"/><stop offset=".86" stop-color="#505654"/><stop offset=".94" stop-color="#858983"/><stop offset="1" stop-color="#14191a"/></linearGradient>
-                <linearGradient id="${id}-fitting" x2="0" y2="1"><stop stop-color="#12191d"/><stop offset=".22" stop-color="#8e999e"/><stop offset=".34" stop-color="#c5cdd0"/><stop offset=".48" stop-color="#626e74"/><stop offset=".73" stop-color="#263036"/><stop offset=".9" stop-color="#515d63"/><stop offset="1" stop-color="#11181c"/></linearGradient>
-                <linearGradient id="${id}-shoulder" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#929991"/><stop offset=".17" stop-color="#5c6869"/><stop offset=".3" stop-color="#929b97"/><stop offset=".43" stop-color="#434f51"/><stop offset=".64" stop-color="#1e292c"/><stop offset=".85" stop-color="#101719"/><stop offset="1" stop-color="#58615b"/></linearGradient>
-                <radialGradient id="${id}-bolt" cx=".3" cy=".2" r=".8"><stop stop-color="#e1e3d4"/><stop offset=".3" stop-color="#9ca7a3"/><stop offset=".6" stop-color="#4c595b"/><stop offset="1" stop-color="#141d20"/></radialGradient>
+                <linearGradient id="${id}-steel" x2="0" y2="1">${vmStops('steel', [0, .08, .19, .44, .66, .86, .94, 1])}</linearGradient>
+                <linearGradient id="${id}-fitting" x2="0" y2="1">${vmStops('fitting', [0, .22, .34, .48, .73, .9, 1])}</linearGradient>
+                <linearGradient id="${id}-shoulder" x1="0" y1="0" x2="0" y2="1">${vmStops('shoulder', [0, .17, .3, .43, .64, .85, 1])}</linearGradient>
+                <radialGradient id="${id}-bolt" cx=".3" cy=".2" r=".8">${vmStops('bolt', [0, .3, .6, 1])}</radialGradient>
                 <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#02090e" stop-opacity=".7"/><stop offset=".18" stop-color="#d8f1fa" stop-opacity=".26"/><stop offset=".42" stop-color="#b6d9e8" stop-opacity=".07"/><stop offset=".7" stop-color="#07151f" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
-                <linearGradient id="${id}-bevel" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#e0e0cd"/><stop offset=".2" stop-color="#7d898b"/><stop offset=".43" stop-color="#262f32"/><stop offset=".7" stop-color="#090e10"/><stop offset=".9" stop-color="#737f80"/><stop offset="1" stop-color="#b0b8ae"/></linearGradient>
+                <linearGradient id="${id}-bevel" x1=".15" y1="0" x2=".8" y2="1">${vmStops('bevel', [0, .2, .43, .7, .9, 1])}</linearGradient>
                 <radialGradient id="${id}-reflection" cx=".3" cy="0" r=".8"><stop stop-color="#f2efdc" stop-opacity=".4"/><stop offset=".4" stop-color="#c8dce1" stop-opacity=".12"/><stop offset="1" stop-color="#b8d3df" stop-opacity="0"/></radialGradient>
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
+                <linearGradient id="${id}-iris" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#ff5fb0"/><stop offset=".25" stop-color="#9a6bff"/><stop offset=".5" stop-color="#3fc8ff"/><stop offset=".75" stop-color="#ffd84a"/><stop offset="1" stop-color="#ff5fb0"/></linearGradient>
                 <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
@@ -23646,6 +23708,7 @@ const BestGymController = {
             <path d="M25 5.8H75M27 32H73" stroke="url(#${id}-glint)" stroke-width=".65"/>
             ${bolts}
             <path d="M34 5V4H66V5" fill="#313b41" stroke="#9aa7ae" stroke-width=".7"/>
+            <path class="bbgl-valve-iris" d="M5 12L7 9H11.2V8Q11.2 7.6 14 7.6H18L24 5H76L82 7.6H86Q88.8 7.6 88.8 8V9H93L95 12V26L93 29H88.8V30H86L82 30.4L76 33H24L18 30.4L14 30H11.2V29H7L5 26Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-iris)" fill-rule="evenodd" opacity=".5" style="mix-blend-mode:overlay" pointer-events="none"/>
         </svg>`;
     }
 

@@ -41,6 +41,8 @@
     const CAP_TERM_W = 7;
     const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
 
+    // Level bar metal stops read the tier's --vm-* vars (VALVE_METAL in the styles section).
+    const vmStops = (name, offsets) => offsets.map((o, i) => `<stop offset="${o}" style="stop-color:var(--vm-${name}-${i})"/>`).join('');
     const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
 
     function buildTubeBrackets(x, width, paint = 'bbc-term') {
@@ -3473,8 +3475,8 @@
 
     function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
-        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${BAR_TERMINAL_STOPS}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
+        const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
         const body = `<rect x="25" y="23" width="450" height="54" rx="2" ry="12" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 82H473" stroke="#000" stroke-opacity=".3" stroke-width="5"/>
@@ -3484,20 +3486,20 @@
                     <path d="M65 36H285" stroke="url(#lvl-rim-reflection)" stroke-width="3"/>
                 </g>
                 <rect x="72" y="25" width="338" height="24" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45" rx="2" ry="16" fill="url(#lvl-glass-reflection)"/>
-                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
-                <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
-                <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>
-                <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
-                <path d="M16.2 24V76 M483.8 24V76" stroke="#050708" stroke-width=".7"/>
-                <path d="M17.2 25V75 M482.8 25V75" stroke="#dce2e3" stroke-opacity=".45" stroke-width=".5"/>
-                <path d="M16.5 43H18 M16.5 59H18 M482 43H483.5 M482 59H483.5" stroke="#080a0c" stroke-opacity=".75" stroke-width="2"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
                 <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
                 <rect x="23" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/><rect x="475" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/>
                 <path d="M25.5 25V75 M474.5 25V75" stroke="#050708" stroke-opacity=".8" stroke-width=".8"/>
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
-                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>`;
+                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>
+                <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
+                <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
+                <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
+                <path d="M16.2 24V76 M483.8 24V76" stroke="#050708" stroke-width=".7"/>
+                <path d="M17.2 25V75 M482.8 25V75" stroke="#dce2e3" stroke-opacity=".45" stroke-width=".5"/>
+                <path d="M16.5 43H18 M16.5 59H18 M482 43H483.5 M482 59H483.5" stroke="#080a0c" stroke-opacity=".75" stroke-width="2"/>
+                <path d="M14 10H16L18 17V83L16 90H14Z M484 10H486V90H484L482 83V17Z" fill="url(#lvl-shoulder)"/>`;
 
         return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
@@ -3521,22 +3523,23 @@
         // The tube's coupling plugs into each socket: it's drawn over the socket, cut at x 12.4, and
         // the lip (dark metal filled back from its curve, then the rim line) sits over its end.
         const lips = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
-            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9H15.5V9.1Z" fill="url(#${id}-shoulder)"/>
-            <path d="M12.4 9.1A1.2 9.9 0 0 0 12.4 28.9" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
-            <path d="M12.4 9.8A.96 9.2 0 0 0 12.4 28.2" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
+            <path d="M12.4 8.3A1.2 10.7 0 0 0 12.4 29.7H15.5V8.3Z" fill="url(#${id}-shoulder)"/>
+            <path d="M12.4 8.3A1.2 10.7 0 0 0 12.4 29.7" fill="none" stroke="url(#${id}-shoulder)" stroke-width="1.1"/>
+            <path d="M12.4 9A.96 10 0 0 0 12.4 29" fill="none" stroke="#030708" stroke-opacity=".55" stroke-width=".35"/>
         </g>`).join('');
         return `<svg class="bbgl-level-valve" viewBox="0 4 100 30" preserveAspectRatio="none" aria-hidden="true">
             <defs>
-                <linearGradient id="${id}-steel" x2="0" y2="1"><stop stop-color="#c0c0b6"/><stop offset=".08" stop-color="#707675"/><stop offset=".19" stop-color="#3f4749"/><stop offset=".44" stop-color="#252c2e"/><stop offset=".66" stop-color="#171d1f"/><stop offset=".86" stop-color="#505654"/><stop offset=".94" stop-color="#858983"/><stop offset="1" stop-color="#14191a"/></linearGradient>
-                <linearGradient id="${id}-fitting" x2="0" y2="1"><stop stop-color="#12191d"/><stop offset=".22" stop-color="#8e999e"/><stop offset=".34" stop-color="#c5cdd0"/><stop offset=".48" stop-color="#626e74"/><stop offset=".73" stop-color="#263036"/><stop offset=".9" stop-color="#515d63"/><stop offset="1" stop-color="#11181c"/></linearGradient>
-                <linearGradient id="${id}-shoulder" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#929991"/><stop offset=".17" stop-color="#5c6869"/><stop offset=".3" stop-color="#929b97"/><stop offset=".43" stop-color="#434f51"/><stop offset=".64" stop-color="#1e292c"/><stop offset=".85" stop-color="#101719"/><stop offset="1" stop-color="#58615b"/></linearGradient>
-                <radialGradient id="${id}-bolt" cx=".3" cy=".2" r=".8"><stop stop-color="#e1e3d4"/><stop offset=".3" stop-color="#9ca7a3"/><stop offset=".6" stop-color="#4c595b"/><stop offset="1" stop-color="#141d20"/></radialGradient>
+                <linearGradient id="${id}-steel" x2="0" y2="1">${vmStops('steel', [0, .08, .19, .44, .66, .86, .94, 1])}</linearGradient>
+                <linearGradient id="${id}-fitting" x2="0" y2="1">${vmStops('fitting', [0, .22, .34, .48, .73, .9, 1])}</linearGradient>
+                <linearGradient id="${id}-shoulder" x1="0" y1="0" x2="0" y2="1">${vmStops('shoulder', [0, .17, .3, .43, .64, .85, 1])}</linearGradient>
+                <radialGradient id="${id}-bolt" cx=".3" cy=".2" r=".8">${vmStops('bolt', [0, .3, .6, 1])}</radialGradient>
                 <linearGradient id="${id}-glass" x2="0" y2="1"><stop stop-color="#02090e" stop-opacity=".7"/><stop offset=".18" stop-color="#d8f1fa" stop-opacity=".26"/><stop offset=".42" stop-color="#b6d9e8" stop-opacity=".07"/><stop offset=".7" stop-color="#07151f" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>
-                <linearGradient id="${id}-bevel" x1=".15" y1="0" x2=".8" y2="1"><stop stop-color="#e0e0cd"/><stop offset=".2" stop-color="#7d898b"/><stop offset=".43" stop-color="#262f32"/><stop offset=".7" stop-color="#090e10"/><stop offset=".9" stop-color="#737f80"/><stop offset="1" stop-color="#b0b8ae"/></linearGradient>
+                <linearGradient id="${id}-bevel" x1=".15" y1="0" x2=".8" y2="1">${vmStops('bevel', [0, .2, .43, .7, .9, 1])}</linearGradient>
                 <radialGradient id="${id}-reflection" cx=".3" cy="0" r=".8"><stop stop-color="#f2efdc" stop-opacity=".4"/><stop offset=".4" stop-color="#c8dce1" stop-opacity=".12"/><stop offset="1" stop-color="#b8d3df" stop-opacity="0"/></radialGradient>
                 <radialGradient id="${id}-edge" r=".65"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset=".85" stop-color="#020607" stop-opacity=".25"/><stop offset="1" stop-color="#020607" stop-opacity=".8"/></radialGradient>
                 <linearGradient id="${id}-glint"><stop stop-color="#fbf5d8" stop-opacity="0"/><stop offset=".25" stop-color="#fbf5d8" stop-opacity=".75"/><stop offset=".6" stop-color="#d9edf2" stop-opacity=".2"/><stop offset="1" stop-color="#d9edf2" stop-opacity="0"/></linearGradient>
                 <pattern id="${id}-grain" width="5" height="3" patternUnits="userSpaceOnUse"><path d="M0 .5H3M2 2H5" stroke="#d7ddcf" stroke-opacity=".1" stroke-width=".3"/><path d="M1 1H5" stroke="#000" stroke-opacity=".2" stroke-width=".35"/></pattern>
+                <linearGradient id="${id}-iris" x1="0" y1="0" x2="1" y2=".35"><stop stop-color="#ff5fb0"/><stop offset=".25" stop-color="#9a6bff"/><stop offset=".5" stop-color="#3fc8ff"/><stop offset=".75" stop-color="#ffd84a"/><stop offset="1" stop-color="#ff5fb0"/></linearGradient>
                 <clipPath id="${id}-ends"><rect width="12.4" height="38"/><rect x="87.6" width="12.4" height="38"/></clipPath>
                 <clipPath id="${id}-window"><rect x="24" y="8" width="52" height="22" rx="6"/></clipPath>
             </defs>
@@ -3567,6 +3570,7 @@
             <path d="M25 5.8H75M27 32H73" stroke="url(#${id}-glint)" stroke-width=".65"/>
             ${bolts}
             <path d="M34 5V4H66V5" fill="#313b41" stroke="#9aa7ae" stroke-width=".7"/>
+            <path class="bbgl-valve-iris" d="M5 12L7 9H11.2V8Q11.2 7.6 14 7.6H18L24 5H76L82 7.6H86Q88.8 7.6 88.8 8V9H93L95 12V26L93 29H88.8V30H86L82 30.4L76 33H24L18 30.4L14 30H11.2V29H7L5 26Z M30 8H70Q76 8 76 14V24Q76 30 70 30H30Q24 30 24 24V14Q24 8 30 8Z" fill="url(#${id}-iris)" fill-rule="evenodd" opacity=".5" style="mix-blend-mode:overlay" pointer-events="none"/>
         </svg>`;
     }
 

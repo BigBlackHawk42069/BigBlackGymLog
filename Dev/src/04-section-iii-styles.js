@@ -69,6 +69,39 @@
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
         .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
+    // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
+    // so the valve's shading holds while the finish changes. Offsets live with the SVG.
+    const VALVE_METAL = {
+        steel: ['#c0c0b6', '#707675', '#3f4749', '#252c2e', '#171d1f', '#505654', '#858983', '#14191a'],
+        fitting: ['#12191d', '#8e999e', '#c5cdd0', '#626e74', '#263036', '#515d63', '#11181c'],
+        shoulder: ['#929991', '#5c6869', '#929b97', '#434f51', '#1e292c', '#101719', '#58615b'],
+        bolt: ['#e1e3d4', '#9ca7a3', '#4c595b', '#141d20'],
+        bevel: ['#e0e0cd', '#7d898b', '#262f32', '#090e10', '#737f80', '#b0b8ae'],
+        collar: ['#161616', '#353535', '#4b4b4b', '#555555', '#494949', '#2e2e2e', '#111111'],
+        collarRim: ['#171a1c', '#81888b', '#e2e5e5', '#62696b', '#25292b', '#8a9192', '#141719']
+    };
+    const valveMetalVars = (() => {
+        const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+        const out = c => '#' + c.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+        const lum = h => { const [r, g, b] = hex(h); return (.2126 * r + .7152 * g + .0722 * b) / 255; };
+        // Piecewise ramp: [[t, '#rrggbb'], ...], t ascending 0..1.
+        const ramp = stops => t => {
+            t = Math.max(0, Math.min(1, t));
+            let i = 1;
+            while (i < stops.length - 1 && stops[i][0] < t) i++;
+            const [t0, c0] = stops[i - 1], [t1, c1] = stops[i], k = (t - t0) / (t1 - t0 || 1);
+            const a = hex(c0), b = hex(c1);
+            return out(a.map((v, j) => v + (b[j] - v) * k));
+        };
+        const tiers = {
+            silver: h => ramp([[0, '#1c1f22'], [.35, '#6f757a'], [.65, '#c3c8cc'], [1, '#fbfcfd']])(Math.pow(lum(h), .8) * 1.12),
+            gold: h => ramp([[0, '#3a2300'], [.22, '#8c5c06'], [.42, '#cf9612'], [.6, '#f2c226'], [.78, '#ffe072'], [1, '#fffbe2']])(Math.pow(lum(h), .7) * 1.3),
+            platinum: h => ramp([[0, '#4a4750'], [.4, '#a7a3ad'], [.7, '#e3e0e8'], [1, '#fdfbff']])(.22 + Math.pow(lum(h), .8) * .95)
+        };
+        const vars = map => Object.entries(VALVE_METAL).map(([g, cs]) => cs.map((c, i) => `--vm-${g}-${i}: ${map(c)};`).join(' ')).join(' ');
+        return { steel: vars(c => c), silver: vars(tiers.silver), gold: vars(tiers.gold), platinum: vars(tiers.platinum) };
+    })();
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
 
@@ -5989,9 +6022,9 @@
                     /* Each stop ends with the crown's resting edge shadow: fill-mode forwards holds the
                        100% filter after the rise, so it has to carry it. */
                     @keyframes bbgl-crown-rise-kf {
-                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
-                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
-                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6)); }
+                        0%   { transform: translateX(-50%) translateY(130%); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        70%  { transform: translateX(-50%) translateY(-8%); filter: brightness(1.7) drop-shadow(0 0 14px rgba(255,255,255,0.7)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
 
                     /* Same tuck/rise motion, for the current text-badge flags (A0/A1) which are
@@ -6400,8 +6433,9 @@
                         transform: translateX(-50%);
                         transform-origin: 50% 100%;
                         background: var(--bbgl-crown-art) center bottom / contain no-repeat;
-                        /* Same edge as the tube and valve, to lift it off the header art. */
-                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                        /* Softer than the tube and valve's edge, and cast upward, so the crown's base reads as
+                           resting on the valve rather than outlined against it. */
+                        filter: drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3));
                         clip-path: none;
                         pointer-events: none;
                         z-index: -1;
@@ -6445,7 +6479,9 @@
                         --bbgl-valve-h: calc(var(--bbgl-track-h) + var(--bbgl-valve-rise) * 2);
                         --bbgl-track-box: calc(var(--bbgl-track-box-base, var(--bbgl-track-h)) + var(--bbgl-tube-extra));
                         --bbgl-fill-top: calc((var(--bbgl-track-box) - var(--bbgl-valve-h)) / 2);
-                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top));
+                        /* Mirrors the bottom edge's gap to the tube glass: the fill's nudge pushes both edges
+                           down, so the top takes most of it back (1.25x, a touch lower than an exact mirror). */
+                        --bbgl-band-top: calc(var(--bbgl-track-box) * .3 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge) * 1.25);
                         --bbgl-band-bot: calc(var(--bbgl-track-box) * .7 - var(--bbgl-fill-top));
                         --bbgl-fill-nudge: 1px;
                         --bbgl-notch-top: calc(var(--bbgl-track-box) + 1px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
@@ -6467,11 +6503,31 @@
                     }
                     /* Inside the track, so it layers between the fill (2) and the glass tube and housing
                        SVG (5), with the housing texture (6) on top. The track is the bar's full width and
-                       sits on its bottom; the extra -.5px cancels the track's own translateY(-.5px). */
+                       sits on its bottom; the extra -1px cancels the track's own translateY(-1px). */
+                    /* Valve and end-coupling finish per crown tier: A0 steel, A1 silver, A2 gold, level 100
+                       platinum. On the bar so both the valve and the tube SVG inherit them. */
+                    .bbgl-exp-bar { ${valveMetalVars.steel} }
+                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} }
+                    /* Platinum sheen: an overlay over the valve's whole silhouette, window left clear,
+                       its hue slowly cycling for the shimmer. */
+                    .bbgl-level-valve { isolation: isolate; }
+                    .bbgl-level-valve .bbgl-valve-iris { display: none; }
+                    .bbgl-exp-bar[data-atrophy="2"][data-level="100"] .bbgl-level-valve .bbgl-valve-iris {
+                        display: inline;
+                        animation: bbgl-valve-iris 6s linear infinite;
+                    }
+                    @keyframes bbgl-valve-iris {
+                        0%   { filter: hue-rotate(0deg) brightness(1); }
+                        50%  { filter: hue-rotate(180deg) brightness(1.15); }
+                        100% { filter: hue-rotate(360deg) brightness(1); }
+                    }
+                    #bbgl-panel.bbgl-no-animations .bbgl-valve-iris { animation: none; }
                     .bbgl-level-valve {
                         position: absolute;
                         left: 50%;
-                        bottom: calc(-1.5px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
+                        bottom: calc(-2px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-valve-h) * 4 / 38);
                         transform: translateX(-50%);
                         width: var(--bbgl-valve-w);
                         height: calc(var(--bbgl-valve-h) * 30 / 38);
@@ -6482,7 +6538,7 @@
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
                         z-index: 3;
-                        transform: translateY(-.5px);
+                        transform: translateY(-1px);
                         overflow: visible;
                         container-type: inline-size;
                     }
@@ -6507,8 +6563,10 @@
                         background: inherit;
                         pointer-events: none;
                     }
+                    /* Above the track (3), so the crown sits over the valve inside it. */
                     .bbgl-exp-bar .bbgl-exp-flag {
                         position: absolute;
+                        z-index: 4;
                         bottom: calc(var(--bbgl-valve-h) * 34 / 38 - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) - 3px);
                         /* Anchored the same way as .bbgl-level-valve (left: 50%) so the crown and the
                            valve share one reference point. Left to the flex column's centring, this 1px
@@ -6523,10 +6581,11 @@
                     }
                     /* The flag's clip-path cuts everything below its bottom edge, which sits 2px inside
                        the valve's top. Dropping the crown by its own empty strip pushes exactly that
-                       strip under the cut, so what's left is the solid base, seated on the valve. */
+                       strip under the cut, so what's left is the solid base, seated on the valve. The +1.5px
+                       keeps the base's own bottom edge clear of the cut. */
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
-                        bottom: calc(var(--bbgl-crown-w) * var(--bbgl-crown-drop, 0) * -1);
+                        bottom: calc(var(--bbgl-crown-w) * var(--bbgl-crown-drop, 0) * -1 + 1.5px);
                     }
                     #bbgl-panel[data-atrophy] #bbgl-level-container #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy] #bbgl-gym-level-num {
