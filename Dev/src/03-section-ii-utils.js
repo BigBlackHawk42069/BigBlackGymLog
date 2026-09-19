@@ -719,9 +719,11 @@
         const a = Math.max(0, Math.min(2, atrophy || 0));
         const out = [];
         let start = 0;
-        LEVEL_TITLE_BANDS.forEach(band => {
+        LEVEL_TITLE_BANDS.forEach((band, i) => {
             const span = band.max - start + 1;
-            const unlocked = level >= start;
+            // The first band holds from each tier's start level, which is negative on atrophy 1/2
+            // (-1, -10), so it can't be gated on level >= 0.
+            const unlocked = i === 0 || level >= start;
             out.push({
                 start,
                 end: band.max,

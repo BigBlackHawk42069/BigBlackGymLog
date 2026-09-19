@@ -2445,7 +2445,8 @@ function achLevelBarTooltipHTML(atrophy, level, levelPct = 0) {
         ? `<i class="bbgl-lvl-title bbgl-titles-title">${titleHtml}</i>`
         : `<span class="bbgl-title-card-empty">Unequipped</span>`;
     const pct = Math.max(0, Math.min(100, levelPct));
-    const start = Math.min(LEVEL_CAP - 20, Math.floor(level / 20) * 20);
+    // Clamped at 0: atrophy 1/2 start below it (-1, -10), still inside the first 0-20 band.
+    const start = Math.max(0, Math.min(LEVEL_CAP - 20, Math.floor(level / 20) * 20));
     const end = start + 20;
     const progress = Math.max(0, Math.min(100, ((level + pct / 100 - start) / 20) * 100));
     const caption = level >= LEVEL_CAP

@@ -103,16 +103,21 @@
         const vars = map => Object.entries(VALVE_METAL).map(([g, cs]) => cs.map((c, i) => `--vm-${g}-${i}: ${map(c)};`).join(' ')).join(' ');
         return { steel: vars(c => c), silver: vars(tiers.silver), gold: vars(tiers.gold), platinum: vars(tiers.platinum) };
     })();
-    // Level fill: dormant neon gas, one call per tier. A static fractal-noise smoke texture (stretched
-    // wide so it streaks rather than bands) soft-lit over an ember core line and a tinted body that's
-    // darkest at the glass. Static, so it costs nothing per frame.
+    // Level fill smoke: a static fractal-noise texture (stretched wide so it streaks rather than bands),
+    // soft-lit into each tier's sheenFill. Static, so it costs nothing per frame.
     const GAS_SMOKE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='30' preserveAspectRatio='none'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .16' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 2.2 -.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E") 0 0 / 300px 100% repeat-x`;
-    const gasFill = (tint, core, deep) => `background:
+    // Level fill sheen: polished-metal layers over the gas smoke. A vertical ramp (dark at the glass,
+    // peak at centre, a specular line just above it) plus soft diagonal highlight bands along the
+    // length. ramp is [edge, shadow, low, mid, peak] and hi the highlight as 'r, g, b'. Static, so the
+    // charge and flash animations are unchanged. Applied to the fill and its ::before chamber copy
+    // alike: background: inherit on the copy doesn't carry the blend modes.
+    const sheenFill = ([edge, shadow, low, mid, peak], hi) => `background:
+                            linear-gradient(100deg, transparent 0%, rgba(${hi}, .22) 8%, transparent 16%, transparent 38%, rgba(${hi}, .16) 46%, transparent 54%, transparent 72%, rgba(${hi}, .2) 80%, transparent 88%),
+                            linear-gradient(180deg, transparent 30%, rgba(${hi}, .55) 42%, rgba(${hi}, .15) 47%, transparent 54%),
                             ${GAS_SMOKE},
-                            linear-gradient(180deg, transparent 36%, ${core}60 47%, ${core}90 50%, ${core}60 53%, transparent 64%),
-                            linear-gradient(180deg, #06080b 0%, ${deep} 28%, ${tint}70 50%, ${deep} 72%, #06080b 100%),
-                            ${deep};
-                        background-blend-mode: soft-light, normal, normal;
+                            linear-gradient(180deg, ${edge} 0%, ${shadow} 18%, ${low} 32%, ${mid} 42%, ${peak} 48%, ${mid} 56%, ${low} 70%, ${shadow} 84%, ${edge} 100%),
+                            ${shadow};
+                        background-blend-mode: screen, screen, soft-light, normal, normal;
                         box-shadow: none;`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const CSS_STYLES = `
@@ -5801,7 +5806,7 @@
                        past the midpoint. Left/right insets are opened up (-9999px) so the wide
                        diamond isn't clipped on its sides — only the bottom cut matters. Because
                        this wrapper never transforms, that cut line is screen-fixed: the badge
-                       translateY()s through it during the crown-tuck/rise animation, instead of
+                       translateY()s through it during the crown-hop/rise animation, instead of
                        the clip boundary sliding along with the badge (which is what happens if
                        the clip is on the transformed badge itself). */
                     .bbgl-exp-flag {
@@ -6006,16 +6011,22 @@
                     }
 
                     /* ─── Atrophy Tier-Complete Sequence ────────────────────
-                       Crown tucks away (mole-in-hole pop), the next tier's crown rises
-                       into place (podium reveal + spotlight), then "Atrophied!" flashes. */
-                    /* No opacity fade here on purpose — the container's clip-path (see
-                       #bbgl-level-container) gives a hard cutoff at the bottom of the exp bar
-                       as the flag translates past it, so it reads as sliding behind an edge
-                       rather than fading out. */
-                    @keyframes bbgl-crown-tuck-kf {
-                        0%   { transform: translateX(-50%) translateY(0); }
-                        35%  { transform: translateX(-50%) translateY(-16%); }
-                        100% { transform: translateX(-50%) translateY(130%); }
+                       Played at the end of Lv 99 on A0/A1, where players expect Lv 100. The bar sits
+                       full for a beat; the crown hops off the valve and drops out of sight behind the
+                       bar; the next tier's crown rises from the same spot and lands on the OLD
+                       valve (.bbgl-crown-next); the usual level-up charge runs but stops about three
+                       quarters of the way (.bbgl-exp-stall), flickers (.bbgl-atrophy-flicker); then the
+                       level-up flash fires glitched and brighter (.bbgl-atrophy-glitch) while the tier
+                       swaps under it. Timings live in
+                       runAtrophyAnimation(). */
+                    /* No opacity fade on the drop on purpose: the flag's clip-path gives a hard cutoff
+                       partway into the bar, and the flag drops under the track for the fall, so it
+                       reads as going behind an edge rather than fading out. The hop ends at
+                       the rise's start (130%), so the new crown comes up where the old one went. */
+                    @keyframes bbgl-crown-hop-kf {
+                        0%   { transform: translateX(-50%) translateY(0) rotate(0deg); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+                        35%  { transform: translateX(-50%) translateY(-45%) rotate(-10deg); animation-timing-function: cubic-bezier(.5, 0, .9, .5); }
+                        100% { transform: translateX(-50%) translateY(130%) rotate(18deg); }
                     }
 
                     /* Each stop ends with the crown's resting edge shadow: fill-mode forwards holds the
@@ -6026,13 +6037,12 @@
                         100% { transform: translateX(-50%) translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
 
-                    /* Same tuck/rise motion, for the current text-badge flags (A0/A1) which are
-                       real DOM elements (not the ::before image slot), so no translateX(-50%)
-                       centering hack is needed — they're already centered via flexbox. */
-                    @keyframes bbgl-flag-tuck-kf {
-                        0%   { transform: translateY(0); }
-                        35%  { transform: translateY(-16%); }
-                        100% { transform: translateY(130%); }
+                    /* Same hop/rise motion for the text flag (#bbgl-level-num), a real DOM element
+                       already centred by flexbox, so no translateX(-50%). */
+                    @keyframes bbgl-flag-hop-kf {
+                        0%   { transform: translateY(0) rotate(0deg); animation-timing-function: cubic-bezier(.2, .7, .4, 1); }
+                        35%  { transform: translateY(-45%) rotate(-10deg); animation-timing-function: cubic-bezier(.5, 0, .9, .5); }
+                        100% { transform: translateY(130%) rotate(18deg); }
                     }
 
                     @keyframes bbgl-flag-rise-kf {
@@ -6041,49 +6051,37 @@
                         100% { transform: translateY(0); filter: brightness(1) drop-shadow(0 0 0 rgba(255,255,255,0)); }
                     }
 
-                    @keyframes bbgl-atrophied-flash-kf {
-                        0%   { opacity: 0; transform: translateX(-50%) scale(0.6); }
-                        30%  { opacity: 1; transform: translateX(-50%) scale(1.15); }
-                        55%  { opacity: 1; transform: translateX(-50%) scale(1); }
-                        85%  { opacity: 1; }
-                        100% { opacity: 0; transform: translateX(-50%) scale(1); }
-                    }
-
-                    /* The container (flag + track + fill) sits at z-index:10, just
-                       under .bbgl-grid-container (z11), and normally doesn't overlap the
-                       calendar. To let the flag actually dip *behind* the calendar rather than
-                       just sliding down over it, drop the whole container below the grid for the
-                       middle of the tuck/rise motion, then restore it once the flag is settled
-                       (or mid-reveal for the rise) so the bar and the "Atrophied!" flash still
-                       read in front as normal. */
-                    @keyframes bbgl-tier-tuck-z-kf {
-                        0%   { z-index: 10; }
-                        35%  { z-index: 10; }
-                        36%  { z-index: 0; }
-                        100% { z-index: 0; }
+                    /* The crown dips *behind* the bar rather than over it: the flag (z4) drops under
+                       the track (z3) once the hop peaks, and comes back over it as the new crown clears
+                       the bar on the rise. Only the flag changes layers, so the bar itself never goes
+                       behind the calendar or anything else. */
+                    @keyframes bbgl-tier-hop-z-kf {
+                        0%   { z-index: 4; }
+                        40%  { z-index: 4; }
+                        41%  { z-index: 2; }
+                        100% { z-index: 2; }
                     }
 
                     @keyframes bbgl-tier-rise-z-kf {
-                        0%   { z-index: 0; }
-                        69%  { z-index: 0; }
-                        70%  { z-index: 10; }
-                        100% { z-index: 10; }
+                        0%   { z-index: 2; }
+                        69%  { z-index: 2; }
+                        70%  { z-index: 4; }
+                        100% { z-index: 4; }
                     }
 
-                    .bbgl-crown-tuck {
-                        animation: bbgl-tier-tuck-z-kf 0.35s steps(1, end) forwards;
+                    .bbgl-crown-hop .bbgl-exp-flag {
+                        animation: bbgl-tier-hop-z-kf 0.65s steps(1, end) forwards;
                     }
 
-                    .bbgl-crown-rise {
+                    .bbgl-crown-rise .bbgl-exp-flag {
                         animation: bbgl-tier-rise-z-kf 0.9s steps(1, end) forwards;
                     }
 
-                    /* Diamond tuck/rise. The tuck class is on the container; gym's diamond is
-                       the container's own ::before, main panel's is the flag-clip wrapper's
+                    /* Gym's crown is the flag's ::before, main panel's is the flag-clip wrapper's
                        ::before, so both are targeted. */
-                    .bbgl-crown-tuck .bbgl-exp-flag::before,
-                    .bbgl-crown-tuck #bbgl-level-flag-clip::before {
-                        animation: bbgl-crown-tuck-kf 0.35s ease-in-out forwards;
+                    .bbgl-crown-hop .bbgl-exp-flag::before,
+                    .bbgl-crown-hop #bbgl-level-flag-clip::before {
+                        animation: bbgl-crown-hop-kf 0.65s linear forwards;
                     }
 
                     .bbgl-crown-rise .bbgl-exp-flag::before,
@@ -6091,31 +6089,14 @@
                         animation: bbgl-crown-rise-kf 0.9s ease-out forwards;
                     }
 
-                    .bbgl-crown-tuck #bbgl-level-num,
-                    .bbgl-crown-tuck #bbgl-gym-level-num {
-                        animation: bbgl-flag-tuck-kf 0.35s ease-in-out forwards;
+                    .bbgl-crown-hop #bbgl-level-num,
+                    .bbgl-crown-hop #bbgl-gym-level-num {
+                        animation: bbgl-flag-hop-kf 0.65s linear forwards;
                     }
 
                     .bbgl-crown-rise #bbgl-level-num,
                     .bbgl-crown-rise #bbgl-gym-level-num {
                         animation: bbgl-flag-rise-kf 0.9s ease-out forwards;
-                    }
-
-                    .bbgl-atrophied-flash::after {
-                        content: 'Atrophied!';
-                        position: absolute;
-                        bottom: calc(100% + 4px);
-                        left: 50%;
-                        white-space: nowrap;
-                        pointer-events: none;
-                        z-index: 4;
-                        font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
-                        font-weight: 800;
-                        font-size: clamp(11px, calc(11px + 5px * var(--bbgl-dock-t, 0)), 16px);
-                        letter-spacing: 0.5px;
-                        color: #fff;
-                        text-shadow: 0 0 6px #ffee66, 0 0 14px #ffcc00, 0 0 24px #ff8800;
-                        animation: bbgl-atrophied-flash-kf 0.7s ease-out forwards;
                     }
 
 
@@ -6327,8 +6308,10 @@
                     }
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
-                    #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill {
-                        ${gasFill('#a9c2d8', '#e2eef8', '#26323d')}
+                    #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill,
+                    #bbgl-panel[data-atrophy="0"] #bbgl-level-fill::before,
+                    #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-fill::before {
+                        ${sheenFill(['#0b0f13', '#26323d', '#4e6272', '#8aa3b8', '#c4d6e6'], '236, 244, 250')}
                     }
 
 
@@ -6340,8 +6323,10 @@
 
                     /* ─── Level Bar — A1: Green ──────────────────────────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill,
-                    #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill {
-                        ${gasFill('#4dff6a', '#c8ffd0', '#123d1d')}
+                    #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill,
+                    #bbgl-panel[data-atrophy="1"] #bbgl-level-fill::before,
+                    #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill::before {
+                        ${sheenFill(['#04120a', '#123d1d', '#1f7a32', '#3ccf55', '#7dff8f'], '220, 255, 226')}
                     }
 
                     /* ─── Level Bar — A2: Diamond ───────────────────────── */
@@ -6360,15 +6345,20 @@
                         margin-bottom: clamp(7px, calc(7px + 2px * var(--bbgl-page-t)), 9px);
                     }
 
+                    /* Gold sheen from the valve's gold ramp (valveMetalVars.gold). */
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill,
-                    #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill {
-                        ${gasFill('#ffb42a', '#fff0b8', '#44280a')}
+                    #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill,
+                    #bbgl-panel[data-atrophy="2"] #bbgl-level-fill::before,
+                    #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill::before {
+                        ${sheenFill(['#2a1405', '#5f350b', '#9d6318', '#d99a36', '#f3c860'], '255, 245, 214')}
                     }
 
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
-                    #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full {
-                        ${gasFill('#d49bff', '#e6f8ff', '#2c1f46')}
+                    #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full,
+                    #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full::before,
+                    #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full::before {
+                        ${sheenFill(['#140c24', '#2c1f46', '#5e3f8e', '#a472e0', '#d49bff'], '236, 246, 255')}
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -6381,6 +6371,19 @@
                     #bbgl-panel[data-atrophy="1"], #bbgl-gym-level-container[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .155; }
                     #bbgl-panel[data-atrophy="2"], #bbgl-gym-level-container[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .155; }
                     #bbgl-panel[data-atrophy="2"][data-level="100"], #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .152; }
+                    /* Atrophy and Fully Bricked sequences: the next crown lands on the old valve before
+                       the tier/level itself swaps under the surge flash. Set on the bar container, below
+                       the tier's own declaration, so only the crown changes. */
+                    /* The gym bar IS the element the tier's own art is set on (#bbgl-gym-level-container),
+                       so that id rule outranks a class rule here and the override needs its own id form;
+                       on the main panel the art comes from the #bbgl-panel ancestor, so the container's
+                       class rule already wins by proximity. */
+                    .bbgl-exp-bar.bbgl-crown-next[data-atrophy="0"],
+                    #bbgl-gym-level-container.bbgl-crown-next[data-atrophy="0"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[1]}"); --bbgl-crown-drop: .155; }
+                    .bbgl-exp-bar.bbgl-crown-next[data-atrophy="1"],
+                    #bbgl-gym-level-container.bbgl-crown-next[data-atrophy="1"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[2]}"); --bbgl-crown-drop: .155; }
+                    .bbgl-exp-bar.bbgl-crown-next[data-atrophy="2"],
+                    #bbgl-gym-level-container.bbgl-crown-next[data-atrophy="2"] { --bbgl-crown-art: url("${CROWN_BADGE_URLS[3]}"); --bbgl-crown-drop: .152; }
 
                     #bbgl-panel[data-atrophy] #bbgl-level-flag-clip::before,
                     #bbgl-gym-level-container[data-atrophy] .bbgl-exp-flag::before {
@@ -6551,8 +6554,11 @@
                     /* Dark edge and short drop to lift the tube and valve (inside the track) off the header
                        art. On the track rather than the whole container: a filter there would cut the badge
                        flags' backdrop-filter off from the header behind them. */
+                    /* Held in --bbgl-track-fx so the atrophy whiteout can keep it while it animates the
+                       track's filter. */
                     #bbgl-level-container .bbgl-exp-track {
-                        filter: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                        --bbgl-track-fx: drop-shadow(0 0 1px rgba(0, 0, 0, .9)) drop-shadow(0 1px 2px rgba(0, 0, 0, .6));
+                        filter: var(--bbgl-track-fx);
                     }
                     /* Level-up charge, grown from the right terminal to the left over LEVEL_CHARGE_MS, then
                        the flash. Two layers: .bbgl-exp-charge inside the fill lights the chamber behind
@@ -6633,13 +6639,15 @@
                     .bbgl-exp-charging .bbgl-exp-glow::after {
                         animation: bbgl-exp-front-kf .2s cubic-bezier(.35, 0, .65, 1) forwards;
                     }
+                    /* --bbgl-charge-end / --bbgl-front-end let the atrophy sequence stop the same sweep
+                       short of the left terminal (.bbgl-exp-stall); a normal level-up runs it to the end. */
                     @keyframes bbgl-exp-charge-kf {
                         from { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
-                        to   { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+                        to   { -webkit-mask-position: var(--bbgl-charge-end, 100%) 0; mask-position: var(--bbgl-charge-end, 100%) 0; }
                     }
                     @keyframes bbgl-exp-glow-kf {
                         from { -webkit-mask-position: 0% 0; mask-position: 0% 0; }
-                        to   { -webkit-mask-position: 100% 0; mask-position: 100% 0; }
+                        to   { -webkit-mask-position: var(--bbgl-charge-end, 100%) 0; mask-position: var(--bbgl-charge-end, 100%) 0; }
                     }
                     /* Fades out 38-62% while crossing the valve; the symmetric easing puts it there. */
                     @keyframes bbgl-exp-front-kf {
@@ -6649,7 +6657,7 @@
                         40%, 60% { opacity: 0; }
                         64%  { opacity: 1; }
                         85%  { opacity: 1; }
-                        100% { left: 0; opacity: 0; }
+                        100% { left: var(--bbgl-front-end, 0%); opacity: 0; }
                     }
                     @keyframes bbgl-exp-flicker {
                         0%, 100% { filter: blur(.6px) brightness(var(--bbgl-lit)); }
@@ -6694,8 +6702,10 @@
                     .bbgl-exp-bar { --bbgl-charge: #dfe8ee; --bbgl-charge-hot: #ffffff; --bbgl-charge-deep: #5e6b73; }
                     .bbgl-exp-bar[data-atrophy="1"] { --bbgl-charge: #4dff3a; --bbgl-charge-hot: #d4ffb0; --bbgl-charge-deep: #0f6a12; }
                     /* Gold's tube uses the valve's gold ramp (valveMetalVars.gold) so it lights exactly like the
-                       valve and crown; the glow round everything is the gold rank title's orange bloom. */
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #cf9612; --bbgl-charge-hot: #eda62e; --bbgl-charge-deep: #8c5c06; --bbgl-charge-core: #ffd08a; --bbgl-charge-glow: #ff951e; }
+                       valve and crown; the glow round everything is a warm gold taken from the valve's
+                       ramp (between its #d99a36 mids and #f3c860 highlights), lighter than the rank title's
+                       orange bloom but short of yellow. */
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #cf9612; --bbgl-charge-hot: #eda62e; --bbgl-charge-deep: #8c5c06; --bbgl-charge-core: #ffd08a; --bbgl-charge-glow: #f5b23c; }
 
                     /* Level-up flash, arriving as the charge sweep. Each piece reaches its flash-lit state
                        as the front passes it: the bar's glow (.bbgl-exp-halo) and the fill's brightening
@@ -6765,6 +6775,158 @@
                         0%   { filter: blur(.6px) brightness(var(--bbgl-lit)); }
                         20%  { filter: blur(.6px) brightness(var(--bbgl-peak)); }
                         100% { filter: blur(.6px) brightness(1); }
+                    }
+                    /* Atrophy stall: the normal charge sweep, slowed to .9s and stopped about 75% of the
+                       way along (front x = .99 - 1.2 * mask position, so 62% leaves the front at 25%).
+                       The glitch starts the moment it gets there. The valve and crown light as the front
+                       crosses them (.5s). The overrides drop off once the flash starts,
+                       so the flash keeps its own timing. */
+                    .bbgl-exp-stall { --bbgl-charge-end: 62%; --bbgl-front-end: 25%; }
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) :is(.bbgl-exp-charge, .bbgl-exp-halo),
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) .bbgl-exp-glow::after { animation-duration: .9s; }
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) .bbgl-exp-glow { animation-duration: .9s, .1s; }
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) .bbgl-level-valve,
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) .bbgl-exp-flag::before,
+                    .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) #bbgl-level-flag-clip::before { animation-delay: .5s; }
+                    /* Surge flash (.bbgl-flash-surge): the usual level-up flash, much brighter, with a
+                       bigger halo and the bar and crown whited out at its peak. Used by the atrophy
+                       glitch (with its magenta, below) and by reaching Fully Bricked (in the tier's own
+                       colours). The tier/level swaps under its peak (runAtrophyAnimation,
+                       runBrickedAnimation). */
+                    .bbgl-exp-bar.bbgl-flash-surge { --bbgl-peak: 3; --bbgl-halo-peak: 3; }
+                    /* Atrophy glitch: the charge's light fails like a broken tube (.bbgl-atrophy-flicker),
+                       then blows: the surge flash in a glitch magenta (.bbgl-atrophy-glitch). For the
+                       whole flash the charge colours, glow blend and lit level are pinned to the glitch,
+                       so the tier swap underneath can't change them mid-flash. */
+                    .bbgl-exp-bar.bbgl-atrophy-glitch {
+                        --bbgl-valve-flash: #ff2bd6; --bbgl-lit: 1.25;
+                        --bbgl-charge: #ff5ae0; --bbgl-charge-hot: #ffd6f6; --bbgl-charge-deep: #8a0f73; --bbgl-charge-core: #ffffff;
+                    }
+                    .bbgl-exp-bar.bbgl-atrophy-glitch .bbgl-exp-glow { mix-blend-mode: hard-light; }
+                    /* The same halo as the usual flash, with a wider, stronger glow. The reveal mask is
+                       dropped for it: a mask clips to the halo's box, glow included, which cut the bloom
+                       off in a flat rectangle. It lights the whole bar at once, like a normal flash. */
+                    .bbgl-exp-bar.bbgl-flash-surge .bbgl-exp-halo { -webkit-mask-image: none; mask-image: none; }
+                    .bbgl-exp-bar.bbgl-flash-surge .bbgl-exp-halo i {
+                        filter: drop-shadow(0 0 6px var(--bbgl-valve-flash)) drop-shadow(0 0 16px var(--bbgl-valve-flash)) drop-shadow(0 0 28px var(--bbgl-valve-flash));
+                    }
+                    /* The gym bar's 16px of clip slack is too tight for the bigger glow. */
+                    #bbgl-gym-level-container.bbgl-flash-surge { clip-path: inset(-9999px -60px -60px -60px); }
+                    /* Whiteout: the bar's contents (tube, fill, valve and the flash itself) blow out to
+                       white in their own shape, peaking over the swap (SURGE_SWAP_MS, 28% in),
+                       then come back as the flash dies down. The crown sits outside the track, so it
+                       gets the same whiteout on its own, over its usual flash glow and edge shadow. */
+                    .bbgl-exp-bar.bbgl-flash-surge.bbgl-level-up-flash .bbgl-exp-flag::before,
+                    .bbgl-exp-bar.bbgl-flash-surge.bbgl-level-up-flash #bbgl-level-flag-clip::before { animation: bbgl-atrophy-crown-whiteout .9s ease-out forwards; }
+                    /* Glow and edge shadow first, then the brightness, same order as the track's
+                       whiteout, so the glow blows out to white with the crown instead of staying coloured. */
+                    @keyframes bbgl-atrophy-crown-whiteout {
+                        0%   { filter: drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)) brightness(1.2) saturate(1); }
+                        12%  { filter: drop-shadow(0 0 6px var(--bbgl-valve-flash)) drop-shadow(0 0 16px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)) brightness(8) saturate(.2); }
+                        45%  { filter: drop-shadow(0 0 6px var(--bbgl-valve-flash)) drop-shadow(0 0 16px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)) brightness(8) saturate(.2); }
+                        100% { filter: drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)) brightness(1) saturate(1); }
+                    }
+                    .bbgl-exp-bar.bbgl-flash-surge .bbgl-exp-track { animation: bbgl-atrophy-whiteout .9s ease-out forwards; }
+                    @keyframes bbgl-atrophy-whiteout {
+                        0%   { filter: var(--bbgl-track-fx, drop-shadow(0 0 0 transparent)) brightness(1) saturate(1); }
+                        12%  { filter: var(--bbgl-track-fx, drop-shadow(0 0 0 transparent)) brightness(8) saturate(.2); }
+                        45%  { filter: var(--bbgl-track-fx, drop-shadow(0 0 0 transparent)) brightness(8) saturate(.2); }
+                        100% { filter: var(--bbgl-track-fx, drop-shadow(0 0 0 transparent)) brightness(1) saturate(1); }
+                    }
+                    /* The glitch's charge glow fades out as the flash dies down, so nothing is left to
+                       pop off when the classes come off (Fully Bricked's stays lit). Glow-kf and glow-flash keep their names and slots, so
+                       they carry on rather than restarting. */
+                    .bbgl-exp-bar.bbgl-atrophy-glitch.bbgl-level-up-flash .bbgl-exp-glow {
+                        animation: bbgl-exp-glow-kf .2s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-glow-flash .8s ease-out forwards, bbgl-atrophy-fade-out .3s ease-in .2s forwards;
+                    }
+                    @keyframes bbgl-atrophy-fade-out { to { opacity: 0; } }
+                    /* Broken-light flicker: while it sweeps only the bar's own glow is lit, but once it
+                       starts failing the whole level-up glow flickers as one light: the charge and glow,
+                       the halo across the full bar (unmasked, as in the flash), and the valve and crown
+                       glow. Like a dying tube before it blows: a couple of dropouts, a buzzing dim patch,
+                       a full blackout that catches again, then a sagging brownout that stutters out right
+                       before the flash. Irregular on purpose; an even strobe reads as the script
+                       glitching rather than the equipment. Every layer runs the same stops. The charge,
+                       glow and halo keep their finished sweep in slot 0 (same name, so it isn't
+                       restarted); the sputter drives their opacity, scaled to each layer's own lit
+                       opacity (--bbgl-sputter-max). The valve and crown flicker their flash glow. */
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) .bbgl-exp-charge {
+                        animation: bbgl-exp-charge-kf .9s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-atrophy-sputter .7s linear forwards;
+                    }
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) .bbgl-exp-halo {
+                        -webkit-mask-image: none;
+                        mask-image: none;
+                        animation: bbgl-exp-glow-kf .9s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-atrophy-sputter .7s linear forwards;
+                    }
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) .bbgl-exp-glow {
+                        --bbgl-sputter-max: .8;
+                        animation: bbgl-exp-glow-kf .9s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-atrophy-sputter .7s linear forwards;
+                    }
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) .bbgl-level-valve { animation: bbgl-atrophy-sputter-valve .7s linear forwards; }
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) .bbgl-exp-flag::before,
+                    .bbgl-exp-stall.bbgl-exp-charging.bbgl-atrophy-flicker:not(.bbgl-level-up-flash) #bbgl-level-flag-clip::before { animation: bbgl-atrophy-sputter-crown .7s linear forwards; }
+                    @keyframes bbgl-atrophy-sputter {
+                        0%, 6%    { opacity: var(--bbgl-sputter-max, 1); }
+                        7%, 10%   { opacity: calc(var(--bbgl-sputter-max, 1) * 0.15); }
+                        11%, 21%  { opacity: var(--bbgl-sputter-max, 1); }
+                        23%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.5); }
+                        25%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.9); }
+                        27%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.45); }
+                        29%, 39%  { opacity: var(--bbgl-sputter-max, 1); }
+                        40%, 51%  { opacity: 0; }
+                        53%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.8); }
+                        55%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.1); }
+                        57%, 64%  { opacity: var(--bbgl-sputter-max, 1); }
+                        74%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.35); }
+                        76%       { opacity: var(--bbgl-sputter-max, 1); }
+                        78%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.2); }
+                        80%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.7); }
+                        83%, 88%  { opacity: 0; }
+                        90%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.6); }
+                        92%       { opacity: calc(var(--bbgl-sputter-max, 1) * 0.1); }
+                        95%, 100% { opacity: var(--bbgl-sputter-max, 1); }
+                    }
+                    @keyframes bbgl-atrophy-sputter-valve {
+                        0%, 6%    { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                        7%, 10%   { filter: brightness(1.03) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 15%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 15%, transparent)); }
+                        11%, 21%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                        23%       { filter: brightness(1.1) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 50%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 50%, transparent)); }
+                        25%       { filter: brightness(1.18) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 90%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 90%, transparent)); }
+                        27%       { filter: brightness(1.09) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 45%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 45%, transparent)); }
+                        29%, 39%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                        40%, 51%  { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+                        53%       { filter: brightness(1.16) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 80%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 80%, transparent)); }
+                        55%       { filter: brightness(1.02) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)); }
+                        57%, 64%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                        74%       { filter: brightness(1.07) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 35%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 35%, transparent)); }
+                        76%       { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                        78%       { filter: brightness(1.04) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 20%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 20%, transparent)); }
+                        80%       { filter: brightness(1.14) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 70%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 70%, transparent)); }
+                        83%, 88%  { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+                        90%       { filter: brightness(1.12) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 60%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 60%, transparent)); }
+                        92%       { filter: brightness(1.02) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)); }
+                        95%, 100% { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)); }
+                    }
+                    @keyframes bbgl-atrophy-sputter-crown {
+                        0%, 6%    { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        7%, 10%   { filter: brightness(1.03) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 15%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 15%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        11%, 21%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        23%       { filter: brightness(1.1) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 50%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 50%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        25%       { filter: brightness(1.18) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 90%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 90%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        27%       { filter: brightness(1.09) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 45%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 45%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        29%, 39%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        40%, 51%  { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        53%       { filter: brightness(1.16) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 80%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 80%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        55%       { filter: brightness(1.02) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        57%, 64%  { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        74%       { filter: brightness(1.07) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 35%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 35%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        76%       { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        78%       { filter: brightness(1.04) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 20%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 20%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        80%       { filter: brightness(1.14) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 70%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 70%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        83%, 88%  { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        90%       { filter: brightness(1.12) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 60%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 60%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        92%       { filter: brightness(1.02) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 10%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        95%, 100% { filter: brightness(1.2) drop-shadow(0 0 4px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 10px color-mix(in srgb, var(--bbgl-valve-flash) 100%, transparent)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
                     @keyframes bbgl-lvl-flash-valve {
                         0%   { filter: brightness(1.2) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)); }
@@ -7166,6 +7328,125 @@
                     }
 
 
+                    /* ─── Reward popups ─────────────────────────────────────
+                       Two surfaces fed by one queue (RewardsController, 07-section-vi-ui.js): small
+                       unlocks pop as a little card off the crown and the rare run-defining moments
+                       (atrophy, Fully Bricked) take the modal below. The card floats (absolute, in a
+                       position:relative host that doesn't clip) and takes no layout space, so nothing
+                       around it moves: above the crown in the panel's header, and beside it in the gap
+                       over Torn's gym bar, where there is no room directly above the crown. Every bar on
+                       screen gets one, so an open panel over the gym page shows both. Clicking one opens
+                       the ranks page (openRanksPage()). */
+                    /* Sits in the gap over the bar, just right of the crown, on whichever bars are on
+                       screen. Positioned off --bbgl-crown-w so it clears the crown at every size, and
+                       capped at the space left between the crown and the bar's right edge. */
+                    .bbgl-exp-bar > .bbgl-toast-layer {
+                        position: absolute;
+                        left: calc(50% + var(--bbgl-crown-w) * .8);
+                        right: auto;
+                        bottom: calc(100% + 2px);
+                        transform: none;
+                        z-index: 20;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                        gap: 4px;
+                        width: max-content;
+                        max-width: calc(50% - var(--bbgl-crown-w) * .8 - 6px);
+                        pointer-events: none;
+                    }
+
+                    .bbgl-toast {
+                        pointer-events: auto;
+                        max-width: 100%;
+                        /* cqi is the panel's width in the panel and the bar's width on the gym page —
+                           everything below is in em off this, so the whole card scales per mode. */
+                        font-size: clamp(9px, 2.6cqi, 12px);
+                        padding: .35em .75em .4em;
+                        border: 1px solid color-mix(in srgb, var(--bbgl-toast-accent, #6a7a86) 55%, #1a1a1a);
+                        border-radius: 5px;
+                        background:
+                            linear-gradient(180deg, color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 16%, transparent) 0%, transparent 60%),
+                            linear-gradient(180deg, rgba(38, 38, 38, .97) 0%, rgba(22, 22, 22, .97) 100%);
+                        box-shadow: 0 3px 10px rgba(0, 0, 0, .6), 0 0 16px -4px var(--bbgl-toast-accent, #6a7a86), inset 0 1px 0 rgba(255, 255, 255, .07);
+                        text-align: center;
+                        animation: bbgl-toast-in .3s cubic-bezier(.2, .9, .3, 1.2);
+                    }
+                    .bbgl-toast.is-leaving { animation: bbgl-toast-out .26s ease-in forwards; }
+                    .bbgl-toast-body {
+                        font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-size: 1em;
+                        letter-spacing: .04em;
+                        line-height: 1.25;
+                        color: #f2ecff;
+                        text-shadow: 0 0 8px color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 55%, transparent);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                    }
+                    .bbgl-toast-actions {
+                        display: flex;
+                        gap: .35em;
+                        margin-top: .35em;
+                        justify-content: center;
+                    }
+                    .bbgl-toast-btn {
+                        flex: 1 1 auto;
+                        cursor: pointer;
+                        padding: .1em .7em .2em;
+                        border-radius: 3px;
+                        font-family: 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-size: .8em;
+                        letter-spacing: .09em;
+                        text-transform: uppercase;
+                        line-height: 1.5;
+                        white-space: nowrap;
+                        transition: background .15s ease, box-shadow .15s ease, color .15s ease;
+                    }
+                    /* View carries the accent; Close stays quiet so the pair doesn't compete. */
+                    .bbgl-toast-view {
+                        border: 1px solid color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 70%, #1a1a1a);
+                        background: linear-gradient(180deg, color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 34%, transparent), color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 12%, transparent));
+                        color: #f4eeff;
+                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .12);
+                    }
+                    .bbgl-toast-view:hover {
+                        background: linear-gradient(180deg, color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 55%, transparent), color-mix(in srgb, var(--bbgl-toast-accent, #b48cff) 25%, transparent));
+                        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .16), 0 0 10px -2px var(--bbgl-toast-accent, #b48cff);
+                    }
+                    .bbgl-toast-close {
+                        border: 1px solid #4a4453;
+                        background: linear-gradient(180deg, rgba(255, 255, 255, .06), transparent);
+                        color: #b9b2c6;
+                    }
+                    .bbgl-toast-close:hover {
+                        background: linear-gradient(180deg, rgba(255, 255, 255, .11), transparent);
+                        color: #e6e0f0;
+                    }
+                    /* One accent per kind, all on the same purple family; new kinds add a line here and
+                       a REWARD_KINDS entry. */
+                    .bbgl-toast-level { --bbgl-toast-accent: #a97bff; }
+                    .bbgl-toast-rank { --bbgl-toast-accent: #c06bff; }
+                    .bbgl-toast-unlock { --bbgl-toast-accent: #8f6bff; }
+                    /* Slides out from behind the crown. */
+                    @keyframes bbgl-toast-in {
+                        from { opacity: 0; transform: translateX(-10px) scale(.9); }
+                        to { opacity: 1; transform: none; }
+                    }
+                    @keyframes bbgl-toast-out {
+                        to { opacity: 0; transform: translateX(8px) scale(.96); }
+                    }
+                    #bbgl-panel.bbgl-no-animations .bbgl-toast { animation: none; }
+                    /* The modal reuses the standard overlay/window below; only the accent differs. */
+                    .bbgl-reward-body {
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        line-height: 1.7;
+                        color: #ccc;
+                        padding: 14px 4px;
+                        text-align: center;
+                    }
+
                     .bbgl-modal-overlay {
                         position: fixed;
                         inset: 0;
@@ -7181,9 +7462,13 @@
                         overflow-y: auto;
                     }
 
+                    /* Every modal in the script carries the same purple accent as the reward cards:
+                       a tinted edge, a soft outer glow and a lit hairline across the top. Per-modal
+                       tones (e.g. the reward kinds) override --bbgl-modal-accent. */
+                    .bbgl-modal-overlay { --bbgl-modal-accent: #a97bff; }
                     .bbgl-modal-window {
                         background: #2a2a2a;
-                        border: 1px solid #444;
+                        border: 1px solid color-mix(in srgb, var(--bbgl-modal-accent) 42%, #1e1e1e);
                         border-radius: 5px;
                         width: min(560px, 92vw);
                         max-height: 90vh;
@@ -7191,8 +7476,18 @@
                         overflow-x: hidden;
                         position: relative;
                         padding: 8px;
-                        box-shadow: 0 10px 30px rgba(0, 0, 0, .6);
+                        box-shadow: 0 10px 30px rgba(0, 0, 0, .6), 0 0 30px -10px var(--bbgl-modal-accent), inset 0 1px 0 rgba(255, 255, 255, .05);
                         box-sizing: border-box;
+                    }
+                    .bbgl-modal-window::before {
+                        content: '';
+                        position: absolute;
+                        left: 12%;
+                        right: 12%;
+                        top: 0;
+                        height: 1px;
+                        pointer-events: none;
+                        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--bbgl-modal-accent) 85%, transparent), transparent);
                     }
 
                     .bbgl-modal-scrollbox {

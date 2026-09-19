@@ -463,6 +463,9 @@
         }
     };
     let viewState = {
+        // Ids of reward popups already shown, so a resync/backfill/reload can't replay them
+        // (RewardsController, 07-section-vi-ui.js). Seeded from the current state on first run.
+        rewardsSeen: null,
         expanded: false,
         isOpen: false,
         subView: 'ledger',
@@ -486,6 +489,9 @@
         dayStartMode: 'utc',
         weekStartMode: 'mon',
         animations: true,
+        // Reward popups: the atrophy/Fully Bricked modal and the small unlock toasts
+        // (RewardsController, 07-section-vi-ui.js). No settings UI yet.
+        popups: true,
         buttonLocation: 'both',
         ratesEnabled: true,
         bestGym: true,

@@ -784,6 +784,9 @@
         }
         if (!calendarState.selectedData) renderStats(DataController.getSlice('DAY', Formatter.dateLogical()), Formatter.dateLogical());
         else renderStats(calendarState.selectedData, calendarState.selectedLabel);
+        // Popups earned while the panel was closed have been waiting for it.
+        seedRewardsSeen();
+        flushRewards();
         Perf.end('renderPanel');
         // Always silent here: a real Train click's animated update is driven by the
         // bbgl:dataUpdated listener (10-section-ix-init.js), which calls updateLevelBar()
@@ -1280,9 +1283,21 @@
     // string key — lets renderRankReadoutLive()/achRefreshPageDom() tell whether the readout needs
     // touching at all before doing any DOM work, instead of two separate call sites each deriving
     // it (and risking drifting out of sync with each other).
+    // runtime._rankDisplayExp holds this at the level the BAR is showing while a level-up or
+    // atrophy sequence plays, so the rank readouts change with the bar rather than the moment the
+    // exp lands (which is before the animation even starts). Null outside a sequence.
     function liveRankState() {
-        const { atrophy, level } = calculateLevelProgress(getLiveLevelExp());
+        const exp = Number.isFinite(runtime._rankDisplayExp) ? runtime._rankDisplayExp : getLiveLevelExp();
+        const { atrophy, level } = calculateLevelProgress(exp);
         return { atrophy, level, key: atrophy + ':' + level };
+    }
+
+    // Repaints whatever rank readouts are on screen after runtime._rankDisplayExp moves. The level
+    // bar and its tooltip are driven by the sequence itself; this is the titles page.
+    function refreshRankDisplays() {
+        const tp = dom.topPanel;
+        if (!tp || !tp.classList.contains('viewing-achievements')) return;
+        if (runtime._achPage !== 0 || !runtime._achCache || !renderRankReadoutLive()) renderAchievements();
     }
 
     // Patches the titles page's live rank readout — the ladder's sliding knob/plaques and the
@@ -1902,6 +1917,9 @@
 
         if (runtime._lastLevelExp === undefined) {
             runtime._lastLevelExp = totalExp;
+            // First look at the real total: baseline the reward store here, before anything can be
+            // earned, so a fresh install doesn't celebrate everything the player already has.
+            seedRewardsSeen();
             const bars = getLevelBars();
             bars.forEach(b => renderLevelBar(b, totalExp));
             return;
@@ -1940,6 +1958,8 @@
 
         async function runLevelAnimationQueue() {
             runtime._isAnimatingLevel = true;
+            // Pin the rank readouts to what the bar is showing until each step lands.
+            runtime._rankDisplayExp = runtime._lastLevelExp;
             const BASE_SPEED_MS = 1000; // 1 second for a full 100% bar
             let forcedNextTier = null; // set right after an atrophy-crossing animation plays
 
@@ -1971,36 +1991,48 @@
 
                     await new Promise(r => setTimeout(r, durationMs + 50));
                     const nextLevel = currentProg.level + 1;
-                    // Lv 100 on the last tier: the charge is the permanent iridescent glow, and stays.
-                    const finalLevel = nextLevel >= 100 && currentProg.atrophy >= 2;
+                    if (nextLevel >= 100 && currentProg.atrophy < 2) {
+                        // Tier complete: no charge, flash or Lv 100. The full bar just sits there and
+                        // the atrophy sequence takes over.
+                        runtime._lastLevelExp += expNeededToFill;
+                        await runAtrophyAnimation(currentProg.atrophy, bars);
+                        forcedNextTier = currentProg.atrophy + 1;
+                        continue;
+                    }
+                    if (nextLevel >= 100) {
+                        // Last tier complete: the Fully Bricked sequence, and the charge stays lit.
+                        runtime._lastLevelExp += expNeededToFill;
+                        await runBrickedAnimation(bars);
+                        continue;
+                    }
                     // Full bar closes the circuit: the charge lights the fill from the right terminal
                     // back to the left (LEVEL_CHARGE_MS, matching .bbgl-exp-charge), then the flash.
-                    bars.forEach(b => b.container.classList.add('bbgl-exp-charging', ...(finalLevel ? ['bbgl-exp-final'] : [])));
+                    bars.forEach(b => b.container.classList.add('bbgl-exp-charging'));
                     await new Promise(r => setTimeout(r, LEVEL_CHARGE_MS));
                     bars.forEach(b => b.container.classList.add('bbgl-level-up-flash'));
 
                     await new Promise(r => setTimeout(r, 200));
                     bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
+                    runtime._rankDisplayExp = runtime._lastLevelExp + expNeededToFill;
+                    refreshRankDisplays();
+                    emitReward({ kind: 'level', id: `level:${currentProg.atrophy}:${nextLevel}`, atrophy: currentProg.atrophy, level: nextLevel });
+                    const bandIdx = levelBandIndex(nextLevel);
+                    if (bandIdx > levelBandIndex(currentProg.level)) {
+                        emitReward({ kind: 'rank', id: `rank:${currentProg.atrophy}:${bandIdx}`, atrophy: currentProg.atrophy, band: bandIdx, label: atrophyBandTitle(currentProg.atrophy, nextLevel) });
+                    }
 
                     await new Promise(r => setTimeout(r, 650));
-                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging', 'bbgl-exp-final'));
+                    bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging'));
 
                     runtime._lastLevelExp += expNeededToFill;
 
-                    if (nextLevel >= 100 && currentProg.atrophy < 2) {
-                        // Tier complete — hand off to the atrophy sequence instead of the
-                        // ordinary "snap fill back to 0%" reset below.
-                        await runAtrophyAnimation(currentProg.atrophy, bars);
-                        forcedNextTier = currentProg.atrophy + 1;
-                    } else if (!finalLevel) {
-                        bars.forEach(b => {
-                            b.fill.style.transition = 'none';
-                            b.fill.style.width = '0%';
-                            b.fill.classList.remove('level-full');
-                            void b.fill.offsetWidth; // force reflow
-                            b.fill.style.transition = '';
-                        });
-                    }
+                    bars.forEach(b => {
+                        b.fill.style.transition = 'none';
+                        b.fill.style.width = '0%';
+                        b.fill.classList.remove('level-full');
+                        void b.fill.offsetWidth; // force reflow
+                        b.fill.style.transition = '';
+                    });
                 } else {
                     runtime._lastLevelExp = runtime._targetLevelExp;
 
@@ -2021,6 +2053,10 @@
             bars.forEach(b => { b.fill.style.transitionDuration = ''; });
             runtime._lastLevelExp = runtime._targetLevelExp;
             runtime._isAnimatingLevel = false;
+            runtime._rankDisplayExp = null;
+            refreshRankDisplays();
+            // Anything the sequence queued has been waiting for it to finish.
+            flushRewards();
         }
     }
 
@@ -2034,21 +2070,235 @@
         runtime._lastLevelExp = totalExp;
         runtime._targetLevelExp = totalExp;
         runtime._isAnimatingLevel = false;
+        runtime._rankDisplayExp = null;
         getLevelBars().forEach(b => {
-            b.container.classList.remove('bbgl-level-up-flash');
+            b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging', 'bbgl-exp-final', 'bbgl-crown-hop', 'bbgl-crown-next', 'bbgl-crown-rise', 'bbgl-exp-stall', 'bbgl-atrophy-flicker', 'bbgl-flash-surge', 'bbgl-atrophy-glitch');
             renderLevelBarInstant(b, totalExp);
         });
     }
 
-    // Plays the tier-completion sequence: the just-finished tier's crown tucks away
-    // (mole-in-hole pop), the next tier's crown rises into place (podium reveal), then
-    // "Atrophied!" flashes at the climax. Leaves level/bar reset to the new tier's Lv 1 / 0%
-    // so the caller's fill loop can continue animating any overflow exp on top of it.
+    // ─── Reward popups ──────────────────────────────────────────────────────
+    // Two surfaces, one queue. The rare, run-defining moments (atrophy, Fully Bricked) open a
+    // modal; everything smaller (a level, a new rank, later titles) is a toast in the panel's own
+    // corner. Anything new only needs a REWARD_KINDS entry.
+    //
+    // Every event carries a stable id, and shown ids are remembered in viewState.rewardsSeen, so a
+    // resync, backfill or reload can't replay a celebration. On first run the store is seeded from
+    // whatever the player has already earned (seedRewardsSeen()), otherwise their first sync would
+    // fire dozens of toasts for history.
+    //
+    // Copy here is placeholder — the real narrative goes in later.
+    const REWARD_KINDS = {
+        level: { surface: 'toast', tone: 'level', title: 'Level Up', body: lv => `Level ${lv.level} reached!` },
+        rank: { surface: 'toast', tone: 'rank', title: 'Rank Up', body: () => 'New rank unlocked!' },
+        title: { surface: 'toast', tone: 'unlock', title: 'New Title', body: () => 'New title unlocked!' },
+        atrophy: { surface: 'modal', tone: 'atrophy', title: 'Atrophied', body: a => `Tier ${a.from} complete. Everything resets — you start again at Lv ${LEVEL_ATRO_START[a.to]}, and the climb is longer this time.` },
+        bricked: { surface: 'modal', tone: 'bricked', title: 'Fully Bricked', body: () => 'The last tier is finished. There is nothing left above this.' }
+    };
+    const TOAST_MS = 8000; // longer than a plain toast: these carry View/Close buttons
+    const TOAST_MAX = 3;
+
+    function rewardsSeenStore() {
+        if (!viewState.rewardsSeen || typeof viewState.rewardsSeen !== 'object') viewState.rewardsSeen = {};
+        return viewState.rewardsSeen;
+    }
+
+    // First run only: mark everything already earned as celebrated. Also called after a wipe, where
+    // rewardsSeen comes back null.
+    function seedRewardsSeen() {
+        if (viewState.rewardsSeen && typeof viewState.rewardsSeen === 'object') return;
+        const { atrophy, level } = calculateLevelProgress(getLiveLevelExp());
+        const seen = {};
+        seen[`level:${atrophy}:${level}`] = 1;
+        for (let a = 0; a <= atrophy; a++) {
+            if (a < atrophy) seen[`atrophy:${a + 1}`] = 1;
+            LEVEL_TITLE_BANDS.forEach((band, i) => {
+                if (a < atrophy || level >= (i === 0 ? -Infinity : LEVEL_TITLE_BANDS[i - 1].max + 1)) seen[`rank:${a}:${i}`] = 1;
+            });
+        }
+        if (isFullyBricked(atrophy, level)) seen.bricked = 1;
+        viewState.rewardsSeen = seen;
+        saveViewState();
+    }
+
+    // The band a level falls in, as an index into LEVEL_TITLE_BANDS.
+    function levelBandIndex(level) {
+        const i = LEVEL_TITLE_BANDS.findIndex(b => level <= b.max);
+        return i === -1 ? LEVEL_TITLE_BANDS.length - 1 : i;
+    }
+
+    // force: dev triggers replay a popup that's already been seen.
+    function emitReward(evt, force) {
+        if (!REWARD_KINDS[evt.kind]) return;
+        if (!force) {
+            if (userConfig.popups === false || runtime.demoMode) return;
+            const seen = rewardsSeenStore();
+            if (seen[evt.id]) return;
+            seen[evt.id] = 1;
+            saveViewState();
+        }
+        runtime._rewardQueue = runtime._rewardQueue || [];
+        runtime._rewardQueue.push(evt);
+        flushRewards();
+    }
+
+    // Held back while a level sequence is playing (a toast landing mid-flash reads as a bug), and
+    // a toast also waits until there is a bar on screen to hang off — Torn's gym bar counts, so the
+    // panel does not have to be open. The queue survives either way; renderPanelContent() and the
+    // end of each sequence flush it.
+    function flushRewards() {
+        const queue = runtime._rewardQueue;
+        if (!queue || !queue.length) return;
+        if (runtime._isAnimatingLevel) return;
+        if (document.getElementById('bbgl-reward-modal')) return;
+        const evt = queue[0];
+        if (REWARD_KINDS[evt.kind].surface === 'modal') {
+            queue.shift();
+            openRewardModal(evt);
+            return;
+        }
+        if (!rewardToastHosts().length) return;
+        queue.shift();
+        showRewardToast(evt);
+        if (queue.length) flushRewards();
+    }
+
+    // ── Toasts ──
+    // The cards float beside the crown, in the gap over the bar, taking no layout space so nothing
+    // around them moves. The host is the bar container itself on both surfaces (it carries
+    // --bbgl-crown-w, which the card positions off, and sits in a width container for the clamps), so
+    // one rule covers them. Every bar on screen gets the card, so an open panel over the gym page
+    // shows both — same as the bars themselves.
+    function rewardToastHosts() {
+        const anchors = [];
+        const gym = document.getElementById('bbgl-gym-level-container');
+        if (gym && gym.offsetParent !== null) anchors.push(gym);
+        const panelBar = dom.panel && dom.panel.style.display !== 'none' ? document.getElementById('bbgl-level-container') : null;
+        if (panelBar) anchors.push(panelBar);
+        return anchors.map(anchor => {
+            let host = anchor.querySelector(':scope > .bbgl-toast-layer');
+            if (!host) {
+                host = document.createElement('div');
+                host.className = 'bbgl-toast-layer';
+                anchor.appendChild(host);
+            }
+            return host;
+        });
+    }
+
+    // Clicking a toast goes to the titles/ranks page. In the script's own page mode that's the page
+    // itself; otherwise the panel opens at whatever size it was left at (viewState.expanded) and
+    // switches views — including from Torn's gym page, where the toast came off the gym bar.
+    function openRanksPage() {
+        if (dom.panel && dom.panel.classList.contains('bbgl-mode-page')) {
+            runtime._achPage = 0;
+            switchView('achievements');
+            return;
+        }
+        const panel = document.getElementById('bbgl-panel');
+        if (!panel || panel.style.display === 'none' || !panel.style.display) togglePanel();
+        runtime._achPage = 0;
+        switchView('achievements');
+    }
+
+    // A card shown on both bars is one notification, so dismissing either dismisses its twin.
+    function dismissRewardGroup(group) {
+        document.querySelectorAll(`.bbgl-toast[data-toast-group="${group}"]`).forEach(dismissRewardToast);
+    }
+
+    function dismissRewardToast(toast) {
+        if (!toast || toast.dataset.leaving) return;
+        toast.dataset.leaving = '1';
+        if (toast._timer) clearTimeout(toast._timer);
+        if (!userConfig.animations) { toast.remove(); return; }
+        toast.classList.add('is-leaving');
+        setTimeout(() => toast.remove(), 260);
+    }
+
+    function showRewardToast(evt) {
+        const hosts = rewardToastHosts();
+        if (!hosts.length) return;
+        const kind = REWARD_KINDS[evt.kind];
+        const group = 'g' + (runtime._toastSeq = (runtime._toastSeq || 0) + 1);
+        hosts.forEach(host => {
+            // Newest sits nearest the crown, so anything over the cap is the oldest at the far end.
+            Array.from(host.children).slice(0, Math.max(0, host.children.length - (TOAST_MAX - 1))).forEach(dismissRewardToast);
+            const toast = document.createElement('div');
+            toast.className = `bbgl-toast bbgl-toast-${kind.tone}`;
+            toast.dataset.toastGroup = group;
+            toast.innerHTML = `<div class="bbgl-toast-body">${kind.body(evt)}</div>` +
+                `<div class="bbgl-toast-actions">` +
+                `<button type="button" class="bbgl-toast-btn bbgl-toast-view">View</button>` +
+                `<button type="button" class="bbgl-toast-btn bbgl-toast-close">Close</button>` +
+                `</div>`;
+            toast.querySelector('.bbgl-toast-view').addEventListener('click', () => {
+                dismissRewardGroup(group);
+                openRanksPage();
+            });
+            toast.querySelector('.bbgl-toast-close').addEventListener('click', () => dismissRewardGroup(group));
+            host.appendChild(toast);
+            toast._timer = setTimeout(() => dismissRewardGroup(group), TOAST_MS);
+        });
+    }
+
+    // ── Modal ──
+    function buildRewardModalHTML(evt) {
+        const kind = REWARD_KINDS[evt.kind];
+        const body = `<div class="bbgl-reward-body">${kind.body(evt)}</div>`;
+        return `<div class="bbgl-modal-overlay" id="bbgl-reward-modal" data-reward-tone="${kind.tone}"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-reward-close" title="Close">${ICONS.CLOSE}</div>${buildSection(kind.title, body, 'margin-bottom:8px;')}</div></div>`;
+    }
+
+    function closeRewardModal() {
+        const el = document.getElementById('bbgl-reward-modal');
+        if (el) el.remove();
+        // Whatever queued up behind it (a rank toast from the same climb) goes out now.
+        flushRewards();
+    }
+
+    function openRewardModal(evt) {
+        if (document.getElementById('bbgl-reward-modal')) return;
+        document.body.insertAdjacentHTML('beforeend', buildRewardModalHTML(evt));
+        const overlay = document.getElementById('bbgl-reward-modal');
+        if (!overlay) return;
+        overlay.querySelector('#bbgl-reward-close').addEventListener('click', closeRewardModal);
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeRewardModal(); });
+    }
+
+    // Shared timings for the atrophy and Fully Bricked sequences. Each matches its CSS animation
+    // (.bbgl-crown-hop, .bbgl-crown-rise, .bbgl-flash-surge); the tier/level swaps under the surge
+    // flash's peak (SURGE_SWAP_MS, while the bar is whited out).
+    const CROWN_HOLD_MS = 250;
+    const CROWN_HOP_MS = 650;
+    const CROWN_RISE_MS = 900;
+    const SURGE_MS = 900;
+    const SURGE_SWAP_MS = 250;
+    const waitMs = ms => new Promise(r => setTimeout(r, ms));
+
+    // Opens both sequences: the full bar sits for a beat, the crown hops off and drops out of
+    // sight behind the bar, and the next crown rises onto the old valve (.bbgl-crown-next). The
+    // caller removes .bbgl-crown-next when the tier/level itself swaps.
+    async function runCrownSwap(bars) {
+        await waitMs(CROWN_HOLD_MS);
+        bars.forEach(b => b.container.classList.add('bbgl-crown-hop'));
+        await waitMs(CROWN_HOP_MS);
+        bars.forEach(b => {
+            b.container.classList.remove('bbgl-crown-hop');
+            b.container.classList.add('bbgl-crown-next', 'bbgl-crown-rise');
+        });
+        await waitMs(CROWN_RISE_MS);
+        bars.forEach(b => b.container.classList.remove('bbgl-crown-rise'));
+    }
+
+    // Plays the tier-completion gag at the end of Lv 99, where players expect Lv 100: the crown
+    // swap, then the usual level-up charge stops about three quarters of the way, the light fails
+    // like a broken tube, and a glitched surge flash covers the tier swap. Leaves level/bar reset
+    // to the new tier's start level / 0% so the caller's fill loop can continue animating any
+    // overflow exp on top of it.
     async function runAtrophyAnimation(fromAtrophy, bars) {
         const toAtrophy = fromAtrophy + 1;
-
-        if (!userConfig.animations) {
+        const swapTier = () => {
             bars.forEach(b => {
+                b.container.classList.remove('bbgl-crown-next');
                 b.container.dataset.atrophy = toAtrophy;
                 b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
                 setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
@@ -2059,38 +2309,67 @@
                 b.fill.style.transition = '';
             });
             if (dom.panel) { dom.panel.dataset.atrophy = toAtrophy; dom.panel.dataset.level = LEVEL_ATRO_START[toAtrophy]; }
-            return;
-        }
+            runtime._rankDisplayExp = runtime._lastLevelExp;
+            refreshRankDisplays();
+        };
+        const celebrate = () => emitReward({ kind: 'atrophy', id: `atrophy:${toAtrophy}`, from: fromAtrophy, to: toAtrophy });
 
-        const TUCK_MS = 350;
-        const RISE_MS = 900;
-        const FLASH_MS = 700;
+        if (!userConfig.animations) { swapTier(); celebrate(); return; }
 
-        bars.forEach(b => b.container.classList.add('bbgl-crown-tuck'));
-        await new Promise(r => setTimeout(r, TUCK_MS));
+        const CHARGE_MS = 900; // the level-up charge, slowed for this (.bbgl-exp-stall)
+        const FLICKER_MS = 700;
 
+        await runCrownSwap(bars);
+
+        // The usual level-up charge, slowed and stopped about three quarters of the way along.
+        bars.forEach(b => b.container.classList.add('bbgl-exp-stall', 'bbgl-exp-charging'));
+        await waitMs(CHARGE_MS);
+
+        // The light starts failing like a broken tube the moment it gets there, then blows: the
+        // surge flash, glitched, in a different colour.
+        bars.forEach(b => b.container.classList.add('bbgl-atrophy-flicker'));
+        await waitMs(FLICKER_MS);
         bars.forEach(b => {
-            b.container.classList.remove('bbgl-crown-tuck');
-            b.container.dataset.atrophy = toAtrophy;
-            b.container.classList.add('bbgl-crown-rise');
+            b.container.classList.remove('bbgl-atrophy-flicker');
+            b.container.classList.add('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch');
         });
-        if (dom.panel) dom.panel.dataset.atrophy = toAtrophy;
-        await new Promise(r => setTimeout(r, RISE_MS));
+        await waitMs(SURGE_SWAP_MS);
+        swapTier();
+        await waitMs(SURGE_MS - SURGE_SWAP_MS);
 
-        bars.forEach(b => b.container.classList.add('bbgl-atrophied-flash'));
-        await new Promise(r => setTimeout(r, FLASH_MS));
+        bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch', 'bbgl-exp-charging', 'bbgl-exp-stall'));
+        celebrate();
+    }
 
-        bars.forEach(b => {
-            b.container.classList.remove('bbgl-crown-rise', 'bbgl-atrophied-flash');
-            b.container.dataset.level = LEVEL_ATRO_START[toAtrophy];
-            setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]);
-            b.fill.style.transition = 'none';
-            b.fill.style.width = '0%';
-            b.fill.classList.remove('level-full');
-            void b.fill.offsetWidth;
-            b.fill.style.transition = '';
-        });
-        if (dom.panel) dom.panel.dataset.level = LEVEL_ATRO_START[toAtrophy];
+    // Lv 99 to 100 on the last tier, Fully Bricked: the same crown swap, but here the equipment
+    // works. The usual charge runs the whole way in the final iridescent colours, then the surge
+    // flash (as bright as the atrophy glitch's, in the bar's own colours) covers the valve changing
+    // and the level reaching 100. The charge then stays lit for good ([data-level="100"]).
+    async function runBrickedAnimation(bars) {
+        const reachCap = () => {
+            bars.forEach(b => {
+                b.container.classList.remove('bbgl-crown-next');
+                setLevelBarNumber(b, LEVEL_CAP);
+            });
+            if (dom.panel) dom.panel.dataset.level = LEVEL_CAP;
+            runtime._rankDisplayExp = runtime._lastLevelExp;
+            refreshRankDisplays();
+        };
+        const celebrate = () => emitReward({ kind: 'bricked', id: 'bricked' });
+
+        if (!userConfig.animations) { reachCap(); celebrate(); return; }
+
+        await runCrownSwap(bars);
+
+        bars.forEach(b => b.container.classList.add('bbgl-exp-charging', 'bbgl-exp-final'));
+        await waitMs(200); // LEVEL_CHARGE_MS, the normal charge
+        bars.forEach(b => b.container.classList.add('bbgl-level-up-flash', 'bbgl-flash-surge'));
+        await waitMs(SURGE_SWAP_MS);
+        reachCap();
+        await waitMs(SURGE_MS - SURGE_SWAP_MS);
+
+        bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-exp-charging', 'bbgl-exp-final'));
+        celebrate();
     }
 
     function renderStats(sl, rawLbl) {

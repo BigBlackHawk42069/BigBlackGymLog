@@ -117,6 +117,17 @@
         runRefreshers();
     }
 
+    // Reward popups only ever fire once per id (viewState.rewardsSeen), so a tier you've already
+    // atrophied past in testing stays silent. Wiping the matching ids makes it play again.
+    function clearRewardMemory(prefixes) {
+        const seen = viewState.rewardsSeen;
+        if (!seen) return;
+        Object.keys(seen).forEach(id => {
+            if (!prefixes || prefixes.some(pre => id.startsWith(pre))) delete seen[id];
+        });
+        saveViewState();
+    }
+
     // ─── API Counter section ───────────────────────────────────────────────
     function buildApiCounterSection() {
         const hud = document.createElement('div');
@@ -193,7 +204,21 @@
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
-        return buildDevSection('Triggers', [trainRow, dayTierRow, levelRow]);
+        // Reward popups, fired straight at the queue with force so an already-seen one still
+        // shows (RewardsController, 07-section-vi-ui.js). The real ones come off the level
+        // sequences; these are just for looking at them.
+        const popupRow = buildRow([
+            ['Lv Up', { kind: 'level', id: 'dev:level', atrophy: 0, level: 42 }],
+            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
+            ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
+            ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],
+            ['Bricked', { kind: 'bricked', id: 'dev:bricked' }]
+        ].map(([label, evt]) => buildDevButton(label, () => emitReward(evt, true), 'flex:1;padding:6px 2px;font-size:10px;')));
+
+        // Forgets every popup already shown, so the real ones fire again on the next climb.
+        const popupResetRow = buildRow([buildDevButton('Reset Popup Memory', () => clearRewardMemory(null), 'flex:1;padding:5px 4px;font-size:10px;')]);
+
+        return buildDevSection('Triggers', [trainRow, dayTierRow, levelRow, popupRow, popupResetRow]);
     }
 
     // ─── Rank Preview section ───────────────────────────────────────────────
@@ -212,11 +237,28 @@
             start = band.max + 1;
             return b;
         });
-        const rankBtns = bands.map(b => {
-            const btn = buildDevButton('', () => jumpToLevel(shownProgress().atrophy, b.start), 'text-align:left;padding:5px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;');
+        // Jumping to a band also fires that band's rank popup (forced, so an already-seen one still
+        // shows) — the real one comes off the level sequence, this is just for looking at it.
+        const rankBtns = bands.map((b, i) => {
+            const btn = buildDevButton('', () => {
+                const { atrophy } = shownProgress();
+                jumpToLevel(atrophy, b.start);
+                emitReward({ kind: 'rank', id: `rank:${atrophy}:${i}`, atrophy, band: i, label: LEVEL_TITLE_BANDS[i].titles[atrophy] }, true);
+            }, 'text-align:left;padding:5px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;');
             return btn;
         });
-        const capBtn = buildDevButton('', () => jumpToLevel(shownProgress().atrophy, LEVEL_CAP), 'text-align:left;padding:5px 8px;font-size:11px;');
+        // Snaps to Lv 99, then adds the last level's EXP normally (like Level ▲) so the real
+        // sequence plays: atrophy on A0/A1, Fully Bricked on A2.
+        const capBtn = buildDevButton('', () => {
+            const { atrophy, level } = shownProgress();
+            if (isFullyBricked(atrophy, level)) return;
+            // So the modal at the end plays every time you test the sequence.
+            clearRewardMemory(['atrophy:', 'bricked']);
+            jumpToLevel(atrophy, LEVEL_CAP - 1);
+            const p = calculateLevelProgress(getLiveLevelExp());
+            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + Math.max(1, p.expToNext - p.expInLevel);
+            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
+        }, 'text-align:left;padding:5px 8px;font-size:11px;');
 
         refreshers.push(() => {
             const p = shownProgress();
