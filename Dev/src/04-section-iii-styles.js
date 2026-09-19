@@ -9399,7 +9399,7 @@
                     /* T4 gets a silver outline. Its emerald face is background-clipped text with a
                        transparent fill, so a text-shadow would show through the letters - it needs
                        the same filter approach as T3. */
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
                         filter:
                             drop-shadow(.25px 0 0 #c9d3d880)
                             drop-shadow(-.25px 0 0 #c9d3d880)
@@ -9420,126 +9420,33 @@
                             drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
                     }
 
-                    /* T4 — cut emerald. Hard stops in the stationary ramp carve facets instead of
-                       metal's soft tonal roll. The moving layer is a centred ring of refraction:
-                       both sides start together in the middle, then separate toward the ends as it
-                       expands. The opening's minimum width (2.5em) keeps short second-row words
-                       interpolating cleanly. */
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed {
+                        --rank-emerald-base: linear-gradient(135deg, #93dcbc 0%, #1a9d70 22%, #006044 46%, #52b58e 52%, #087451 68%, #002f23 100%);
+                    }
+
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        background-image: var(--rank-emerald-base);
+                        background-clip: text;
+                        -webkit-background-clip: text;
+                        color: transparent;
+                        -webkit-text-fill-color: transparent;
+                    }
+
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line {
-                        --rank-emerald-start: max(50%, 2.5em);
-                        --rank-emerald-light: radial-gradient(ellipse at center,
-                            transparent 0%, transparent 30%,
-                            rgba(48, 255, 137, .18) 33%,
-                            rgba(111, 255, 167, .48) 36%,
-                            rgba(225, 255, 236, .84) 38.5%,
-                            rgba(255, 255, 255, 1) 40%,
-                            rgba(255, 255, 255, 1) 42%,
-                            rgba(177, 255, 205, .72) 43.5%,
-                            rgba(46, 255, 136, .42) 45%,
-                            rgba(235, 255, 242, .80) 46%,
-                            rgba(23, 238, 116, .22) 48.5%,
-                            transparent 52%, transparent 100%);
-                        --rank-emerald-glow: radial-gradient(ellipse at center,
-                            transparent 0%, transparent 27%,
-                            rgba(0, 245, 101, .12) 30%,
-                            rgba(8, 250, 112, .58) 35%,
-                            rgba(111, 255, 166, .76) 38%,
-                            rgba(235, 255, 243, .94) 40%,
-                            rgba(255, 255, 255, 1) 42%,
-                            rgba(157, 255, 190, .78) 44%,
-                            rgba(5, 246, 106, .62) 48%,
-                            rgba(0, 225, 88, .12) 52%,
-                            transparent 57%, transparent 100%);
-                        background-image:
-                            var(--rank-emerald-light),
-                            linear-gradient(135deg, #93dcbc 0%, #1a9d70 22%, #006044 46%, #52b58e 52%, #087451 68%, #002f23 100%);
-                        background-size: var(--rank-emerald-start) 240%, 100% 100%;
-                        background-position: 50% 50%, 0 0;
-                        background-repeat: no-repeat, no-repeat;
+                        background: none;
                         font-weight: 400;
                         -webkit-text-stroke: .2px rgba(147, 220, 188, .42);
                         text-shadow: 0 1px 1px rgba(0, 44, 28, .52);
                         filter: none;
-                        animation: bbgl-rank-name-emerald 4.6s cubic-bezier(.3, 0, .55, 1) infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                        animation: none;
                     }
 
-                    /* A blurred green transmission of the travelling light sits behind the face.
-                       There is deliberately no permanent emerald drop-shadow: the backdrop remains
-                       dark until the moving refraction reaches a cut, then blooms saturated green
-                       as though the light has passed through the stone rather than reflecting off
-                       its front surface. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line::before {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        -webkit-text-stroke: 0;
-                        text-shadow: none;
-                        background-image: var(--rank-emerald-glow);
-                        background-size: var(--rank-emerald-start) 240%;
-                        background-position: 50% 50%;
-                        background-repeat: no-repeat;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter:
-                            blur(3.5px)
-                            drop-shadow(0 0 3px rgba(41, 255, 137, .76))
-                            drop-shadow(0 0 7px rgba(0, 226, 92, .64));
-                        opacity: .35;
-                        pointer-events: none;
-                        animation: bbgl-rank-name-emerald-glow 4.6s cubic-bezier(.3, 0, .55, 1) infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    /* T5 — polished gold. The dimensional metal is stationary; a separate
-                       transparent polish band crosses it left-to-right. Because that band is fully
-                       off-glyph at both endpoints, the base lighting before and after the pass is
-                       identical and the one-way animation can reset invisibly. */
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line {
-                        --rank-gold-sheen: linear-gradient(105deg,
-                            transparent 0%, transparent 40%,
-                            rgba(255, 234, 145, .24) 43%, rgba(255, 249, 214, .72) 47%,
-                            #ffffff 49.25%, #ffffff 50%, rgba(255, 246, 196, .68) 53%,
-                            rgba(255, 220, 102, .20) 57%, transparent 60%, transparent 100%);
-                        background-image:
-                            var(--rank-gold-sheen),
-                            linear-gradient(105deg,
-                                #eab640 0%, #ffd765 18%, #fff3aa 33%, #ffe486 43%,
-                                #fff2ad 49%, #ffdd72 57%, #fbd057 72%, #fff0aa 88%, #e8b13d 100%);
-                        background-size: 300% 100%, 100% 100%;
-                        background-position: 100% 50%, 0 0;
-                        text-shadow: 0 1px 1px rgba(65, 39, 0, .58);
-                        filter:
-                            drop-shadow(0 0 2px rgba(255, 211, 82, .54))
-                            drop-shadow(0 0 4.25px rgba(232, 161, 25, .30));
-                        animation: bbgl-rank-name-gold-shine 3.2s cubic-bezier(.3, 0, .55, 1) infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    /* The background copy contains only the moving polish band. The faint gold
-                       base glow comes from the stationary drop-shadows above, so this layer is
-                       transparent at both endpoints too and cannot expose the loop boundary. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line::before {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        transform: translateY(1px);
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        background-image: var(--rank-gold-sheen);
-                        background-size: 300% 100%;
-                        background-position: 100% 50%;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter: blur(5.5px);
-                        opacity: .78;
-                        pointer-events: none;
-                        animation: bbgl-rank-name-gold-glow 3.2s cubic-bezier(.3, 0, .55, 1) infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                        background-image: linear-gradient(141deg, #fff5b5 0%, #e4b64e 16%, #fff0a4 30%, #9d6318 43%, #f8d775 53%, #fff5bb 64%, #b77a22 79%, #5f350b 100%);
+                        background-size: 100% 100%;
+                        text-shadow: none;
+                        filter: none;
+                        animation: none;
                     }
 
                     /* T6 — Fully Bricked. The bright high-contrast platinum ramp is the permanent
@@ -9662,26 +9569,6 @@
                         }
                     }
 
-                    @keyframes bbgl-rank-name-emerald {
-                        from { background-size: var(--rank-emerald-start) 240%, 100% 100%; }
-                        to { background-size: 400% 240%, 100% 100%; }
-                    }
-
-                    @keyframes bbgl-rank-name-emerald-glow {
-                        from { background-size: var(--rank-emerald-start) 240%; }
-                        to { background-size: 400% 240%; }
-                    }
-
-                    @keyframes bbgl-rank-name-gold-shine {
-                        from { background-position: 100% 50%, 0 0; }
-                        to { background-position: 0% 50%, 0 0; }
-                    }
-
-                    @keyframes bbgl-rank-name-gold-glow {
-                        from { background-position: 100% 50%; }
-                        to { background-position: 0% 50%; }
-                    }
-
                     @keyframes bbgl-rank-name-diamond {
                         from { background-position: 100% 50%, 0 0; }
                         to { background-position: 0% 50%, 0 0; }
@@ -9695,15 +9582,6 @@
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
                         animation: none;
                         background-position: 50% 50%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line {
-                        background-size: 400% 240%, 100% 100%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line::before {
-                        animation: none;
-                        background-size: 400% 240%;
                     }
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line::before {
@@ -10581,6 +10459,7 @@
                     }
 
                     .bbgl-title-card-rank-plaque.finish-polished {
+                        width: 100%;
                         container-type: size;
                         --rank-drop: none;
                     }
@@ -10600,6 +10479,54 @@
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::before,
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::after {
                         display: none;
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                        display: block;
+                        inset: 0;
+                        width: 100%;
+                        transform: none;
+                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+                        background-size: 300% 100%;
+                        background-repeat: no-repeat;
+                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+                        animation: bbgl-bronze-plaque-sheen 9s ease-in-out infinite;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
+                        background-image:
+                            linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%),
+                            linear-gradient(141deg, #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%, #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%, #ad7b45 90%, #593820 100%);
+                        background-size: 375% 100%, 100% 100%;
+                        animation: bbgl-bronze-title-sheen 9s ease-in-out infinite;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    @keyframes bbgl-bronze-plaque-sheen {
+                        0%, 100% { background-position: 70% 0; }
+                        50% { background-position: 30% 0; }
+                    }
+
+                    @keyframes bbgl-bronze-title-sheen {
+                        0%, 100% { background-position: 68.181818% 0, 0 0; }
+                        50% { background-position: 31.818182% 0, 0 0; }
+                    }
+
+                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
+                        animation: none;
+                        background-position: 140.909091% 0, 0 0;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                            animation: none;
+                            opacity: 0;
+                        }
+                        :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
+                            animation: none;
+                            background-position: 140.909091% 0, 0 0;
+                        }
                     }
 
                     .bbgl-rank-bronze-plaque {
@@ -10650,6 +10577,7 @@
                     }
 
                     .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face {
+                        isolation: isolate;
                         --rank-silver-shield-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 2 C60 2 65 11 77 12 L88 12 Q96 12 96 21 L94 49 C92 70 75 86 50 98 C25 86 8 70 6 49 L4 21 Q4 12 12 12 L23 12 C35 11 40 2 50 2Z'/%3E%3C/svg%3E");
                         padding: 23cqh 10cqw 23cqh;
                         background: linear-gradient(155deg, #f9ffff 0%, #aebbc0 15%, #eef5f8 23%, #59666d 35%, #d9e5ea 46%, #fff 49%, #87969e 57%, #34434d 73%, #c1d0d8 87%, #f2f9fc 100%);
@@ -10711,6 +10639,11 @@
                     }
 
                     .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-title-text {
+                        position: absolute;
+                        top: 23%;
+                        left: 10%;
+                        width: 80%;
+                        height: 54%;
                         min-width: 0;
                         min-height: 0;
                         max-width: 100%;
@@ -10718,40 +10651,52 @@
                         line-height: 1.2;
                     }
 
-                    .bbgl-shield-letter-seats {
+                    .bbgl-rank-surface-lighting {
                         position: absolute;
-                        inset: 0;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        z-index: 0;
                         pointer-events: none;
                     }
 
-                    .bbgl-shield-letter-seat {
-                        position: relative;
-                        display: block;
-                        white-space: nowrap;
-                        font-weight: 400;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        -webkit-text-stroke: .075em #34454d;
-                        text-shadow: 0 .045em 0 rgba(197, 215, 224, .55);
+                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face::after {
+                        display: none;
                     }
 
-                    .bbgl-shield-letter-seat::after {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        -webkit-text-stroke: 0;
-                        text-shadow:
-                            .012em .018em 0 #267858,
-                            .024em .036em 0 #15553d,
-                            .036em .054em 0 #093e2d;
+                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
+                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-shield-light, none);
                     }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        filter: none;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
+                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                            filter: none;
+                        }
+                    }
+
+                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        --bbgl-emerald-encasing: drop-shadow(.16px 0 0 #c9d3d880) drop-shadow(-.16px 0 0 #c9d3d880) drop-shadow(0 .16px 0 #c9d3d880) drop-shadow(0 -.16px 0 #c9d3d880) drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
+                        filter: var(--bbgl-shield-light) var(--bbgl-emerald-encasing);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-emerald-encasing);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-shield-glimmer {
+                        display: none;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                            filter: var(--bbgl-emerald-encasing);
+                        }
+                        .bbgl-shield-glimmer { display: none; }
+                    }
+
                     .bbgl-rank-silver-shield-jewels {
                         position: absolute;
                         inset: 0;
@@ -10766,6 +10711,8 @@
                     }
 
                     .bbgl-title-card-rank-plaque.finish-gold {
+                        width: 100%;
+                        height: 100%;
                         container-type: size;
                         --rank-drop: none;
                     }
@@ -10794,24 +10741,24 @@
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
-                        top: 34%;
-                        left: 17%;
-                        width: 66%;
-                        height: 40%;
+                        top: 49%;
+                        left: 18%;
+                        width: 64%;
+                        height: 33%;
                         min-width: 0;
                         min-height: 0;
-                        font-size: min(10cqw, 17cqh);
+                        font-size: min(9.5cqw, 14cqh);
                         line-height: 1.08;
                     }
 
                     .bbgl-rank-crown-heading {
                         position: absolute;
-                        top: 83%;
+                        top: 86%;
                         left: 50%;
                         transform: translateX(-50%);
                         z-index: 2;
                         font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(10cqw, 12cqh);
+                        font-size: min(9cqw, 9cqh);
                         font-weight: 700;
                         line-height: 1;
                         letter-spacing: .14em;
@@ -10819,11 +10766,43 @@
                         text-shadow: 0 1px 0 rgba(255, 242, 178, .8);
                     }
 
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-title-text {
+                        --bbgl-gold-letter-depth: drop-shadow(0 -.2px 0 #ffe8a0) drop-shadow(.25px .5px 0 #8c5719) drop-shadow(0 .8px .25px #1c1006);
+                        filter: var(--bbgl-gold-letter-depth);
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
+                        filter: var(--bbgl-gold-light, none);
+                    }
+
+                    .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-gold-light) var(--bbgl-gold-letter-depth);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
+                        filter: none;
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-gold-letter-depth);
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
+                            filter: none;
+                        }
+                        .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
+                            filter: var(--bbgl-gold-letter-depth);
+                        }
+                    }
+
                     .bbgl-title-card[data-rank-finish="pearl"] .bbgl-title-card-rank-label {
                         display: none;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-pearl {
+                        width: 100%;
+                        height: 100%;
                         container-type: size;
                         --rank-drop: none;
                     }
@@ -10850,21 +10829,47 @@
                         overflow: hidden;
                     }
 
+                    .bbgl-platinum-metalwork {
+                        filter: var(--crest-light);
+                    }
+
+                    .bbgl-platinum-glint {
+                        opacity: 0;
+                        transform-box: fill-box;
+                        transform-origin: center;
+                        animation: bbgl-platinum-glint 8s linear infinite;
+                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
+                    }
+
+                    @keyframes bbgl-platinum-glint {
+                        0%, 9%, 100% { opacity: 0; transform: scale(.3) rotate(-12deg); }
+                        3% { opacity: .95; transform: scale(1) rotate(0deg); }
+                        6% { opacity: .3; transform: scale(.6) rotate(12deg); }
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-metalwork { filter: none; }
+                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-glint { display: none; }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-platinum-metalwork { filter: none; }
+                        .bbgl-platinum-glint { display: none; }
+                    }
+
                     .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-title-text {
                         position: absolute;
-                        top: 31%;
-                        left: 18%;
-                        width: 64%;
-                        height: 43%;
+                        top: 21%;
+                        left: 22%;
+                        width: 56%;
+                        height: 36%;
                         min-width: 0;
                         min-height: 0;
-                        font-size: min(17cqw, 23cqh);
-                        line-height: 1.06;
+                        font-size: min(14cqw, 17cqh);
+                        line-height: 1.04;
                     }
 
                     .bbgl-rank-marquee-heading {
                         position: absolute;
-                        top: 86%;
+                        top: 7.7%;
                         left: 50%;
                         transform: translateX(-50%);
                         z-index: 2;
@@ -10873,7 +10878,7 @@
                         font-weight: 700;
                         line-height: 1;
                         letter-spacing: .16em;
-                        color: #50425d;
+                        color: #283644;
                         text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
                     }
 
@@ -10989,14 +10994,7 @@
                         padding-bottom: var(--bbgl-t-win-pad-y);
                     }
 
-                    /* Animated rank names (emerald/bright-silver, gold, diamond) on their own layer. Their
-                       shine can't be moved to a transform — it's a gradient clipped to the letters with
-                       background-clip:text, plus a blurred glow copy — so it repaints every frame no matter
-                       what. On its own layer only the name itself is redrawn, instead of everything under
-                       its glow reach (plaque grain, rivets, frame bands, the rank track). The line is
-                       already a stacking context (position:relative; z-index:2 below), so its ::before glow
-                       still stacks exactly as before. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-bright-silver, .material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
+                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
                         will-change: transform;
                     }
 
