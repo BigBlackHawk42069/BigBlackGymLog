@@ -3514,7 +3514,7 @@
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {

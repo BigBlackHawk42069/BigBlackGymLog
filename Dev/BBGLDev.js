@@ -1804,7 +1804,8 @@
         };
         const tiers = {
             silver: h => ramp([[0, '#1c1f22'], [.35, '#6f757a'], [.65, '#c3c8cc'], [1, '#fbfcfd']])(Math.pow(lum(h), .8) * 1.12),
-            gold: h => ramp([[0, '#3a2300'], [.22, '#8c5c06'], [.42, '#cf9612'], [.6, '#f2c226'], [.78, '#ffe072'], [1, '#fffbe2']])(Math.pow(lum(h), .7) * 1.3),
+            // The crown's gold: amber-brown shadows, orange-gold mids, cream (not lemon) highlights.
+            gold: h => ramp([[0, '#2a1405'], [.2, '#5f350b'], [.38, '#9d6318'], [.56, '#d99a36'], [.74, '#f3c860'], [.9, '#ffe7a6'], [1, '#fff5d6']])(Math.pow(lum(h), .7) * 1.3),
             platinum: h => ramp([[0, '#34333a'], [.3, '#85838d'], [.55, '#cfcdd6'], [.75, '#f4f3f8'], [1, '#ffffff']])(.12 + Math.pow(lum(h), .75) * 1.1)
         };
         const vars = map => Object.entries(VALVE_METAL).map(([g, cs]) => cs.map((c, i) => `--vm-${g}-${i}: ${map(c)};`).join(' ')).join(' ');
@@ -7699,23 +7700,11 @@
 
                     /* Level-up flashes light up only; nothing scales. The crown's stops carry its resting
                        edge shadow so it doesn't drop out for the flash. */
-                    /* Matches the valve's flash (bbgl-lvl-flash-valve): same brightness and tier-coloured
-                       glow, so crown and valve light as one piece. */
-                    @keyframes bbgl-lvl-flash-dmnd {
-                        0%   { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
-                        20%  { filter: brightness(1.5) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
-                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
-                    }
 
                     @keyframes bbgl-lvl-flash-text {
                         20% { color: #ffffff; text-shadow: 0 0 10px #ffffff, 0 0 20px #ffffff, 0 0 30px #ffffff, 0 0 40px #66ff33, 0 0 60px #66ff33; }
                     }
 
-                    @keyframes bbgl-lvl-flash-bar {
-                        0% { filter: brightness(1); }
-                        20% { filter: brightness(1.8); }
-                        100% { filter: brightness(1); }
-                    }
 
 
 
@@ -7837,18 +7826,11 @@
                         animation: bbgl-atrophied-flash-kf 0.7s ease-out forwards;
                     }
 
-                    .bbgl-level-up-flash .bbgl-exp-flag::before,
-                    .bbgl-level-up-flash #bbgl-level-flag-clip::before {
-                        animation: bbgl-lvl-flash-dmnd 0.8s ease-out;
-                    }
 
                     .bbgl-level-up-flash #bbgl-level-num {
                         animation: bbgl-lvl-flash-text 0.8s ease-out;
                     }
 
-                    .bbgl-level-up-flash #bbgl-level-fill {
-                        animation: bbgl-lvl-flash-bar 0.8s ease-out;
-                    }
 
 
                     #bbgl-panel.bbgl-expanded #bbgl-level-container {
@@ -7905,7 +7887,9 @@
                         flex-direction: column;
                         align-items: center;
                         container-type: inline-size;
-                        clip-path: inset(-9999px 0 0 0);
+                        /* 16px of slack at the sides and bottom so the level-up glow fades out instead of
+                           being cut flat at the bar's edges. */
+                        clip-path: inset(-9999px -16px -16px -16px);
                     }
 
                     /* Torn's gym content (the stat cards) is injected right after the bar; lift it
@@ -7932,9 +7916,6 @@
                         animation: bbgl-lvl-flash-text 0.8s ease-out;
                     }
 
-                    .bbgl-level-up-flash #bbgl-gym-level-fill {
-                        animation: bbgl-lvl-flash-bar 0.8s ease-out;
-                    }
 
                     /* ─── Level Bar — A1 flag: structure ──────────
                        --f-bdr (border), --f-bg-top/--f-bg (background gradient),
@@ -8198,9 +8179,11 @@
                        sits on its bottom; the extra -1px cancels the track's own translateY(-1px). */
                     /* Valve and end-coupling finish per crown tier: A0 steel, A1 silver, A2 gold, level 100
                        platinum. On the bar so both the valve and the tube SVG inherit them. */
-                    .bbgl-exp-bar { ${valveMetalVars.steel} --bbgl-valve-flash: rgba(170, 190, 200, .85); }
-                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} --bbgl-valve-flash: rgba(235, 242, 250, .95); }
-                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: rgba(255, 200, 60, .95); }
+                    /* The flash glows in the tier's charge colour, so the tube and everything around it
+                       light as one colour (Lv 100 keeps its own lavender for the iridescent glow). */
+                    .bbgl-exp-bar { ${valveMetalVars.steel} --bbgl-valve-flash: var(--bbgl-charge); }
+                    .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} --bbgl-valve-flash: var(--bbgl-charge); }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: var(--bbgl-charge-glow); }
                     .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} --bbgl-valve-flash: rgba(215, 170, 255, .95); }
                     .bbgl-level-valve {
                         position: absolute;
@@ -8281,7 +8264,7 @@
                     }
                     /* Level-up charge, grown from the right terminal to the left over LEVEL_CHARGE_MS, then
                        the flash. Two layers: .bbgl-exp-charge inside the fill lights the chamber behind
-                       the valve's glass; .bbgl-exp-glow sits over the tube glass (z 5, after the SVG) in
+                       the valve's glass; .bbgl-exp-glow sits just under the tube glass (z 4, below the SVG's 5) in
                        the band only, cut away round the valve like the glass, and hard-light blends so the
                        glass's shading still reads through it. Both are revealed by a sliding soft-edged
                        mask (220% wide, eased 28% ramp) so the front fades in like energy rather than a hard
@@ -8299,8 +8282,8 @@
                     .bbgl-exp-charge {
                         inset: 0;
                         background:
-                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, #fff 50%, var(--bbgl-charge-hot) 56%, transparent 72%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .3) 100% no-repeat,
-                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, #fff 50%, var(--bbgl-charge-hot) 56%, transparent 72%) calc(45cqi + var(--bbgl-valve-w) * .3) 0 / 100% 100% no-repeat,
+                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, var(--bbgl-charge-core, #fff) 50%, var(--bbgl-charge-hot) 56%, transparent 72%) 0 0 / calc(45cqi - var(--bbgl-valve-w) * .3) 100% no-repeat,
+                            linear-gradient(180deg, transparent 28%, var(--bbgl-charge-hot) 44%, var(--bbgl-charge-core, #fff) 50%, var(--bbgl-charge-hot) 56%, transparent 72%) calc(45cqi + var(--bbgl-valve-w) * .3) 0 / 100% 100% no-repeat,
                             linear-gradient(180deg, var(--bbgl-charge-deep) 0%, var(--bbgl-charge) 30%, var(--bbgl-charge) 70%, var(--bbgl-charge-deep) 100%);
                         -webkit-mask-image: var(--bbgl-charge-reveal);
                         mask-image: var(--bbgl-charge-reveal);
@@ -8324,7 +8307,7 @@
                         width: 90%;
                         top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge));
                         height: var(--bbgl-valve-h);
-                        z-index: 5;
+                        z-index: 4;
                         mix-blend-mode: hard-light;
                         clip-path: polygon(0 var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
                         -webkit-mask-image: var(--bbgl-charge-reveal);
@@ -8377,8 +8360,8 @@
                         100% { left: 0; opacity: 0; }
                     }
                     @keyframes bbgl-exp-flicker {
-                        0%, 100% { filter: blur(.6px); }
-                        50% { filter: blur(.6px) brightness(1.25); }
+                        0%, 100% { filter: blur(.6px) brightness(var(--bbgl-lit)); }
+                        50% { filter: blur(.6px) brightness(var(--bbgl-flick)); }
                     }
                     /* Lv 100 on the last tier has no dormant state: the charge is iridescent (while it
                        sweeps in, .bbgl-exp-final) and then stays lit for good. */
@@ -8410,16 +8393,96 @@
                     }
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-exp-charge, .bbgl-exp-glow) { animation: none; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
                     #bbgl-panel.bbgl-no-animations .bbgl-exp-glow::after { animation: none; }
+                    /* How much the charge brightens while lit, at the flicker, and at the flash peak. Gold's
+                       thin tube holds at its lit level: any further lift tips it to yellow, so its flash
+                       comes from the orange bloom and the valve and crown. */
+                    .bbgl-exp-bar { --bbgl-lit: 1.25; --bbgl-flick: 1.45; --bbgl-peak: 1.5; --bbgl-halo-peak: 1.35; }
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-lit: 1.2; --bbgl-flick: 1.2; --bbgl-peak: 1.2; --bbgl-halo-peak: 1; }
+                    .bbgl-exp-bar[data-atrophy="2"] .bbgl-exp-glow { mix-blend-mode: normal; }
                     .bbgl-exp-bar { --bbgl-charge: #dfe8ee; --bbgl-charge-hot: #ffffff; --bbgl-charge-deep: #5e6b73; }
                     .bbgl-exp-bar[data-atrophy="1"] { --bbgl-charge: #4dff3a; --bbgl-charge-hot: #d4ffb0; --bbgl-charge-deep: #0f6a12; }
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #ffc21a; --bbgl-charge-hot: #fff2a8; --bbgl-charge-deep: #8a4a00; }
+                    /* Gold's tube uses the valve's gold ramp (valveMetalVars.gold) so it lights exactly like the
+                       valve and crown; the glow round everything is the gold rank title's orange bloom. */
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #cf9612; --bbgl-charge-hot: #eda62e; --bbgl-charge-deep: #8c5c06; --bbgl-charge-core: #ffd08a; --bbgl-charge-glow: #ff951e; }
 
-                    /* Valve level-up flash glows in its tier's metal (--bbgl-valve-flash). */
-                    .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-valve .8s ease-out; }
+                    /* Level-up flash, arriving as the charge sweep. Each piece reaches its flash-lit state
+                       as the front passes it: the bar's glow (.bbgl-exp-halo) and the fill's brightening
+                       ride the charge's reveal, and the valve and crown light as the front crosses the
+                       middle. When the front reaches the left terminal, .bbgl-level-up-flash takes all of
+                       it from lit up to a brighter peak and back down to rest. Colour: --bbgl-valve-flash. */
+                    .bbgl-exp-halo {
+                        position: absolute;
+                        left: calc(5% - 14px);
+                        width: calc(90% + 28px);
+                        top: calc(var(--bbgl-fill-top) + var(--bbgl-fill-nudge) + var(--bbgl-band-top) - 14px);
+                        height: calc(var(--bbgl-band-bot) - var(--bbgl-band-top) + 28px);
+                        z-index: 1;
+                        pointer-events: none;
+                        opacity: 0;
+                        -webkit-mask-image: var(--bbgl-charge-reveal);
+                        mask-image: var(--bbgl-charge-reveal);
+                        -webkit-mask-size: 220% 100%;
+                        mask-size: 220% 100%;
+                        -webkit-mask-repeat: no-repeat;
+                        mask-repeat: no-repeat;
+                        -webkit-mask-position: 0% 0;
+                        mask-position: 0% 0;
+                        --bbgl-charge-reveal: linear-gradient(90deg, transparent 32%, rgba(0, 0, 0, .35) 45%, #000 60%);
+                    }
+                    .bbgl-exp-halo i {
+                        position: absolute;
+                        inset: 14px;
+                        border-radius: 4px;
+                        background: var(--bbgl-valve-flash);
+                        filter: drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash));
+                    }
+                    .bbgl-exp-charging .bbgl-exp-halo {
+                        opacity: 1;
+                        animation: bbgl-exp-glow-kf .2s cubic-bezier(.35, 0, .65, 1) forwards;
+                    }
+                    .bbgl-exp-charging .bbgl-exp-charge { filter: brightness(var(--bbgl-lit)); }
+                    .bbgl-exp-charging .bbgl-exp-glow { filter: blur(.6px) brightness(var(--bbgl-lit)); }
+                    .bbgl-exp-charging .bbgl-level-valve { animation: bbgl-valve-lit .05s linear .08s both; }
+                    .bbgl-exp-charging .bbgl-exp-flag::before,
+                    .bbgl-exp-charging #bbgl-level-flag-clip::before { animation: bbgl-crown-lit .05s linear .08s both; }
+                    @keyframes bbgl-valve-lit {
+                        from { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+                        to   { filter: brightness(1.2) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)); }
+                    }
+                    @keyframes bbgl-crown-lit {
+                        from { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        to   { filter: brightness(1.2) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                    }
+                    .bbgl-level-up-flash .bbgl-exp-halo { animation: bbgl-exp-glow-kf .2s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-halo-flash .8s ease-out forwards; }
+                    .bbgl-level-up-flash .bbgl-exp-charge { animation: bbgl-exp-charge-kf .2s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-charge-flash .8s ease-out forwards; }
+                    .bbgl-level-up-flash .bbgl-exp-glow { animation: bbgl-exp-glow-kf .2s cubic-bezier(.35, 0, .65, 1) forwards, bbgl-glow-flash .8s ease-out forwards; }
+                    .bbgl-level-up-flash .bbgl-level-valve { animation: bbgl-lvl-flash-valve .8s ease-out forwards; }
+                    .bbgl-level-up-flash .bbgl-exp-flag::before,
+                    .bbgl-level-up-flash #bbgl-level-flag-clip::before { animation: bbgl-lvl-flash-dmnd .8s ease-out forwards; }
+                    @keyframes bbgl-halo-flash {
+                        0%   { opacity: 1; filter: none; }
+                        20%  { opacity: 1; filter: brightness(var(--bbgl-halo-peak)); }
+                        100% { opacity: 0; filter: none; }
+                    }
+                    @keyframes bbgl-charge-flash {
+                        0%   { filter: brightness(var(--bbgl-lit)); }
+                        20%  { filter: brightness(var(--bbgl-peak)); }
+                        100% { filter: brightness(1); }
+                    }
+                    @keyframes bbgl-glow-flash {
+                        0%   { filter: blur(.6px) brightness(var(--bbgl-lit)); }
+                        20%  { filter: blur(.6px) brightness(var(--bbgl-peak)); }
+                        100% { filter: blur(.6px) brightness(1); }
+                    }
                     @keyframes bbgl-lvl-flash-valve {
-                        0%   { filter: brightness(1) drop-shadow(0 0 0 transparent); }
-                        20%  { filter: brightness(1.5) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)); }
-                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent); }
+                        0%   { filter: brightness(1.2) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)); }
+                        20%  { filter: brightness(1.35) drop-shadow(0 0 6px var(--bbgl-valve-flash)) drop-shadow(0 0 16px var(--bbgl-valve-flash)); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent); }
+                    }
+                    @keyframes bbgl-lvl-flash-dmnd {
+                        0%   { filter: brightness(1.2) drop-shadow(0 0 4px var(--bbgl-valve-flash)) drop-shadow(0 0 10px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        20%  { filter: brightness(1.35) drop-shadow(0 0 6px var(--bbgl-valve-flash)) drop-shadow(0 0 16px var(--bbgl-valve-flash)) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
+                        100% { filter: brightness(1) drop-shadow(0 0 0 transparent) drop-shadow(0 0 0 transparent) drop-shadow(0 0 .5px rgba(0, 0, 0, .55)) drop-shadow(0 -.5px 1.5px rgba(0, 0, 0, .3)); }
                     }
 
                     /* Cut back to the outer end of the valve's wide collar (x 5 of its 100-unit viewBox),
@@ -23764,7 +23827,7 @@ const BestGymController = {
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
     }
 
     function buildLevelValveSVG(prefix) {
