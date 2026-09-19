@@ -1731,7 +1731,6 @@
         MINIMIZE: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" class="bbgl-native-icon" aria-label="Minimize">${ASSETS.GRADIENT}<rect fill="url(#bbgl_silver_grad)" x="0" y="21" width="24" height="3"></rect></svg>`,
         POPOUT: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24" class="bbgl-native-icon">${ASSETS.GRADIENT}<path fill="url(#bbgl_silver_grad)" d="M12,12H6V6h6ZM4.5,6.621V4.5H6.621L4.061,1.939,6,0H0V6L1.939,4.061ZM6.621,13.5H4.5V11.379L1.939,13.94,0,12v6H6L4.061,16.06ZM13.5,11.379V13.5H11.379l2.561,2.56L12,18h6V12l-1.94,1.94L13.5,11.379ZM12,0l1.94,1.939L11.379,4.5H13.5V6.621l2.56-2.561L18,6V0Z"></path></svg>`,
         COMPRESS: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18" width="24" height="24" class="bbgl-native-icon">${ASSETS.GRADIENT}<g transform="translate(1290 304)"><path fill="url(#bbgl_silver_grad)" d="M-1277-291h6l-1.939,1.939,1.561,1.561-2.121,2.12-1.561-1.561L-1277-285Zm-9.94,4.06-1.561,1.561-2.12-2.12,1.561-1.561L-1291-291h6v6ZM-1284-292v-6h6v6Zm7-7v-6l1.939,1.94,1.561-1.561,2.121,2.121-1.561,1.561L-1271-299Zm-14,0,1.939-1.939-1.561-1.561,2.12-2.121,1.561,1.561L-1285-305v6Z"></path></g></svg>`,
-        CHART: `<svg viewBox="0 0 24 24" fill="none"><line x1="4" y1="21.5" x2="4" y2="10.5" stroke="#536e8c" stroke-width="5" stroke-linecap="round"/><line x1="9.5" y1="21.5" x2="9.5" y2="2.5" stroke="#a64d42" stroke-width="5" stroke-linecap="round"/><line x1="15" y1="21.5" x2="15" y2="8" stroke="#b88645" stroke-width="5" stroke-linecap="round"/><line x1="20.5" y1="21.5" x2="20.5" y2="13.5" stroke="#547d51" stroke-width="5" stroke-linecap="round"/></svg>`,
         CHART_ALL: `<svg viewBox="0 -0.5 46 60" fill="none"><line x1="8" y1="40" x2="8" y2="30" stroke="#536e8c" stroke-width="9" stroke-linecap="round"/><line x1="18" y1="40" x2="18" y2="30" stroke="#a64d42" stroke-width="9" stroke-linecap="round"/><line x1="29" y1="40" x2="29" y2="30" stroke="#b88645" stroke-width="9" stroke-linecap="round"/><line x1="39" y1="40" x2="39" y2="30" stroke="#547d51" stroke-width="9" stroke-linecap="round"/><text x="23" y="57" text-anchor="middle" font-family="'Fjalla One', Arial Narrow, sans-serif" font-size="12" fill="#e6e6e6">All-Time</text></svg>`,
         LEDGER: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="18" height="20" rx="2" fill="none"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="17" y2="16"/></svg>`,
         GRAPH: `<svg viewBox="0 0 24 24"><path d="M3,12 L7,16 L13,6 L18,14 L22,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -6100,83 +6099,55 @@
                        this change — left as-is, just accounted for correctly. */
                     #bbgl-panel.bbgl-mode-page .title-stack {
                         gap: clamp(3px, calc(3px + 8px * var(--bbgl-page-t)), 11px);
-                        /* Also absorbs the all-time row's -2px margin-bottom below. */
-                        margin-top: clamp(-22px, calc(-6px - 16px * var(--bbgl-page-t)), -6px);
+                        margin-top: clamp(-24px, calc(-8px - 16px * var(--bbgl-page-t)), -8px);
                     }
                     #bbgl-panel.bbgl-mode-page .title-group {
                         gap: clamp(6px, calc(8px - 2px * var(--bbgl-page-t)), 8px);
                     }
 
-                    /* NOTE: #all-time-btn only ever carries class="stats-btn" — a
-                       former .all-time-btn class rule set here never matched
-                       anything and was removed. Sizing/hover for the all-time
-                       icon comes entirely from the shared .stats-btn rules below. */
-
-                    /* Row height is pinned to the icon's own height (identical in
-                       every row), NOT the label's — labels vary wildly in size
-                       (9px-34px) and would otherwise make row height, and thus the
-                       gap between icons, inconsistent per row. The icon therefore
-                       always exactly fills its row; a label taller than the row
-                       overflows upward, which is harmless. align-items:flex-end
-                       (not center) because .stats-btn's SVG is only 78% of its own
-                       box and bottom-aligned within it — the box's visual bottom
-                       matches its box-bottom exactly, but its visual top doesn't,
-                       so bottom-alignment is what actually lines up the visible
-                       icon and label; centering the boxes would not center the
-                       visible content. .stats-btn / .header-trigger both add the
-                       same hardcoded -6px settled offset so they move together.
-                       --trigger-lift / --btn-lift: live per-element tuning knobs
-                       (delta from the settled -6px baseline), default 0 = no change. */
+                    /* Rows are a fixed height per mode so row spacing never depends on label size;
+                       icon and label both bottom-align to the row. .stats-btn's box is exactly the
+                       visible bars (buildChartSVG's viewBox is cropped to them), and .header-trigger cancels
+                       Fjalla One's below-baseline space, so the icon bottom and the label's text
+                       baseline both sit exactly on the row's bottom edge. Move a row, not its contents.
+                       Per-mode knobs:
+                         --hdr-icon     icon scale (bars span 23.5:21 of this square)
+                         --hdr-icon-x   icon's left offset from the row start
+                         --hdr-gap      space from the icon's right edge to the label
+                         --row-shift    vertical offset of the whole row (visual only, no reflow) */
                     .header-row {
                         display: flex;
                         align-items: flex-end;
-                        gap: 2px;
+                        gap: var(--hdr-gap);
                         position: relative;
+                        top: var(--row-shift);
                         height: 16px;
-                        --trigger-lift: 0px;
-                        --btn-lift: 0px;
+                        --hdr-icon: 14px;
+                        --hdr-icon-x: calc(var(--hdr-icon) / 48 - 4.5px);
+                        --hdr-gap: 7.5px;
+                        --row-shift: -8.5px;
                     }
 
                     #bbgl-panel.bbgl-expanded .header-row {
-                        gap: 6px;
                         height: clamp(20px, calc(20px + 7px * var(--bbgl-dock-t)), 27px);
-                        --btn-lift: -4px;
+                        --hdr-icon: clamp(17px, calc(17px + 7px * var(--bbgl-dock-t)), 24px);
+                        --hdr-icon-x: calc(var(--hdr-icon) / 48 - 5px);
+                        --hdr-gap: 11px;
+                        --row-shift: -10.5px;
                     }
 
                     #bbgl-panel.bbgl-expanded .header-row--month {
-                        --btn-lift: -1px;
+                        --row-shift: -7.5px;
                     }
 
                     #bbgl-panel.bbgl-mode-page .header-row {
-                        gap: clamp(3px, calc(3px + 3px * var(--bbgl-page-t)), 6px);
                         height: clamp(21px, calc(21px + 10px * var(--bbgl-page-t)), 31px);
+                        --hdr-icon: clamp(20px, calc(20px + 10px * var(--bbgl-page-t)), 30px);
+                        --hdr-icon-x: calc(var(--hdr-icon) / 48 - 5px);
+                        --hdr-gap: clamp(8px, calc(8px + 3px * var(--bbgl-page-t)), 11px);
+                        --row-shift: -6.5px;
                     }
 
-                    /* Row-to-row spacing comes ONLY from .title-stack's gap above —
-                       every row is a fixed, identical height (icon-sized), so the
-                       gap between any two adjacent rows is guaranteed equal in
-                       every panel mode, both mathematically and visually. */
-
-                    .header-row--year {
-                        --trigger-lift: -4px;
-                    }
-
-                    /* Year label is bottom-aligned like month/all-time (align-items:flex-end
-                       on .header-row, inherited — no per-element override needed), so its
-                       position stays pinned to the row's bottom edge regardless of the row's
-                       own height. Previously this was align-self:center, which made the
-                       label's position depend on the row's total height — fine at a fixed
-                       height, but it drifted as the row's fluid height clamp (expanded mode)
-                       changed with panel width. flex-end sidesteps that entirely. */
-
-                    /* #all-time-trigger's font is by far the largest of the three
-                       (20-34px vs 9-29px), so line-height:1's descent reservation
-                       is proportionally biggest here — nudge the label down to
-                       compensate. Starting estimate, not measured against a live
-                       render; adjust as needed. */
-                    .header-row--alltime {
-                        --trigger-lift: 3px;
-                    }
 
 
 
@@ -6192,40 +6163,26 @@
                         filter: brightness(1.12) saturate(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .75));
                         transition: all .2s;
                         align-self: flex-end;
+                        flex: none;
+                        width: calc(var(--hdr-icon) * 23.5 / 24);
+                        height: calc(var(--hdr-icon) * 21 / 24);
+                        margin-left: var(--hdr-icon-x);
                         transform-origin: center bottom;
-                        transform: translate(-5px, calc(-6px + var(--btn-lift, 0px)));
                         /* Permanent layer: the hover jump/scale and glow (transform + filter transitions)
                            otherwise got a layer created at hover start and dropped at the end, regrouping
                            and repainting the header content drawn around and after the button. */
                         will-change: transform, filter;
                     }
 
-                    /* Same translate as rest, scaled from the bottom edge, so hover/active never
-                       moves the button's bottom off its label. */
+                    /* Scaled from the bottom edge so hover/active never moves the icon off the row line. */
                     .stats-btn:hover, .stats-btn.active {
                         opacity: 1;
-                        transform: translate(-5px, calc(-6px + var(--btn-lift, 0px))) scale(1.15);
+                        transform: scale(1.15);
                         filter: brightness(1.12) saturate(1.2) drop-shadow(0 0 1px rgba(0, 0, 0, .95)) drop-shadow(0 1px 2px rgba(0, 0, 0, .75)) drop-shadow(0 0 6px rgba(216, 150, 224, 0.9)) drop-shadow(0 0 2px rgba(171, 71, 188, 1));
                     }
 
-                    #bbgl-panel.bbgl-compact .header-row {
-                        --btn-lift: -2.5px;
-                    }
-
                     #bbgl-panel.bbgl-compact .header-row--month {
-                        --btn-lift: -1.5px;
-                    }
-                    #bbgl-panel.bbgl-compact .header-row--year {
-                        --trigger-lift: -3px;
-                    }
-                    #bbgl-panel.bbgl-mode-page .header-row--year {
-                        --trigger-lift: -1px;
-                    }
-                    #bbgl-panel.bbgl-mode-page .header-row--month {
-                        --trigger-lift: 1px;
-                    }
-                    #bbgl-panel.bbgl-mode-page .header-row--alltime {
-                        margin-bottom: -2px;
+                        --row-shift: -7.5px;
                     }
 
                     .stats-btn svg {
@@ -6244,7 +6201,8 @@
                         user-select: none;
                         text-shadow: 0 2px 4px #000;
                         line-height: 1;
-                        transform: translateY(calc(-6px + var(--trigger-lift, 0px)));
+                        /* Fjalla One at line-height:1 puts its baseline .124em above the box bottom. */
+                        margin-bottom: -.124em;
                         /* Own layer, like .stats-btn: the triggers paint after the chart buttons and sit
                            inside their hover glow, so a button's hover otherwise regrouped and repainted
                            them. (Rows aren't isolated instead: that would trap each dropdown's z-index
@@ -6284,15 +6242,10 @@
                     }
 
                     #all-time-trigger {
-                        font-size: 20px;
+                        font-size: 9px;
                     }
                     #all-time-trigger::after {
                         display: none;
-                    }
-
-                    #year-stats-btn, #month-stats-btn, #all-time-btn {
-                        width: 15px;
-                        height: 14px;
                     }
 
                     #bbgl-panel.bbgl-mode-page #year-trigger {
@@ -6304,14 +6257,7 @@
                     }
 
                     #bbgl-panel.bbgl-mode-page #all-time-trigger {
-                        font-size: clamp(24px, calc(24px + 10px * var(--bbgl-page-t)), 34px);
-                    }
-
-                    #bbgl-panel.bbgl-mode-page #year-stats-btn,
-                    #bbgl-panel.bbgl-mode-page #month-stats-btn,
-                    #bbgl-panel.bbgl-mode-page #all-time-btn {
-                        width: clamp(20px, calc(20px + 10px * var(--bbgl-page-t)), 30px);
-                        height: clamp(21px, calc(21px + 10px * var(--bbgl-page-t)), 31px);
+                        font-size: clamp(12px, calc(12px + 7px * var(--bbgl-page-t)), 19px);
                     }
 
                     #bbgl-panel.bbgl-mode-page .arrow-btn {
@@ -8231,9 +8177,10 @@
                         overflow: visible;
                         pointer-events: none;
                     }
+                    /* Under .bbgl-level-valve (4): the fill's centre notch shows only through the glass. */
                     .bbgl-exp-bar .bbgl-exp-track {
                         height: var(--bbgl-track-box);
-                        z-index: 5;
+                        z-index: 3;
                         transform: translateY(-.5px);
                         overflow: visible;
                         container-type: inline-size;
@@ -9017,7 +8964,7 @@
                         font-size: clamp(20px, calc(20px + 3px * var(--bbgl-dock-t)), 23px);
                     }
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #all-time-trigger {
-                        font-size: clamp(28px, calc(28px + 4px * var(--bbgl-dock-t)), 32px);
+                        font-size: clamp(13px, calc(13px + 2px * var(--bbgl-dock-t)), 15px);
                     }
 
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .ui-floating-label,
@@ -9030,12 +8977,6 @@
                         font-size: 10px !important;
                     }
 
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #year-stats-btn,
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #month-stats-btn,
-                    #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) #all-time-btn {
-                        width: clamp(17px, calc(17px + 7px * var(--bbgl-dock-t)), 24px) !important;
-                        height: clamp(18px, calc(18px + 7px * var(--bbgl-dock-t)), 25px);
-                    }
                     /* Expanded panel graph view: fluid scaling to replace hard 620px breakpoint ---------------------*/
                     #bbgl-panel.bbgl-expanded:not(.bbgl-mode-page) .g-pill {
                         /* On -pills rather than the raw width ratio, so the pills hold their 10px
@@ -20129,7 +20070,8 @@ const BestGymController = {
         const bgLines = keys.map((k, i) =>
             `<line x1="${xs[i]}" y1="20" x2="${xs[i]}" y2="${(20 - hs[i]).toFixed(2)}" stroke="#000" stroke-width="7" stroke-linecap="round"/>`
         );
-        return `<svg viewBox="0 0 24 24" fill="none">${bgLines.join('')}${lines.join('')}</svg>`;
+        // Cropped to the outline's extent at full bar height, so the button box is exactly the icon.
+        return `<svg viewBox="0.5 2.5 23.5 21" fill="none">${bgLines.join('')}${lines.join('')}</svg>`;
     }
 
 
@@ -23666,7 +23608,7 @@ const BestGymController = {
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${ICONS.CHART}</div><div class="header-trigger" id="all-time-trigger">∞</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${ICONS.CHART}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div><svg class="bbgl-svg-defs" width="0" height="0" aria-hidden="true" focusable="false"><filter id="bbgl-green-sat" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="saturate" values="1.5" result="sat"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -10 20 -10 0 0" result="greenness"/><feComposite in="sat" in2="greenness" operator="in" result="greenSat"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="greenSat"/></feMerge></filter></svg></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div><svg class="bbgl-svg-defs" width="0" height="0" aria-hidden="true" focusable="false"><filter id="bbgl-green-sat" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="saturate" values="1.5" result="sat"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -10 20 -10 0 0" result="greenness"/><feComposite in="sat" in2="greenness" operator="in" result="greenSat"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="greenSat"/></feMerge></filter></svg></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
