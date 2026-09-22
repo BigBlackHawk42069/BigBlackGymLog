@@ -1846,7 +1846,10 @@ function achRefreshPageDomBody() {
     else resetTitlesPageAnimationClock(container);
     // A half-finished title pick is deliberately NOT cleared here: it's plain runtime state rather
     // than a DOM node, so a heartbeat rebuilding this markup leaves the one-word preview standing.
-    container.innerHTML = buildAchievementsPage(runtime._achPage, runtime._achCache);
+    const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache));
+    Perf.start('achRefreshPageDom:insert');
+    container.innerHTML = html;
+    Perf.end('achRefreshPageDom:insert');
     // Baseline for renderRankReadoutLive()'s fast path (07-section-vi-ui.js) — null off the titles
     // page so a later switch back to page 0 can't compare against a stale, unrelated snapshot and
     // wrongly skip the rebuild/patch it actually needs.
@@ -1859,7 +1862,7 @@ function achRefreshPageDomBody() {
     // re-attaches to the fresh elements this innerHTML swap just created. Off the titles page, just
     // drop the observer — nothing remains for it to watch until page 0 is shown again.
     if (runtime._achPage === 0) {
-        const ready = layoutTitlesPageGeometry();
+        const ready = Perf.wrap('achRefreshPageDom:geometry', layoutTitlesPageGeometry);
         observeTitleBlockFrames();
         // The synchronous pass above can still measure the layout at 0x0 the very first time
         // this page is shown — the complete titles layout isn't guaranteed to have settled to a

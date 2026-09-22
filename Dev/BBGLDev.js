@@ -17800,7 +17800,10 @@ function achRefreshPageDomBody() {
     else resetTitlesPageAnimationClock(container);
     // A half-finished title pick is deliberately NOT cleared here: it's plain runtime state rather
     // than a DOM node, so a heartbeat rebuilding this markup leaves the one-word preview standing.
-    container.innerHTML = buildAchievementsPage(runtime._achPage, runtime._achCache);
+    const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache));
+    Perf.start('achRefreshPageDom:insert');
+    container.innerHTML = html;
+    Perf.end('achRefreshPageDom:insert');
     // Baseline for renderRankReadoutLive()'s fast path (07-section-vi-ui.js) — null off the titles
     // page so a later switch back to page 0 can't compare against a stale, unrelated snapshot and
     // wrongly skip the rebuild/patch it actually needs.
@@ -17813,7 +17816,7 @@ function achRefreshPageDomBody() {
     // re-attaches to the fresh elements this innerHTML swap just created. Off the titles page, just
     // drop the observer — nothing remains for it to watch until page 0 is shown again.
     if (runtime._achPage === 0) {
-        const ready = layoutTitlesPageGeometry();
+        const ready = Perf.wrap('achRefreshPageDom:geometry', layoutTitlesPageGeometry);
         observeTitleBlockFrames();
         // The synchronous pass above can still measure the layout at 0x0 the very first time
         // this page is shown — the complete titles layout isn't guaranteed to have settled to a
@@ -26302,10 +26305,9 @@ const BestGymController = {
             v.classList.remove('active');
             v.style.setProperty('display', 'none', 'important');
         }
-        if (bp) {
-            bp.style.removeProperty('display');
-            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
-        }
+        // Clearing the inline value is enough: no stylesheet rule hides the bottom panel (see
+        // restoreBottomPanel() in switchView()), so no computed-style read-back.
+        if (bp) bp.style.removeProperty('display');
     }
 
     function setupStickerGrid() {
@@ -27075,8 +27077,10 @@ const BestGymController = {
             cel = gel(cm),
             nel = gel(tgt);
         const restoreBottomPanel = () => {
+            // No stylesheet rule hides #bbgl-bottom-panel (its base rule is display:flex), so clearing
+            // the inline value is enough. It used to read getComputedStyle() back to check, which forced
+            // a full style pass mid-switch (7-20ms) for an answer that is always flex.
             bp.style.removeProperty('display');
-            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
             vp.classList.remove('active');
             vp.style.setProperty('display', 'none', 'important');
         };
@@ -27107,9 +27111,11 @@ const BestGymController = {
             Perf.layout('switchView:' + tgt + ':layout');
         };
         const appBody = () => {
-            // Leaving the Library: size it back down before the class comes off.
+            // Leaving the Library: size it back down before the class comes off. An animated switch
+            // already did that in afterLibResize() and has settled by now, so only the paths without
+            // it (instant, animations off, to/from settings) resize here.
             if (cm === 'library' && tgt !== 'library') {
-                resizeLibraryPanel(false, false);
+                if (!libResize) resizeLibraryPanel(false, false);
                 // Like the stickerbook, the Library reopens on its first page.
                 if (!inst) viewState.libraryPage = 0;
             }
@@ -27117,7 +27123,7 @@ const BestGymController = {
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
-            if (!(tgt === 'stickers' && viewState.activeItemId)) restoreBottomPanel();
+            if (!(tgt === 'stickers' && viewState.activeItemId)) Perf.wrap('switchView:restoreBottomPanel', restoreBottomPanel);
             if (tgt === 'welcome') {
                 if (wv) {
                     wv.innerHTML = getWelcomeHTML();
@@ -27263,7 +27269,7 @@ const BestGymController = {
             if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
             // variant; other views get the full scan state machine).
-            renderScanOverlay();
+            Perf.wrap('switchView:scanOverlay', renderScanOverlay);
         };
         if (inst) {
             app();

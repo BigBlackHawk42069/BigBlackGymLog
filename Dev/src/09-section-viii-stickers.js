@@ -383,10 +383,9 @@
             v.classList.remove('active');
             v.style.setProperty('display', 'none', 'important');
         }
-        if (bp) {
-            bp.style.removeProperty('display');
-            if (getComputedStyle(bp).display === 'none') bp.style.display = 'flex';
-        }
+        // Clearing the inline value is enough: no stylesheet rule hides the bottom panel (see
+        // restoreBottomPanel() in switchView()), so no computed-style read-back.
+        if (bp) bp.style.removeProperty('display');
     }
 
     function setupStickerGrid() {
