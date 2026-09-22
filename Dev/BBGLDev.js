@@ -21942,6 +21942,7 @@ const BestGymController = {
     // a transform doesn't change the element's own box size. offset*/client* ignore transforms and
     // report the real layout size throughout.
     function layoutTitleBlockFrames() {
+        Perf.start('titles:toolbar');
         const titlesContainer = document.querySelector('#bbgl-achievements-container.bbgl-ach-titles-page');
         const toolbar = document.getElementById('bbgl-toolbar');
         if (titlesContainer && toolbar) {
@@ -21954,8 +21955,10 @@ const BestGymController = {
                 setStyleVarIfChanged(titlesContainer, '--bbgl-t-toolbar-bottom', `${toolbar.offsetTop + tallest + topPad}px`);
             }
         }
+        Perf.end('titles:toolbar');
         const main = document.querySelector('.bbgl-titles-main');
         if (main) {
+            Perf.start('titles:main');
             const height = main.clientHeight;
             const expanded = main.closest('#bbgl-panel')?.classList.contains('bbgl-expanded');
             // Tooltip card: (176px outer width - 18px border/padding) * .86 by 132px.
@@ -21979,6 +21982,8 @@ const BestGymController = {
             }
             // Measure every column first, then write every --bbgl-t-star. Interleaving them made each
             // column's reads force a full recalc + layout for the previous column's write.
+            Perf.end('titles:main');
+            Perf.start('titles:cols');
             const starSizes = [];
             main.querySelectorAll('.bbgl-titles-corner-col').forEach(col => {
                 const label = col.querySelector('.bbgl-title-block-label');
@@ -21996,6 +22001,8 @@ const BestGymController = {
                 starSizes.push([col, `${Math.max(1, Math.min(vertical, horizontal))}px`]);
             });
             starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
+            Perf.end('titles:cols');
+            Perf.start('titles:sign');
             // The level-bar tooltip's title text copies the expanded page's size. That text is
             // min(15cqw, 27cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
             // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
@@ -22007,12 +22014,18 @@ const BestGymController = {
                 // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
                 if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
             }
+            Perf.end('titles:sign');
         }
+        Perf.start('titles:ready');
         // Not settled yet if any stat block still measures 0x0 — achRefreshPageDom()'s retry loop
         // keys off this to re-run the pass on the next frame.
         for (const block of document.querySelectorAll('.bbgl-title-block')) {
-            if (!(block.offsetWidth > 0) || !(block.offsetHeight > 0)) return false;
+            if (!(block.offsetWidth > 0) || !(block.offsetHeight > 0)) {
+                Perf.end('titles:ready');
+                return false;
+            }
         }
+        Perf.end('titles:ready');
         return true;
     }
 
@@ -22184,6 +22197,7 @@ const BestGymController = {
         // Scale is read off the WIDTH: the groove can be thinner than 1px (compact), and
         // offsetHeight rounds that up to 1, which would skew a height-based ratio. The computed
         // width, not offsetWidth, for the same reason: offsetWidth rounds to whole px.
+        Perf.mark('titles:rank:readsDone');
         const dpr = window.devicePixelRatio || 1;
         // One whole device pixel in CSS px (never less than one). At a fractional scale such as
         // Windows' 125%/130% a 1px CSS line is 1.25-1.3 device px, which pixel snapping rounds to 1
@@ -22232,8 +22246,8 @@ const BestGymController = {
 
 
     function layoutTitlesPageGeometry() {
-        const framesReady = layoutTitleBlockFrames();
-        const rankReady = layoutRankBarCenter();
+        const framesReady = Perf.wrap('titles:frames', layoutTitleBlockFrames);
+        const rankReady = Perf.wrap('titles:rank', layoutRankBarCenter);
         return framesReady && rankReady;
     }
 
