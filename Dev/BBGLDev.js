@@ -2599,8 +2599,12 @@
                         flex-direction: column;
                         gap: 0;
                         z-index: 1 !important;
-                        overflow-x: hidden !important;
-                        overflow-y: visible !important;
+                        /* clip, not hidden: hidden on either axis turns this box into a scroll
+                           container (overflow-y computes to auto), and a sticky descendant sticks to
+                           its nearest scroll container - which would be this never-scrolling panel
+                           instead of the page, so #bbgl-top-panel would never stick. clip trims the
+                           same edges (and the rounded corners) without creating one. */
+                        overflow: clip !important;
                         --bbgl-label-case: none !important;
                         --bbgl-page-t: clamp(0, calc((100cqi - 300px) / 370px), 1);
                         --bbgl-f-label: clamp(10.75px, calc(10.75px + 5.25px * var(--bbgl-page-t)), 16px);
@@ -2625,6 +2629,75 @@
 
                     .bbgl-mode-page #bbgl-content-wrapper {
                         display: contents !important;
+                    }
+
+                    /* Sticky against the page scroll: it rides in flow until the viewport's top edge
+                       reaches it, then holds there while the grid scrolls underneath (z-index:25 from
+                       the base rule keeps it above). Its containing block is #bbgl-panel (the content
+                       wrapper is display:contents), so it releases and scrolls off with the panel's
+                       bottom edge rather than floating over whatever Torn renders below. The Library
+                       and Sticker Book lay the top panel out their own way, so they stay in flow.
+                       It pins just below the sticky title/settings bar: --bbgl-page-head-h is that
+                       bar's height plus its bottom margin (kept current by trackPageHead()), on top
+                       of the bar's own sticky offset. */
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel:not(.viewing-library, .viewing-stickers) {
+                        position: sticky;
+                        top: calc(var(--bbgl-page-head-top) + var(--bbgl-page-head-h, 0px));
+                    }
+
+                    /* The title/settings bar sticks everywhere the top panel (or, on the Sticker
+                       Book, the whole container) does, held --bbgl-page-head-top below the browser
+                       edge so its text isn't touching it. That matches #bbgl-page-container's own
+                       top padding, so the bar pins exactly as the container's top edge reaches the
+                       viewport, and on the Sticker Book (where the container itself sticks at 0) it
+                       sits in its usual spot. z-index 2 lifts it over #bbgl-panel's own z-index:1
+                       stacking context. In flow it stays transparent over Torn's page. */
+                    #bbgl-page-container {
+                        --bbgl-page-head-top: 8px;
+                    }
+
+                    #bbgl-page-container:not(:has(#bbgl-top-panel.viewing-library)) > .bbgl-native-header {
+                        position: sticky;
+                        top: var(--bbgl-page-head-top);
+                        z-index: 2;
+                    }
+
+                    /* Only while actually stuck (.bbgl-head-stuck, set by trackPageHead()) does the bar
+                       get a fill, to hide what scrolls beneath it: flat dark on purpose rather than
+                       matched to Torn's page, since users pick their own Torn backgrounds. The fill
+                       reaches up over the bar's sticky offset to the browser edge, and 16px below the
+                       bar to cover the 15px margin above the panel plus 1px: the top panel's sticky
+                       offset is a rounded measurement, and without the overlap a hairline of
+                       scrolling content showed between the two. z-index -1 keeps it under the bar's
+                       text (the bar's own z-index makes it the stacking context, so it can't drop
+                       behind the bar itself). */
+                    #bbgl-page-container:not(:has(#bbgl-top-panel.viewing-library)) > .bbgl-native-header.bbgl-head-stuck::before {
+                        content: "";
+                        position: absolute;
+                        top: calc(-1 * var(--bbgl-page-head-top));
+                        left: 0;
+                        right: 0;
+                        bottom: -16px;
+                        background: #191919;
+                        z-index: -1;
+                        pointer-events: none;
+                    }
+
+                    /* Zero-footprint marker at the bar's in-flow top edge; see trackPageHead(). */
+                    .bbgl-head-sentinel {
+                        height: 1px;
+                        margin-bottom: -1px;
+                        flex: none;
+                    }
+
+                    /* The Sticker Book is shorter than the page area, so the whole page container -
+                       title/settings bar and panel together - sticks instead, riding down with the
+                       scroll until it meets the bottom of Torn's .content-wrapper. That wrapper is a
+                       stretched flex item of #mainContainer (as tall as the sidebar column), which
+                       is what gives the container room to travel. */
+                    #bbgl-page-container:has(#bbgl-top-panel.viewing-stickers) {
+                        position: sticky;
+                        top: 0;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-top-panel {
@@ -2771,8 +2844,17 @@
                         display: none !important;
                     }
 
+                    /* clip rather than hidden: when Torn's <html> carries its own overflow, body's
+                       doesn't propagate to the viewport, and hidden would make body a never-scrolling
+                       scroll container that page mode's sticky #bbgl-top-panel binds to instead of
+                       the page. */
                     body.bbgl-page-mode-active {
-                        overflow-x: hidden !important;
+                        overflow-x: clip !important;
+                    }
+
+                    /* See unblockPageSticky(). */
+                    .bbgl-sticky-host {
+                        overflow: clip !important;
                     }
 
                     body.bbgl-page-mode-active #graph,
@@ -6536,26 +6618,6 @@
                         background-size: 100% 100%, 700% 600%;
                         background-position: 0 0, var(--tier-bg-pos);
                         background-repeat: no-repeat;
-                    }
-
-                    /* The green art is a muted olive-grey; this pulls its green forward without touching
-                       the rust. #bbgl-green-sat (an SVG filter beside #bbgl-cal-container in the panel
-                       markup) saturates by 1.5 only where a pixel is green: its mask is
-                       20 x (G - R/2 - B/2), so rust (red over green) and grey metal score 0 and pass
-                       through unchanged, and green metal takes the full boost. The 20 is tuned for the
-                       grid as seen through the dim layer. Plain saturate(1.5) boosted the rust as well. */
-                    .bbgl-day-cell.tier-bg-green::before {
-                        filter: url(#bbgl-green-sat);
-                    }
-
-                    /* Holds shared SVG filters. Zero-size rather than display:none, which stops some
-                       browsers resolving the filter references. */
-                    .bbgl-svg-defs {
-                        position: absolute;
-                        width: 0;
-                        height: 0;
-                        overflow: hidden;
-                        pointer-events: none;
                     }
 
                     .bbgl-day-cell.empty {
@@ -21078,7 +21140,7 @@ const BestGymController = {
         }
         calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d));
         c.style.setProperty('--total-rows', 6);
-        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}calgrd2-fut.webp)`);
+        c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`);
         const todayStr = Formatter.dateLogical();
         // Per-render constants that renderCell() used to recompute for every one of the 42 cells:
         // dateLogical() allocates a Date and runs three TimeManager calls, getWarMarkers()'s memo
@@ -21109,7 +21171,7 @@ const BestGymController = {
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}calgrd2-past.webp)`);
+                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.jpg)`);
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx);
@@ -21318,9 +21380,9 @@ const BestGymController = {
             // The tier's grid is painted by .has-tier-bg::before (04-section-iii-styles.js), not the
             // cell's own background, so a tier can carry a filter without it reaching the stickers,
             // jewels and numbers inside the cell. This only says which grid and which slice of it.
-            let tier = 'green', url = `url(${CAL_IMG_BASE}calgrd2-past-grn.webp)`;
-            if (sl.meta.tier === 2) { tier = 'gold'; url = `url(${CAL_IMG_BASE}calgrd2-past-gld.webp)`; }
-            else if (sl.meta.tier === 3) { tier = 'diamond'; url = `url(${CAL_IMG_BASE}calgrd2-past-dmd.webp)`; }
+            let tier = 'green', url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`;
+            if (sl.meta.tier === 2) { tier = 'gold'; url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`; }
+            else if (sl.meta.tier === 3) { tier = 'diamond'; url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`; }
             cell.classList.add('has-tier-bg', `tier-bg-${tier}`);
             cell.style.setProperty('--tier-bg', url);
             cell.style.setProperty('--tier-bg-pos', `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`);
@@ -24221,7 +24283,7 @@ const BestGymController = {
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div><svg class="bbgl-svg-defs" width="0" height="0" aria-hidden="true" focusable="false"><filter id="bbgl-green-sat" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB"><feColorMatrix in="SourceGraphic" type="saturate" values="1.5" result="sat"/><feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -10 20 -10 0 0" result="greenness"/><feComposite in="sat" in2="greenness" operator="in" result="greenSat"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="greenSat"/></feMerge></filter></svg></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
@@ -26722,6 +26784,7 @@ const BestGymController = {
             }
         } else {
             document.body.classList.remove('bbgl-page-mode-active');
+            document.querySelectorAll('.bbgl-sticky-host').forEach(e => e.classList.remove('bbgl-sticky-host'));
             const cw = document.querySelector('.content-wrapper'),
                 pc = document.getElementById('bbgl-page-container');
             if (cw && pc) pc.remove();
@@ -26753,7 +26816,7 @@ const BestGymController = {
             pp.remove();
             dom.panel = null;
         }
-        if (document.getElementById('bbgl-page-container')) return;
+        if (document.getElementById('bbgl-page-container')) return unblockPageSticky();
         cw.innerHTML = '';
         const pc = document.createElement('div');
         pc.id = 'bbgl-page-container';
@@ -26776,6 +26839,54 @@ const BestGymController = {
         restoreInternalState();
         renderPanelContent();
         if (dom.topPanel.classList.contains('viewing-graph')) setTimeout(GraphController.draw, 100);
+        unblockPageSticky();
+        trackPageHead(pc);
+    }
+
+    // #bbgl-top-panel's sticky top sits under page mode's sticky title/settings bar, so it needs the
+    // bar's height (--bbgl-page-head-h: height + bottom margin). That follows the bar's font clamps, so
+    // a ResizeObserver keeps it current. The bar is only filled while stuck: a sentinel sits at its
+    // in-flow top edge, and once that scrolls above the viewport the bar has left its natural spot and
+    // is pinned (.bbgl-head-stuck). On the Sticker Book the whole container sticks, so the sentinel
+    // stays in view and the bar stays unfilled - nothing scrolls under it there. The container is
+    // rebuilt on every entry to page mode, so the previous observers are dropped first.
+    let pageHeadRO = null, pageHeadIO = null;
+    function trackPageHead(pc) {
+        const head = pc.querySelector('.bbgl-native-header');
+        if (!head) return;
+        const sentinel = document.createElement('div');
+        sentinel.className = 'bbgl-head-sentinel';
+        pc.insertBefore(sentinel, head);
+        if (pageHeadIO) pageHeadIO.disconnect();
+        // The bar sticks --bbgl-page-head-top below the viewport edge, so the root is inset by the same.
+        const inset = parseFloat(getComputedStyle(pc).getPropertyValue('--bbgl-page-head-top')) || 0;
+        pageHeadIO = new IntersectionObserver(([en]) => {
+            head.classList.toggle('bbgl-head-stuck', !en.isIntersecting && en.boundingClientRect.top < inset);
+        }, { rootMargin: `-${inset}px 0px 0px 0px` });
+        pageHeadIO.observe(sentinel);
+        if (pageHeadRO) pageHeadRO.disconnect();
+        pageHeadRO = new ResizeObserver(() => {
+            const mb = parseFloat(getComputedStyle(head).marginBottom) || 0;
+            pc.style.setProperty('--bbgl-page-head-h', (head.offsetHeight + mb) + 'px');
+        });
+        pageHeadRO.observe(head);
+    }
+
+    // Page mode's #bbgl-top-panel is position:sticky against the page scroll, and sticky binds to the
+    // nearest ancestor whose overflow isn't visible/clip - even one that never actually scrolls. Torn's
+    // wrappers above .content-wrapper can be that ancestor, which pins the top panel to a box that
+    // doesn't move. Any such ancestor that isn't really scrolling gets .bbgl-sticky-host (overflow:clip:
+    // the same trim, no scroll container); a real scroller is left alone since sticky works inside it.
+    // Cleared again by checkViewRouting() on the way out of page mode.
+    function unblockPageSticky() {
+        const tp = document.querySelector('#bbgl-panel.bbgl-mode-page #bbgl-top-panel');
+        if (!tp) return;
+        for (let e = tp.parentElement; e && e !== document.documentElement; e = e.parentElement) {
+            const s = getComputedStyle(e);
+            if (/^(visible|clip)$/.test(s.overflowY) && /^(visible|clip)$/.test(s.overflowX)) continue;
+            if (e.scrollHeight > e.clientHeight + 1) continue;
+            e.classList.add('bbgl-sticky-host');
+        }
     }
 
     function togglePanel(click = false) {

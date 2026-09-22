@@ -456,6 +456,7 @@
             }
         } else {
             document.body.classList.remove('bbgl-page-mode-active');
+            document.querySelectorAll('.bbgl-sticky-host').forEach(e => e.classList.remove('bbgl-sticky-host'));
             const cw = document.querySelector('.content-wrapper'),
                 pc = document.getElementById('bbgl-page-container');
             if (cw && pc) pc.remove();
@@ -487,7 +488,7 @@
             pp.remove();
             dom.panel = null;
         }
-        if (document.getElementById('bbgl-page-container')) return;
+        if (document.getElementById('bbgl-page-container')) return unblockPageSticky();
         cw.innerHTML = '';
         const pc = document.createElement('div');
         pc.id = 'bbgl-page-container';
@@ -510,6 +511,54 @@
         restoreInternalState();
         renderPanelContent();
         if (dom.topPanel.classList.contains('viewing-graph')) setTimeout(GraphController.draw, 100);
+        unblockPageSticky();
+        trackPageHead(pc);
+    }
+
+    // #bbgl-top-panel's sticky top sits under page mode's sticky title/settings bar, so it needs the
+    // bar's height (--bbgl-page-head-h: height + bottom margin). That follows the bar's font clamps, so
+    // a ResizeObserver keeps it current. The bar is only filled while stuck: a sentinel sits at its
+    // in-flow top edge, and once that scrolls above the viewport the bar has left its natural spot and
+    // is pinned (.bbgl-head-stuck). On the Sticker Book the whole container sticks, so the sentinel
+    // stays in view and the bar stays unfilled - nothing scrolls under it there. The container is
+    // rebuilt on every entry to page mode, so the previous observers are dropped first.
+    let pageHeadRO = null, pageHeadIO = null;
+    function trackPageHead(pc) {
+        const head = pc.querySelector('.bbgl-native-header');
+        if (!head) return;
+        const sentinel = document.createElement('div');
+        sentinel.className = 'bbgl-head-sentinel';
+        pc.insertBefore(sentinel, head);
+        if (pageHeadIO) pageHeadIO.disconnect();
+        // The bar sticks --bbgl-page-head-top below the viewport edge, so the root is inset by the same.
+        const inset = parseFloat(getComputedStyle(pc).getPropertyValue('--bbgl-page-head-top')) || 0;
+        pageHeadIO = new IntersectionObserver(([en]) => {
+            head.classList.toggle('bbgl-head-stuck', !en.isIntersecting && en.boundingClientRect.top < inset);
+        }, { rootMargin: `-${inset}px 0px 0px 0px` });
+        pageHeadIO.observe(sentinel);
+        if (pageHeadRO) pageHeadRO.disconnect();
+        pageHeadRO = new ResizeObserver(() => {
+            const mb = parseFloat(getComputedStyle(head).marginBottom) || 0;
+            pc.style.setProperty('--bbgl-page-head-h', (head.offsetHeight + mb) + 'px');
+        });
+        pageHeadRO.observe(head);
+    }
+
+    // Page mode's #bbgl-top-panel is position:sticky against the page scroll, and sticky binds to the
+    // nearest ancestor whose overflow isn't visible/clip - even one that never actually scrolls. Torn's
+    // wrappers above .content-wrapper can be that ancestor, which pins the top panel to a box that
+    // doesn't move. Any such ancestor that isn't really scrolling gets .bbgl-sticky-host (overflow:clip:
+    // the same trim, no scroll container); a real scroller is left alone since sticky works inside it.
+    // Cleared again by checkViewRouting() on the way out of page mode.
+    function unblockPageSticky() {
+        const tp = document.querySelector('#bbgl-panel.bbgl-mode-page #bbgl-top-panel');
+        if (!tp) return;
+        for (let e = tp.parentElement; e && e !== document.documentElement; e = e.parentElement) {
+            const s = getComputedStyle(e);
+            if (/^(visible|clip)$/.test(s.overflowY) && /^(visible|clip)$/.test(s.overflowX)) continue;
+            if (e.scrollHeight > e.clientHeight + 1) continue;
+            e.classList.add('bbgl-sticky-host');
+        }
     }
 
     function togglePanel(click = false) {

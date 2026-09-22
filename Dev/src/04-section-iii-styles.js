@@ -889,8 +889,12 @@
                         flex-direction: column;
                         gap: 0;
                         z-index: 1 !important;
-                        overflow-x: hidden !important;
-                        overflow-y: visible !important;
+                        /* clip, not hidden: hidden on either axis turns this box into a scroll
+                           container (overflow-y computes to auto), and a sticky descendant sticks to
+                           its nearest scroll container - which would be this never-scrolling panel
+                           instead of the page, so #bbgl-top-panel would never stick. clip trims the
+                           same edges (and the rounded corners) without creating one. */
+                        overflow: clip !important;
                         --bbgl-label-case: none !important;
                         --bbgl-page-t: clamp(0, calc((100cqi - 300px) / 370px), 1);
                         --bbgl-f-label: clamp(10.75px, calc(10.75px + 5.25px * var(--bbgl-page-t)), 16px);
@@ -915,6 +919,75 @@
 
                     .bbgl-mode-page #bbgl-content-wrapper {
                         display: contents !important;
+                    }
+
+                    /* Sticky against the page scroll: it rides in flow until the viewport's top edge
+                       reaches it, then holds there while the grid scrolls underneath (z-index:25 from
+                       the base rule keeps it above). Its containing block is #bbgl-panel (the content
+                       wrapper is display:contents), so it releases and scrolls off with the panel's
+                       bottom edge rather than floating over whatever Torn renders below. The Library
+                       and Sticker Book lay the top panel out their own way, so they stay in flow.
+                       It pins just below the sticky title/settings bar: --bbgl-page-head-h is that
+                       bar's height plus its bottom margin (kept current by trackPageHead()), on top
+                       of the bar's own sticky offset. */
+                    #bbgl-panel.bbgl-mode-page #bbgl-top-panel:not(.viewing-library, .viewing-stickers) {
+                        position: sticky;
+                        top: calc(var(--bbgl-page-head-top) + var(--bbgl-page-head-h, 0px));
+                    }
+
+                    /* The title/settings bar sticks everywhere the top panel (or, on the Sticker
+                       Book, the whole container) does, held --bbgl-page-head-top below the browser
+                       edge so its text isn't touching it. That matches #bbgl-page-container's own
+                       top padding, so the bar pins exactly as the container's top edge reaches the
+                       viewport, and on the Sticker Book (where the container itself sticks at 0) it
+                       sits in its usual spot. z-index 2 lifts it over #bbgl-panel's own z-index:1
+                       stacking context. In flow it stays transparent over Torn's page. */
+                    #bbgl-page-container {
+                        --bbgl-page-head-top: 8px;
+                    }
+
+                    #bbgl-page-container:not(:has(#bbgl-top-panel.viewing-library)) > .bbgl-native-header {
+                        position: sticky;
+                        top: var(--bbgl-page-head-top);
+                        z-index: 2;
+                    }
+
+                    /* Only while actually stuck (.bbgl-head-stuck, set by trackPageHead()) does the bar
+                       get a fill, to hide what scrolls beneath it: flat dark on purpose rather than
+                       matched to Torn's page, since users pick their own Torn backgrounds. The fill
+                       reaches up over the bar's sticky offset to the browser edge, and 16px below the
+                       bar to cover the 15px margin above the panel plus 1px: the top panel's sticky
+                       offset is a rounded measurement, and without the overlap a hairline of
+                       scrolling content showed between the two. z-index -1 keeps it under the bar's
+                       text (the bar's own z-index makes it the stacking context, so it can't drop
+                       behind the bar itself). */
+                    #bbgl-page-container:not(:has(#bbgl-top-panel.viewing-library)) > .bbgl-native-header.bbgl-head-stuck::before {
+                        content: "";
+                        position: absolute;
+                        top: calc(-1 * var(--bbgl-page-head-top));
+                        left: 0;
+                        right: 0;
+                        bottom: -16px;
+                        background: #191919;
+                        z-index: -1;
+                        pointer-events: none;
+                    }
+
+                    /* Zero-footprint marker at the bar's in-flow top edge; see trackPageHead(). */
+                    .bbgl-head-sentinel {
+                        height: 1px;
+                        margin-bottom: -1px;
+                        flex: none;
+                    }
+
+                    /* The Sticker Book is shorter than the page area, so the whole page container -
+                       title/settings bar and panel together - sticks instead, riding down with the
+                       scroll until it meets the bottom of Torn's .content-wrapper. That wrapper is a
+                       stretched flex item of #mainContainer (as tall as the sidebar column), which
+                       is what gives the container room to travel. */
+                    #bbgl-page-container:has(#bbgl-top-panel.viewing-stickers) {
+                        position: sticky;
+                        top: 0;
                     }
 
                     #bbgl-panel.bbgl-mode-page #bbgl-top-panel {
@@ -1061,8 +1134,17 @@
                         display: none !important;
                     }
 
+                    /* clip rather than hidden: when Torn's <html> carries its own overflow, body's
+                       doesn't propagate to the viewport, and hidden would make body a never-scrolling
+                       scroll container that page mode's sticky #bbgl-top-panel binds to instead of
+                       the page. */
                     body.bbgl-page-mode-active {
-                        overflow-x: hidden !important;
+                        overflow-x: clip !important;
+                    }
+
+                    /* See unblockPageSticky(). */
+                    .bbgl-sticky-host {
+                        overflow: clip !important;
                     }
 
                     body.bbgl-page-mode-active #graph,
@@ -4826,26 +4908,6 @@
                         background-size: 100% 100%, 700% 600%;
                         background-position: 0 0, var(--tier-bg-pos);
                         background-repeat: no-repeat;
-                    }
-
-                    /* The green art is a muted olive-grey; this pulls its green forward without touching
-                       the rust. #bbgl-green-sat (an SVG filter beside #bbgl-cal-container in the panel
-                       markup) saturates by 1.5 only where a pixel is green: its mask is
-                       20 x (G - R/2 - B/2), so rust (red over green) and grey metal score 0 and pass
-                       through unchanged, and green metal takes the full boost. The 20 is tuned for the
-                       grid as seen through the dim layer. Plain saturate(1.5) boosted the rust as well. */
-                    .bbgl-day-cell.tier-bg-green::before {
-                        filter: url(#bbgl-green-sat);
-                    }
-
-                    /* Holds shared SVG filters. Zero-size rather than display:none, which stops some
-                       browsers resolving the filter references. */
-                    .bbgl-svg-defs {
-                        position: absolute;
-                        width: 0;
-                        height: 0;
-                        overflow: hidden;
-                        pointer-events: none;
                     }
 
                     .bbgl-day-cell.empty {
