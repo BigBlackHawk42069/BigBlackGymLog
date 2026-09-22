@@ -41,6 +41,10 @@
     const CAP_TERM_W = 7;
     const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
 
+    // Metal stops the weekly bar and the level bar share, so both housings stay the same finish.
+    const COLLAR_DEPTH_STOPS = '<stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/>';
+    const CAST_SHOULDER_STOPS = '<stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/>';
+
     // Level bar metal stops read the tier's --vm-* vars (VALVE_METAL in the styles section).
     const vmStops = (name, offsets) => offsets.map((o, i) => `<stop offset="${o}" style="stop-color:var(--vm-${name}-${i})"/>`).join('');
     const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
@@ -55,23 +59,19 @@
     }
 
     // Gradients/patterns are pure functions of the bar's fixed dimensions above, so they're
-    // identical on every call regardless of slots/lit/animated. Built once here (instead of
-    // re-built by string concatenation on every buildCapsuleBar() call) and inlined into each
-    // returned <svg> — paint-server url(#...) references only resolve reliably within the same
-    // inline SVG fragment, so this can't be hoisted into a separate shared <svg>; it's still only
-    // built once, and buildCapsuleBar()'s own memo cache means the string concatenation itself
-    // only runs once per distinct bar state.
+    // identical on every call regardless of slots/lit/animated. Built once here and embedded in
+    // each bar's image document (buildCapsuleBar() memoizes per distinct bar state).
     const CAP_BAR_DEFS =
         `<defs>` +
         `<linearGradient id="bbc-joint-recess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101211"/><stop offset=".18" stop-color="#252a26"/><stop offset=".45" stop-color="#151916"/><stop offset=".78" stop-color="#101310"/><stop offset="1" stop-color="#30362f"/></linearGradient>` +
         `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
         `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
         `<linearGradient id="bbc-socket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080b08"/><stop offset=".5" stop-color="#111611"/><stop offset="1" stop-color="#070a07"/></linearGradient>` +
-        `<linearGradient id="bbc-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="bbc-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient>` +
+        `<linearGradient id="bbc-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="bbc-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient>` +
         `<radialGradient id="bbc-cast-bevel" cx=".3" cy=".15" r=".85"><stop offset="0" stop-color="#777777" stop-opacity=".38"/><stop offset=".55" stop-color="#555555" stop-opacity=".16"/><stop offset="1" stop-color="#333333" stop-opacity="0"/></radialGradient>` +
-        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient>` +
+        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
         BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
@@ -270,7 +270,12 @@
             }
         }
 
-        const svg = `<svg class="bbgl-cap-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${CAP_BAR_DEFS}${out}</svg>`;
+        // Drawn as an image, not inline SVG: its bloom/glow filters then rasterize once per bar state
+        // and every later paint (swipe, hover, re-render) reuses the decoded bitmap, where inline SVG
+        // re-ran them on the CPU each time. Nothing outside styles its insides, and the image keeps
+        // its gradient ids to itself instead of repeating them per bar across the document.
+        const svgDoc = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${CAP_BAR_DEFS}${out}</svg>`;
+        const svg = `<img class="bbgl-cap-svg" src="data:image/svg+xml,${encodeURIComponent(svgDoc)}" alt="" draggable="false">`;
         const html = overlay ? svg + `<div class="bbgl-cap-overlay">${overlay}</div>` : svg;
         _capBarCache.set(cacheKey, html);
         return html;
@@ -301,12 +306,40 @@
     // See computeBookData() for when a book counts as read.
     const LIBRARY_PAGE_COUNT = 4;
 
+    // Same CRT switch-off/on as the achievements pages (gotoAchievementsPage()): the page swaps at the
+    // blink, between the two halves. Returns whether a page change is happening, since with
+    // animations on it lands after this returns (the swipe handler needs to know up front).
     function gotoLibraryPage(p) {
+        if (runtime._libAnimating) return false;
         const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
-        if (next === (viewState.libraryPage || 0)) return;
-        viewState.libraryPage = next;
-        saveViewState();
-        renderLibrary();
+        if (next === (viewState.libraryPage || 0)) return false;
+        const apply = () => {
+            viewState.libraryPage = next;
+            saveViewState();
+            renderLibrary();
+        };
+        const c = dom.libraryContainer;
+        if (!userConfig.animations || !c) {
+            apply();
+            return true;
+        }
+        runtime._libAnimating = true;
+        c.classList.add('bbgl-crt-out');
+        setTimeout(() => {
+            c.classList.remove('bbgl-crt-out');
+            // Left the Library mid-blink: switchView() has already reset it to its first page.
+            if (!dom.topPanel || !dom.topPanel.classList.contains('viewing-library')) {
+                runtime._libAnimating = false;
+                return;
+            }
+            apply();
+            c.classList.add('bbgl-crt-in');
+            setTimeout(() => {
+                c.classList.remove('bbgl-crt-in');
+                runtime._libAnimating = false;
+            }, 300);
+        }, 280);
+        return true;
     }
 
     function renderLibrary() {
@@ -396,6 +429,7 @@
             });
         }
         const page = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, viewState.libraryPage || 0));
+        refreshSwipeGates();
         const ind = document.getElementById('bbgl-lib-pagination');
         if (ind) {
             ind.innerHTML = '';
@@ -474,12 +508,8 @@
         const thisYear = new Date().getUTCFullYear();
         const fmtStamp = ts => {
             const d = new Date(ts * 1000),
-                local = TimeManager.useLocal(),
-                y = local ? d.getFullYear() : d.getUTCFullYear(),
-                day = `${CONSTANTS.MONTHS_SHORT[local ? d.getMonth() : d.getUTCMonth()]} ${local ? d.getDate() : d.getUTCDate()}${y !== thisYear ? ', ' + y : ''}`,
-                hh = String(local ? d.getHours() : d.getUTCHours()).padStart(2, '0'),
-                mm = String(local ? d.getMinutes() : d.getUTCMinutes()).padStart(2, '0');
-            return day + ' ' + hh + ':' + mm;
+                y = TimeManager.year(d);
+            return `${CONSTANTS.MONTHS_SHORT[TimeManager.month(d)]} ${TimeManager.date(d)}${y !== thisYear ? ', ' + y : ''} ${achFmtTimeHM(ts)}`;
         };
         // Both date forms are emitted; compact shows the short date, expanded and page mode the
         // exact timestamp.
@@ -526,7 +556,7 @@
                 return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${rowsPerCol}"><div class="bbgl-lib-group"${headerCopyAttrs('g' + key + page, label, items)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items.map(itemHTML).join('')}</div></div></div>`;
             }).join('');
             c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
-            window.requestAnimationFrame(fitLibraryCells);
+            scheduleFitLibraryCells();
             return;
         }
         // One book, centred: its date, title and effect as one tight group, then its data.
@@ -573,64 +603,92 @@
             return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${pairRows + single.length + (mem ? 1 : 0)}"><div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel">${pairs}${single.map(id => row(id)).join('')}${mem}</div></div>`;
         }).join('');
         c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
-        window.requestAnimationFrame(fitLibraryCells);
+        scheduleFitLibraryCells();
         if (!runtime._libFitObserver && window.ResizeObserver) {
-            runtime._libFitObserver = new ResizeObserver(() => window.requestAnimationFrame(fitLibraryCells));
+            runtime._libFitObserver = new ResizeObserver(scheduleFitLibraryCells);
             runtime._libFitObserver.observe(c);
         }
     }
 
+    // Several triggers can land in one frame (the render itself, ResizeObserver deliveries); they
+    // share a single fit pass.
+    function scheduleFitLibraryCells() {
+        if (runtime._libFitRaf) return;
+        runtime._libFitRaf = window.requestAnimationFrame(() => {
+            runtime._libFitRaf = null;
+            fitLibraryCells();
+        });
+    }
+
     // Multi-cell groups keep full numbers unless they don't fit their column with a little room to
     // spare; then they switch to abbreviated numbers and short labels.
+    // Each step resets, then measures every element, then writes every result, so a step costs one
+    // layout instead of one per element (the elements within a step don't affect each other's size).
     function fitLibraryCells() {
         const c = dom.libraryContainer;
         if (!c) return;
         // A group label that's longer than its spine is tall shrinks to fit.
-        c.querySelectorAll('.bbgl-lib-group-label').forEach(l => {
-            l.style.fontSize = '';
+        const labels = Array.from(c.querySelectorAll('.bbgl-lib-group-label'));
+        labels.forEach(l => { l.style.fontSize = ''; });
+        labels.map(l => {
             const room = l.parentElement.clientHeight, need = l.scrollHeight;
-            if (room > 0 && need > room) l.style.fontSize = (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px';
-        });
+            return room > 0 && need > room ? (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px' : null;
+        }).forEach((fs, i) => { if (fs) labels[i].style.fontSize = fs; });
         // Other Books: an entry with a date reserves the height of its stamp's letters (~.75em, not the
         // whole line box) so its title and effect centre in the space under it.
-        c.querySelectorAll('.bbgl-lib-item').forEach(it => {
+        const items = Array.from(c.querySelectorAll('.bbgl-lib-item'));
+        items.forEach(it => {
             it.classList.remove('is-stamp-offset');
             it.style.removeProperty('--bbgl-lib-date-h');
+        });
+        items.map(it => {
             const date = it.querySelector('.bbgl-lib-date');
-            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return;
-            it.classList.add('is-stamp-offset');
-            it.style.setProperty('--bbgl-lib-date-h', (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px');
+            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return null;
+            return (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px';
+        }).forEach((h, i) => {
+            if (h == null) return;
+            items[i].classList.add('is-stamp-offset');
+            items[i].style.setProperty('--bbgl-lib-date-h', h);
         });
         // The corner stamp runs as far left as the card allows; once its date no longer fits that width,
         // the stamp's type shrinks to fit rather than ellipsising, down to 70% of its size.
-        c.querySelectorAll('.bbgl-lib-stamp').forEach(st => {
-            st.style.fontSize = '';
+        // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
+        // the date, so deriving the marker's width from it reported more room than there is and the
+        // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
+        const stamps = Array.from(c.querySelectorAll('.bbgl-lib-stamp'));
+        stamps.forEach(st => { st.style.fontSize = ''; });
+        let pending = stamps.map(st => {
             const date = st.querySelector('.bbgl-lib-date');
-            if (!date || date.classList.contains('is-placeholder')) return;
-            // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
-            // the date, so deriving the marker's width from it reported more room than there is and the
-            // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
-            const markOf = () => {
-                const m = st.querySelector('.bbgl-lib-check, .bbgl-lib-reading');
-                return m ? m.getBoundingClientRect().width + (parseFloat(getComputedStyle(m).marginLeft) || 0) : 0;
-            };
-            const floor = parseFloat(getComputedStyle(st).fontSize) * .7;
-            for (let pass = 0; pass < 2; pass++) {
-                const avail = st.clientWidth - markOf(),
-                    need = date.scrollWidth;
-                if (!(avail > 0) || need <= avail + .5) break;
-                const base = parseFloat(getComputedStyle(st).fontSize),
-                    next = Math.max(base * (avail / need), floor);
-                if (next >= base - .1) break;
-                st.style.fontSize = next.toFixed(2) + 'px';
-            }
-        });
-        c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
+            if (!date || date.classList.contains('is-placeholder')) return null;
+            return { st, date, mark: st.querySelector('.bbgl-lib-check, .bbgl-lib-reading'), floor: parseFloat(getComputedStyle(st).fontSize) * .7 };
+        }).filter(Boolean);
+        for (let pass = 0; pass < 2 && pending.length; pass++) {
+            const writes = pending.map(p => {
+                const markW = p.mark ? p.mark.getBoundingClientRect().width + (parseFloat(getComputedStyle(p.mark).marginLeft) || 0) : 0;
+                const avail = p.st.clientWidth - markW,
+                    need = p.date.scrollWidth;
+                if (!(avail > 0) || need <= avail + .5) return null;
+                const base = parseFloat(getComputedStyle(p.st).fontSize),
+                    next = Math.max(base * (avail / need), p.floor);
+                return next >= base - .1 ? null : next.toFixed(2) + 'px';
+            });
+            pending = pending.filter((p, i) => {
+                if (writes[i] == null) return false;
+                p.st.style.fontSize = writes[i];
+                return true;
+            });
+        }
+        const groups = Array.from(c.querySelectorAll('.bbgl-lib-cells.is-multi'));
+        groups.forEach(g => {
             g.classList.remove('is-tight');
             g.classList.add('is-measure');
+        });
+        groups.map(g => {
             const box = g.closest('.bbgl-lib-data');
-            if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
-            g.classList.remove('is-measure');
+            return !!box && g.scrollWidth + 8 > box.clientWidth;
+        }).forEach((tight, i) => {
+            if (tight) groups[i].classList.add('is-tight');
+            groups[i].classList.remove('is-measure');
         });
     }
 
@@ -655,10 +713,13 @@
             m = calendarState.month,
             yt = dom.yearTrigger;
         dom.monthTrigger.textContent = CONSTANTS.MONTHS[m];
-        dom.panel.style.setProperty('--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        // On the header wrapper (holds both readers: .bbgl-header-bg, .bbgl-level-lens), not the panel
+        // root, where an inherited var change restyles the entire panel.
+        const hw = dom.headerBg ? dom.headerBg.parentElement : dom.panel;
         const isSummer = m >= 5 && m <= 7;
-        dom.panel.style.setProperty('--bbgl-header-crop-b', isSummer ? '8px' : '0px');
-        dom.panel.style.setProperty('--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
+        setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        setStyleVarIfChanged(hw, '--bbgl-header-crop-b', isSummer ? '8px' : '0px');
+        setStyleVarIfChanged(hw, '--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
         yt.textContent = y;
         yt.classList.remove('disabled');
         let f = new Date(y, m, 1),
@@ -816,12 +877,24 @@
     // test as the allOthers filter that renders them.
     const isTrainingBook = meta => !!meta.training && meta.training !== 'repeat';
 
+    // Rebuilt only when the book data or day-start mode changes, or when a future end it held back
+    // comes due (validUntil); every calendar render and month swipe otherwise reuses it.
+    let _bookMarkerCache = null;
+
     function getBookMarkers() {
-        const books = (DataController.getBookData() || {}).books || {};
+        const bookData = DataController.getBookData();
         const nowTs = Math.floor(Date.now() / 1000);
+        const c = _bookMarkerCache;
+        if (c && c.bookData === bookData && c.mode === userConfig.dayStartMode && nowTs < c.validUntil) return c.map;
+        const books = (bookData || {}).books || {};
         const map = {};
+        let validUntil = Infinity;
         const mark = (ts, key) => {
-            if (ts == null || ts > nowTs) return;
+            if (ts == null) return;
+            if (ts > nowTs) {
+                validUntil = Math.min(validUntil, ts);
+                return;
+            }
             const ds = Formatter.dateLogical(ts * 1000);
             (map[ds] || (map[ds] = {}))[key] = true;
         };
@@ -839,6 +912,7 @@
             mark(d.start, isTrainingBook(eff) ? 'trainStart' : 'perkStart');
             mark(d.end, eff.readPeriod ? 'perkReceived' : 'perkEnded');
         });
+        _bookMarkerCache = { bookData, mode: userConfig.dayStartMode, validUntil, map };
         return map;
     }
 
@@ -885,6 +959,15 @@
         POST_IT_STEP = 18,
         POST_IT_BAND_TOP = -1,
         POST_IT_BAND_BOT = 29;
+
+    // Every calendar shine's gradient rides an inner band moved by transform (see .jewel-shine-band,
+    // .sticker-shine-band), so it's drawn once and slid instead of repainted each frame.
+    function addShineBand(shine, cls, gradient) {
+        const band = document.createElement('div');
+        band.className = cls;
+        if (gradient) band.style.backgroundImage = gradient;
+        shine.appendChild(band);
+    }
 
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
@@ -952,13 +1035,7 @@
                 sh.className = 'jewel-shine';
                 sh.style.maskImage = `url("${url}")`;
                 sh.style.webkitMaskImage = `url("${url}")`;
-                // Every shine's gradient rides an inner band moved by transform (see .jewel-shine-band).
-                const addBand = el => {
-                    const band = document.createElement('div');
-                    band.className = 'jewel-shine-band';
-                    el.appendChild(band);
-                };
-                addBand(sh);
+                addShineBand(sh, 'jewel-shine-band');
                 if (sl.meta.tier === 2) {
                     wrap.appendChild(sh);
                 } else {
@@ -966,7 +1043,7 @@
                     const so = document.createElement('div');
                     so.className = 'jewel-shine-over';
                     so.style.setProperty('--jewel-mask', `url("${url}")`);
-                    addBand(so);
+                    addShineBand(so, 'jewel-shine-band');
                     wrap.appendChild(so);
                 }
             };
@@ -1033,11 +1110,7 @@
                     let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                     if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                     else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
-                    // The gradient rides an inner band moved by transform (see .sticker-shine-band).
-                    const band = document.createElement('div');
-                    band.className = 'sticker-shine-band';
-                    band.style.backgroundImage = grad;
-                    ss.appendChild(band);
+                    addShineBand(ss, 'sticker-shine-band', grad);
                     ss.style.mixBlendMode = "overlay";
                     if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
                     sw.appendChild(ss);
@@ -1888,7 +1961,7 @@
         });
     }
 
-        function renderLevelBar(bar, expVal) {
+    function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
@@ -2928,33 +3001,8 @@
         });
     }
 
-    // Marks the panel as resizing for the duration of its native width/height transition, so
-    // backdrop-filter (expensive to animate) can be suppressed for that window via CSS
-    // (see `#bbgl-panel.bbgl-resizing` in the stylesheet). Cleans up on transitionend, with a
-    // timeout fallback in case the event doesn't fire (e.g. transition got interrupted).
-    function markPanelResizing(p) {
-        if (!p) return;
-        if (p._bbglResizingCancel) p._bbglResizingCancel();
-        p.classList.add('bbgl-resizing');
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            p.removeEventListener('transitionend', onEnd);
-            clearTimeout(timer);
-            p.classList.remove('bbgl-resizing');
-            p._bbglResizingCancel = null;
-        };
-        const onEnd = (ev) => {
-            if (ev.target === p && (ev.propertyName === 'width' || ev.propertyName === 'height')) finish();
-        };
-        p.addEventListener('transitionend', onEnd);
-        const timer = setTimeout(finish, 350); // matches the stylesheet's .3s width/height transition + margin
-        p._bbglResizingCancel = finish;
-    }
-
     // True when every record in a MutationObserver batch happened inside BBGL's own tooltip or panel.
-    // The document.body-subtree observers (domObs in 10-section-ix-init.js, watchLayoutLifecycle below)
+    // The document.body-subtree observer (domObs in 10-section-ix-init.js, which also feeds watchLayoutLifecycle below)
     // exist to notice Torn rebuilding its page, but they also fired on the script's own churn — the
     // tooltip's content swap on every new hover target, shine elements built on first hover, calendar
     // and graph re-renders — and ran their checks again each time. A record's target is the node
@@ -3052,14 +3100,16 @@
             });
             _layoutObservers.push(o);
         };
+        // Not an observer of its own: domObs (10-section-ix-init.js) already watches document.body's
+        // whole subtree for the same records and hands each batch here, so the batch is delivered and
+        // checked against BBGL's own churn once instead of twice. `isOwn` is that shared check.
         const watchLayoutLifecycle = () => {
-            const o = new MutationObserver((muts) => {
-                // Skips the scan entirely once a frame is already queued — it observes
-                // document.body's whole subtree, and Torn delivers chat traffic in bursts, so
-                // re-scanning every record after the first was real wasted work. Nothing is missed:
-                // the queued frame reads live DOM state when it runs, not a snapshot.
+            runtime._layoutLifecycle = (muts, isOwn) => {
+                // Skips the scan entirely once a frame is already queued — Torn delivers chat traffic
+                // in bursts, so re-scanning every record after the first was real wasted work.
+                // Nothing is missed: the queued frame reads live DOM state when it runs, not a snapshot.
                 if (runtime.layoutRafId) return;
-                if (_bbglMutationsAreOwn(muts)) return;
+                if (isOwn()) return;
                 for (const m of muts) {
                     if (m.type !== 'childList') continue;
                     if (_containsLayoutWindow(m.addedNodes) || _containsLayoutWindow(m.removedNodes)) {
@@ -3067,12 +3117,7 @@
                         return;
                     }
                 }
-            });
-            o.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            _layoutObservers.push(o);
+            };
         };
         dom.notesBtn = document.getElementById('notes_panel_button');
         dom.peopleBtn = document.getElementById('people_panel_button');
@@ -3763,7 +3808,7 @@
     function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient></defs>`;
         const body = `<rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 77.2H473" stroke="#000" stroke-opacity=".3" stroke-width="4.25"/>

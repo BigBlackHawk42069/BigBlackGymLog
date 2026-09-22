@@ -451,10 +451,6 @@
                         top: 1px;
                     }
 
-                    .bbgl-subsetting {
-                        padding-left: 26px;
-                    }
-
                     .bbgl-row-disabled {
                         opacity: .45;
                         pointer-events: none;
@@ -4191,12 +4187,6 @@
                         font-size: clamp(14px, calc(14px + 1px * var(--bbgl-dock-t)), 15px);
                     }
 
-                    .vi-count {
-                        font-size: 9px;
-                        color: #aaa;
-                        margin-bottom: 2px;
-                    }
-
                     #btn-close-viewer {
                         position: absolute;
                         top: 5px;
@@ -4239,10 +4229,6 @@
 
                     .bbgl-mode-page .vi-name {
                         font-size: clamp(14px, calc(14px + 2px * var(--bbgl-page-t)), 16px) !important;
-                    }
-
-                    .bbgl-mode-page .vi-count {
-                        font-size: clamp(8px, calc(8px + 1px * var(--bbgl-page-t)), 9px);
                     }
 
                     .bbgl-mode-page #btn-close-viewer {
@@ -5305,6 +5291,11 @@
                         pointer-events: none;
                         z-index: 10;
                     }
+                    /* Static outgoing copy: skip the live grid's per-cell layers so a swipe doesn't double them. */
+                    .bbgl-cal-ghost .bbgl-week,
+                    .bbgl-cal-ghost .bbgl-day-cell {
+                        will-change: auto;
+                    }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine {
                         opacity: 1;
@@ -5607,6 +5598,8 @@
                         display: block;
                         width: 100%;
                         height: 100%;
+                        max-width: none;
+                        pointer-events: none;
                     }
 
                     /* ─── Weekly Bar Handle ─────────────────────────────────── */
@@ -5784,19 +5777,6 @@
                         --bbgl-exp-growth: 3px;
                     }
 
-                    /* Sibling of #bbgl-level-container, painted behind it, holding the housing
-                       SVG. Never clipped. */
-                    #bbgl-level-bg {
-                        position: absolute;
-                        bottom: 0;
-                        left: 0;
-                        right: 0;
-                        height: 12px;
-                        box-shadow: 0 -1px 2px rgba(0,0,0,.45), 0 -3px 6px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.55), 0 3px 5px rgba(0,0,0,.32), 0 6px 9px rgba(0,0,0,.13);
-                        pointer-events: none;
-                        will-change: transform; /* same reason as #bbgl-level-container */
-                    }
-
                     /* Wraps the tucking badge — both the text flag (#bbgl-level-num) and, for
                        A2, the diamond crown (::before). A normal, non-transformed flex item
                        whose bottom edge sits at the top of the bar (track height above the
@@ -5839,11 +5819,6 @@
                         position: relative;
                         display: block;
                         transform-origin: bottom center;
-                    }
-
-                    #bbgl-panel.bbgl-compact #bbgl-level-num .bbgl-lv-prefix,
-                    #bbgl-gym-level-num .bbgl-lv-prefix {
-                        display: none;
                     }
 
                     .bbgl-exp-bar {
@@ -5927,15 +5902,6 @@
                         display: inline;
                     }
 
-                    #bbgl-level-bg,
-                    .bbgl-exp-track .bbgl-level-recess {
-                        display: none;
-                    }
-
-                    #bbgl-level-bg {
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
-                    }
-
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         position: absolute;
@@ -5954,7 +5920,6 @@
                         -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
                         mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
-                        will-change: width;
                     }
 
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill,
@@ -6115,9 +6080,6 @@
                         --bbgl-exp-growth: 4px;
                     }
 
-                    #bbgl-panel.bbgl-expanded #bbgl-level-bg {
-                        height: 18px;
-                    }
                     #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
                         --bbgl-track-box-base: 18px;
                     }
@@ -6135,9 +6097,6 @@
                         --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
 
-                    #bbgl-panel.bbgl-mode-page #bbgl-level-bg {
-                        height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
-                    }
                     #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
                         --bbgl-track-box-base: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
@@ -6297,14 +6256,6 @@
                     #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-track {
                         backdrop-filter: none;
                         -webkit-backdrop-filter: none;
-                    }
-
-                    /* Suppress backdrop-filter while the compact<->expanded resize is animating: blurring
-                       what's behind this element has to be resampled every frame the panel's layer changes,
-                       which is one of the more GPU-expensive things to animate. Restored once settled. */
-                    #bbgl-panel.bbgl-resizing #bbgl-level-num {
-                        backdrop-filter: none !important;
-                        -webkit-backdrop-filter: none !important;
                     }
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
@@ -7092,25 +7043,6 @@
                     #bbgl-settings-view.active-view,
                     #bbgl-welcome-view.active-view {
                         display: flex;
-                    }
-
-                    .bbgl-author-block {
-                        margin: 8px 10px 10px;
-                        padding: 8px 10px;
-                        background: #2a2a2a;
-                        border: 1px solid #3a3a3a;
-                        border-radius: 4px;
-                        font-family: Arial, sans-serif;
-                        font-size: 12px;
-                        color: #aaa;
-                        line-height: 1.6;
-                    }
-
-                    .bbgl-author-block strong {
-                        color: #ddd;
-                        display: block;
-                        margin-bottom: 4px;
-                        font-size: 13px;
                     }
 
                     /* CSP-safe author link (replaces inline onmouseover/onmouseout handlers). */
@@ -9078,49 +9010,6 @@
                         width: 82px;
                     }
 
-                    /* The suspended sign: name plus the rods it hangs from. Absolutely centred on
-                       the identity wrapper and pinned to zero height, so only the box below decides
-                       middle-track width and vertical centring; width:max-content still measures
-                       the name for drawing even though it contributes nothing to the grid.
-
-                       Zero height means content would spill DOWNWARD, so .bbgl-titles-sign-inner
-                       lifts it back up by its own height via translateY (not top/bottom — a
-                       percentage there resolves against the containing block's height, which is 0
-                       here, where translateY resolves against the element's OWN height). Because
-                       the lift is by the inner wrapper's own height, growing the rods
-                       (--bbgl-t-wire-h) raises the name by the same amount for free — one number
-                       moves both.
-
-                       The assembly stays exactly as wide as the billboard; only .bbgl-titles-name
-                       may overhang that width, protected by its own cap and ellipsis. */
-                    .bbgl-titles-sign {
-                        position: absolute;
-                        top: 0;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        height: 0;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        width: 100%;
-                        pointer-events: none;
-                    }
-
-                    /* The compact sign keeps the requested small downward bias; the new short
-                       mounts let that bias bring the tubing almost onto the billboard frame. */
-                    #bbgl-panel.bbgl-compact .bbgl-titles-sign {
-                        top: 1px;
-                    }
-
-                    .bbgl-titles-sign-inner {
-                        transform: translateY(-100%);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        width: 100%;
-                        min-width: 0;
-                    }
-
                     /* line-height and the padding leave room for descenders — at 1.05 with the
                        page's overflow:hidden the bottom of the name was being shaved off. It remains
                        a neon sign lifted above the new rank-plaque/title-sign assembly; the shared
@@ -9166,72 +9055,6 @@
                         overflow: hidden;
                         text-overflow: ellipsis;
                         white-space: nowrap;
-                    }
-
-                    /* The standoffs holding the sign off the box: two thin glowing rods running
-                       from the underside of the name down to the window's top edge. Same line
-                       colour and glow falloff as the window's own tube, so the sign reads as
-                       mounted to it rather than as a separate floating object. A real element in
-                       the flex column (not a pseudo on either neighbour) so it claims its own
-                       layout height between the two - that height IS the gap, which is why
-                       .bbgl-titles-center has no row-gap of its own. */
-                    .bbgl-titles-wires {
-                        position: relative;
-                        /* Under the lettering: the rods run up behind the glyphs rather than
-                           crossing over them, so the sign reads as mounted in front of its
-                           hardware (and the negative margin above can overlap freely). */
-                        z-index: 0;
-                        width: 42%;
-                        height: var(--bbgl-t-wire-h, 18px);
-                        /* Pulled up into the name's own line box. A text element's box bottom sits
-                           well below where the letters visually end (descender space the glyphs
-                           don't reach), so wires starting at the box edge read as floating in a
-                           gap rather than attached to the lettering - the overlap closes that. */
-                        margin-top: calc(var(--bbgl-t-wire-lift, 8px) * -1);
-                        pointer-events: none;
-                    }
-
-                    /* Unlit hardware, deliberately NOT part of the tube: a cross-bar gradient
-                       (dark edge -> bright off-centre highlight -> dark edge) is what reads as a
-                       round metal rod rather than a flat line, so these look like the mounts the
-                       sign hangs from instead of more neon. Needs real width for that gradient to
-                       resolve - a 1px rod has nowhere to put a highlight. The only glow they carry
-                       is a faint tint of the sign's colour spilling ONTO them from above, which is
-                       what ties them to the lit letters without making them lit themselves. */
-                    .bbgl-titles-wires::before,
-                    .bbgl-titles-wires::after {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        width: 3px;
-                        border-radius: 1px;
-                        background:
-                            linear-gradient(90deg,
-                                #050505 0%,
-                                #2b2b2b 22%,
-                                #5a5a5a 42%,
-                                #3a3a3a 60%,
-                                #171717 82%,
-                                #030303 100%);
-                        box-shadow:
-                            0 0 1px rgba(0, 0, 0, .45),
-                            inset 0 0 1px rgba(255, 255, 255, .12);
-                        filter: drop-shadow(0 0 3px color-mix(in srgb, var(--bbgl-t-win-color) 18%, transparent));
-                    }
-
-                    .bbgl-titles-wires::before {
-                        left: 0;
-                    }
-
-                    .bbgl-titles-wires::after {
-                        right: 0;
-                    }
-
-                    /* Article sits deliberately quieter than the words it introduces. */
-                    .bbgl-titles-the {
-                        color: rgba(255, 255, 255, .55);
-                        font-weight: 600;
                     }
 
                     .bbgl-title-card {
@@ -11383,31 +11206,6 @@
                         text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
                     }
 
-                    .bbgl-marquee-bulb {
-                        animation: bbgl-marquee-ignite .35s ease-out both;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--bulb-delay));
-                    }
-
-                    .bbgl-marquee-lamp {
-                        filter: drop-shadow(0 0 2px var(--bulb-color));
-                    }
-
-                    .bbgl-marquee-beams {
-                        mix-blend-mode: screen;
-                        animation: bbgl-marquee-ignite 1.2s ease-out both;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + 650ms);
-                    }
-
-                    @keyframes bbgl-marquee-ignite {
-                        from { opacity: .12; }
-                        to { opacity: 1; }
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-marquee-bulb,
-                    #bbgl-panel.bbgl-no-animations .bbgl-marquee-beams {
-                        animation: none;
-                    }
-
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
                        One in each corner (str top-left, def top-right, spd bottom-left, dex
                        bottom-right — grouped into .bbgl-titles-corner-col pairs above) rather than a
@@ -11637,7 +11435,7 @@
                        under default "meet" scaling (the crown's viewBox, 307x217, is a little
                        wider than tall), so the crown doesn't fill the full 96% height — that's
                        deliberate margin, not a bug. */
-                    .bbgl-title-star-base,
+                    
                     .bbgl-title-star-fill {
                         position: absolute;
                         inset: 0;
@@ -11647,30 +11445,12 @@
                         pointer-events: none;
                     }
 
-                    .bbgl-title-star-base svg,
+                    
                     .bbgl-title-star-fill svg {
                         width: 96%;
                         height: 96%;
                         display: block;
                         overflow: visible;
-                    }
-
-                    /* Stroke width is a calc() dividing a fixed px target back through
-                       --bbgl-t-star instead of a flat px value, to counter the fact that the SVG's
-                       own viewBox-to-render scaling would otherwise make the stroke thicker in page
-                       mode and thinner in compact — this fakes the "constant on-screen thickness"
-                       job vector-effect:non-scaling-stroke would normally do (that property is
-                       avoided here entirely, see ICONS.TITLE_CROWN above, since it silently breaks
-                       stroke-dashoffset on this same element). The constant (415.73) is
-                       targetOnscreenPx * viewBoxWidth / .96, i.e. the inverse of how the 96%-sized,
-                       307-wide viewBox actually scales into a --bbgl-t-star-wide square cell —
-                       width, not height, is the constraining dimension since the crown's viewBox is
-                       wider than it is tall. Re-derive both this and -fill's constant below if the
-                       icon svg's width/height percentage (currently 96%, above) OR its viewBox width
-                       (currently 307, ICONS.TITLE_CROWN above) ever changes. */
-                    .bbgl-title-star-base svg path {
-                        stroke: rgba(200, 205, 215, .28);
-                        stroke-width: calc(415.73px / var(--bbgl-t-star));
                     }
 
                     /* Stat-coloured neon trace, deliberately the SAME recipe as the window-frame
@@ -11680,9 +11460,10 @@
                        same 3-stack drop-shadow px values (1 / 4*glow / 11*glow), also threaded
                        through the same --bbgl-t-win-glow per-mode dimming knob. Line WIDTH still
                        has to be its own thing (see stroke-width below) since the border is a flat
-                       1px and this needs to scale with --bbgl-t-star across modes — but the width
-                       target matches -base's 1.3px exactly, so the two strokes are the same
-                       thickness and the trace can't show the grey base peeking out past its edges. */
+                       1px and this needs to scale with --bbgl-t-star across modes: 415.73 is
+                       targetOnscreenPx (1.3) * viewBoxWidth (307) / .96, countering the viewBox's own
+                       scaling (vector-effect:non-scaling-stroke would break stroke-dashoffset here).
+                       Re-derive it if the svg's 96% size or the icon's viewBox width changes. */
                     .bbgl-title-star-fill svg path {
                         stroke: color-mix(in srgb, var(--bbgl-t-win-color, #ffcc44) 42%, rgba(255, 255, 255, .92));
                         stroke-width: calc(415.73px / var(--bbgl-t-star));
@@ -11777,29 +11558,6 @@
                         flex: 1 1 0;
                         min-height: 0;
                         overflow: hidden;
-                    }
-
-                    .bbgl-titles-name-row {
-                        --bbgl-t-win-color: #a855f7;
-                        --bbgl-t-win-glow: 1.3;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-width: 0;
-                        min-height: 0;
-                        padding: 0 8px;
-                        box-sizing: border-box;
-                    }
-
-                    .bbgl-titles-name-row .bbgl-titles-name {
-                        flex: 0 0 auto;
-                        max-width: none;
-                        font-size: var(--bbgl-name-fit, 18px);
-                        line-height: 1.4;
-                        padding-bottom: 0;
-                        transform: none;
-                        overflow: visible;
-                        text-overflow: clip;
                     }
 
                     .bbgl-titles-card-area {
@@ -12220,20 +11978,9 @@
                         overflow: visible;
                     }
 
-                    .bbgl-title-star-base svg path {
-                        fill: #302b24;
-                        stroke: #8c8069;
-                        filter: drop-shadow(0 1px 0 #d1b98066) drop-shadow(0 2px 1px #000b);
-                    }
-
                     .bbgl-title-star-fill svg path {
                         stroke: color-mix(in srgb, var(--bbgl-t-win-color) 65%, #eee0bb);
                         filter: drop-shadow(0 1px 0 #0009);
-                    }
-
-                    .bbgl-title-star.is-unlocked .bbgl-title-star-base svg path {
-                        fill: color-mix(in srgb, var(--bbgl-t-win-color) 70%, #25211b);
-                        stroke: #c7b48b;
                     }
 
                     body:not(.is-touch-device) .bbgl-title-star.is-unlocked:hover .bbgl-title-star-fill svg path {
@@ -12332,44 +12079,6 @@
                         gap: 0;
                         min-width: 0;
                         text-align: left;
-                    }
-
-                    .bbgl-ach-dual {
-                        width: 100%;
-                        box-sizing: border-box;
-                        display: flex;
-                        flex-direction: column;
-                    }
-
-                    .bbgl-ach-dual-headers {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        column-gap: clamp(8px, calc(8px + 10px * var(--bbgl-dock-t, 0)), 18px);
-                        border-bottom: 1px solid rgba(255, 255, 255, .12);
-                        width: 100%;
-                        box-sizing: border-box;
-                    }
-
-                    .bbgl-ach-dual .bbgl-ach-section-title {
-                        border-bottom: none;
-                        padding-bottom: 4px;
-                    }
-
-                    .bbgl-ach-dual-body {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        column-gap: clamp(8px, calc(8px + 10px * var(--bbgl-dock-t, 0)), 18px);
-                        align-items: start;
-                        width: 100%;
-                        box-sizing: border-box;
-                        padding: 0px 0 2px;
-                    }
-
-                    .bbgl-ach-col-half {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 0;
-                        min-width: 0;
                     }
 
                     #bbgl-panel.bbgl-compact {

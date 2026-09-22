@@ -174,6 +174,45 @@
         }
     }
 
+    // Flyout error gate. Torn's Fly-Out Sidebar opens on a rightward swipe anywhere, which is also how
+    // our paged areas go back a page. Torn skips any touch under a `data-prevent-flyout-swipe="true"`
+    // ancestor (checked via closest() on each touchstart), so each paged area carries it only while
+    // its current page has a page to its left; everywhere else the flyout works as normal. A
+    // right-swipe that pages back lifts that area's gate for FLYOUT_PASS_MS, so a quick second swipe
+    // reaches Torn as if it had just missed the first; after that the gate returns if the new page
+    // can still go left.
+    const FLYOUT_GATE_ATTR = 'data-prevent-flyout-swipe';
+    const FLYOUT_PASS_MS = 800;
+    const SWIPE_GATES = {
+        calendar: { id: 'swipe-area', canGoLeft: () => true },
+        stickers: { id: 'bbgl-sticker-container', canGoLeft: () => runtime.currentStickerPage > STICKER_SPONSOR_PAGE },
+        achievements: { id: 'bbgl-achievements-container', canGoLeft: () => runtime._achPage > 0 },
+        library: { id: 'bbgl-library-container', canGoLeft: () => (viewState.libraryPage || 0) > 0 }
+    };
+    const _flyoutPassTimers = {};
+
+    // Called by each area's render (renderStickers, achRefreshPageDom, renderLibrary) with its page
+    // state already set, and when a pass window ends. Writes only when an area's gate flips.
+    function refreshSwipeGates() {
+        Object.keys(SWIPE_GATES).forEach(key => {
+            const el = document.getElementById(SWIPE_GATES[key].id);
+            if (!el) return;
+            const on = !_flyoutPassTimers[key] && SWIPE_GATES[key].canGoLeft();
+            if (el.hasAttribute(FLYOUT_GATE_ATTR) === on) return;
+            if (on) el.setAttribute(FLYOUT_GATE_ATTR, 'true');
+            else el.removeAttribute(FLYOUT_GATE_ATTR);
+        });
+    }
+
+    function openFlyoutPass(key) {
+        clearTimeout(_flyoutPassTimers[key]);
+        _flyoutPassTimers[key] = setTimeout(() => {
+            _flyoutPassTimers[key] = null;
+            refreshSwipeGates();
+        }, FLYOUT_PASS_MS);
+        refreshSwipeGates();
+    }
+
     function changeMonth(d) {
         const c = dom.calContainer;
         if (!c) return;
@@ -196,11 +235,38 @@
             renderPanelContent();
             return;
         }
-        c.parentElement.querySelectorAll('.bbgl-cal-ghost').forEach(g => g.remove());
-        const ghost = c.cloneNode(true);
-        ghost.className += ' bbgl-cal-ghost';
+        // Header background only slides when the season it depicts is actually about to change
+        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
+        // season leaves it static, matching how it only changes at season boundaries at all.
+        const hb = dom.headerBg;
+        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        slideOutGhost(c, 'bbgl-cal-ghost', d);
+        if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true);
+
+        calendarState.month = m;
+        calendarState.year = y;
+        viewState.calYear = y;
+        viewState.calMonth = m;
+        saveViewState();
+        c.style.willChange = 'transform';
+        renderPanelContent();
+        slideIn(c, d);
+        if (headerChanging) {
+            hb.style.willChange = 'transform';
+            slideIn(hb, d);
+        }
+    }
+
+    // Month-change slide, shared by the calendar grid and the seasonal header: a clone of the
+    // outgoing element slides out (and removes itself) while the live element, re-rendered in place,
+    // slides in from the other side.
+    function slideOutGhost(el, ghostClass, d, clearId = false) {
+        el.parentElement.querySelectorAll('.' + ghostClass).forEach(g => g.remove());
+        const ghost = el.cloneNode(true);
+        if (clearId) ghost.id = '';
+        ghost.className += ' ' + ghostClass;
         ghost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
-        c.parentElement.appendChild(ghost);
+        el.parentElement.appendChild(ghost);
         const removeGhost = () => {
             if (ghost.parentElement) ghost.remove();
         };
@@ -211,55 +277,16 @@
         ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), {
             once: true
         });
+    }
 
-        // Header background only slides when the season it depicts is actually about to change
-        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
-        // season leaves it static, matching how it only changes at season boundaries at all.
-        const hb = dom.headerBg;
-        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
-        if (headerChanging) {
-            hb.parentElement.querySelectorAll('.bbgl-header-bg-ghost').forEach(g => g.remove());
-            const hbGhost = hb.cloneNode(true);
-            hbGhost.id = '';
-            hbGhost.className += ' bbgl-header-bg-ghost';
-            hbGhost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
-            hb.parentElement.appendChild(hbGhost);
-            const removeHbGhost = () => {
-                if (hbGhost.parentElement) hbGhost.remove();
-            };
-            hbGhost.addEventListener('animationend', removeHbGhost, {
-                once: true
-            });
-            const hbGhostTimer = setTimeout(removeHbGhost, 400);
-            hbGhost.addEventListener('animationend', () => clearTimeout(hbGhostTimer), {
-                once: true
-            });
-        }
-
-        calendarState.month = m;
-        calendarState.year = y;
-        viewState.calYear = y;
-        viewState.calMonth = m;
-        saveViewState();
-        c.style.willChange = 'transform';
-        renderPanelContent();
-        c.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
-        c.addEventListener('animationend', () => {
-            c.style.animation = '';
-            c.style.willChange = 'auto';
+    function slideIn(el, d) {
+        el.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
+        el.addEventListener('animationend', () => {
+            el.style.animation = '';
+            el.style.willChange = 'auto';
         }, {
             once: true
         });
-        if (headerChanging) {
-            hb.style.willChange = 'transform';
-            hb.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
-            hb.addEventListener('animationend', () => {
-                hb.style.animation = '';
-                hb.style.willChange = 'auto';
-            }, {
-                once: true
-            });
-        }
     }
 
     // Steps one page in either direction. Bounds are enforced HERE, not at the call sites, so
@@ -580,6 +607,15 @@
         } else switchView('ledger', true);
     }
 
+    // Top-panel views, each shown by a `viewing-<name>` class on #bbgl-top-panel (the ledger is the
+    // absence of all of them). Listed in the order they're checked when reading the current view.
+    const TOP_PANEL_VIEWS = ['graph', 'stickers', 'achievements', 'library'];
+    const TOP_PANEL_VIEW_CLASSES = TOP_PANEL_VIEWS.map(v => 'viewing-' + v);
+
+    function topPanelView(tp) {
+        return TOP_PANEL_VIEWS.find(v => tp.classList.contains('viewing-' + v)) || null;
+    }
+
     function switchView(tgt, inst = false) {
         // A Library resize still running would leave its deferred render pending; settle it first
         // so the current view below is read from its finished state.
@@ -592,10 +628,7 @@
         let cm = 'ledger';
         if (wv && wv.classList.contains('active-view')) cm = 'welcome';
         else if (sp.classList.contains('active-view')) cm = 'settings';
-        else if (tp.classList.contains('viewing-graph')) cm = 'graph';
-        else if (tp.classList.contains('viewing-stickers')) cm = 'stickers';
-        else if (tp.classList.contains('viewing-achievements')) cm = 'achievements';
-        else if (tp.classList.contains('viewing-library')) cm = 'library';
+        else cm = topPanelView(tp) || 'ledger';
         if (cm === tgt && !inst) return;
         if (cm === 'achievements' && tgt !== 'achievements') resetTitlesPageAnimationClock();
         if (cm === 'stickers' && tgt !== 'stickers' && !inst) {
@@ -654,7 +687,7 @@
                 // Like the stickerbook, the Library reopens on its first page.
                 if (!inst) viewState.libraryPage = 0;
             }
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
+            tp.classList.remove(...TOP_PANEL_VIEW_CLASSES);
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
@@ -895,7 +928,7 @@
         if (tp) {
             tp.style.display = 'flex';
             resetTitlesPageAnimationClock();
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
+            tp.classList.remove(...TOP_PANEL_VIEW_CLASSES);
         }
         if (bp) {
             bp.style.display = 'flex';
@@ -1017,11 +1050,7 @@
             }
         } else {
             if (vp && vp.classList.contains('active')) runtime.returnView = 'viewer';
-            else if (tp.classList.contains('viewing-graph')) runtime.returnView = 'graph';
-            else if (tp.classList.contains('viewing-stickers')) runtime.returnView = 'stickers';
-            else if (tp.classList.contains('viewing-achievements')) runtime.returnView = 'achievements';
-            else if (tp.classList.contains('viewing-library')) runtime.returnView = 'library';
-            else runtime.returnView = 'ledger';
+            else runtime.returnView = topPanelView(tp) || 'ledger';
             switchView('settings');
             viewState.subView = 'settings';
         }
@@ -1743,75 +1772,41 @@
             this.blur();
             openFeatureGuideModal();
         };
-        // Torn's fly-out sidebar treats any element under a `data-prevent-flyout-swipe="true"`
-        // ancestor as ineligible for its own edge-swipe gesture detection (checked live via
-        // closest() on each touchstart), so the panel carries it by default to keep our own
-        // left/right paging swipes from also flinging Torn's sidebar open. A rightward swipe that
-        // actually changes a page arms a 900ms pass-through window (attribute removed) so a second
-        // rightward page-change swipe in that window reaches Torn too, in case the first one was
-        // swallowed instead of registering as the intentional gesture; it re-guards immediately once
-        // that second swipe lands, or automatically once the window elapses.
-        root.setAttribute('data-prevent-flyout-swipe', 'true');
-        const FLYOUT_SWIPE_GATE_MS = 900;
-        let _flyoutGateTimer = null;
-        const onRightSwipePageChange = () => {
-            if (_flyoutGateTimer) {
-                clearTimeout(_flyoutGateTimer);
-                _flyoutGateTimer = null;
-                root.setAttribute('data-prevent-flyout-swipe', 'true');
-                return;
-            }
-            root.removeAttribute('data-prevent-flyout-swipe');
-            _flyoutGateTimer = setTimeout(() => {
-                _flyoutGateTimer = null;
-                root.setAttribute('data-prevent-flyout-swipe', 'true');
-            }, FLYOUT_SWIPE_GATE_MS);
+        // Horizontal paging swipe: past `threshold` px and clearly more horizontal than vertical.
+        // onSwipe gets dx (negative = leftward = next page).
+        const bindHorizontalSwipe = (el, threshold, onSwipe) => {
+            if (!el) return;
+            let x0 = 0,
+                y0 = 0;
+            el.addEventListener('touchstart', (e) => {
+                x0 = e.touches[0].clientX;
+                y0 = e.touches[0].clientY;
+            }, {
+                passive: true
+            });
+            el.addEventListener('touchend', (e) => {
+                if (window._bbglScrubbing) return;
+                const dx = e.changedTouches[0].clientX - x0,
+                    dy = e.changedTouches[0].clientY - y0;
+                if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx);
+            }, {
+                passive: true
+            });
         };
-        const sa = get('swipe-area');
-        if (sa) {
-            let _sX = 0,
-                _sY = 0;
-            sa.addEventListener('touchstart', (e) => {
-                _sX = e.touches[0].clientX;
-                _sY = e.touches[0].clientY;
-            }, {
-                passive: true
-            });
-            sa.addEventListener('touchend', (e) => {
-                if (window._bbglScrubbing) return;
-                const dx = e.changedTouches[0].clientX - _sX,
-                    dy = e.changedTouches[0].clientY - _sY;
-                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    changeMonth(dx < 0 ? 1 : -1);
-                    if (dx > 0) onRightSwipePageChange();
-                }
-            }, {
-                passive: true
-            });
-        }
-        const sgSwipe = get('bbgl-sticker-container');
-        if (sgSwipe) {
-            let _sgX = 0,
-                _sgY = 0;
-            sgSwipe.addEventListener('touchstart', (e) => {
-                _sgX = e.touches[0].clientX;
-                _sgY = e.touches[0].clientY;
-            }, {
-                passive: true
-            });
-            sgSwipe.addEventListener('touchend', (e) => {
-                if (window._bbglScrubbing) return;
-                const dx = e.changedTouches[0].clientX - _sgX,
-                    dy = e.changedTouches[0].clientY - _sgY;
-                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    const beforePage = runtime.currentStickerPage;
-                    changeStickerPage(dx < 0 ? 1 : -1);
-                    if (dx > 0 && runtime.currentStickerPage !== beforePage) onRightSwipePageChange();
-                }
-            }, {
-                passive: true
-            });
-        }
+        bindHorizontalSwipe(get('swipe-area'), 50, dx => {
+            changeMonth(dx < 0 ? 1 : -1);
+            if (dx > 0) openFlyoutPass('calendar');
+        });
+        bindHorizontalSwipe(get('bbgl-sticker-container'), 40, dx => {
+            const beforePage = runtime.currentStickerPage;
+            changeStickerPage(dx < 0 ? 1 : -1);
+            if (dx > 0 && runtime.currentStickerPage !== beforePage) openFlyoutPass('stickers');
+        });
+        bindHorizontalSwipe(get('bbgl-library-container'), 40, dx => {
+            const changing = gotoLibraryPage((viewState.libraryPage || 0) + (dx < 0 ? 1 : -1));
+            if (dx > 0 && changing) openFlyoutPass('library');
+        });
+        refreshSwipeGates();
         GraphController.setupControls();
         setupStickerGrid();
         refreshInitLock();
@@ -1869,7 +1864,7 @@
                     const dir = dx < 0 ? 1 : -1,
                         willChangePage = !runtime._achAnimating && runtime._achPage + dir >= 0 && runtime._achPage + dir <= 5;
                     gotoAchievementsPage(dir);
-                    if (dx > 0 && willChangePage) onRightSwipePageChange();
+                    if (dx > 0 && willChangePage) openFlyoutPass('achievements');
                     _achTouchStar = null;
                     return;
                 }
@@ -2133,14 +2128,19 @@
         updateLevelBar(); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch(muts) {
-            if (_domRaf) return;
+            // Computed at most once per batch, shared with the layout lifecycle handler below.
+            let own = null;
+            const isOwn = () => own === null ? (own = _bbglMutationsAreOwn(muts)) : own;
             // Changes confined to BBGL's own tooltip/panel can't be Torn moving anything we inject
             // into — see _bbglMutationsAreOwn() (07-section-vi-ui.js).
-            if (_bbglMutationsAreOwn(muts)) return;
-            _domRaf = requestAnimationFrame(function onDomMutationFrame() {
-                _domRaf = null;
-                handleDomMutation();
-            });
+            if (!_domRaf && !isOwn()) {
+                _domRaf = requestAnimationFrame(function onDomMutationFrame() {
+                    _domRaf = null;
+                    handleDomMutation();
+                });
+            }
+            // attachLayoutObservers() (07-section-vi-ui.js) installs this and swaps it on re-arm.
+            if (runtime._layoutLifecycle) runtime._layoutLifecycle(muts, isOwn);
         });
         runtime.domObs = domObs;
         runtime._domObsArmed = true;

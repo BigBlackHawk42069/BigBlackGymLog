@@ -867,12 +867,6 @@
         }];
     }
 
-    // Plain text — clipboard, aria labels, anywhere markup would be wrong.
-    function composeStatTitle(selection) {
-        const parts = composeStatTitleParts(selection);
-        return parts ? parts.map(p => p.text).join(' ') : '';
-    }
-
     // One finished word. Shared by the composed title and the titles page's mid-pick preview so both
     // pick up the identical per-word finish rules.
     function statTitleWordHTML(text, phase) {

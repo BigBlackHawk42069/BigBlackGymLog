@@ -188,7 +188,7 @@
     ];
     // Not requested:
     // 6  — Points (refill 4900 is covered by 3)
-    const ITEM_GROUP_LABELS ={ energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
+    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
     const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
     const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
     const TRAIN_LOGS = [5300, 5301, 5302, 5303];

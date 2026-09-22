@@ -84,8 +84,16 @@
         return sel;
     }
 
+    // The refreshers call these every 300ms; writing only on change keeps an idle widget from
+    // restyling itself and waking the page's DOM observer (it lives outside #bbgl-panel) each tick.
     function setActive(btn, on) {
+        if (btn._bbglActive === on) return;
+        btn._bbglActive = on;
         btn.style.background = on ? ACTIVE_BG : '#444';
+    }
+
+    function setTextIfChanged(el, text) {
+        if (el.textContent !== text) el.textContent = text;
     }
 
     // ─── Level helpers ──────────────────────────────────────────────────────
@@ -199,8 +207,8 @@
         refreshers.push(() => {
             if (document.activeElement === levelInput) return;
             const p = shownProgress();
-            levelInput.min = String(LEVEL_ATRO_START[p.atrophy]);
-            levelInput.max = String(LEVEL_CAP);
+            if (levelInput.min !== String(LEVEL_ATRO_START[p.atrophy])) levelInput.min = String(LEVEL_ATRO_START[p.atrophy]);
+            if (levelInput.max !== String(LEVEL_CAP)) levelInput.max = String(LEVEL_CAP);
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
@@ -265,10 +273,10 @@
             atrophyBtns.forEach((btn, a) => setActive(btn, a === p.atrophy));
             rankBtns.forEach((btn, i) => {
                 const b = bands[i];
-                btn.textContent = `${b.start}–${b.max} · ${LEVEL_TITLE_BANDS[i].titles[p.atrophy]}`;
+                setTextIfChanged(btn, `${b.start}–${b.max} · ${LEVEL_TITLE_BANDS[i].titles[p.atrophy]}`);
                 setActive(btn, p.level >= (i === 0 ? -Infinity : b.start) && p.level <= b.max);
             });
-            capBtn.textContent = p.atrophy < 2 ? `100 · Finish Atrophy ${p.atrophy}` : '100 · Fully Bricked';
+            setTextIfChanged(capBtn, p.atrophy < 2 ? `100 · Finish Atrophy ${p.atrophy}` : '100 · Fully Bricked');
             setActive(capBtn, isFullyBricked(p.atrophy, p.level));
         });
 

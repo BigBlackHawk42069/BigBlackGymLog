@@ -63,6 +63,7 @@
 
     function renderStickers() {
         Perf.start('renderStickers');
+        refreshSwipeGates();
         if (!runtime.stickerData.length) loadStickerData();
         const isSponsor = runtime.currentStickerPage === STICKER_SPONSOR_PAGE;
         const sg = document.getElementById('bbgl-sponsor-grid');

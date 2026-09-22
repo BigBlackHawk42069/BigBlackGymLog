@@ -1782,6 +1782,11 @@ function computeAchievements(s) {
     };
 }
 
+// The titles page's SMIL-animated SVGs (filter lights, glimmers). Their timelines keep ticking
+// after the page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit
+// ends and resumed (re-synced) by syncTitlesPageAnimationClock().
+const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest';
+
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
     runtime._rankLightboxAnimation = null;
@@ -1789,6 +1794,7 @@ function resetTitlesPageAnimationClock(container) {
     if (el) {
         el.style.removeProperty('--bbgl-titles-animation-delay');
         el.style.removeProperty('--bbgl-rank-lightbox-delay');
+        el.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => svg.pauseAnimations());
     }
 }
 
@@ -1799,7 +1805,10 @@ function resetTitlesPageAnimationClock(container) {
 function syncTitlesPageAnimationClock(container, targets = [container]) {
     requestAnimationFrame(() => {
         const elapsed = Math.max(0, performance.now() - runtime._titlesPageAnimationStartedAt) / 1000;
-        document.querySelectorAll('.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest').forEach(svg => svg.setCurrentTime(elapsed));
+        document.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => {
+            svg.unpauseAnimations();
+            svg.setCurrentTime(elapsed);
+        });
     });
     const now = performance.now();
     if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) {
@@ -1824,6 +1833,7 @@ function achRefreshPageDom() {
     const container = document.getElementById('bbgl-achievements-container');
     if (!container || !runtime._achCache) return;
     container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0);
+    refreshSwipeGates();
     // Rebuilding this page is routine: live training, level-ups, title picks and layout changes all
     // refresh its data. Anchor every new CSS animation to the start of the current page visit so
     // fresh nodes resume the shared timeline instead of visibly starting over. Moving to any other
@@ -1956,13 +1966,6 @@ function achFmtDate(dateStr) {
     return Formatter.datePretty(dateStr) || dateStr;
 }
 
-function achFmtWeekRange(weekOf) {
-    if (!weekOf) return '';
-    const d = Formatter.parse(weekOf);
-    const end = new Date(d.getTime() + 6 * 86400000);
-    return `${Formatter.dateMonthDay(weekOf)} \u2013 ${Formatter.dateMonthDay(Formatter.dateISO(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()))}, ${end.getUTCFullYear()}`;
-}
-
 function achFmtStreakRange(start, end) {
     if (!start || !end) return '';
     const s = achFmtDate(start),
@@ -2009,12 +2012,6 @@ function achBuildSection(title, rows, sectionKey = '', colCount = 4) {
     return `<div class="bbgl-ach-section"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKey)}" data-clip-section="${achEsc(clipAll)}" data-clip-title="${achEsc(title)}" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">${achEsc(title)}</span></div><div class="bbgl-ach-cols"${COLS !== 4 ? ` style="grid-template-columns:repeat(${COLS},minmax(0,1fr));"` : ''}>${colsHTML}</div></div>`;
 }
 
-function achBuildDualSection(titleA, rowsA, titleB, rowsB, sectionKeyA = '', sectionKeyB = '') {
-    const clipA = achRowsClip(rowsA),
-        clipB = achRowsClip(rowsB);
-    return `<div class="bbgl-ach-dual"><div class="bbgl-ach-dual-headers"><div class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKeyA)}" data-clip-section="${achEsc(clipA)}" data-clip-title="${achEsc(titleA)}">${achEsc(titleA)}</div><div class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKeyB)}" data-clip-section="${achEsc(clipB)}" data-clip-title="${achEsc(titleB)}">${achEsc(titleB)}</div></div><div class="bbgl-ach-dual-body"><div class="bbgl-ach-col-half">${rowsA.map(achRowHTML).join('')}</div><div class="bbgl-ach-col-half">${rowsB.map(achRowHTML).join('')}</div></div></div>`;
-}
-
 function achFmtWeekShort(weekOf) {
     if (!weekOf) return '';
     return Formatter.datePretty(weekOf);
@@ -2025,10 +2022,6 @@ function achFmtMonthLong(rawMonth) {
     return `${CONSTANTS.MONTHS[parseInt(rawMonth.slice(5)) - 1]}, ${rawMonth.slice(0, 4)}`;
 }
 
-function achFmtTimeTCT(ts) {
-    const d = new Date(ts * 1000);
-    return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0') + ':' + String(d.getUTCSeconds()).padStart(2, '0') + ' TCT';
-}
 let _achTzLocalCache = null;
 
 function achTimeZoneSuffix() {
@@ -2058,10 +2051,8 @@ function achHJClipDate(rec) {
 
 function achFmtTimeHMS(ts) {
     const d = new Date(ts * 1000);
-    const h = TimeManager.useLocal() ? d.getHours() : d.getUTCHours();
-    const m = TimeManager.useLocal() ? d.getMinutes() : d.getUTCMinutes();
     const s = TimeManager.useLocal() ? d.getSeconds() : d.getUTCSeconds();
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + ' ' + achTimeZoneSuffix();
+    return achFmtTimeHM(ts) + ':' + String(s).padStart(2, '0') + ' ' + achTimeZoneSuffix();
 }
 
 // ─── Titles page (achievements page 0) ──────────────────────────────────────
@@ -2212,21 +2203,20 @@ function achPearlMarqueeHTML() {
                 <path d="M54 18L59 21L64 18L69 21L74 18M126 18L131 21L136 18L141 21L146 18M34 54L39 54L39 59L44 59L44 64M166 54L161 54L161 59L156 59L156 64" stroke="#c4d9e6" stroke-width=".7"/>
             </g>
             <g fill="url(#${id}-metal)" stroke="#f7fbff" stroke-width=".5">
-
                 <path d="M57 68L62 73L57 78L52 73ZM143 68L148 73L143 78L138 73Z"/>
             </g>
             <g fill="#caddec" stroke="#5c6c83" stroke-width=".4">
-
                 <path d="M57 70L60 73L57 76L54 73ZM143 70L146 73L143 76L140 73Z"/>
             </g>
             <path d="M57 70V76L60 73ZM143 70V76L146 73Z" fill="#fff" opacity=".85"/>
-            <g transform="translate(0 -21)">            <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
-                <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
-                            </g>
-            <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
-            <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
-                        <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
-</g>
+            <g transform="translate(0 -21)">
+                <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
+                    <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
+                </g>
+                <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
+                <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
+                <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
+            </g>
             <path d="M77 9H123L128 15L120 22H80L72 15Z" fill="#465266"/>
             <path d="M78 9H122L126 14L119 20H81L74 14Z" fill="url(#${id}-metal)" stroke="#f4f9ff" stroke-width=".7"/>
             <path d="M81 11H119M82 18H118" fill="none" stroke="#5d6b80" stroke-width=".65"/>
@@ -2650,7 +2640,8 @@ function achBuildPageTitles() {
         const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
         const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
         return `<div class="bbgl-title-block ach-stat-${k}">` +
-            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
+            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +
+            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
             `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
     };
     const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
@@ -2816,9 +2807,7 @@ function achBuildPage1(d) {
 
 function achFmtTimeHM(ts) {
     const d = new Date(ts * 1000);
-    const h = TimeManager.useLocal() ? d.getHours() : d.getUTCHours();
-    const m = TimeManager.useLocal() ? d.getMinutes() : d.getUTCMinutes();
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    return String(TimeManager.hours(d)).padStart(2, '0') + ':' + String(TimeManager.minutes(d)).padStart(2, '0');
 }
 
 function achBuildPage2(d) {
@@ -2995,16 +2984,27 @@ function computeBookData(s) {
     });
 
     // Per-stat gains from trains in [a, b), scaled by `factor`. Only stats trained appear.
+    // `gym` is sorted by ts, so the window's first train is found by binary search and the walk stops
+    // at its end rather than filtering the whole log once or twice per book.
+    const firstAtOrAfter = ts => {
+        let lo = 0, hi = gym.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (gym[mid].ts < ts) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    };
     const sumGains = (a, b, onlyStat, factor) => {
         const out = {};
         let tot = 0;
-        gym.forEach(e => {
-            if ((a != null && e.ts < a) || e.ts >= b) return;
-            if (onlyStat && e.stat !== onlyStat) return;
+        for (let i = a != null ? firstAtOrAfter(a) : 0; i < gym.length && gym[i].ts < b; i++) {
+            const e = gym[i];
+            if (onlyStat && e.stat !== onlyStat) continue;
             const g = (e.gain || 0) * factor;
             out[e.stat] = (out[e.stat] || 0) + g;
             tot += g;
-        });
+        }
         Object.keys(out).forEach(k => { out[k] = r2(out[k]); });
         out.tot = r2(tot);
         return out;
@@ -3204,7 +3204,7 @@ function achBuildPageOverview(d) {
         return line;
     }).filter(Boolean).join('\n\n') || '0';
 
-    const cols =`<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
+    const cols = `<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
     const isPeriod = !!viewState.achEnhPeriodMode;
     const switchHTML = `<div class="bbgl-enh-mode-switch" data-tooltip-html="<b>Changes the data scope displayed on this page.</b><br><i><b>All-Time</b> shows totals across your entire log history. <b>Selected</b> shows data for the selected period on the calendar.</i>" data-tooltip-side="left"><span class="bbgl-enh-sw-opt${isPeriod ? '' : ' active'}" data-mode="alltime">All-Time</span><span class="bbgl-enh-sw-opt${isPeriod ? ' active' : ''}" data-mode="selected">Selected</span></div>`;
     return `<div class="bbgl-ach-section bbgl-ach-section-energy"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="endocrine-enhancers" data-clip-section="${achEsc(clipAll)}" data-clip-title="Endocrine Enhancers" data-tooltip="Click any row to copy its data, or click this title to copy the entire section to your clipboard.">ENDOCRINE ENHANCERS</span>${switchHTML}</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(2,minmax(0,1fr));">${cols}</div></div>`;
@@ -3632,12 +3632,6 @@ function handleAchCopy(el) {
     } else if (el.classList.contains('bbgl-ach-hh-group')) {
         const gKey = el.getAttribute('data-ach-key'),
             r = cache;
-        const GABR = {
-            str: 'STR',
-            def: 'DEF',
-            spd: 'SPD',
-            dex: 'DEX'
-        };
         const GSTS = ['str', 'def', 'spd', 'dex'];
         const fmtJ = (rec) => {
             if (!rec || !rec.stats) return ' +0';

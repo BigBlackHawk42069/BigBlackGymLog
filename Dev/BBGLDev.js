@@ -255,7 +255,7 @@
     ];
     // Not requested:
     // 6  — Points (refill 4900 is covered by 3)
-    const ITEM_GROUP_LABELS ={ energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
+    const ITEM_GROUP_LABELS = { energy: 'Energy Items', stat: 'Stat Items', happy: 'Happy Items', od: 'OD Items', book: 'Book Items' };
     const ITEM_LOGS = Object.keys(ITEM_LOG_META).map(Number);
     const itemLogsByGroup = g => ITEM_LOGS.filter(id => ITEM_LOG_META[id].group === g);
     const TRAIN_LOGS = [5300, 5301, 5302, 5303];
@@ -1522,12 +1522,6 @@
         }];
     }
 
-    // Plain text — clipboard, aria labels, anywhere markup would be wrong.
-    function composeStatTitle(selection) {
-        const parts = composeStatTitleParts(selection);
-        return parts ? parts.map(p => p.text).join(' ') : '';
-    }
-
     // One finished word. Shared by the composed title and the titles page's mid-pick preview so both
     // pick up the identical per-word finish rules.
     function statTitleWordHTML(text, phase) {
@@ -2165,10 +2159,6 @@
                         white-space: nowrap;
                         position: relative;
                         top: 1px;
-                    }
-
-                    .bbgl-subsetting {
-                        padding-left: 26px;
                     }
 
                     .bbgl-row-disabled {
@@ -5907,12 +5897,6 @@
                         font-size: clamp(14px, calc(14px + 1px * var(--bbgl-dock-t)), 15px);
                     }
 
-                    .vi-count {
-                        font-size: 9px;
-                        color: #aaa;
-                        margin-bottom: 2px;
-                    }
-
                     #btn-close-viewer {
                         position: absolute;
                         top: 5px;
@@ -5955,10 +5939,6 @@
 
                     .bbgl-mode-page .vi-name {
                         font-size: clamp(14px, calc(14px + 2px * var(--bbgl-page-t)), 16px) !important;
-                    }
-
-                    .bbgl-mode-page .vi-count {
-                        font-size: clamp(8px, calc(8px + 1px * var(--bbgl-page-t)), 9px);
                     }
 
                     .bbgl-mode-page #btn-close-viewer {
@@ -7021,6 +7001,11 @@
                         pointer-events: none;
                         z-index: 10;
                     }
+                    /* Static outgoing copy: skip the live grid's per-cell layers so a swipe doesn't double them. */
+                    .bbgl-cal-ghost .bbgl-week,
+                    .bbgl-cal-ghost .bbgl-day-cell {
+                        will-change: auto;
+                    }
 
                     .bbgl-day-cell:is(.shimmer-active, .is-viewing) .jewel-type-gold .jewel-shine {
                         opacity: 1;
@@ -7323,6 +7308,8 @@
                         display: block;
                         width: 100%;
                         height: 100%;
+                        max-width: none;
+                        pointer-events: none;
                     }
 
                     /* ─── Weekly Bar Handle ─────────────────────────────────── */
@@ -7500,19 +7487,6 @@
                         --bbgl-exp-growth: 3px;
                     }
 
-                    /* Sibling of #bbgl-level-container, painted behind it, holding the housing
-                       SVG. Never clipped. */
-                    #bbgl-level-bg {
-                        position: absolute;
-                        bottom: 0;
-                        left: 0;
-                        right: 0;
-                        height: 12px;
-                        box-shadow: 0 -1px 2px rgba(0,0,0,.45), 0 -3px 6px rgba(0,0,0,.18), 0 1px 2px rgba(0,0,0,.55), 0 3px 5px rgba(0,0,0,.32), 0 6px 9px rgba(0,0,0,.13);
-                        pointer-events: none;
-                        will-change: transform; /* same reason as #bbgl-level-container */
-                    }
-
                     /* Wraps the tucking badge — both the text flag (#bbgl-level-num) and, for
                        A2, the diamond crown (::before). A normal, non-transformed flex item
                        whose bottom edge sits at the top of the bar (track height above the
@@ -7555,11 +7529,6 @@
                         position: relative;
                         display: block;
                         transform-origin: bottom center;
-                    }
-
-                    #bbgl-panel.bbgl-compact #bbgl-level-num .bbgl-lv-prefix,
-                    #bbgl-gym-level-num .bbgl-lv-prefix {
-                        display: none;
                     }
 
                     .bbgl-exp-bar {
@@ -7643,15 +7612,6 @@
                         display: inline;
                     }
 
-                    #bbgl-level-bg,
-                    .bbgl-exp-track .bbgl-level-recess {
-                        display: none;
-                    }
-
-                    #bbgl-level-bg {
-                        background: repeating-linear-gradient(90deg, transparent 0, transparent 1px, rgba(255,255,255,.012) 1px, rgba(255,255,255,.012) 2px), linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
-                    }
-
                     #bbgl-level-fill,
                     #bbgl-gym-level-fill {
                         position: absolute;
@@ -7670,7 +7630,6 @@
                         -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
                         mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
-                        will-change: width;
                     }
 
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill,
@@ -7831,9 +7790,6 @@
                         --bbgl-exp-growth: 4px;
                     }
 
-                    #bbgl-panel.bbgl-expanded #bbgl-level-bg {
-                        height: 18px;
-                    }
                     #bbgl-panel.bbgl-expanded .bbgl-header-wrapper {
                         --bbgl-track-box-base: 18px;
                     }
@@ -7851,9 +7807,6 @@
                         --bbgl-exp-growth: clamp(3px, calc(3px + 1px * var(--bbgl-page-t)), 4px);
                     }
 
-                    #bbgl-panel.bbgl-mode-page #bbgl-level-bg {
-                        height: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
-                    }
                     #bbgl-panel.bbgl-mode-page .bbgl-header-wrapper {
                         --bbgl-track-box-base: clamp(11px, calc(11px + 7px * var(--bbgl-page-t)), 18px);
                     }
@@ -8013,14 +7966,6 @@
                     #bbgl-gym-level-container[data-atrophy="0"] #bbgl-gym-level-track {
                         backdrop-filter: none;
                         -webkit-backdrop-filter: none;
-                    }
-
-                    /* Suppress backdrop-filter while the compact<->expanded resize is animating: blurring
-                       what's behind this element has to be resampled every frame the panel's layer changes,
-                       which is one of the more GPU-expensive things to animate. Restored once settled. */
-                    #bbgl-panel.bbgl-resizing #bbgl-level-num {
-                        backdrop-filter: none !important;
-                        -webkit-backdrop-filter: none !important;
                     }
 
                     #bbgl-panel[data-atrophy="0"] #bbgl-level-fill,
@@ -8808,25 +8753,6 @@
                     #bbgl-settings-view.active-view,
                     #bbgl-welcome-view.active-view {
                         display: flex;
-                    }
-
-                    .bbgl-author-block {
-                        margin: 8px 10px 10px;
-                        padding: 8px 10px;
-                        background: #2a2a2a;
-                        border: 1px solid #3a3a3a;
-                        border-radius: 4px;
-                        font-family: Arial, sans-serif;
-                        font-size: 12px;
-                        color: #aaa;
-                        line-height: 1.6;
-                    }
-
-                    .bbgl-author-block strong {
-                        color: #ddd;
-                        display: block;
-                        margin-bottom: 4px;
-                        font-size: 13px;
                     }
 
                     /* CSP-safe author link (replaces inline onmouseover/onmouseout handlers). */
@@ -10794,49 +10720,6 @@
                         width: 82px;
                     }
 
-                    /* The suspended sign: name plus the rods it hangs from. Absolutely centred on
-                       the identity wrapper and pinned to zero height, so only the box below decides
-                       middle-track width and vertical centring; width:max-content still measures
-                       the name for drawing even though it contributes nothing to the grid.
-
-                       Zero height means content would spill DOWNWARD, so .bbgl-titles-sign-inner
-                       lifts it back up by its own height via translateY (not top/bottom — a
-                       percentage there resolves against the containing block's height, which is 0
-                       here, where translateY resolves against the element's OWN height). Because
-                       the lift is by the inner wrapper's own height, growing the rods
-                       (--bbgl-t-wire-h) raises the name by the same amount for free — one number
-                       moves both.
-
-                       The assembly stays exactly as wide as the billboard; only .bbgl-titles-name
-                       may overhang that width, protected by its own cap and ellipsis. */
-                    .bbgl-titles-sign {
-                        position: absolute;
-                        top: 0;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        height: 0;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        width: 100%;
-                        pointer-events: none;
-                    }
-
-                    /* The compact sign keeps the requested small downward bias; the new short
-                       mounts let that bias bring the tubing almost onto the billboard frame. */
-                    #bbgl-panel.bbgl-compact .bbgl-titles-sign {
-                        top: 1px;
-                    }
-
-                    .bbgl-titles-sign-inner {
-                        transform: translateY(-100%);
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        width: 100%;
-                        min-width: 0;
-                    }
-
                     /* line-height and the padding leave room for descenders — at 1.05 with the
                        page's overflow:hidden the bottom of the name was being shaved off. It remains
                        a neon sign lifted above the new rank-plaque/title-sign assembly; the shared
@@ -10882,72 +10765,6 @@
                         overflow: hidden;
                         text-overflow: ellipsis;
                         white-space: nowrap;
-                    }
-
-                    /* The standoffs holding the sign off the box: two thin glowing rods running
-                       from the underside of the name down to the window's top edge. Same line
-                       colour and glow falloff as the window's own tube, so the sign reads as
-                       mounted to it rather than as a separate floating object. A real element in
-                       the flex column (not a pseudo on either neighbour) so it claims its own
-                       layout height between the two - that height IS the gap, which is why
-                       .bbgl-titles-center has no row-gap of its own. */
-                    .bbgl-titles-wires {
-                        position: relative;
-                        /* Under the lettering: the rods run up behind the glyphs rather than
-                           crossing over them, so the sign reads as mounted in front of its
-                           hardware (and the negative margin above can overlap freely). */
-                        z-index: 0;
-                        width: 42%;
-                        height: var(--bbgl-t-wire-h, 18px);
-                        /* Pulled up into the name's own line box. A text element's box bottom sits
-                           well below where the letters visually end (descender space the glyphs
-                           don't reach), so wires starting at the box edge read as floating in a
-                           gap rather than attached to the lettering - the overlap closes that. */
-                        margin-top: calc(var(--bbgl-t-wire-lift, 8px) * -1);
-                        pointer-events: none;
-                    }
-
-                    /* Unlit hardware, deliberately NOT part of the tube: a cross-bar gradient
-                       (dark edge -> bright off-centre highlight -> dark edge) is what reads as a
-                       round metal rod rather than a flat line, so these look like the mounts the
-                       sign hangs from instead of more neon. Needs real width for that gradient to
-                       resolve - a 1px rod has nowhere to put a highlight. The only glow they carry
-                       is a faint tint of the sign's colour spilling ONTO them from above, which is
-                       what ties them to the lit letters without making them lit themselves. */
-                    .bbgl-titles-wires::before,
-                    .bbgl-titles-wires::after {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        width: 3px;
-                        border-radius: 1px;
-                        background:
-                            linear-gradient(90deg,
-                                #050505 0%,
-                                #2b2b2b 22%,
-                                #5a5a5a 42%,
-                                #3a3a3a 60%,
-                                #171717 82%,
-                                #030303 100%);
-                        box-shadow:
-                            0 0 1px rgba(0, 0, 0, .45),
-                            inset 0 0 1px rgba(255, 255, 255, .12);
-                        filter: drop-shadow(0 0 3px color-mix(in srgb, var(--bbgl-t-win-color) 18%, transparent));
-                    }
-
-                    .bbgl-titles-wires::before {
-                        left: 0;
-                    }
-
-                    .bbgl-titles-wires::after {
-                        right: 0;
-                    }
-
-                    /* Article sits deliberately quieter than the words it introduces. */
-                    .bbgl-titles-the {
-                        color: rgba(255, 255, 255, .55);
-                        font-weight: 600;
                     }
 
                     .bbgl-title-card {
@@ -13099,31 +12916,6 @@
                         text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
                     }
 
-                    .bbgl-marquee-bulb {
-                        animation: bbgl-marquee-ignite .35s ease-out both;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--bulb-delay));
-                    }
-
-                    .bbgl-marquee-lamp {
-                        filter: drop-shadow(0 0 2px var(--bulb-color));
-                    }
-
-                    .bbgl-marquee-beams {
-                        mix-blend-mode: screen;
-                        animation: bbgl-marquee-ignite 1.2s ease-out both;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + 650ms);
-                    }
-
-                    @keyframes bbgl-marquee-ignite {
-                        from { opacity: .12; }
-                        to { opacity: 1; }
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-marquee-bulb,
-                    #bbgl-panel.bbgl-no-animations .bbgl-marquee-beams {
-                        animation: none;
-                    }
-
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
                        One in each corner (str top-left, def top-right, spd bottom-left, dex
                        bottom-right — grouped into .bbgl-titles-corner-col pairs above) rather than a
@@ -13353,7 +13145,7 @@
                        under default "meet" scaling (the crown's viewBox, 307x217, is a little
                        wider than tall), so the crown doesn't fill the full 96% height — that's
                        deliberate margin, not a bug. */
-                    .bbgl-title-star-base,
+                    
                     .bbgl-title-star-fill {
                         position: absolute;
                         inset: 0;
@@ -13363,30 +13155,12 @@
                         pointer-events: none;
                     }
 
-                    .bbgl-title-star-base svg,
+                    
                     .bbgl-title-star-fill svg {
                         width: 96%;
                         height: 96%;
                         display: block;
                         overflow: visible;
-                    }
-
-                    /* Stroke width is a calc() dividing a fixed px target back through
-                       --bbgl-t-star instead of a flat px value, to counter the fact that the SVG's
-                       own viewBox-to-render scaling would otherwise make the stroke thicker in page
-                       mode and thinner in compact — this fakes the "constant on-screen thickness"
-                       job vector-effect:non-scaling-stroke would normally do (that property is
-                       avoided here entirely, see ICONS.TITLE_CROWN above, since it silently breaks
-                       stroke-dashoffset on this same element). The constant (415.73) is
-                       targetOnscreenPx * viewBoxWidth / .96, i.e. the inverse of how the 96%-sized,
-                       307-wide viewBox actually scales into a --bbgl-t-star-wide square cell —
-                       width, not height, is the constraining dimension since the crown's viewBox is
-                       wider than it is tall. Re-derive both this and -fill's constant below if the
-                       icon svg's width/height percentage (currently 96%, above) OR its viewBox width
-                       (currently 307, ICONS.TITLE_CROWN above) ever changes. */
-                    .bbgl-title-star-base svg path {
-                        stroke: rgba(200, 205, 215, .28);
-                        stroke-width: calc(415.73px / var(--bbgl-t-star));
                     }
 
                     /* Stat-coloured neon trace, deliberately the SAME recipe as the window-frame
@@ -13396,9 +13170,10 @@
                        same 3-stack drop-shadow px values (1 / 4*glow / 11*glow), also threaded
                        through the same --bbgl-t-win-glow per-mode dimming knob. Line WIDTH still
                        has to be its own thing (see stroke-width below) since the border is a flat
-                       1px and this needs to scale with --bbgl-t-star across modes — but the width
-                       target matches -base's 1.3px exactly, so the two strokes are the same
-                       thickness and the trace can't show the grey base peeking out past its edges. */
+                       1px and this needs to scale with --bbgl-t-star across modes: 415.73 is
+                       targetOnscreenPx (1.3) * viewBoxWidth (307) / .96, countering the viewBox's own
+                       scaling (vector-effect:non-scaling-stroke would break stroke-dashoffset here).
+                       Re-derive it if the svg's 96% size or the icon's viewBox width changes. */
                     .bbgl-title-star-fill svg path {
                         stroke: color-mix(in srgb, var(--bbgl-t-win-color, #ffcc44) 42%, rgba(255, 255, 255, .92));
                         stroke-width: calc(415.73px / var(--bbgl-t-star));
@@ -13493,29 +13268,6 @@
                         flex: 1 1 0;
                         min-height: 0;
                         overflow: hidden;
-                    }
-
-                    .bbgl-titles-name-row {
-                        --bbgl-t-win-color: #a855f7;
-                        --bbgl-t-win-glow: 1.3;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-width: 0;
-                        min-height: 0;
-                        padding: 0 8px;
-                        box-sizing: border-box;
-                    }
-
-                    .bbgl-titles-name-row .bbgl-titles-name {
-                        flex: 0 0 auto;
-                        max-width: none;
-                        font-size: var(--bbgl-name-fit, 18px);
-                        line-height: 1.4;
-                        padding-bottom: 0;
-                        transform: none;
-                        overflow: visible;
-                        text-overflow: clip;
                     }
 
                     .bbgl-titles-card-area {
@@ -13936,20 +13688,9 @@
                         overflow: visible;
                     }
 
-                    .bbgl-title-star-base svg path {
-                        fill: #302b24;
-                        stroke: #8c8069;
-                        filter: drop-shadow(0 1px 0 #d1b98066) drop-shadow(0 2px 1px #000b);
-                    }
-
                     .bbgl-title-star-fill svg path {
                         stroke: color-mix(in srgb, var(--bbgl-t-win-color) 65%, #eee0bb);
                         filter: drop-shadow(0 1px 0 #0009);
-                    }
-
-                    .bbgl-title-star.is-unlocked .bbgl-title-star-base svg path {
-                        fill: color-mix(in srgb, var(--bbgl-t-win-color) 70%, #25211b);
-                        stroke: #c7b48b;
                     }
 
                     body:not(.is-touch-device) .bbgl-title-star.is-unlocked:hover .bbgl-title-star-fill svg path {
@@ -14048,44 +13789,6 @@
                         gap: 0;
                         min-width: 0;
                         text-align: left;
-                    }
-
-                    .bbgl-ach-dual {
-                        width: 100%;
-                        box-sizing: border-box;
-                        display: flex;
-                        flex-direction: column;
-                    }
-
-                    .bbgl-ach-dual-headers {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        column-gap: clamp(8px, calc(8px + 10px * var(--bbgl-dock-t, 0)), 18px);
-                        border-bottom: 1px solid rgba(255, 255, 255, .12);
-                        width: 100%;
-                        box-sizing: border-box;
-                    }
-
-                    .bbgl-ach-dual .bbgl-ach-section-title {
-                        border-bottom: none;
-                        padding-bottom: 4px;
-                    }
-
-                    .bbgl-ach-dual-body {
-                        display: grid;
-                        grid-template-columns: 1fr 1fr;
-                        column-gap: clamp(8px, calc(8px + 10px * var(--bbgl-dock-t, 0)), 18px);
-                        align-items: start;
-                        width: 100%;
-                        box-sizing: border-box;
-                        padding: 0px 0 2px;
-                    }
-
-                    .bbgl-ach-col-half {
-                        display: flex;
-                        flex-direction: column;
-                        gap: 0;
-                        min-width: 0;
                     }
 
                     #bbgl-panel.bbgl-compact {
@@ -17962,6 +17665,11 @@ function computeAchievements(s) {
     };
 }
 
+// The titles page's SMIL-animated SVGs (filter lights, glimmers). Their timelines keep ticking
+// after the page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit
+// ends and resumed (re-synced) by syncTitlesPageAnimationClock().
+const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest';
+
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
     runtime._rankLightboxAnimation = null;
@@ -17969,6 +17677,7 @@ function resetTitlesPageAnimationClock(container) {
     if (el) {
         el.style.removeProperty('--bbgl-titles-animation-delay');
         el.style.removeProperty('--bbgl-rank-lightbox-delay');
+        el.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => svg.pauseAnimations());
     }
 }
 
@@ -17979,7 +17688,10 @@ function resetTitlesPageAnimationClock(container) {
 function syncTitlesPageAnimationClock(container, targets = [container]) {
     requestAnimationFrame(() => {
         const elapsed = Math.max(0, performance.now() - runtime._titlesPageAnimationStartedAt) / 1000;
-        document.querySelectorAll('.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest').forEach(svg => svg.setCurrentTime(elapsed));
+        document.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => {
+            svg.unpauseAnimations();
+            svg.setCurrentTime(elapsed);
+        });
     });
     const now = performance.now();
     if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) {
@@ -18004,6 +17716,7 @@ function achRefreshPageDom() {
     const container = document.getElementById('bbgl-achievements-container');
     if (!container || !runtime._achCache) return;
     container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0);
+    refreshSwipeGates();
     // Rebuilding this page is routine: live training, level-ups, title picks and layout changes all
     // refresh its data. Anchor every new CSS animation to the start of the current page visit so
     // fresh nodes resume the shared timeline instead of visibly starting over. Moving to any other
@@ -18136,13 +17849,6 @@ function achFmtDate(dateStr) {
     return Formatter.datePretty(dateStr) || dateStr;
 }
 
-function achFmtWeekRange(weekOf) {
-    if (!weekOf) return '';
-    const d = Formatter.parse(weekOf);
-    const end = new Date(d.getTime() + 6 * 86400000);
-    return `${Formatter.dateMonthDay(weekOf)} \u2013 ${Formatter.dateMonthDay(Formatter.dateISO(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()))}, ${end.getUTCFullYear()}`;
-}
-
 function achFmtStreakRange(start, end) {
     if (!start || !end) return '';
     const s = achFmtDate(start),
@@ -18189,12 +17895,6 @@ function achBuildSection(title, rows, sectionKey = '', colCount = 4) {
     return `<div class="bbgl-ach-section"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKey)}" data-clip-section="${achEsc(clipAll)}" data-clip-title="${achEsc(title)}" data-tooltip="Click any stat or row to copy its data, or click this title to copy the entire section to your clipboard.">${achEsc(title)}</span></div><div class="bbgl-ach-cols"${COLS !== 4 ? ` style="grid-template-columns:repeat(${COLS},minmax(0,1fr));"` : ''}>${colsHTML}</div></div>`;
 }
 
-function achBuildDualSection(titleA, rowsA, titleB, rowsB, sectionKeyA = '', sectionKeyB = '') {
-    const clipA = achRowsClip(rowsA),
-        clipB = achRowsClip(rowsB);
-    return `<div class="bbgl-ach-dual"><div class="bbgl-ach-dual-headers"><div class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKeyA)}" data-clip-section="${achEsc(clipA)}" data-clip-title="${achEsc(titleA)}">${achEsc(titleA)}</div><div class="bbgl-ach-section-title" data-ach-section="${achEsc(sectionKeyB)}" data-clip-section="${achEsc(clipB)}" data-clip-title="${achEsc(titleB)}">${achEsc(titleB)}</div></div><div class="bbgl-ach-dual-body"><div class="bbgl-ach-col-half">${rowsA.map(achRowHTML).join('')}</div><div class="bbgl-ach-col-half">${rowsB.map(achRowHTML).join('')}</div></div></div>`;
-}
-
 function achFmtWeekShort(weekOf) {
     if (!weekOf) return '';
     return Formatter.datePretty(weekOf);
@@ -18205,10 +17905,6 @@ function achFmtMonthLong(rawMonth) {
     return `${CONSTANTS.MONTHS[parseInt(rawMonth.slice(5)) - 1]}, ${rawMonth.slice(0, 4)}`;
 }
 
-function achFmtTimeTCT(ts) {
-    const d = new Date(ts * 1000);
-    return String(d.getUTCHours()).padStart(2, '0') + ':' + String(d.getUTCMinutes()).padStart(2, '0') + ':' + String(d.getUTCSeconds()).padStart(2, '0') + ' TCT';
-}
 let _achTzLocalCache = null;
 
 function achTimeZoneSuffix() {
@@ -18238,10 +17934,8 @@ function achHJClipDate(rec) {
 
 function achFmtTimeHMS(ts) {
     const d = new Date(ts * 1000);
-    const h = TimeManager.useLocal() ? d.getHours() : d.getUTCHours();
-    const m = TimeManager.useLocal() ? d.getMinutes() : d.getUTCMinutes();
     const s = TimeManager.useLocal() ? d.getSeconds() : d.getUTCSeconds();
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0') + ' ' + achTimeZoneSuffix();
+    return achFmtTimeHM(ts) + ':' + String(s).padStart(2, '0') + ' ' + achTimeZoneSuffix();
 }
 
 // ─── Titles page (achievements page 0) ──────────────────────────────────────
@@ -18392,21 +18086,20 @@ function achPearlMarqueeHTML() {
                 <path d="M54 18L59 21L64 18L69 21L74 18M126 18L131 21L136 18L141 21L146 18M34 54L39 54L39 59L44 59L44 64M166 54L161 54L161 59L156 59L156 64" stroke="#c4d9e6" stroke-width=".7"/>
             </g>
             <g fill="url(#${id}-metal)" stroke="#f7fbff" stroke-width=".5">
-
                 <path d="M57 68L62 73L57 78L52 73ZM143 68L148 73L143 78L138 73Z"/>
             </g>
             <g fill="#caddec" stroke="#5c6c83" stroke-width=".4">
-
                 <path d="M57 70L60 73L57 76L54 73ZM143 70L146 73L143 76L140 73Z"/>
             </g>
             <path d="M57 70V76L60 73ZM143 70V76L146 73Z" fill="#fff" opacity=".85"/>
-            <g transform="translate(0 -21)">            <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
-                <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
-                            </g>
-            <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
-            <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
-                        <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
-</g>
+            <g transform="translate(0 -21)">
+                <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
+                    <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
+                </g>
+                <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
+                <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
+                <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
+            </g>
             <path d="M77 9H123L128 15L120 22H80L72 15Z" fill="#465266"/>
             <path d="M78 9H122L126 14L119 20H81L74 14Z" fill="url(#${id}-metal)" stroke="#f4f9ff" stroke-width=".7"/>
             <path d="M81 11H119M82 18H118" fill="none" stroke="#5d6b80" stroke-width=".65"/>
@@ -18830,7 +18523,8 @@ function achBuildPageTitles() {
         const top = STAT_TITLE_THRESHOLDS.slice(0, 5).map((_, i) => star(i)).join('');
         const bottom = STAT_TITLE_THRESHOLDS.slice(5).map((_, i) => star(i + 5)).join('');
         return `<div class="bbgl-title-block ach-stat-${k}">` +
-            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
+            `<svg class="bbgl-plate-neon" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M4 16H23C27 16 27 2 34 2H66C73 2 73 16 77 16H96Q100 16 100 22V94Q100 100 96 100H4Q0 100 0 94V22Q0 16 4 16Z"/></svg>` +
+            `<div class="bbgl-title-block-label" data-tooltip="${achEsc(`Spend E training ${achStatFull(k)} to unlock new titles.`)}">${achStatFull(k)}</div>` +
             `<div class="bbgl-title-stars"><div class="bbgl-title-star-row">${top}</div><div class="bbgl-title-star-row">${bottom}</div></div></div>`;
     };
     const leftCol = `<div class="bbgl-titles-corner-col">${titleBlockHTML('str')}${titleBlockHTML('spd')}</div>`;
@@ -18996,9 +18690,7 @@ function achBuildPage1(d) {
 
 function achFmtTimeHM(ts) {
     const d = new Date(ts * 1000);
-    const h = TimeManager.useLocal() ? d.getHours() : d.getUTCHours();
-    const m = TimeManager.useLocal() ? d.getMinutes() : d.getUTCMinutes();
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    return String(TimeManager.hours(d)).padStart(2, '0') + ':' + String(TimeManager.minutes(d)).padStart(2, '0');
 }
 
 function achBuildPage2(d) {
@@ -19175,16 +18867,27 @@ function computeBookData(s) {
     });
 
     // Per-stat gains from trains in [a, b), scaled by `factor`. Only stats trained appear.
+    // `gym` is sorted by ts, so the window's first train is found by binary search and the walk stops
+    // at its end rather than filtering the whole log once or twice per book.
+    const firstAtOrAfter = ts => {
+        let lo = 0, hi = gym.length;
+        while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (gym[mid].ts < ts) lo = mid + 1;
+            else hi = mid;
+        }
+        return lo;
+    };
     const sumGains = (a, b, onlyStat, factor) => {
         const out = {};
         let tot = 0;
-        gym.forEach(e => {
-            if ((a != null && e.ts < a) || e.ts >= b) return;
-            if (onlyStat && e.stat !== onlyStat) return;
+        for (let i = a != null ? firstAtOrAfter(a) : 0; i < gym.length && gym[i].ts < b; i++) {
+            const e = gym[i];
+            if (onlyStat && e.stat !== onlyStat) continue;
             const g = (e.gain || 0) * factor;
             out[e.stat] = (out[e.stat] || 0) + g;
             tot += g;
-        });
+        }
         Object.keys(out).forEach(k => { out[k] = r2(out[k]); });
         out.tot = r2(tot);
         return out;
@@ -19384,7 +19087,7 @@ function achBuildPageOverview(d) {
         return line;
     }).filter(Boolean).join('\n\n') || '0';
 
-    const cols =`<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
+    const cols = `<div class="bbgl-ach-col">${leftHTML}</div><div class="bbgl-ach-col">${rightHTML}</div>`;
     const isPeriod = !!viewState.achEnhPeriodMode;
     const switchHTML = `<div class="bbgl-enh-mode-switch" data-tooltip-html="<b>Changes the data scope displayed on this page.</b><br><i><b>All-Time</b> shows totals across your entire log history. <b>Selected</b> shows data for the selected period on the calendar.</i>" data-tooltip-side="left"><span class="bbgl-enh-sw-opt${isPeriod ? '' : ' active'}" data-mode="alltime">All-Time</span><span class="bbgl-enh-sw-opt${isPeriod ? ' active' : ''}" data-mode="selected">Selected</span></div>`;
     return `<div class="bbgl-ach-section bbgl-ach-section-energy"><div class="bbgl-ach-title-row"><span class="bbgl-ach-section-title" data-ach-section="endocrine-enhancers" data-clip-section="${achEsc(clipAll)}" data-clip-title="Endocrine Enhancers" data-tooltip="Click any row to copy its data, or click this title to copy the entire section to your clipboard.">ENDOCRINE ENHANCERS</span>${switchHTML}</div><div class="bbgl-ach-cols" style="grid-template-columns:repeat(2,minmax(0,1fr));">${cols}</div></div>`;
@@ -19812,12 +19515,6 @@ function handleAchCopy(el) {
     } else if (el.classList.contains('bbgl-ach-hh-group')) {
         const gKey = el.getAttribute('data-ach-key'),
             r = cache;
-        const GABR = {
-            str: 'STR',
-            def: 'DEF',
-            spd: 'SPD',
-            dex: 'DEX'
-        };
         const GSTS = ['str', 'def', 'spd', 'dex'];
         const fmtJ = (rec) => {
             if (!rec || !rec.stats) return ' +0';
@@ -20658,6 +20355,10 @@ const BestGymController = {
     const CAP_TERM_W = 7;
     const CAP_RAIL_H = 3, CAP_FILL_INSET = 2;
 
+    // Metal stops the weekly bar and the level bar share, so both housings stay the same finish.
+    const COLLAR_DEPTH_STOPS = '<stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/>';
+    const CAST_SHOULDER_STOPS = '<stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/>';
+
     // Level bar metal stops read the tier's --vm-* vars (VALVE_METAL in the styles section).
     const vmStops = (name, offsets) => offsets.map((o, i) => `<stop offset="${o}" style="stop-color:var(--vm-${name}-${i})"/>`).join('');
     const BAR_TERMINAL_STOPS = BAR_METAL_PALETTE.map(([offset, color]) => `<stop offset="${offset / 100}" stop-color="${color}"/>`).join('');
@@ -20672,23 +20373,19 @@ const BestGymController = {
     }
 
     // Gradients/patterns are pure functions of the bar's fixed dimensions above, so they're
-    // identical on every call regardless of slots/lit/animated. Built once here (instead of
-    // re-built by string concatenation on every buildCapsuleBar() call) and inlined into each
-    // returned <svg> — paint-server url(#...) references only resolve reliably within the same
-    // inline SVG fragment, so this can't be hoisted into a separate shared <svg>; it's still only
-    // built once, and buildCapsuleBar()'s own memo cache means the string concatenation itself
-    // only runs once per distinct bar state.
+    // identical on every call regardless of slots/lit/animated. Built once here and embedded in
+    // each bar's image document (buildCapsuleBar() memoizes per distinct bar state).
     const CAP_BAR_DEFS =
         `<defs>` +
         `<linearGradient id="bbc-joint-recess" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101211"/><stop offset=".18" stop-color="#252a26"/><stop offset=".45" stop-color="#151916"/><stop offset=".78" stop-color="#101310"/><stop offset="1" stop-color="#30362f"/></linearGradient>` +
         `<linearGradient id="bbc-joint-wall" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".7"/><stop offset=".24" stop-color="#000" stop-opacity=".12"/><stop offset=".65" stop-color="#c1c9ba" stop-opacity=".08"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
         `<filter id="bbc-end-bloom" x="-200%" y="-70%" width="500%" height="240%" color-interpolation-filters="sRGB"><feGaussianBlur stdDeviation="3 7" result="halo"/><feGaussianBlur in="SourceGraphic" stdDeviation="1 3" result="core"/><feMerge><feMergeNode in="halo"/><feMergeNode in="halo"/><feMergeNode in="core"/></feMerge></filter>` +
         `<linearGradient id="bbc-socket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080b08"/><stop offset=".5" stop-color="#111611"/><stop offset="1" stop-color="#070a07"/></linearGradient>` +
-        `<linearGradient id="bbc-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="bbc-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient>` +
+        `<linearGradient id="bbc-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="bbc-collar-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#171a1c"/><stop offset=".2" stop-color="#81888b"/><stop offset=".3" stop-color="#e2e5e5"/><stop offset=".45" stop-color="#62696b"/><stop offset=".7" stop-color="#25292b"/><stop offset=".86" stop-color="#8a9192"/><stop offset="1" stop-color="#141719"/></linearGradient>` +
         `<linearGradient id="bbc-housing" x1="0" y1="0" x2="0" y2="1">` +
         `<stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient>` +
         `<radialGradient id="bbc-cast-bevel" cx=".3" cy=".15" r=".85"><stop offset="0" stop-color="#777777" stop-opacity=".38"/><stop offset=".55" stop-color="#555555" stop-opacity=".16"/><stop offset="1" stop-color="#333333" stop-opacity="0"/></radialGradient>` +
-        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient>` +
+        `<linearGradient id="bbc-cast-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient>` +
         `<linearGradient id="bbc-term" x1="0" y1="${CAP_PAD_Y}" x2="0" y2="${CAP_PAD_Y + CAP_SLOT_H}" gradientUnits="userSpaceOnUse">` +
         BAR_TERMINAL_STOPS + `</linearGradient>` +
         `<linearGradient id="bbc-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".23" stop-color="#fff" stop-opacity=".28"/><stop offset=".38" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".15"/><stop offset="1" stop-color="#000" stop-opacity=".6"/></linearGradient>` +
@@ -20887,7 +20584,12 @@ const BestGymController = {
             }
         }
 
-        const svg = `<svg class="bbgl-cap-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${CAP_BAR_DEFS}${out}</svg>`;
+        // Drawn as an image, not inline SVG: its bloom/glow filters then rasterize once per bar state
+        // and every later paint (swipe, hover, re-render) reuses the decoded bitmap, where inline SVG
+        // re-ran them on the CPU each time. Nothing outside styles its insides, and the image keeps
+        // its gradient ids to itself instead of repeating them per bar across the document.
+        const svgDoc = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">${CAP_BAR_DEFS}${out}</svg>`;
+        const svg = `<img class="bbgl-cap-svg" src="data:image/svg+xml,${encodeURIComponent(svgDoc)}" alt="" draggable="false">`;
         const html = overlay ? svg + `<div class="bbgl-cap-overlay">${overlay}</div>` : svg;
         _capBarCache.set(cacheKey, html);
         return html;
@@ -20918,12 +20620,40 @@ const BestGymController = {
     // See computeBookData() for when a book counts as read.
     const LIBRARY_PAGE_COUNT = 4;
 
+    // Same CRT switch-off/on as the achievements pages (gotoAchievementsPage()): the page swaps at the
+    // blink, between the two halves. Returns whether a page change is happening, since with
+    // animations on it lands after this returns (the swipe handler needs to know up front).
     function gotoLibraryPage(p) {
+        if (runtime._libAnimating) return false;
         const next = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, p));
-        if (next === (viewState.libraryPage || 0)) return;
-        viewState.libraryPage = next;
-        saveViewState();
-        renderLibrary();
+        if (next === (viewState.libraryPage || 0)) return false;
+        const apply = () => {
+            viewState.libraryPage = next;
+            saveViewState();
+            renderLibrary();
+        };
+        const c = dom.libraryContainer;
+        if (!userConfig.animations || !c) {
+            apply();
+            return true;
+        }
+        runtime._libAnimating = true;
+        c.classList.add('bbgl-crt-out');
+        setTimeout(() => {
+            c.classList.remove('bbgl-crt-out');
+            // Left the Library mid-blink: switchView() has already reset it to its first page.
+            if (!dom.topPanel || !dom.topPanel.classList.contains('viewing-library')) {
+                runtime._libAnimating = false;
+                return;
+            }
+            apply();
+            c.classList.add('bbgl-crt-in');
+            setTimeout(() => {
+                c.classList.remove('bbgl-crt-in');
+                runtime._libAnimating = false;
+            }, 300);
+        }, 280);
+        return true;
     }
 
     function renderLibrary() {
@@ -21013,6 +20743,7 @@ const BestGymController = {
             });
         }
         const page = Math.max(0, Math.min(LIBRARY_PAGE_COUNT - 1, viewState.libraryPage || 0));
+        refreshSwipeGates();
         const ind = document.getElementById('bbgl-lib-pagination');
         if (ind) {
             ind.innerHTML = '';
@@ -21091,12 +20822,8 @@ const BestGymController = {
         const thisYear = new Date().getUTCFullYear();
         const fmtStamp = ts => {
             const d = new Date(ts * 1000),
-                local = TimeManager.useLocal(),
-                y = local ? d.getFullYear() : d.getUTCFullYear(),
-                day = `${CONSTANTS.MONTHS_SHORT[local ? d.getMonth() : d.getUTCMonth()]} ${local ? d.getDate() : d.getUTCDate()}${y !== thisYear ? ', ' + y : ''}`,
-                hh = String(local ? d.getHours() : d.getUTCHours()).padStart(2, '0'),
-                mm = String(local ? d.getMinutes() : d.getUTCMinutes()).padStart(2, '0');
-            return day + ' ' + hh + ':' + mm;
+                y = TimeManager.year(d);
+            return `${CONSTANTS.MONTHS_SHORT[TimeManager.month(d)]} ${TimeManager.date(d)}${y !== thisYear ? ', ' + y : ''} ${achFmtTimeHM(ts)}`;
         };
         // Both date forms are emitted; compact shows the short date, expanded and page mode the
         // exact timestamp.
@@ -21143,7 +20870,7 @@ const BestGymController = {
                 return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${rowsPerCol}"><div class="bbgl-lib-group"${headerCopyAttrs('g' + key + page, label, items)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel"><div class="bbgl-lib-grid" style="--bbgl-lib-rows:${rowsPerCol}">${items.map(itemHTML).join('')}</div></div></div>`;
             }).join('');
             c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
-            window.requestAnimationFrame(fitLibraryCells);
+            scheduleFitLibraryCells();
             return;
         }
         // One book, centred: its date, title and effect as one tight group, then its data.
@@ -21190,64 +20917,92 @@ const BestGymController = {
             return `<div class="bbgl-lib-section" style="--bbgl-lib-panel-rows:${pairRows + single.length + (mem ? 1 : 0)}"><div class="bbgl-lib-group" data-type="${type}"${headerCopyAttrs('g' + type, label, ids)}><span class="bbgl-lib-group-label">${label}</span></div><div class="bbgl-lib-panel">${pairs}${single.map(id => row(id)).join('')}${mem}</div></div>`;
         }).join('');
         c.innerHTML = `<div class="bbgl-lib-list">${html}</div>`;
-        window.requestAnimationFrame(fitLibraryCells);
+        scheduleFitLibraryCells();
         if (!runtime._libFitObserver && window.ResizeObserver) {
-            runtime._libFitObserver = new ResizeObserver(() => window.requestAnimationFrame(fitLibraryCells));
+            runtime._libFitObserver = new ResizeObserver(scheduleFitLibraryCells);
             runtime._libFitObserver.observe(c);
         }
     }
 
+    // Several triggers can land in one frame (the render itself, ResizeObserver deliveries); they
+    // share a single fit pass.
+    function scheduleFitLibraryCells() {
+        if (runtime._libFitRaf) return;
+        runtime._libFitRaf = window.requestAnimationFrame(() => {
+            runtime._libFitRaf = null;
+            fitLibraryCells();
+        });
+    }
+
     // Multi-cell groups keep full numbers unless they don't fit their column with a little room to
     // spare; then they switch to abbreviated numbers and short labels.
+    // Each step resets, then measures every element, then writes every result, so a step costs one
+    // layout instead of one per element (the elements within a step don't affect each other's size).
     function fitLibraryCells() {
         const c = dom.libraryContainer;
         if (!c) return;
         // A group label that's longer than its spine is tall shrinks to fit.
-        c.querySelectorAll('.bbgl-lib-group-label').forEach(l => {
-            l.style.fontSize = '';
+        const labels = Array.from(c.querySelectorAll('.bbgl-lib-group-label'));
+        labels.forEach(l => { l.style.fontSize = ''; });
+        labels.map(l => {
             const room = l.parentElement.clientHeight, need = l.scrollHeight;
-            if (room > 0 && need > room) l.style.fontSize = (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px';
-        });
+            return room > 0 && need > room ? (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px' : null;
+        }).forEach((fs, i) => { if (fs) labels[i].style.fontSize = fs; });
         // Other Books: an entry with a date reserves the height of its stamp's letters (~.75em, not the
         // whole line box) so its title and effect centre in the space under it.
-        c.querySelectorAll('.bbgl-lib-item').forEach(it => {
+        const items = Array.from(c.querySelectorAll('.bbgl-lib-item'));
+        items.forEach(it => {
             it.classList.remove('is-stamp-offset');
             it.style.removeProperty('--bbgl-lib-date-h');
+        });
+        items.map(it => {
             const date = it.querySelector('.bbgl-lib-date');
-            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return;
-            it.classList.add('is-stamp-offset');
-            it.style.setProperty('--bbgl-lib-date-h', (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px');
+            if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return null;
+            return (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px';
+        }).forEach((h, i) => {
+            if (h == null) return;
+            items[i].classList.add('is-stamp-offset');
+            items[i].style.setProperty('--bbgl-lib-date-h', h);
         });
         // The corner stamp runs as far left as the card allows; once its date no longer fits that width,
         // the stamp's type shrinks to fit rather than ellipsising, down to 70% of its size.
-        c.querySelectorAll('.bbgl-lib-stamp').forEach(st => {
-            st.style.fontSize = '';
+        // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
+        // the date, so deriving the marker's width from it reported more room than there is and the
+        // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
+        const stamps = Array.from(c.querySelectorAll('.bbgl-lib-stamp'));
+        stamps.forEach(st => { st.style.fontSize = ''; });
+        let pending = stamps.map(st => {
             const date = st.querySelector('.bbgl-lib-date');
-            if (!date || date.classList.contains('is-placeholder')) return;
-            // The marker is measured directly each pass: the stamp's own scrollWidth is clipped along with
-            // the date, so deriving the marker's width from it reported more room than there is and the
-            // shrink never ran. Two passes, because shrinking the type shrinks the marker with it.
-            const markOf = () => {
-                const m = st.querySelector('.bbgl-lib-check, .bbgl-lib-reading');
-                return m ? m.getBoundingClientRect().width + (parseFloat(getComputedStyle(m).marginLeft) || 0) : 0;
-            };
-            const floor = parseFloat(getComputedStyle(st).fontSize) * .7;
-            for (let pass = 0; pass < 2; pass++) {
-                const avail = st.clientWidth - markOf(),
-                    need = date.scrollWidth;
-                if (!(avail > 0) || need <= avail + .5) break;
-                const base = parseFloat(getComputedStyle(st).fontSize),
-                    next = Math.max(base * (avail / need), floor);
-                if (next >= base - .1) break;
-                st.style.fontSize = next.toFixed(2) + 'px';
-            }
-        });
-        c.querySelectorAll('.bbgl-lib-cells.is-multi').forEach(g => {
+            if (!date || date.classList.contains('is-placeholder')) return null;
+            return { st, date, mark: st.querySelector('.bbgl-lib-check, .bbgl-lib-reading'), floor: parseFloat(getComputedStyle(st).fontSize) * .7 };
+        }).filter(Boolean);
+        for (let pass = 0; pass < 2 && pending.length; pass++) {
+            const writes = pending.map(p => {
+                const markW = p.mark ? p.mark.getBoundingClientRect().width + (parseFloat(getComputedStyle(p.mark).marginLeft) || 0) : 0;
+                const avail = p.st.clientWidth - markW,
+                    need = p.date.scrollWidth;
+                if (!(avail > 0) || need <= avail + .5) return null;
+                const base = parseFloat(getComputedStyle(p.st).fontSize),
+                    next = Math.max(base * (avail / need), p.floor);
+                return next >= base - .1 ? null : next.toFixed(2) + 'px';
+            });
+            pending = pending.filter((p, i) => {
+                if (writes[i] == null) return false;
+                p.st.style.fontSize = writes[i];
+                return true;
+            });
+        }
+        const groups = Array.from(c.querySelectorAll('.bbgl-lib-cells.is-multi'));
+        groups.forEach(g => {
             g.classList.remove('is-tight');
             g.classList.add('is-measure');
+        });
+        groups.map(g => {
             const box = g.closest('.bbgl-lib-data');
-            if (box && g.scrollWidth + 8 > box.clientWidth) g.classList.add('is-tight');
-            g.classList.remove('is-measure');
+            return !!box && g.scrollWidth + 8 > box.clientWidth;
+        }).forEach((tight, i) => {
+            if (tight) groups[i].classList.add('is-tight');
+            groups[i].classList.remove('is-measure');
         });
     }
 
@@ -21272,10 +21027,13 @@ const BestGymController = {
             m = calendarState.month,
             yt = dom.yearTrigger;
         dom.monthTrigger.textContent = CONSTANTS.MONTHS[m];
-        dom.panel.style.setProperty('--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        // On the header wrapper (holds both readers: .bbgl-header-bg, .bbgl-level-lens), not the panel
+        // root, where an inherited var change restyles the entire panel.
+        const hw = dom.headerBg ? dom.headerBg.parentElement : dom.panel;
         const isSummer = m >= 5 && m <= 7;
-        dom.panel.style.setProperty('--bbgl-header-crop-b', isSummer ? '8px' : '0px');
-        dom.panel.style.setProperty('--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
+        setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        setStyleVarIfChanged(hw, '--bbgl-header-crop-b', isSummer ? '8px' : '0px');
+        setStyleVarIfChanged(hw, '--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
         yt.textContent = y;
         yt.classList.remove('disabled');
         let f = new Date(y, m, 1),
@@ -21433,12 +21191,24 @@ const BestGymController = {
     // test as the allOthers filter that renders them.
     const isTrainingBook = meta => !!meta.training && meta.training !== 'repeat';
 
+    // Rebuilt only when the book data or day-start mode changes, or when a future end it held back
+    // comes due (validUntil); every calendar render and month swipe otherwise reuses it.
+    let _bookMarkerCache = null;
+
     function getBookMarkers() {
-        const books = (DataController.getBookData() || {}).books || {};
+        const bookData = DataController.getBookData();
         const nowTs = Math.floor(Date.now() / 1000);
+        const c = _bookMarkerCache;
+        if (c && c.bookData === bookData && c.mode === userConfig.dayStartMode && nowTs < c.validUntil) return c.map;
+        const books = (bookData || {}).books || {};
         const map = {};
+        let validUntil = Infinity;
         const mark = (ts, key) => {
-            if (ts == null || ts > nowTs) return;
+            if (ts == null) return;
+            if (ts > nowTs) {
+                validUntil = Math.min(validUntil, ts);
+                return;
+            }
             const ds = Formatter.dateLogical(ts * 1000);
             (map[ds] || (map[ds] = {}))[key] = true;
         };
@@ -21456,6 +21226,7 @@ const BestGymController = {
             mark(d.start, isTrainingBook(eff) ? 'trainStart' : 'perkStart');
             mark(d.end, eff.readPeriod ? 'perkReceived' : 'perkEnded');
         });
+        _bookMarkerCache = { bookData, mode: userConfig.dayStartMode, validUntil, map };
         return map;
     }
 
@@ -21502,6 +21273,15 @@ const BestGymController = {
         POST_IT_STEP = 18,
         POST_IT_BAND_TOP = -1,
         POST_IT_BAND_BOT = 29;
+
+    // Every calendar shine's gradient rides an inner band moved by transform (see .jewel-shine-band,
+    // .sticker-shine-band), so it's drawn once and slid instead of repainted each frame.
+    function addShineBand(shine, cls, gradient) {
+        const band = document.createElement('div');
+        band.className = cls;
+        if (gradient) band.style.backgroundImage = gradient;
+        shine.appendChild(band);
+    }
 
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
@@ -21569,13 +21349,7 @@ const BestGymController = {
                 sh.className = 'jewel-shine';
                 sh.style.maskImage = `url("${url}")`;
                 sh.style.webkitMaskImage = `url("${url}")`;
-                // Every shine's gradient rides an inner band moved by transform (see .jewel-shine-band).
-                const addBand = el => {
-                    const band = document.createElement('div');
-                    band.className = 'jewel-shine-band';
-                    el.appendChild(band);
-                };
-                addBand(sh);
+                addShineBand(sh, 'jewel-shine-band');
                 if (sl.meta.tier === 2) {
                     wrap.appendChild(sh);
                 } else {
@@ -21583,7 +21357,7 @@ const BestGymController = {
                     const so = document.createElement('div');
                     so.className = 'jewel-shine-over';
                     so.style.setProperty('--jewel-mask', `url("${url}")`);
-                    addBand(so);
+                    addShineBand(so, 'jewel-shine-band');
                     wrap.appendChild(so);
                 }
             };
@@ -21650,11 +21424,7 @@ const BestGymController = {
                     let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                     if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                     else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
-                    // The gradient rides an inner band moved by transform (see .sticker-shine-band).
-                    const band = document.createElement('div');
-                    band.className = 'sticker-shine-band';
-                    band.style.backgroundImage = grad;
-                    ss.appendChild(band);
+                    addShineBand(ss, 'sticker-shine-band', grad);
                     ss.style.mixBlendMode = "overlay";
                     if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
                     sw.appendChild(ss);
@@ -22505,7 +22275,7 @@ const BestGymController = {
         });
     }
 
-        function renderLevelBar(bar, expVal) {
+    function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
@@ -23545,33 +23315,8 @@ const BestGymController = {
         });
     }
 
-    // Marks the panel as resizing for the duration of its native width/height transition, so
-    // backdrop-filter (expensive to animate) can be suppressed for that window via CSS
-    // (see `#bbgl-panel.bbgl-resizing` in the stylesheet). Cleans up on transitionend, with a
-    // timeout fallback in case the event doesn't fire (e.g. transition got interrupted).
-    function markPanelResizing(p) {
-        if (!p) return;
-        if (p._bbglResizingCancel) p._bbglResizingCancel();
-        p.classList.add('bbgl-resizing');
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            p.removeEventListener('transitionend', onEnd);
-            clearTimeout(timer);
-            p.classList.remove('bbgl-resizing');
-            p._bbglResizingCancel = null;
-        };
-        const onEnd = (ev) => {
-            if (ev.target === p && (ev.propertyName === 'width' || ev.propertyName === 'height')) finish();
-        };
-        p.addEventListener('transitionend', onEnd);
-        const timer = setTimeout(finish, 350); // matches the stylesheet's .3s width/height transition + margin
-        p._bbglResizingCancel = finish;
-    }
-
     // True when every record in a MutationObserver batch happened inside BBGL's own tooltip or panel.
-    // The document.body-subtree observers (domObs in 10-section-ix-init.js, watchLayoutLifecycle below)
+    // The document.body-subtree observer (domObs in 10-section-ix-init.js, which also feeds watchLayoutLifecycle below)
     // exist to notice Torn rebuilding its page, but they also fired on the script's own churn — the
     // tooltip's content swap on every new hover target, shine elements built on first hover, calendar
     // and graph re-renders — and ran their checks again each time. A record's target is the node
@@ -23669,14 +23414,16 @@ const BestGymController = {
             });
             _layoutObservers.push(o);
         };
+        // Not an observer of its own: domObs (10-section-ix-init.js) already watches document.body's
+        // whole subtree for the same records and hands each batch here, so the batch is delivered and
+        // checked against BBGL's own churn once instead of twice. `isOwn` is that shared check.
         const watchLayoutLifecycle = () => {
-            const o = new MutationObserver((muts) => {
-                // Skips the scan entirely once a frame is already queued — it observes
-                // document.body's whole subtree, and Torn delivers chat traffic in bursts, so
-                // re-scanning every record after the first was real wasted work. Nothing is missed:
-                // the queued frame reads live DOM state when it runs, not a snapshot.
+            runtime._layoutLifecycle = (muts, isOwn) => {
+                // Skips the scan entirely once a frame is already queued — Torn delivers chat traffic
+                // in bursts, so re-scanning every record after the first was real wasted work.
+                // Nothing is missed: the queued frame reads live DOM state when it runs, not a snapshot.
                 if (runtime.layoutRafId) return;
-                if (_bbglMutationsAreOwn(muts)) return;
+                if (isOwn()) return;
                 for (const m of muts) {
                     if (m.type !== 'childList') continue;
                     if (_containsLayoutWindow(m.addedNodes) || _containsLayoutWindow(m.removedNodes)) {
@@ -23684,12 +23431,7 @@ const BestGymController = {
                         return;
                     }
                 }
-            });
-            o.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            _layoutObservers.push(o);
+            };
         };
         dom.notesBtn = document.getElementById('notes_panel_button');
         dom.peopleBtn = document.getElementById('people_panel_button');
@@ -24380,7 +24122,7 @@ const BestGymController = {
     function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity=".65"/><stop offset=".16" stop-color="#fff" stop-opacity=".35"/><stop offset=".32" stop-color="#fff" stop-opacity=".06"/><stop offset=".7" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#000" stop-opacity=".65"/></linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#383838"/><stop offset=".28" stop-color="#292929"/><stop offset=".7" stop-color="#1b1b1b"/><stop offset="1" stop-color="#0e0e0e"/></linearGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient></defs>`;
         const body = `<rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 77.2H473" stroke="#000" stroke-opacity=".3" stroke-width="4.25"/>
@@ -26149,6 +25891,7 @@ const BestGymController = {
 
     function renderStickers() {
         Perf.start('renderStickers');
+        refreshSwipeGates();
         if (!runtime.stickerData.length) loadStickerData();
         const isSponsor = runtime.currentStickerPage === STICKER_SPONSOR_PAGE;
         const sg = document.getElementById('bbgl-sponsor-grid');
@@ -26697,6 +26440,45 @@ const BestGymController = {
         }
     }
 
+    // Flyout error gate. Torn's Fly-Out Sidebar opens on a rightward swipe anywhere, which is also how
+    // our paged areas go back a page. Torn skips any touch under a `data-prevent-flyout-swipe="true"`
+    // ancestor (checked via closest() on each touchstart), so each paged area carries it only while
+    // its current page has a page to its left; everywhere else the flyout works as normal. A
+    // right-swipe that pages back lifts that area's gate for FLYOUT_PASS_MS, so a quick second swipe
+    // reaches Torn as if it had just missed the first; after that the gate returns if the new page
+    // can still go left.
+    const FLYOUT_GATE_ATTR = 'data-prevent-flyout-swipe';
+    const FLYOUT_PASS_MS = 800;
+    const SWIPE_GATES = {
+        calendar: { id: 'swipe-area', canGoLeft: () => true },
+        stickers: { id: 'bbgl-sticker-container', canGoLeft: () => runtime.currentStickerPage > STICKER_SPONSOR_PAGE },
+        achievements: { id: 'bbgl-achievements-container', canGoLeft: () => runtime._achPage > 0 },
+        library: { id: 'bbgl-library-container', canGoLeft: () => (viewState.libraryPage || 0) > 0 }
+    };
+    const _flyoutPassTimers = {};
+
+    // Called by each area's render (renderStickers, achRefreshPageDom, renderLibrary) with its page
+    // state already set, and when a pass window ends. Writes only when an area's gate flips.
+    function refreshSwipeGates() {
+        Object.keys(SWIPE_GATES).forEach(key => {
+            const el = document.getElementById(SWIPE_GATES[key].id);
+            if (!el) return;
+            const on = !_flyoutPassTimers[key] && SWIPE_GATES[key].canGoLeft();
+            if (el.hasAttribute(FLYOUT_GATE_ATTR) === on) return;
+            if (on) el.setAttribute(FLYOUT_GATE_ATTR, 'true');
+            else el.removeAttribute(FLYOUT_GATE_ATTR);
+        });
+    }
+
+    function openFlyoutPass(key) {
+        clearTimeout(_flyoutPassTimers[key]);
+        _flyoutPassTimers[key] = setTimeout(() => {
+            _flyoutPassTimers[key] = null;
+            refreshSwipeGates();
+        }, FLYOUT_PASS_MS);
+        refreshSwipeGates();
+    }
+
     function changeMonth(d) {
         const c = dom.calContainer;
         if (!c) return;
@@ -26719,11 +26501,38 @@ const BestGymController = {
             renderPanelContent();
             return;
         }
-        c.parentElement.querySelectorAll('.bbgl-cal-ghost').forEach(g => g.remove());
-        const ghost = c.cloneNode(true);
-        ghost.className += ' bbgl-cal-ghost';
+        // Header background only slides when the season it depicts is actually about to change
+        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
+        // season leaves it static, matching how it only changes at season boundaries at all.
+        const hb = dom.headerBg;
+        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        slideOutGhost(c, 'bbgl-cal-ghost', d);
+        if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true);
+
+        calendarState.month = m;
+        calendarState.year = y;
+        viewState.calYear = y;
+        viewState.calMonth = m;
+        saveViewState();
+        c.style.willChange = 'transform';
+        renderPanelContent();
+        slideIn(c, d);
+        if (headerChanging) {
+            hb.style.willChange = 'transform';
+            slideIn(hb, d);
+        }
+    }
+
+    // Month-change slide, shared by the calendar grid and the seasonal header: a clone of the
+    // outgoing element slides out (and removes itself) while the live element, re-rendered in place,
+    // slides in from the other side.
+    function slideOutGhost(el, ghostClass, d, clearId = false) {
+        el.parentElement.querySelectorAll('.' + ghostClass).forEach(g => g.remove());
+        const ghost = el.cloneNode(true);
+        if (clearId) ghost.id = '';
+        ghost.className += ' ' + ghostClass;
         ghost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
-        c.parentElement.appendChild(ghost);
+        el.parentElement.appendChild(ghost);
         const removeGhost = () => {
             if (ghost.parentElement) ghost.remove();
         };
@@ -26734,55 +26543,16 @@ const BestGymController = {
         ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), {
             once: true
         });
+    }
 
-        // Header background only slides when the season it depicts is actually about to change
-        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
-        // season leaves it static, matching how it only changes at season boundaries at all.
-        const hb = dom.headerBg;
-        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
-        if (headerChanging) {
-            hb.parentElement.querySelectorAll('.bbgl-header-bg-ghost').forEach(g => g.remove());
-            const hbGhost = hb.cloneNode(true);
-            hbGhost.id = '';
-            hbGhost.className += ' bbgl-header-bg-ghost';
-            hbGhost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards';
-            hb.parentElement.appendChild(hbGhost);
-            const removeHbGhost = () => {
-                if (hbGhost.parentElement) hbGhost.remove();
-            };
-            hbGhost.addEventListener('animationend', removeHbGhost, {
-                once: true
-            });
-            const hbGhostTimer = setTimeout(removeHbGhost, 400);
-            hbGhost.addEventListener('animationend', () => clearTimeout(hbGhostTimer), {
-                once: true
-            });
-        }
-
-        calendarState.month = m;
-        calendarState.year = y;
-        viewState.calYear = y;
-        viewState.calMonth = m;
-        saveViewState();
-        c.style.willChange = 'transform';
-        renderPanelContent();
-        c.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
-        c.addEventListener('animationend', () => {
-            c.style.animation = '';
-            c.style.willChange = 'auto';
+    function slideIn(el, d) {
+        el.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
+        el.addEventListener('animationend', () => {
+            el.style.animation = '';
+            el.style.willChange = 'auto';
         }, {
             once: true
         });
-        if (headerChanging) {
-            hb.style.willChange = 'transform';
-            hb.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards';
-            hb.addEventListener('animationend', () => {
-                hb.style.animation = '';
-                hb.style.willChange = 'auto';
-            }, {
-                once: true
-            });
-        }
     }
 
     // Steps one page in either direction. Bounds are enforced HERE, not at the call sites, so
@@ -27103,6 +26873,15 @@ const BestGymController = {
         } else switchView('ledger', true);
     }
 
+    // Top-panel views, each shown by a `viewing-<name>` class on #bbgl-top-panel (the ledger is the
+    // absence of all of them). Listed in the order they're checked when reading the current view.
+    const TOP_PANEL_VIEWS = ['graph', 'stickers', 'achievements', 'library'];
+    const TOP_PANEL_VIEW_CLASSES = TOP_PANEL_VIEWS.map(v => 'viewing-' + v);
+
+    function topPanelView(tp) {
+        return TOP_PANEL_VIEWS.find(v => tp.classList.contains('viewing-' + v)) || null;
+    }
+
     function switchView(tgt, inst = false) {
         // A Library resize still running would leave its deferred render pending; settle it first
         // so the current view below is read from its finished state.
@@ -27115,10 +26894,7 @@ const BestGymController = {
         let cm = 'ledger';
         if (wv && wv.classList.contains('active-view')) cm = 'welcome';
         else if (sp.classList.contains('active-view')) cm = 'settings';
-        else if (tp.classList.contains('viewing-graph')) cm = 'graph';
-        else if (tp.classList.contains('viewing-stickers')) cm = 'stickers';
-        else if (tp.classList.contains('viewing-achievements')) cm = 'achievements';
-        else if (tp.classList.contains('viewing-library')) cm = 'library';
+        else cm = topPanelView(tp) || 'ledger';
         if (cm === tgt && !inst) return;
         if (cm === 'achievements' && tgt !== 'achievements') resetTitlesPageAnimationClock();
         if (cm === 'stickers' && tgt !== 'stickers' && !inst) {
@@ -27177,7 +26953,7 @@ const BestGymController = {
                 // Like the stickerbook, the Library reopens on its first page.
                 if (!inst) viewState.libraryPage = 0;
             }
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
+            tp.classList.remove(...TOP_PANEL_VIEW_CLASSES);
             sp.classList.remove('active-view');
             if (wv) wv.classList.remove('active-view');
             tp.style.display = 'flex';
@@ -27418,7 +27194,7 @@ const BestGymController = {
         if (tp) {
             tp.style.display = 'flex';
             resetTitlesPageAnimationClock();
-            tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements', 'viewing-library');
+            tp.classList.remove(...TOP_PANEL_VIEW_CLASSES);
         }
         if (bp) {
             bp.style.display = 'flex';
@@ -27540,11 +27316,7 @@ const BestGymController = {
             }
         } else {
             if (vp && vp.classList.contains('active')) runtime.returnView = 'viewer';
-            else if (tp.classList.contains('viewing-graph')) runtime.returnView = 'graph';
-            else if (tp.classList.contains('viewing-stickers')) runtime.returnView = 'stickers';
-            else if (tp.classList.contains('viewing-achievements')) runtime.returnView = 'achievements';
-            else if (tp.classList.contains('viewing-library')) runtime.returnView = 'library';
-            else runtime.returnView = 'ledger';
+            else runtime.returnView = topPanelView(tp) || 'ledger';
             switchView('settings');
             viewState.subView = 'settings';
         }
@@ -28266,75 +28038,41 @@ const BestGymController = {
             this.blur();
             openFeatureGuideModal();
         };
-        // Torn's fly-out sidebar treats any element under a `data-prevent-flyout-swipe="true"`
-        // ancestor as ineligible for its own edge-swipe gesture detection (checked live via
-        // closest() on each touchstart), so the panel carries it by default to keep our own
-        // left/right paging swipes from also flinging Torn's sidebar open. A rightward swipe that
-        // actually changes a page arms a 900ms pass-through window (attribute removed) so a second
-        // rightward page-change swipe in that window reaches Torn too, in case the first one was
-        // swallowed instead of registering as the intentional gesture; it re-guards immediately once
-        // that second swipe lands, or automatically once the window elapses.
-        root.setAttribute('data-prevent-flyout-swipe', 'true');
-        const FLYOUT_SWIPE_GATE_MS = 900;
-        let _flyoutGateTimer = null;
-        const onRightSwipePageChange = () => {
-            if (_flyoutGateTimer) {
-                clearTimeout(_flyoutGateTimer);
-                _flyoutGateTimer = null;
-                root.setAttribute('data-prevent-flyout-swipe', 'true');
-                return;
-            }
-            root.removeAttribute('data-prevent-flyout-swipe');
-            _flyoutGateTimer = setTimeout(() => {
-                _flyoutGateTimer = null;
-                root.setAttribute('data-prevent-flyout-swipe', 'true');
-            }, FLYOUT_SWIPE_GATE_MS);
+        // Horizontal paging swipe: past `threshold` px and clearly more horizontal than vertical.
+        // onSwipe gets dx (negative = leftward = next page).
+        const bindHorizontalSwipe = (el, threshold, onSwipe) => {
+            if (!el) return;
+            let x0 = 0,
+                y0 = 0;
+            el.addEventListener('touchstart', (e) => {
+                x0 = e.touches[0].clientX;
+                y0 = e.touches[0].clientY;
+            }, {
+                passive: true
+            });
+            el.addEventListener('touchend', (e) => {
+                if (window._bbglScrubbing) return;
+                const dx = e.changedTouches[0].clientX - x0,
+                    dy = e.changedTouches[0].clientY - y0;
+                if (Math.abs(dx) > threshold && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx);
+            }, {
+                passive: true
+            });
         };
-        const sa = get('swipe-area');
-        if (sa) {
-            let _sX = 0,
-                _sY = 0;
-            sa.addEventListener('touchstart', (e) => {
-                _sX = e.touches[0].clientX;
-                _sY = e.touches[0].clientY;
-            }, {
-                passive: true
-            });
-            sa.addEventListener('touchend', (e) => {
-                if (window._bbglScrubbing) return;
-                const dx = e.changedTouches[0].clientX - _sX,
-                    dy = e.changedTouches[0].clientY - _sY;
-                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    changeMonth(dx < 0 ? 1 : -1);
-                    if (dx > 0) onRightSwipePageChange();
-                }
-            }, {
-                passive: true
-            });
-        }
-        const sgSwipe = get('bbgl-sticker-container');
-        if (sgSwipe) {
-            let _sgX = 0,
-                _sgY = 0;
-            sgSwipe.addEventListener('touchstart', (e) => {
-                _sgX = e.touches[0].clientX;
-                _sgY = e.touches[0].clientY;
-            }, {
-                passive: true
-            });
-            sgSwipe.addEventListener('touchend', (e) => {
-                if (window._bbglScrubbing) return;
-                const dx = e.changedTouches[0].clientX - _sgX,
-                    dy = e.changedTouches[0].clientY - _sgY;
-                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-                    const beforePage = runtime.currentStickerPage;
-                    changeStickerPage(dx < 0 ? 1 : -1);
-                    if (dx > 0 && runtime.currentStickerPage !== beforePage) onRightSwipePageChange();
-                }
-            }, {
-                passive: true
-            });
-        }
+        bindHorizontalSwipe(get('swipe-area'), 50, dx => {
+            changeMonth(dx < 0 ? 1 : -1);
+            if (dx > 0) openFlyoutPass('calendar');
+        });
+        bindHorizontalSwipe(get('bbgl-sticker-container'), 40, dx => {
+            const beforePage = runtime.currentStickerPage;
+            changeStickerPage(dx < 0 ? 1 : -1);
+            if (dx > 0 && runtime.currentStickerPage !== beforePage) openFlyoutPass('stickers');
+        });
+        bindHorizontalSwipe(get('bbgl-library-container'), 40, dx => {
+            const changing = gotoLibraryPage((viewState.libraryPage || 0) + (dx < 0 ? 1 : -1));
+            if (dx > 0 && changing) openFlyoutPass('library');
+        });
+        refreshSwipeGates();
         GraphController.setupControls();
         setupStickerGrid();
         refreshInitLock();
@@ -28392,7 +28130,7 @@ const BestGymController = {
                     const dir = dx < 0 ? 1 : -1,
                         willChangePage = !runtime._achAnimating && runtime._achPage + dir >= 0 && runtime._achPage + dir <= 5;
                     gotoAchievementsPage(dir);
-                    if (dx > 0 && willChangePage) onRightSwipePageChange();
+                    if (dx > 0 && willChangePage) openFlyoutPass('achievements');
                     _achTouchStar = null;
                     return;
                 }
@@ -28656,14 +28394,19 @@ const BestGymController = {
         updateLevelBar(); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch(muts) {
-            if (_domRaf) return;
+            // Computed at most once per batch, shared with the layout lifecycle handler below.
+            let own = null;
+            const isOwn = () => own === null ? (own = _bbglMutationsAreOwn(muts)) : own;
             // Changes confined to BBGL's own tooltip/panel can't be Torn moving anything we inject
             // into — see _bbglMutationsAreOwn() (07-section-vi-ui.js).
-            if (_bbglMutationsAreOwn(muts)) return;
-            _domRaf = requestAnimationFrame(function onDomMutationFrame() {
-                _domRaf = null;
-                handleDomMutation();
-            });
+            if (!_domRaf && !isOwn()) {
+                _domRaf = requestAnimationFrame(function onDomMutationFrame() {
+                    _domRaf = null;
+                    handleDomMutation();
+                });
+            }
+            // attachLayoutObservers() (07-section-vi-ui.js) installs this and swaps it on re-arm.
+            if (runtime._layoutLifecycle) runtime._layoutLifecycle(muts, isOwn);
         });
         runtime.domObs = domObs;
         runtime._domObsArmed = true;
@@ -29103,8 +28846,16 @@ const BestGymController = {
         return sel;
     }
 
+    // The refreshers call these every 300ms; writing only on change keeps an idle widget from
+    // restyling itself and waking the page's DOM observer (it lives outside #bbgl-panel) each tick.
     function setActive(btn, on) {
+        if (btn._bbglActive === on) return;
+        btn._bbglActive = on;
         btn.style.background = on ? ACTIVE_BG : '#444';
+    }
+
+    function setTextIfChanged(el, text) {
+        if (el.textContent !== text) el.textContent = text;
     }
 
     // ─── Level helpers ──────────────────────────────────────────────────────
@@ -29218,8 +28969,8 @@ const BestGymController = {
         refreshers.push(() => {
             if (document.activeElement === levelInput) return;
             const p = shownProgress();
-            levelInput.min = String(LEVEL_ATRO_START[p.atrophy]);
-            levelInput.max = String(LEVEL_CAP);
+            if (levelInput.min !== String(LEVEL_ATRO_START[p.atrophy])) levelInput.min = String(LEVEL_ATRO_START[p.atrophy]);
+            if (levelInput.max !== String(LEVEL_CAP)) levelInput.max = String(LEVEL_CAP);
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
@@ -29284,10 +29035,10 @@ const BestGymController = {
             atrophyBtns.forEach((btn, a) => setActive(btn, a === p.atrophy));
             rankBtns.forEach((btn, i) => {
                 const b = bands[i];
-                btn.textContent = `${b.start}–${b.max} · ${LEVEL_TITLE_BANDS[i].titles[p.atrophy]}`;
+                setTextIfChanged(btn, `${b.start}–${b.max} · ${LEVEL_TITLE_BANDS[i].titles[p.atrophy]}`);
                 setActive(btn, p.level >= (i === 0 ? -Infinity : b.start) && p.level <= b.max);
             });
-            capBtn.textContent = p.atrophy < 2 ? `100 · Finish Atrophy ${p.atrophy}` : '100 · Fully Bricked';
+            setTextIfChanged(capBtn, p.atrophy < 2 ? `100 · Finish Atrophy ${p.atrophy}` : '100 · Fully Bricked');
             setActive(capBtn, isFullyBricked(p.atrophy, p.level));
         });
 
