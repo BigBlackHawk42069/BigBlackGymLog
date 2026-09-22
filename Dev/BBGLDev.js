@@ -27427,7 +27427,9 @@ const BestGymController = {
         calendarState.month = viewState.calMonth;
         calendarState.selectedData = null;
         calendarState.selectedLabel = null;
-        renderPanelContent();
+        // No re-render here: the reset month only needs to be on screen by the next open, and
+        // restoreInternalState() renders it then. Rendering now cost 3-5ms on the close click just to
+        // swap the month under the vanish animation.
         if (b) b.classList.remove('bbgl-tab-active');
         updateTransformOrigin();
         p.classList.remove('bbgl-animate-pop');
