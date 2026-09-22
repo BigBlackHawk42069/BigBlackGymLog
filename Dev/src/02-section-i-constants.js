@@ -436,6 +436,8 @@
         demoEnteredFrom: null,
         devMode: false,
         _achCache: null,
+        _achPrewarm: null,
+        _achPrewarmHandle: null,
         _achPage: 0,
         // Monotonic start of the current Titles-page visit. DOM refreshes use its elapsed time as
         // a negative CSS animation delay, so replacing live data never restarts ambient effects.

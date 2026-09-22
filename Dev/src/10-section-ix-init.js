@@ -662,6 +662,7 @@
         } else if (viewState.subView === 'library') {
             switchView('library', true);
         } else switchView('ledger', true, true); // the calendar was just rendered above
+        if (!runtime._achCache) scheduleAchievementsPrewarm();
     }
 
     // Top-panel views, each shown by a `viewing-<name>` class on #bbgl-top-panel (the ledger is the

@@ -71,6 +71,7 @@ const DataController = {
         this._cache.bookData = null;
         runtime.stickerData = [];
         runtime._achCache = null;
+        scheduleAchievementsPrewarm();
     },
     // Lighter invalidation for changes that only touch the current day's stats (e.g. a
     // battlestats snap from the idle poll). Only the caches that embed today's values go
@@ -1837,13 +1838,15 @@ function achRefreshPageDomBody() {
     const container = document.getElementById('bbgl-achievements-container');
     if (!container || !runtime._achCache) return;
     container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0);
-    refreshSwipeGates();
+    Perf.wrap('achRefreshPageDom:swipeGates', refreshSwipeGates);
     // Rebuilding this page is routine: live training, level-ups, title picks and layout changes all
     // refresh its data. Anchor every new CSS animation to the start of the current page visit so
     // fresh nodes resume the shared timeline instead of visibly starting over. Moving to any other
     // achievements page ends the visit and clears the clock.
+    Perf.start('achRefreshPageDom:animClock');
     if (runtime._achPage === 0) syncTitlesPageAnimationClock(container);
     else resetTitlesPageAnimationClock(container);
+    Perf.end('achRefreshPageDom:animClock');
     // A half-finished title pick is deliberately NOT cleared here: it's plain runtime state rather
     // than a DOM node, so a heartbeat rebuilding this markup leaves the one-word preview standing.
     const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache));
@@ -1853,9 +1856,11 @@ function achRefreshPageDomBody() {
     // Baseline for renderRankReadoutLive()'s fast path (07-section-vi-ui.js) — null off the titles
     // page so a later switch back to page 0 can't compare against a stale, unrelated snapshot and
     // wrongly skip the rebuild/patch it actually needs.
+    Perf.start('achRefreshPageDom:fingerprint');
     runtime._achLiveFingerprint = runtime._achPage === 0 ? achLiveInputsFingerprint() : null;
     runtime._achLiveRankKey = runtime._achPage === 0 ? liveRankState().key : null;
-    updateAchPageIndicator();
+    Perf.end('achRefreshPageDom:fingerprint');
+    Perf.wrap('achRefreshPageDom:indicator', updateAchPageIndicator);
     // layoutTitlesPageGeometry() generates every stat block's label-gapped neon frame and centres
     // the rank assembly in the live geometric space below the lower cards; see its component passes
     // in 07-section-vi-ui.js. Running synchronously avoids a bad first paint, while the observer
@@ -1887,17 +1892,43 @@ function achRefreshPageDomBody() {
     // The pagination dot cluster's position (docked against the SVG icon toolbar, see
     // layoutToolbarPaginationPosition(), 07-section-vi-ui.js) doesn't depend on which ach page is
     // showing, so this runs unconditionally rather than only on page 0 like the block above.
-    retryToolbarPaginationLayout(() => document.getElementById('bbgl-top-panel').classList.contains('viewing-achievements'));
+    Perf.wrap('achRefreshPageDom:toolbarLayout', () => retryToolbarPaginationLayout(() => document.getElementById('bbgl-top-panel').classList.contains('viewing-achievements')));
 }
 
 function renderAchievements() {
     Perf.wrap('renderAchievements', renderAchievementsBody);
 }
 
+// computeAchievements() is most of the first achievements open after a load or sync (11-17ms). It
+// is computed in idle time right after the data changes instead, so the click doesn't pay for it.
+// The result is held apart from runtime._achCache, whose emptiness tells the live-patch paths to
+// rebuild the page, and is only used if nothing was invalidated since and the logical day (which
+// computeAchievements() reads) is still the same; otherwise it's computed on open as before.
+function scheduleAchievementsPrewarm() {
+    runtime._achPrewarm = null;
+    const cancelIdle = window.cancelIdleCallback || clearTimeout,
+        requestIdle = window.requestIdleCallback || (fn => setTimeout(fn, 1000));
+    if (runtime._achPrewarmHandle) cancelIdle(runtime._achPrewarmHandle);
+    runtime._achPrewarmHandle = requestIdle(() => {
+        runtime._achPrewarmHandle = null;
+        if (runtime._achCache) return; // already computed on demand
+        // Only while the panel is on screen: this runs on every Torn page, and most never open it.
+        // Opening the panel (restoreInternalState()) queues it again.
+        if (!dom.panel || dom.panel.style.display === 'none') return;
+        runtime._achPrewarm = {
+            day: Formatter.dateLogical(),
+            cache: Perf.wrap('computeAchievements:idle', () => computeAchievements(getActiveHistory()))
+        };
+    }, { timeout: 5000 });
+}
+
 function renderAchievementsBody() {
     const s = getActiveHistory();
     if (!runtime._achCache) {
-        runtime._achCache = Perf.wrap('computeAchievements', () => computeAchievements(s));
+        const pre = runtime._achPrewarm;
+        runtime._achPrewarm = null;
+        runtime._achCache = pre && pre.day === Formatter.dateLogical() ? pre.cache :
+            Perf.wrap('computeAchievements', () => computeAchievements(s));
         runtime._achPage = viewState.achPage || 0;
     }
     if (!runtime._achCache) return;
