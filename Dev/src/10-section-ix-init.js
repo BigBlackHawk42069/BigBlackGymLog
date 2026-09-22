@@ -511,8 +511,9 @@
             e.stopPropagation();
             demoBar.onclick(e);
         };
+        // restoreInternalState() renders the calendar and the restored view; a second render here only
+        // repeated that work.
         restoreInternalState();
-        renderPanelContent();
         if (dom.topPanel.classList.contains('viewing-graph')) setTimeout(GraphController.draw, 100);
         unblockPageSticky();
         trackPageHead(pc);
@@ -660,7 +661,7 @@
             switchView('achievements', true);
         } else if (viewState.subView === 'library') {
             switchView('library', true);
-        } else switchView('ledger', true);
+        } else switchView('ledger', true, true); // the calendar was just rendered above
     }
 
     // Top-panel views, each shown by a `viewing-<name>` class on #bbgl-top-panel (the ledger is the
@@ -672,7 +673,10 @@
         return TOP_PANEL_VIEWS.find(v => tp.classList.contains('viewing-' + v)) || null;
     }
 
-    function switchView(tgt, inst = false) {
+    // calendarFresh: the caller rendered the calendar immediately before this call (restoreInternalState()
+    // does, for every view), so switching to the ledger doesn't need to render it again. A calendar
+    // left stale behind the Library is still caught up below either way.
+    function switchView(tgt, inst = false, calendarFresh = false) {
         // A Library resize still running would leave its deferred render pending; settle it first
         // so the current view below is read from its finished state.
         finishLibraryResize();
@@ -893,7 +897,7 @@
                 resizeLibraryPanel(true, false);
                 tp.classList.add('viewing-library');
                 renderLibrary();
-            } else renderPanelContent();
+            } else if (!calendarFresh) renderPanelContent();
             // Calendar renders are skipped while the Library covers it; catch up on the way out.
             if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
