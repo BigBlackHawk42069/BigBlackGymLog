@@ -308,6 +308,10 @@
     }
 
     function openItemViewer(it, sv = true) {
+        Perf.wrap('openItemViewer', () => openItemViewerBody(it, sv));
+    }
+
+    function openItemViewerBody(it, sv = true) {
         if (runtime.currentOpenedItemId === it.id) return;
         if (sv) {
             viewState.activeItemId = it.id;

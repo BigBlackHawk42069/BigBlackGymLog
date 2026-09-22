@@ -31,6 +31,15 @@
             } finally {
                 this.end(n);
             }
+        },
+        // Dev mode only: runs the style/layout that the DOM writes just before it queued, inside a
+        // measure of its own, so that cost shows up by name instead of folded unnamed into the next
+        // frame. It only moves that work earlier within the same frame, and never runs otherwise.
+        layout(n) {
+            if (!this._enabled()) return;
+            this.start(n);
+            void document.body.offsetHeight;
+            this.end(n);
         }
     };
     const KEYS = {

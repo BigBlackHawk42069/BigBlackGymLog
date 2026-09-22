@@ -1830,6 +1830,10 @@ function syncTitlesPageAnimationClock(container, targets = [container]) {
 }
 
 function achRefreshPageDom() {
+    Perf.wrap('achRefreshPageDom', achRefreshPageDomBody);
+}
+
+function achRefreshPageDomBody() {
     const container = document.getElementById('bbgl-achievements-container');
     if (!container || !runtime._achCache) return;
     container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0);
@@ -1884,6 +1888,10 @@ function achRefreshPageDom() {
 }
 
 function renderAchievements() {
+    Perf.wrap('renderAchievements', renderAchievementsBody);
+}
+
+function renderAchievementsBody() {
     const s = getActiveHistory();
     if (!runtime._achCache) {
         runtime._achCache = Perf.wrap('computeAchievements', () => computeAchievements(s));

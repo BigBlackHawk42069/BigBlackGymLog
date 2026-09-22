@@ -98,6 +98,15 @@
             } finally {
                 this.end(n);
             }
+        },
+        // Dev mode only: runs the style/layout that the DOM writes just before it queued, inside a
+        // measure of its own, so that cost shows up by name instead of folded unnamed into the next
+        // frame. It only moves that work earlier within the same frame, and never runs otherwise.
+        layout(n) {
+            if (!this._enabled()) return;
+            this.start(n);
+            void document.body.offsetHeight;
+            this.end(n);
         }
     };
     const KEYS = {
@@ -17775,6 +17784,10 @@ function syncTitlesPageAnimationClock(container, targets = [container]) {
 }
 
 function achRefreshPageDom() {
+    Perf.wrap('achRefreshPageDom', achRefreshPageDomBody);
+}
+
+function achRefreshPageDomBody() {
     const container = document.getElementById('bbgl-achievements-container');
     if (!container || !runtime._achCache) return;
     container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0);
@@ -17829,6 +17842,10 @@ function achRefreshPageDom() {
 }
 
 function renderAchievements() {
+    Perf.wrap('renderAchievements', renderAchievementsBody);
+}
+
+function renderAchievementsBody() {
     const s = getActiveHistory();
     if (!runtime._achCache) {
         runtime._achCache = Perf.wrap('computeAchievements', () => computeAchievements(s));
@@ -20719,6 +20736,10 @@ const BestGymController = {
     }
 
     function renderLibrary() {
+        Perf.wrap('renderLibrary', renderLibraryBody);
+    }
+
+    function renderLibraryBody() {
         const c = dom.libraryContainer;
         if (!c) return;
         const bookData = DataController.getBookData();
@@ -21001,6 +21022,10 @@ const BestGymController = {
     // Each step resets, then measures every element, then writes every result, so a step costs one
     // layout instead of one per element (the elements within a step don't affect each other's size).
     function fitLibraryCells() {
+        Perf.wrap('fitLibraryCells', fitLibraryCellsBody);
+    }
+
+    function fitLibraryCellsBody() {
         const c = dom.libraryContainer;
         if (!c) return;
         // A group label that's longer than its spine is tall shrinks to fit.
@@ -21154,6 +21179,7 @@ const BestGymController = {
             bookMarkers: getBookMarkers(),
             firstDate: _tl.length > 0 ? _tl[0].date : (s ? s.today.date : null)
         };
+        Perf.start('renderPanel:cells');
         const frag = document.createDocumentFragment();
         let batch = [],
             ridx = 0;
@@ -21192,6 +21218,7 @@ const BestGymController = {
             }
         });
         c.appendChild(frag);
+        Perf.end('renderPanel:cells');
         // Consume any pending persisted-selection restore (set by renderCell()/injectWeeklyBar()
         // above) now that the built cells/bars are actually attached to the live DOM — calling
         // openHistory() any earlier would leave updateCellSelection()'s querySelector unable to
@@ -21219,8 +21246,10 @@ const BestGymController = {
                 if (!canPatchLive || !renderRankReadoutLive()) renderAchievements();
             }
         }
+        Perf.start('renderPanel:stats');
         if (!calendarState.selectedData) renderStats(DataController.getSlice('DAY', Formatter.dateLogical()), Formatter.dateLogical());
         else renderStats(calendarState.selectedData, calendarState.selectedLabel);
+        Perf.end('renderPanel:stats');
         // Popups earned while the panel was closed have been waiting for it.
         seedRewardsSeen();
         flushRewards();
@@ -21232,8 +21261,8 @@ const BestGymController = {
         // own silent branch backs off instead of stomping it. Every other caller of
         // renderPanelContent() (panel open, settings changes, etc.) is not a live-training
         // moment and should just snap to the correct value.
-        updateLevelBar(true);
-        updateSummaryCharts();
+        Perf.wrap('updateLevelBar', () => updateLevelBar(true));
+        Perf.wrap('updateSummaryCharts', updateSummaryCharts);
     }
 
     // Ranked-war calendar markers. Buckets each stored war's start/end timestamp into the same
@@ -26198,6 +26227,10 @@ const BestGymController = {
     }
 
     function openItemViewer(it, sv = true) {
+        Perf.wrap('openItemViewer', () => openItemViewerBody(it, sv));
+    }
+
+    function openItemViewerBody(it, sv = true) {
         if (runtime.currentOpenedItemId === it.id) return;
         if (sv) {
             viewState.activeItemId = it.id;
@@ -26568,14 +26601,16 @@ const BestGymController = {
         // season leaves it static, matching how it only changes at season boundaries at all.
         const hb = dom.headerBg;
         const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        Perf.start('changeMonth:ghost');
         slideOutGhost(c, 'bbgl-cal-ghost', d);
         if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true);
+        Perf.end('changeMonth:ghost');
 
         calendarState.month = m;
         calendarState.year = y;
         viewState.calYear = y;
         viewState.calMonth = m;
-        saveViewState();
+        Perf.wrap('saveViewState', saveViewState);
         c.style.willChange = 'transform';
         renderPanelContent();
         slideIn(c, d);
@@ -26583,6 +26618,7 @@ const BestGymController = {
             hb.style.willChange = 'transform';
             slideIn(hb, d);
         }
+        Perf.layout('changeMonth:layout');
     }
 
     // Month-change slide, shared by the calendar grid and the seasonal header: a clone of the
@@ -26898,6 +26934,7 @@ const BestGymController = {
             return;
         }
         if (!p) {
+            Perf.start('openPanel:build');
             p = document.createElement('div');
             p.id = 'bbgl-panel';
             if (viewState.expanded) p.classList.add('bbgl-expanded');
@@ -26905,13 +26942,16 @@ const BestGymController = {
             p.innerHTML = getDashboardHTML();
             document.body.appendChild(p);
             setupEventListeners(p);
+            Perf.end('openPanel:build');
         }
         if (p.style.display === 'none' || !p.style.display) {
-            restoreInternalState();
+            Perf.wrap('openPanel:restore', restoreInternalState);
             p.style.opacity = '0';
             p.style.display = 'flex';
-            handleLayout();
+            Perf.wrap('openPanel:handleLayout', handleLayout);
+            Perf.start('openPanel:layout');
             void p.offsetWidth;
+            Perf.end('openPanel:layout');
             updateTransformOrigin();
             if (b) b.classList.add('bbgl-tab-active');
             p.classList.remove('bbgl-animate-vanish', 'bbgl-animate-pop');
@@ -27057,7 +27097,12 @@ const BestGymController = {
             if (opening) tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
             tp.classList.toggle('viewing-library', opening);
         };
+        // Timed as switchView:<target>, with the style/layout it queues as switchView:<target>:layout.
         const app = () => {
+            Perf.wrap('switchView:' + tgt, appBody);
+            Perf.layout('switchView:' + tgt + ':layout');
+        };
+        const appBody = () => {
             // Leaving the Library: size it back down before the class comes off.
             if (cm === 'library' && tgt !== 'library') {
                 resizeLibraryPanel(false, false);
@@ -27234,6 +27279,7 @@ const BestGymController = {
             nel.classList.add('bbgl-crt-in');
             setTimeout(() => {
                 nel.classList.remove('bbgl-crt-in');
+                Perf.layout('switchView:settle');
                 runtime.isViewAnimating = false;
             }, 300);
         } else if (tgt === 'settings') {
@@ -27258,6 +27304,7 @@ const BestGymController = {
                 app();
                 setTimeout(() => {
                     nel.classList.remove('bbgl-crt-in');
+                    Perf.layout('switchView:settle');
                     runtime.isViewAnimating = false;
                 }, 300);
             });
@@ -27270,6 +27317,7 @@ const BestGymController = {
                     app();
                     setTimeout(() => {
                         nel.classList.remove('bbgl-crt-in');
+                        Perf.layout('switchView:settle');
                         runtime.isViewAnimating = false;
                     }, 300);
                 });
@@ -27283,6 +27331,7 @@ const BestGymController = {
         const p = dom.panel,
             b = dom.gymTab;
         if (!p) return;
+        Perf.start('closePanel');
         runtime.isClosing = true;
         viewState.isOpen = false;
         viewState.subView = 'ledger';
@@ -27324,6 +27373,8 @@ const BestGymController = {
         if (b) b.classList.remove('bbgl-tab-active');
         updateTransformOrigin();
         p.classList.remove('bbgl-animate-pop');
+        Perf.end('closePanel');
+        Perf.layout('closePanel:layout');
         if (userConfig.animations) {
             p.classList.add('bbgl-animate-vanish');
             setTimeout(() => {
@@ -27378,6 +27429,10 @@ const BestGymController = {
     // height transition never re-lays-out or repaints them; onSettled draws the destination view
     // once the panel has finished resizing.
     function resizeLibraryPanel(opening, animate, onSettled) {
+        Perf.wrap('resizeLibraryPanel', () => resizeLibraryPanelBody(opening, animate, onSettled));
+    }
+
+    function resizeLibraryPanelBody(opening, animate, onSettled) {
         const p = dom.panel,
             bp = dom.bottomPanel;
         if (!p || !bp) {
@@ -28440,7 +28495,7 @@ const BestGymController = {
     }
     async function init() {
         Perf.start('init');
-        injectStyles();
+        Perf.wrap('init:styles', injectStyles);
         const _seenVer = localStorage.getItem(KEYS.CHANGELOG_VER);
         if (SCRIPT_VERSION && typeof SCRIPT_VERSION === 'string') {
             if (!_seenVer) {
@@ -28470,8 +28525,10 @@ const BestGymController = {
                 // Fast boot: load pre-built day objects directly (no series flatten, no
                 // _rebuildFromSeries, no session serialization) so every page navigation stays
                 // light regardless of how large the backfilled history is.
+                Perf.start('init:loadHistory');
                 const loaded = await DBManager.loadHistory();
-                DataController.hydrate(loaded);
+                Perf.end('init:loadHistory');
+                Perf.wrap('init:hydrate', () => DataController.hydrate(loaded));
                 GraphController.applyDefaultsIfNeeded();
                 // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
                 // stale; release it so the Resume button works again without a 24h lockout.
@@ -28502,7 +28559,7 @@ const BestGymController = {
             if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
             renderScanUI();
         });
-        updateLevelBar(); // initialize _lastLevelExp before first interaction
+        Perf.wrap('init:levelBar', () => updateLevelBar()); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch(muts) {
             // Computed at most once per batch, shared with the layout lifecycle handler below.
@@ -28525,7 +28582,7 @@ const BestGymController = {
             childList: true,
             subtree: true
         });
-        attachLayoutObservers();
+        Perf.wrap('init:layoutObservers', attachLayoutObservers);
         // SPA-navigation safety net: Torn's pushState-based nav rebuilds chat/footer regions faster
         // than the body-subtree observer can re-add our injected tab. Re-running handleDomMutation
         // a few times across the transition window re-anchors it against the rebuilt notes button;
@@ -28547,7 +28604,7 @@ const BestGymController = {
             history[name] = wrapped;
         });
         calendarState.selectedLabel = Formatter.dateLogical();
-        if (typeof window.initDevTools === 'function') window.initDevTools();
+        if (typeof window.initDevTools === 'function') Perf.wrap('init:devTools', window.initDevTools);
         if (!runtime.demoMode) {
             startBackgroundSync();
         }
@@ -28755,10 +28812,11 @@ const BestGymController = {
             if (BestGymController.handleTrainClick(e)) return;
             handleGymClick(e);
         }, true);
-        handleDomMutation();
+        Perf.wrap('init:domMutation', handleDomMutation);
         if (localStorage.getItem(KEYS.CHANGELOG_NOTIF) === '1') syncChangelogNotif(true);
-        checkViewRouting();
-        if (!window.location.hash.includes('gymlog')) handleLayout();
+        Perf.wrap('init:route', checkViewRouting);
+        if (!window.location.hash.includes('gymlog')) Perf.wrap('init:handleLayout', handleLayout);
+        Perf.layout('init:layout');
         Log.boot();
         Perf.end('init');
     }

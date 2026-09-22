@@ -343,6 +343,10 @@
     }
 
     function renderLibrary() {
+        Perf.wrap('renderLibrary', renderLibraryBody);
+    }
+
+    function renderLibraryBody() {
         const c = dom.libraryContainer;
         if (!c) return;
         const bookData = DataController.getBookData();
@@ -625,6 +629,10 @@
     // Each step resets, then measures every element, then writes every result, so a step costs one
     // layout instead of one per element (the elements within a step don't affect each other's size).
     function fitLibraryCells() {
+        Perf.wrap('fitLibraryCells', fitLibraryCellsBody);
+    }
+
+    function fitLibraryCellsBody() {
         const c = dom.libraryContainer;
         if (!c) return;
         // A group label that's longer than its spine is tall shrinks to fit.
@@ -778,6 +786,7 @@
             bookMarkers: getBookMarkers(),
             firstDate: _tl.length > 0 ? _tl[0].date : (s ? s.today.date : null)
         };
+        Perf.start('renderPanel:cells');
         const frag = document.createDocumentFragment();
         let batch = [],
             ridx = 0;
@@ -816,6 +825,7 @@
             }
         });
         c.appendChild(frag);
+        Perf.end('renderPanel:cells');
         // Consume any pending persisted-selection restore (set by renderCell()/injectWeeklyBar()
         // above) now that the built cells/bars are actually attached to the live DOM — calling
         // openHistory() any earlier would leave updateCellSelection()'s querySelector unable to
@@ -843,8 +853,10 @@
                 if (!canPatchLive || !renderRankReadoutLive()) renderAchievements();
             }
         }
+        Perf.start('renderPanel:stats');
         if (!calendarState.selectedData) renderStats(DataController.getSlice('DAY', Formatter.dateLogical()), Formatter.dateLogical());
         else renderStats(calendarState.selectedData, calendarState.selectedLabel);
+        Perf.end('renderPanel:stats');
         // Popups earned while the panel was closed have been waiting for it.
         seedRewardsSeen();
         flushRewards();
@@ -856,8 +868,8 @@
         // own silent branch backs off instead of stomping it. Every other caller of
         // renderPanelContent() (panel open, settings changes, etc.) is not a live-training
         // moment and should just snap to the correct value.
-        updateLevelBar(true);
-        updateSummaryCharts();
+        Perf.wrap('updateLevelBar', () => updateLevelBar(true));
+        Perf.wrap('updateSummaryCharts', updateSummaryCharts);
     }
 
     // Ranked-war calendar markers. Buckets each stored war's start/end timestamp into the same

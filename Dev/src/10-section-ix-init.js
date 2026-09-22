@@ -240,14 +240,16 @@
         // season leaves it static, matching how it only changes at season boundaries at all.
         const hb = dom.headerBg;
         const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        Perf.start('changeMonth:ghost');
         slideOutGhost(c, 'bbgl-cal-ghost', d);
         if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true);
+        Perf.end('changeMonth:ghost');
 
         calendarState.month = m;
         calendarState.year = y;
         viewState.calYear = y;
         viewState.calMonth = m;
-        saveViewState();
+        Perf.wrap('saveViewState', saveViewState);
         c.style.willChange = 'transform';
         renderPanelContent();
         slideIn(c, d);
@@ -255,6 +257,7 @@
             hb.style.willChange = 'transform';
             slideIn(hb, d);
         }
+        Perf.layout('changeMonth:layout');
     }
 
     // Month-change slide, shared by the calendar grid and the seasonal header: a clone of the
@@ -570,6 +573,7 @@
             return;
         }
         if (!p) {
+            Perf.start('openPanel:build');
             p = document.createElement('div');
             p.id = 'bbgl-panel';
             if (viewState.expanded) p.classList.add('bbgl-expanded');
@@ -577,13 +581,16 @@
             p.innerHTML = getDashboardHTML();
             document.body.appendChild(p);
             setupEventListeners(p);
+            Perf.end('openPanel:build');
         }
         if (p.style.display === 'none' || !p.style.display) {
-            restoreInternalState();
+            Perf.wrap('openPanel:restore', restoreInternalState);
             p.style.opacity = '0';
             p.style.display = 'flex';
-            handleLayout();
+            Perf.wrap('openPanel:handleLayout', handleLayout);
+            Perf.start('openPanel:layout');
             void p.offsetWidth;
+            Perf.end('openPanel:layout');
             updateTransformOrigin();
             if (b) b.classList.add('bbgl-tab-active');
             p.classList.remove('bbgl-animate-vanish', 'bbgl-animate-pop');
@@ -729,7 +736,12 @@
             if (opening) tp.classList.remove('viewing-graph', 'viewing-stickers', 'viewing-achievements');
             tp.classList.toggle('viewing-library', opening);
         };
+        // Timed as switchView:<target>, with the style/layout it queues as switchView:<target>:layout.
         const app = () => {
+            Perf.wrap('switchView:' + tgt, appBody);
+            Perf.layout('switchView:' + tgt + ':layout');
+        };
+        const appBody = () => {
             // Leaving the Library: size it back down before the class comes off.
             if (cm === 'library' && tgt !== 'library') {
                 resizeLibraryPanel(false, false);
@@ -906,6 +918,7 @@
             nel.classList.add('bbgl-crt-in');
             setTimeout(() => {
                 nel.classList.remove('bbgl-crt-in');
+                Perf.layout('switchView:settle');
                 runtime.isViewAnimating = false;
             }, 300);
         } else if (tgt === 'settings') {
@@ -930,6 +943,7 @@
                 app();
                 setTimeout(() => {
                     nel.classList.remove('bbgl-crt-in');
+                    Perf.layout('switchView:settle');
                     runtime.isViewAnimating = false;
                 }, 300);
             });
@@ -942,6 +956,7 @@
                     app();
                     setTimeout(() => {
                         nel.classList.remove('bbgl-crt-in');
+                        Perf.layout('switchView:settle');
                         runtime.isViewAnimating = false;
                     }, 300);
                 });
@@ -955,6 +970,7 @@
         const p = dom.panel,
             b = dom.gymTab;
         if (!p) return;
+        Perf.start('closePanel');
         runtime.isClosing = true;
         viewState.isOpen = false;
         viewState.subView = 'ledger';
@@ -996,6 +1012,8 @@
         if (b) b.classList.remove('bbgl-tab-active');
         updateTransformOrigin();
         p.classList.remove('bbgl-animate-pop');
+        Perf.end('closePanel');
+        Perf.layout('closePanel:layout');
         if (userConfig.animations) {
             p.classList.add('bbgl-animate-vanish');
             setTimeout(() => {
@@ -1050,6 +1068,10 @@
     // height transition never re-lays-out or repaints them; onSettled draws the destination view
     // once the panel has finished resizing.
     function resizeLibraryPanel(opening, animate, onSettled) {
+        Perf.wrap('resizeLibraryPanel', () => resizeLibraryPanelBody(opening, animate, onSettled));
+    }
+
+    function resizeLibraryPanelBody(opening, animate, onSettled) {
         const p = dom.panel,
             bp = dom.bottomPanel;
         if (!p || !bp) {
@@ -2112,7 +2134,7 @@
     }
     async function init() {
         Perf.start('init');
-        injectStyles();
+        Perf.wrap('init:styles', injectStyles);
         const _seenVer = localStorage.getItem(KEYS.CHANGELOG_VER);
         if (SCRIPT_VERSION && typeof SCRIPT_VERSION === 'string') {
             if (!_seenVer) {
@@ -2142,8 +2164,10 @@
                 // Fast boot: load pre-built day objects directly (no series flatten, no
                 // _rebuildFromSeries, no session serialization) so every page navigation stays
                 // light regardless of how large the backfilled history is.
+                Perf.start('init:loadHistory');
                 const loaded = await DBManager.loadHistory();
-                DataController.hydrate(loaded);
+                Perf.end('init:loadHistory');
+                Perf.wrap('init:hydrate', () => DataController.hydrate(loaded));
                 GraphController.applyDefaultsIfNeeded();
                 // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
                 // stale; release it so the Resume button works again without a 24h lockout.
@@ -2174,7 +2198,7 @@
             if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
             renderScanUI();
         });
-        updateLevelBar(); // initialize _lastLevelExp before first interaction
+        Perf.wrap('init:levelBar', () => updateLevelBar()); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
         const domObs = new MutationObserver(function onDomMutationBatch(muts) {
             // Computed at most once per batch, shared with the layout lifecycle handler below.
@@ -2197,7 +2221,7 @@
             childList: true,
             subtree: true
         });
-        attachLayoutObservers();
+        Perf.wrap('init:layoutObservers', attachLayoutObservers);
         // SPA-navigation safety net: Torn's pushState-based nav rebuilds chat/footer regions faster
         // than the body-subtree observer can re-add our injected tab. Re-running handleDomMutation
         // a few times across the transition window re-anchors it against the rebuilt notes button;
@@ -2219,7 +2243,7 @@
             history[name] = wrapped;
         });
         calendarState.selectedLabel = Formatter.dateLogical();
-        if (typeof window.initDevTools === 'function') window.initDevTools();
+        if (typeof window.initDevTools === 'function') Perf.wrap('init:devTools', window.initDevTools);
         if (!runtime.demoMode) {
             startBackgroundSync();
         }
@@ -2427,10 +2451,11 @@
             if (BestGymController.handleTrainClick(e)) return;
             handleGymClick(e);
         }, true);
-        handleDomMutation();
+        Perf.wrap('init:domMutation', handleDomMutation);
         if (localStorage.getItem(KEYS.CHANGELOG_NOTIF) === '1') syncChangelogNotif(true);
-        checkViewRouting();
-        if (!window.location.hash.includes('gymlog')) handleLayout();
+        Perf.wrap('init:route', checkViewRouting);
+        if (!window.location.hash.includes('gymlog')) Perf.wrap('init:handleLayout', handleLayout);
+        Perf.layout('init:layout');
         Log.boot();
         Perf.end('init');
     }
