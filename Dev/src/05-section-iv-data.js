@@ -623,6 +623,12 @@
     function heartbeatTick() {
         if (runtime.hbBusy || Date.now() < (runtime.hbRetryAfter || 0)) return;
         if (document.visibilityState !== 'visible') return;
+        // A Train click's own sync (handleGymClick, 10-section-ix-init.js) is waiting out its debounce
+        // or still in flight. This tick's sync is silent and fetches the same train logs, so if it
+        // merged them first the level bars would snap to the new value and the click's animated sync
+        // would find nothing left to animate. Hold off until that sync has landed; the full sync the
+        // click left pending still runs on a later tick.
+        if (runtime.trainDebouncer || runtime.trainSyncInFlight) return;
         const panelOpen = dom.panel && dom.panel.style.display !== 'none';
         const onGymPage = window.location.href.includes('gym.php');
         if (!panelOpen && !onGymPage) return;

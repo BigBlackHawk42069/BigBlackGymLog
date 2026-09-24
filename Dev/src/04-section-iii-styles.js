@@ -7419,7 +7419,6 @@
                     }
                     /* One accent per kind, all on the same purple family; new kinds add a line here and
                        a REWARD_KINDS entry. */
-                    .bbgl-toast-level { --bbgl-toast-accent: #a97bff; }
                     .bbgl-toast-rank { --bbgl-toast-accent: #c06bff; }
                     .bbgl-toast-unlock { --bbgl-toast-accent: #8f6bff; }
                     /* Slides out from behind the crown. */

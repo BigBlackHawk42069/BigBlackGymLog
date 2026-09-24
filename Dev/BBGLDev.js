@@ -9140,7 +9140,6 @@
                     }
                     /* One accent per kind, all on the same purple family; new kinds add a line here and
                        a REWARD_KINDS entry. */
-                    .bbgl-toast-level { --bbgl-toast-accent: #a97bff; }
                     .bbgl-toast-rank { --bbgl-toast-accent: #c06bff; }
                     .bbgl-toast-unlock { --bbgl-toast-accent: #8f6bff; }
                     /* Slides out from behind the crown. */
@@ -15437,6 +15436,12 @@
     function heartbeatTick() {
         if (runtime.hbBusy || Date.now() < (runtime.hbRetryAfter || 0)) return;
         if (document.visibilityState !== 'visible') return;
+        // A Train click's own sync (handleGymClick, 10-section-ix-init.js) is waiting out its debounce
+        // or still in flight. This tick's sync is silent and fetches the same train logs, so if it
+        // merged them first the level bars would snap to the new value and the click's animated sync
+        // would find nothing left to animate. Hold off until that sync has landed; the full sync the
+        // click left pending still runs on a later tick.
+        if (runtime.trainDebouncer || runtime.trainSyncInFlight) return;
         const panelOpen = dom.panel && dom.panel.style.display !== 'none';
         const onGymPage = window.location.href.includes('gym.php');
         if (!panelOpen && !onGymPage) return;
@@ -22543,7 +22548,6 @@ const BestGymController = {
                     bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
                     runtime._rankDisplayExp = runtime._lastLevelExp + expNeededToFill;
                     refreshRankDisplays();
-                    emitReward({ kind: 'level', id: `level:${currentProg.atrophy}:${nextLevel}`, atrophy: currentProg.atrophy, level: nextLevel });
                     const bandIdx = levelBandIndex(nextLevel);
                     if (bandIdx > levelBandIndex(currentProg.level)) {
                         emitReward({ kind: 'rank', id: `rank:${currentProg.atrophy}:${bandIdx}`, atrophy: currentProg.atrophy, band: bandIdx, label: atrophyBandTitle(currentProg.atrophy, nextLevel) });
@@ -22607,8 +22611,8 @@ const BestGymController = {
 
     // ─── Reward popups ──────────────────────────────────────────────────────
     // Two surfaces, one queue. The rare, run-defining moments (atrophy, Fully Bricked) open a
-    // modal; everything smaller (a level, a new rank, later titles) is a toast in the panel's own
-    // corner. Anything new only needs a REWARD_KINDS entry.
+    // modal; a new rank or title is a toast in the panel's own corner. Plain level-ups don't pop up:
+    // the level bar's own sequence is the celebration. Anything new only needs a REWARD_KINDS entry.
     //
     // Every event carries a stable id, and shown ids are remembered in viewState.rewardsSeen, so a
     // resync, backfill or reload can't replay a celebration. On first run the store is seeded from
@@ -22617,7 +22621,6 @@ const BestGymController = {
     //
     // Copy here is placeholder — the real narrative goes in later.
     const REWARD_KINDS = {
-        level: { surface: 'toast', tone: 'level', title: 'Level Up', body: lv => `Level ${lv.level} reached!` },
         rank: { surface: 'toast', tone: 'rank', title: 'Rank Up', body: () => 'New rank unlocked!' },
         title: { surface: 'toast', tone: 'unlock', title: 'New Title', body: () => 'New title unlocked!' },
         atrophy: { surface: 'modal', tone: 'atrophy', title: 'Atrophied', body: a => `Tier ${a.from} complete. Everything resets — you start again at Lv ${LEVEL_ATRO_START[a.to]}, and the climb is longer this time.` },
@@ -22637,7 +22640,6 @@ const BestGymController = {
         if (viewState.rewardsSeen && typeof viewState.rewardsSeen === 'object') return;
         const { atrophy, level } = calculateLevelProgress(getLiveLevelExp());
         const seen = {};
-        seen[`level:${atrophy}:${level}`] = 1;
         for (let a = 0; a <= atrophy; a++) {
             if (a < atrophy) seen[`atrophy:${a + 1}`] = 1;
             LEVEL_TITLE_BANDS.forEach((band, i) => {
@@ -26434,8 +26436,13 @@ const BestGymController = {
             localStorage.setItem(KEYS.PENDING_SYNC, '1');
             if (runtime.trainDebouncer) clearTimeout(runtime.trainDebouncer);
             runtime.trainDebouncer = setTimeout(() => {
-                universalFetch('TRAIN', { animate: true });
                 runtime.trainDebouncer = null;
+                // heartbeatTick() (05-section-iv-data.js) waits on this so its silent sync can't merge
+                // these train logs first and snap the bars past the level-up animation.
+                runtime.trainSyncInFlight = true;
+                universalFetch('TRAIN', { animate: true }).finally(() => {
+                    runtime.trainSyncInFlight = false;
+                });
             }, 1000);
         }
     }
@@ -29207,7 +29214,6 @@ const BestGymController = {
         // shows (RewardsController, 07-section-vi-ui.js). The real ones come off the level
         // sequences; these are just for looking at them.
         const popupRow = buildRow([
-            ['Lv Up', { kind: 'level', id: 'dev:level', atrophy: 0, level: 42 }],
             ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
             ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
             ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],

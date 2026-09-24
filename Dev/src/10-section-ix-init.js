@@ -24,8 +24,13 @@
             localStorage.setItem(KEYS.PENDING_SYNC, '1');
             if (runtime.trainDebouncer) clearTimeout(runtime.trainDebouncer);
             runtime.trainDebouncer = setTimeout(() => {
-                universalFetch('TRAIN', { animate: true });
                 runtime.trainDebouncer = null;
+                // heartbeatTick() (05-section-iv-data.js) waits on this so its silent sync can't merge
+                // these train logs first and snap the bars past the level-up animation.
+                runtime.trainSyncInFlight = true;
+                universalFetch('TRAIN', { animate: true }).finally(() => {
+                    runtime.trainSyncInFlight = false;
+                });
             }, 1000);
         }
     }

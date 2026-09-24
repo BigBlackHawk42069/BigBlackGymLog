@@ -216,7 +216,6 @@
         // shows (RewardsController, 07-section-vi-ui.js). The real ones come off the level
         // sequences; these are just for looking at them.
         const popupRow = buildRow([
-            ['Lv Up', { kind: 'level', id: 'dev:level', atrophy: 0, level: 42 }],
             ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
             ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
             ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],

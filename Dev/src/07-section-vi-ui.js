@@ -2114,7 +2114,6 @@
                     bars.forEach(b => { setLevelBarNumber(b, nextLevel); });
                     runtime._rankDisplayExp = runtime._lastLevelExp + expNeededToFill;
                     refreshRankDisplays();
-                    emitReward({ kind: 'level', id: `level:${currentProg.atrophy}:${nextLevel}`, atrophy: currentProg.atrophy, level: nextLevel });
                     const bandIdx = levelBandIndex(nextLevel);
                     if (bandIdx > levelBandIndex(currentProg.level)) {
                         emitReward({ kind: 'rank', id: `rank:${currentProg.atrophy}:${bandIdx}`, atrophy: currentProg.atrophy, band: bandIdx, label: atrophyBandTitle(currentProg.atrophy, nextLevel) });
@@ -2178,8 +2177,8 @@
 
     // ─── Reward popups ──────────────────────────────────────────────────────
     // Two surfaces, one queue. The rare, run-defining moments (atrophy, Fully Bricked) open a
-    // modal; everything smaller (a level, a new rank, later titles) is a toast in the panel's own
-    // corner. Anything new only needs a REWARD_KINDS entry.
+    // modal; a new rank or title is a toast in the panel's own corner. Plain level-ups don't pop up:
+    // the level bar's own sequence is the celebration. Anything new only needs a REWARD_KINDS entry.
     //
     // Every event carries a stable id, and shown ids are remembered in viewState.rewardsSeen, so a
     // resync, backfill or reload can't replay a celebration. On first run the store is seeded from
@@ -2188,7 +2187,6 @@
     //
     // Copy here is placeholder — the real narrative goes in later.
     const REWARD_KINDS = {
-        level: { surface: 'toast', tone: 'level', title: 'Level Up', body: lv => `Level ${lv.level} reached!` },
         rank: { surface: 'toast', tone: 'rank', title: 'Rank Up', body: () => 'New rank unlocked!' },
         title: { surface: 'toast', tone: 'unlock', title: 'New Title', body: () => 'New title unlocked!' },
         atrophy: { surface: 'modal', tone: 'atrophy', title: 'Atrophied', body: a => `Tier ${a.from} complete. Everything resets — you start again at Lv ${LEVEL_ATRO_START[a.to]}, and the climb is longer this time.` },
@@ -2208,7 +2206,6 @@
         if (viewState.rewardsSeen && typeof viewState.rewardsSeen === 'object') return;
         const { atrophy, level } = calculateLevelProgress(getLiveLevelExp());
         const seen = {};
-        seen[`level:${atrophy}:${level}`] = 1;
         for (let a = 0; a <= atrophy; a++) {
             if (a < atrophy) seen[`atrophy:${a + 1}`] = 1;
             LEVEL_TITLE_BANDS.forEach((band, i) => {
