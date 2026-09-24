@@ -4404,13 +4404,13 @@
                         position: relative;
                         border-radius: 4px;
                         background: var(--bbgl-lib-card-bg);
-                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, .45), 0 1px 0 rgba(255, 255, 255, .04);
+                        box-shadow: inset 0 1px 3px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .03), 0 1px 0 rgba(255, 255, 255, .06);
                     }
 
                     .bbgl-lib-row:not(.is-unread),
                     .bbgl-lib-item:not(.is-unread) {
                         background: var(--bbgl-lib-card-raised-bg);
-                        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .07), 0 1px 1px rgba(0, 0, 0, .3);
+                        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .05), inset 0 1px 0 rgba(255, 255, 255, .1), inset 0 -1px 0 rgba(0, 0, 0, .25), 0 1px 2px rgba(0, 0, 0, .45);
                     }
 
                     /* Single-stat books, two across. Grows by its row count so each of its rows matches
