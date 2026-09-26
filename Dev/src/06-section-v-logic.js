@@ -2461,9 +2461,15 @@ function achCurrentRankPlaqueData(atrophy, level) {
     };
 }
 
+// data-sign-stage is the progressive plaque step (titlePlaqueStage(), 03-section-ii-utils.js); the
+// stage styles only apply under .is-progressive, so TITLE_PLAQUE_PROGRESSIVE = false leaves the
+// original card. The step's cloth art is built on first use (ensurePlaqueArt, 04-section-iii-plaque.js).
 function achTitleIdentityHTML(currentRank, titleValue, labelExtra = '') {
+    const stage = getLivePlaqueStage();
+    ensurePlaqueArt(stage);
+    const progressive = TITLE_PLAQUE_PROGRESSIVE ? ' is-progressive' : '';
     return `<div class="bbgl-titles-center">` +
-        `<div class="bbgl-title-card" data-sign-stage="0" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
+        `<div class="bbgl-title-card${progressive}" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
         `<div class="bbgl-title-card-sign"><div class="bbgl-title-card-sign-face">` +
         `<span class="bbgl-title-card-title-label">The${labelExtra}</span><span class="bbgl-title-card-value">${titleValue}</span>` +
         `</div></div><div class="bbgl-title-card-connector" aria-hidden="true"></div>` +

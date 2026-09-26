@@ -333,7 +333,37 @@
         const presetRow = buildRow([
             buildDevButton('All T1', () => setTiers(0), smallBtn),
             buildDevButton(`All T${Math.ceil(tierCount / 2)}`, () => setTiers(Math.ceil(tierCount / 2) - 1), smallBtn),
-            buildDevButton(`All T${tierCount}`, () => setTiers(tierCount - 1), smallBtn)
+            buildDevButton(`All T${tierCount}`, () => setTiers(tierCount - 1), smallBtn),
+            // The title a player sees before any stat has unlocked a word.
+            buildDevButton('None', () => {
+                runtime._devTitleOverride = { placeholder: true, primary: null, secondary: null };
+                refreshTitleUI();
+                renderStatus();
+            }, smallBtn)
+        ]);
+
+        // Progressive plaque step (runtime._devPlaqueStage, read by getLivePlaqueStage(),
+        // 07-section-vi-ui.js). "Live" follows the real unlock count.
+        const stageTag = document.createElement('span');
+        stageTag.textContent = 'Plaque';
+        stageTag.style.cssText = 'flex:0 0 40px;color:#aaa;font-family:sans-serif;font-size:10px;font-weight:bold;';
+        const stageOptions = [0, ...TITLE_PLAQUE_STEPS].map((n, s) => [String(s), s ? `Step ${s} · ${n}+` : `Step 0 · <${TITLE_PLAQUE_STEPS[0]}`]);
+        const stageSelect = buildSelect([['', 'Live'], ...stageOptions]);
+        stageSelect.addEventListener('change', () => {
+            runtime._devPlaqueStage = stageSelect.value === '' ? null : parseInt(stageSelect.value, 10);
+            refreshTitleUI();
+        });
+        const stageStep = dir => {
+            const cur = Number.isFinite(runtime._devPlaqueStage) ? runtime._devPlaqueStage : getLivePlaqueStage();
+            runtime._devPlaqueStage = Math.max(0, Math.min(TITLE_PLAQUE_STEPS.length, cur + dir));
+            stageSelect.value = String(runtime._devPlaqueStage);
+            refreshTitleUI();
+        };
+        const stageRow = buildRow([
+            stageTag,
+            buildDevButton('◀', () => stageStep(-1), smallBtn + 'flex:0 0 24px;'),
+            stageSelect,
+            buildDevButton('▶', () => stageStep(1), smallBtn + 'flex:0 0 24px;')
         ]);
         const actionRow = buildRow([
             buildDevButton('Swap', () => {
@@ -358,7 +388,7 @@
         ]);
         renderStatus();
 
-        return buildDevSection('Title Preview', [slot1.row, slot2.row, presetRow, actionRow, status]);
+        return buildDevSection('Title Preview', [slot1.row, slot2.row, presetRow, actionRow, status, stageRow]);
     }
 
     // ─── Books section (Library layout testing) ────────────────────────────

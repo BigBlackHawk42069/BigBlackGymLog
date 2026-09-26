@@ -1281,7 +1281,7 @@
     }
 
     // The slot selection the title renders from — manual pick if there is one, otherwise the
-    // auto-follow of the top two stats (resolveStatTitleSelection(), 03-section-ii-utils.js).
+    // two best unlocked stats (resolveStatTitleSelection(), 03-section-ii-utils.js).
     function getLiveStatTitleSelection() {
         const eByStat = getLiveStatTitleE();
         // Dev-only preview override (11-section-x-devtools.js, stripped from release builds) —
@@ -1289,11 +1289,16 @@
         // be previewed without the training history that would really unlock it.
         if (runtime.devMode && runtime._devTitleOverride) {
             const o = runtime._devTitleOverride;
-            return { primary: o.primary, secondary: o.secondary, phases: statTitlePhases(eByStat), mode: 'custom' };
+            return { primary: o.primary, secondary: o.secondary, placeholder: !!o.placeholder, phases: statTitlePhases(eByStat), mode: 'custom' };
         }
-        const h = getActiveHistory();
-        const endBreakdown = (h && h.today && h.today.endBreakdown) || {};
-        return resolveStatTitleSelection(eByStat, endBreakdown);
+        return resolveStatTitleSelection(eByStat);
+    }
+
+    // The progressive title plaque's step (0-10) from the live unlock count. The dev widget's stage
+    // override (11-section-x-devtools.js, stripped from release builds) takes precedence.
+    function getLivePlaqueStage() {
+        if (runtime.devMode && Number.isFinite(runtime._devPlaqueStage)) return runtime._devPlaqueStage;
+        return titlePlaqueStage(statTitlePhases(getLiveStatTitleE()));
     }
 
     // Re-render everywhere the composed title appears after a slot change: the level-bar tooltips
@@ -1339,6 +1344,12 @@
         const { titleValue, labelExtra } = achTitleCardTitleParts(sel, pending);
         label.innerHTML = `The${labelExtra}`;
         value.innerHTML = titleValue;
+        // Only the dev stage override can move this without new E (which fails the fingerprint
+        // check above and rebuilds instead).
+        const card = page.querySelector('.bbgl-title-card');
+        const stage = getLivePlaqueStage();
+        ensurePlaqueArt(stage);
+        if (card && card.dataset.signStage !== String(stage)) card.dataset.signStage = String(stage);
         runtime._achLiveFingerprint = fingerprint;
         // A different title can change the sign's text size, which layoutTitleBlockFrames() mirrors
         // into --bbgl-tip-title-fs; everything unchanged writes nothing (setStyleVarIfChanged()).

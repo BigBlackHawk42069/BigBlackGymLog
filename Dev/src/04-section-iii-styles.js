@@ -1,8 +1,3 @@
-    /**
-     *  [SECTION III] THE PHYSIQUE (Assets & Styles)
-     *  ========================================================================
-     *  The Big & Black Part of the script.
-     */
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
@@ -12051,6 +12046,9 @@
                     .bbgl-title-card {
                         box-shadow: inset 1px 1px 0 #ba8a6438, inset -1px -1px 0 #000b, inset 0 0 0 3px #10080447, 0 3px 5px #000b;
                     }
+
+                    /* Progressive title plaque boards and lettering (04-section-iii-plaque.js). */
+${TITLE_PLAQUE_CSS}
 
                     .bbgl-ach-title-row {
                         position: relative;

@@ -516,15 +516,16 @@
         //   titleCustom  - the manual pick itself, {primary:{stat,phase}, secondary:{stat,phase}},
         //                  where primary supplies the noun and secondary the adjective. Null until
         //                  the first pick, which is also what flips titleMode to 'custom'.
-        //   titleAutoPair / titleAutoRecent / titleAutoPhases - earned-mode bookkeeping: the pair
-        //                  held, the two most recently unlocked stats, and the phase high-water mark
-        //                  unlocks are detected against.
-        // See resolveAutoTitlePair() in 03-section-ii-utils.js.
+        //   titleAutoPeak / titleAutoReached / titleAutoSeq - earned-mode bookkeeping: the per-stat
+        //                  phase high-water mark unlocks are detected against, the sequence number at
+        //                  which each stat reached that phase (lower = got there first, which is what
+        //                  breaks ties), and the counter those numbers come from.
+        // See trackTitleUnlockOrder() in 03-section-ii-utils.js.
         titleMode: 'earned',
         titleCustom: null,
-        titleAutoPair: null,
-        titleAutoRecent: null,
-        titleAutoPhases: null
+        titleAutoPeak: null,
+        titleAutoReached: null,
+        titleAutoSeq: 0
     };
     const ALLOWED_CONFIG_KEYS = Object.keys(userConfig);
     const r2 = (v) => Math.round(v * 100) / 100;

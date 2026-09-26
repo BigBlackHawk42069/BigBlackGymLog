@@ -752,13 +752,18 @@
     // one supplies the noun (Primary), one the adjective (Secondary). Any stat can fill either
     // slot, including the same stat/phase in both.
 
-    // Per-stat cumulative-E thresholds, index = phase. Phase 0 is free (0E) so every stat always
-    // has one selectable word — the grid is never empty and a title always composes. Increments
-    // are backloaded: +10k, +12.5k, +15k, +17.5k, +20k, then +30k/35k/45k/55k.
+    // Per-stat cumulative-E thresholds, index = phase. Nothing is free: a stat with less than the
+    // first threshold has no word yet (phase -1), so a new player starts with no titles at all and
+    // the placeholder below stands in. Increments are backloaded: +5k, +12.5k, +15k, +17.5k, +20k,
+    // then +30k/35k/45k/55k. Placeholder values — the E per tier is due a retune.
     //
     // Ten tiers, indexed 0-9 internally but displayed as 1-10 everywhere the player sees them
-    // (achTitleStarHTML(), 06-section-v-logic.js) — the free tier reads as "1" rather than "0".
-    const STAT_TITLE_THRESHOLDS = [0, 10000, 22500, 37500, 55000, 75000, 105000, 140000, 185000, 240000];
+    // (achTitleStarHTML(), 06-section-v-logic.js).
+    const STAT_TITLE_THRESHOLDS = [5000, 10000, 22500, 37500, 55000, 75000, 105000, 140000, 185000, 240000];
+
+    // Shown only while no stat has unlocked a word. One unlock is enough to replace it outright
+    // (that stat fills both slots), so it never has to mix with a real word.
+    const STAT_TITLE_PLACEHOLDER = { adj: 'Untitled', noun: 'Man' };
 
     // One evolving noun+adjective ladder per stat, indexed by phase (0-9).
     const STAT_TITLE_WORDS = {
@@ -812,15 +817,15 @@
         ]
     };
 
-    // Highest phase index one stat's own cumulative E clears.
+    // Highest phase index one stat's own cumulative E clears, or -1 when it hasn't reached the first.
     function statTitlePhaseForE(statE) {
         for (let i = STAT_TITLE_THRESHOLDS.length - 1; i >= 0; i--) {
             if (statE >= STAT_TITLE_THRESHOLDS[i]) return i;
         }
-        return 0;
+        return -1;
     }
 
-    // {str,def,spd,dex} of E spent -> {str,def,spd,dex} of highest unlocked phase.
+    // {str,def,spd,dex} of E spent -> {str,def,spd,dex} of highest unlocked phase (-1 = none).
     function statTitlePhases(eByStat) {
         const out = {};
         STAT_KEYS.forEach(k => {
@@ -829,29 +834,49 @@
         return out;
     }
 
-    // Clamps a stored phase to its stat's complete title ladder.
-    function statTitleWord(stat, phase) {
-        const ladder = STAT_TITLE_WORDS[stat];
-        if (!ladder) return null;
-        const p = Math.max(0, Math.min(phase | 0, ladder.length - 1));
-        return ladder[p] ? { noun: ladder[p].noun, adj: ladder[p].adj, phase: p } : null;
+    // Titles unlocked across all four stats (0-40): a stat at phase p holds p + 1 words.
+    function statTitleUnlockedCount(phases) {
+        return STAT_KEYS.reduce((n, k) => n + Math.max(0, ((phases && phases[k]) ?? -1) + 1), 0);
     }
 
-    // Top 2 of the 4 battle stats by raw value, descending. Ties break on STAT_KEYS order
-    // (str > def > spd > dex) so the result is always deterministic. STAT_KEYS is defined later
-    // in 06-section-v-logic.js — safe to reference here since this only runs inside a function
-    // body, well after the whole IIFE has finished its one top-to-bottom definition pass.
-    function rankTopTwoStats(breakdown) {
-        return [...STAT_KEYS]
-            .sort((a, b) => (breakdown[b] || 0) - (breakdown[a] || 0))
-            .slice(0, 2);
+    // ─── Progressive title plaque ───────────────────────────────────────────
+    // The identity card (achTitleIdentityHTML(), 06-section-v-logic.js) upgrades in 10 hidden steps
+    // as titles are unlocked, no popup. Each step needs this many unlocked titles across all four
+    // stats. A stat holds at most 10, which caps narrow builds on its own: one stat maxed reaches
+    // step 3, two step 6, three step 8 (the finished trophy), all four step 10.
+    const TITLE_PLAQUE_STEPS = [2, 4, 8, 12, 16, 20, 25, 30, 35, 40];
+
+    // Off restores the original walnut-and-charcoal card: the stage styles only apply under the
+    // card's .is-progressive class, and the original rules underneath them were left as they were.
+    const TITLE_PLAQUE_PROGRESSIVE = true;
+
+    // 0 (nothing reached yet) through 10.
+    function titlePlaqueStage(phases) {
+        const total = statTitleUnlockedCount(phases);
+        return TITLE_PLAQUE_STEPS.filter(n => total >= n).length;
+    }
+
+    // The word at a stored phase, clamped to the top of its stat's ladder. A negative phase is no
+    // word at all, never phase 0 — that tier has to be unlocked like the rest.
+    function statTitleWord(stat, phase) {
+        const ladder = STAT_TITLE_WORDS[stat];
+        if (!ladder || (phase | 0) < 0) return null;
+        const p = Math.min(phase | 0, ladder.length - 1);
+        return ladder[p] ? { noun: ladder[p].noun, adj: ladder[p].adj, phase: p } : null;
     }
 
     // selection = { primary: {stat, phase}, secondary: {stat, phase} }. Primary supplies the noun
     // (the identity — "Goon"), secondary the adjective modifying it ("Calloused"), so the phrase
     // reads "<secondary.adj> <primary.noun>". Both slots are free-choice from anything unlocked,
-    // including the same stat and phase in both.
+    // including the same stat and phase in both. A selection flagged `placeholder` (nothing unlocked
+    // yet) composes STAT_TITLE_PLACEHOLDER instead, styled as a tier-1 word.
     function composeStatTitleParts(selection) {
+        if (selection && selection.placeholder) {
+            return [
+                { text: STAT_TITLE_PLACEHOLDER.adj, phase: 0, stat: null },
+                { text: STAT_TITLE_PLACEHOLDER.noun, phase: 0, stat: null }
+            ];
+        }
         if (!selection || !selection.primary || !selection.secondary) return null;
         const noun = statTitleWord(selection.primary.stat, selection.primary.phase);
         const adj = statTitleWord(selection.secondary.stat, selection.secondary.phase);
@@ -897,69 +922,66 @@
     // out from under a saved pick).
     function clampTitleSlot(slot, phases) {
         if (!slot || !STAT_TITLE_WORDS[slot.stat]) return null;
-        const cap = phases ? (phases[slot.stat] || 0) : STAT_TITLE_THRESHOLDS.length - 1;
+        const cap = phases ? (phases[slot.stat] ?? -1) : STAT_TITLE_THRESHOLDS.length - 1;
+        // A stat with nothing unlocked has no word to clamp to: the pick is void, not phase 0.
+        if (cap < 0) return null;
         return {
             stat: slot.stat,
             phase: Math.max(0, Math.min(slot.phase | 0, cap))
         };
     }
 
-    // Earned mode's pair: the two stats that most recently unlocked a new tier (titleAutoRecent,
-    // oldest first). Install seeds it with the top two battle stats, the lower one oldest so the
-    // first unlock replaces it. Word order is fixed at each change — the higher battle stat supplies
-    // the noun (second word) — and nothing moves between unlocks, so the title never changes mid-tier.
-    //
-    // titleAutoPhases is the per-stat phase high-water mark unlocks are detected against. It never
-    // drops, so a transiently low E read while data loads can't register as a fresh unlock later.
-    function resolveAutoTitlePair(phases, breakdown) {
-        const valid = s => !!STAT_TITLE_WORDS[s];
-        const byStat = (a, b) => ((breakdown[a] || 0) >= (breakdown[b] || 0)
-            ? { primary: a, secondary: b }
-            : { primary: b, secondary: a });
-        const stored = userConfig.titleAutoPair;
-        const storedPair = stored && valid(stored.primary) && valid(stored.secondary) ? stored : null;
-        // Before battle stats load, rankTopTwoStats() is just STAT_KEYS order — never seed from it.
-        const hasStats = STAT_KEYS.some(k => (breakdown[k] || 0) > 0);
-        if (!hasStats || runtime.demoMode) {
-            if (storedPair) return storedPair;
-            const top = rankTopTwoStats(breakdown);
-            return byStat(top[0], top[1]);
-        }
-        let recent = Array.isArray(userConfig.titleAutoRecent)
-            ? [...new Set(userConfig.titleAutoRecent.filter(valid))].slice(-2)
-            : [];
-        if (recent.length < 2) {
-            if (storedPair) recent = [storedPair.secondary, storedPair.primary];
-            else {
-                const top = rankTopTwoStats(breakdown);
-                recent = [top[1], top[0]];
-            }
-        }
-        const seen = userConfig.titleAutoPhases;
-        const unlocked = seen ? STAT_KEYS.filter(k => (phases[k] || 0) > (seen[k] || 0)) : [];
-        unlocked.forEach(k => { recent = recent.filter(s => s !== k).concat(k).slice(-2); });
-        const pairChanged = unlocked.length > 0 || !storedPair ||
-            !recent.includes(storedPair.primary) || !recent.includes(storedPair.secondary);
-        const pair = pairChanged ? byStat(recent[0], recent[1]) : storedPair;
-        const nextSeen = {};
-        STAT_KEYS.forEach(k => { nextSeen[k] = Math.max(phases[k] || 0, (seen && seen[k]) || 0); });
-        const before = JSON.stringify([userConfig.titleAutoRecent, userConfig.titleAutoPhases, userConfig.titleAutoPair]);
-        userConfig.titleAutoRecent = recent;
-        userConfig.titleAutoPhases = nextSeen;
-        userConfig.titleAutoPair = { primary: pair.primary, secondary: pair.secondary };
-        if (JSON.stringify([recent, nextSeen, userConfig.titleAutoPair]) !== before) saveConfig();
-        return userConfig.titleAutoPair;
+    // Earned-mode bookkeeping: when each stat reached the phase it holds. titleAutoPeak is the
+    // per-stat phase high-water mark; a stat that climbs past it takes the next number off
+    // titleAutoSeq into titleAutoReached, so a lower number means it got to its tier first. The
+    // peak never drops, so a transiently low E read while data loads can't register as a fresh
+    // unlock later. Stats that climb in the same pass (the first run, a backfill) are numbered in
+    // order of E spent, most first — the best guess at who got there first. Demo mode reads the
+    // stored order but never writes it.
+    function trackTitleUnlockOrder(phases, eByStat) {
+        const peak = userConfig.titleAutoPeak || {};
+        const reached = Object.assign({}, userConfig.titleAutoReached || {});
+        let seq = userConfig.titleAutoSeq || 0;
+        const risen = STAT_KEYS
+            .filter(k => (phases[k] ?? -1) > (peak[k] ?? -1))
+            .sort((a, b) => ((eByStat && eByStat[b]) || 0) - ((eByStat && eByStat[a]) || 0));
+        if (!risen.length || runtime.demoMode) return reached;
+        risen.forEach(k => { reached[k] = ++seq; });
+        const nextPeak = {};
+        STAT_KEYS.forEach(k => { nextPeak[k] = Math.max(phases[k] ?? -1, peak[k] ?? -1); });
+        userConfig.titleAutoPeak = nextPeak;
+        userConfig.titleAutoReached = reached;
+        userConfig.titleAutoSeq = seq;
+        saveConfig();
+        return reached;
     }
 
-    // The selection actually displayed, given per-stat E and the current stat breakdown.
+    // Unlocked stats, best first: highest phase, then whoever reached that phase first, then E
+    // spent, then STAT_KEYS order so the result is always deterministic. STAT_KEYS is defined later
+    // in 06-section-v-logic.js — safe to reference here since this only runs inside a function
+    // body, well after the whole IIFE has finished its one top-to-bottom definition pass.
+    function rankTitleStats(phases, reached, eByStat) {
+        const order = k => (reached && Number.isFinite(reached[k])) ? reached[k] : Infinity;
+        return STAT_KEYS
+            .filter(k => (phases[k] ?? -1) >= 0)
+            .sort((a, b) => (phases[b] - phases[a]) ||
+                (order(a) - order(b)) ||
+                (((eByStat && eByStat[b]) || 0) - ((eByStat && eByStat[a]) || 0)) ||
+                (STAT_KEYS.indexOf(a) - STAT_KEYS.indexOf(b)));
+    }
+
+    // The selection actually displayed, given per-stat E.
     //
-    // Custom mode: the saved manual pick, clamped to what's unlocked. Earned mode: the pair from
-    // resolveAutoTitlePair(), each stat at its highest unlocked phase. The auto pair is tracked even
-    // while a custom pick is showing, so unlocks earned meanwhile are there when the reset arrow
-    // goes back to it — and the custom pick is stored separately, so resetting never destroys it.
-    function resolveStatTitleSelection(eByStat, breakdown) {
+    // Custom mode: the saved manual pick, clamped to what's unlocked; a pick pointing at a stat
+    // with nothing unlocked falls back to earned. Earned mode: the leading stat (highest tier,
+    // first there on a tie) supplies the noun and the runner-up the adjective, each at its highest
+    // unlocked phase. With a single stat unlocked it fills both slots; with none, the selection is
+    // the placeholder. Unlock order is tracked even while a custom pick is showing, so the reset
+    // arrow goes back to an up-to-date title — and the custom pick is stored separately, so
+    // resetting never destroys it.
+    function resolveStatTitleSelection(eByStat) {
         const phases = statTitlePhases(eByStat);
-        const auto = resolveAutoTitlePair(phases, breakdown || {});
+        const reached = trackTitleUnlockOrder(phases, eByStat);
         const custom = userConfig.titleCustom;
         const hasCustom = !!(custom && custom.primary && custom.secondary);
         if (userConfig.titleMode === 'custom' && hasCustom) {
@@ -967,9 +989,13 @@
             const secondary = clampTitleSlot(custom.secondary, phases);
             if (primary && secondary) return { primary, secondary, phases, mode: 'custom' };
         }
+        const ranked = rankTitleStats(phases, reached, eByStat);
+        if (!ranked.length) return { primary: null, secondary: null, placeholder: true, phases, mode: 'earned' };
+        const lead = ranked[0];
+        const second = ranked[1] || lead;
         return {
-            primary: { stat: auto.primary, phase: phases[auto.primary] },
-            secondary: { stat: auto.secondary, phase: phases[auto.secondary] },
+            primary: { stat: lead, phase: phases[lead] },
+            secondary: { stat: second, phase: phases[second] },
             phases,
             mode: 'earned'
         };
