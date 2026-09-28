@@ -1360,8 +1360,7 @@
         ensurePlaqueArt(stage);
         if (card && card.dataset.signStage !== String(stage)) card.dataset.signStage = String(stage);
         runtime._achLiveFingerprint = fingerprint;
-        // A different title can change the sign's text size, which layoutTitleBlockFrames() mirrors
-        // into --bbgl-tip-title-fs; everything unchanged writes nothing (setStyleVarIfChanged()).
+        // A different title can wrap differently; everything unchanged writes nothing (setStyleVarIfChanged()).
         layoutTitlesPageGeometry();
         return true;
     }
@@ -1509,8 +1508,7 @@
     }
 
     // Writes for the titles-page geometry passes below only land when the value actually changed.
-    // Even a same-value setProperty invalidates style for the element's whole subtree (for the
-    // --bbgl-tip-title-fs write on <html>, the entire Torn document), makes the next offset*/client*
+    // Even a same-value setProperty invalidates style for the element's whole subtree, makes the next offset*/client*
     // read force a full recalc + layout of this very heavy page, and can re-fire
     // titleFrameResizeObserver for a pass that had nothing to change.
     function setStyleVarIfChanged(el, name, value) {
@@ -1593,19 +1591,6 @@
             });
             starSizes.forEach(([col, size]) => setStyleVarIfChanged(col, '--bbgl-t-star', size));
             Perf.end('titles:cols');
-            Perf.start('titles:sign');
-            // The level-bar tooltip's title text copies the expanded page's size. That text is
-            // min(15cqw, 27cqh) of its size-container sign (.bbgl-title-card-value .bbgl-titles-title,
-            // 04-section-iii-styles.js); the tooltip lives on <body>, outside that container, so the
-            // resolved px goes on the root. Only measured in expanded, so other modes keep the last
-            // expanded value.
-            const sign = main.closest('#bbgl-panel.bbgl-expanded') && main.querySelector('.bbgl-title-card-sign');
-            if (sign && sign.clientWidth > 0 && sign.clientHeight > 0) {
-                const fs = Math.min(sign.clientWidth * .15, sign.clientHeight * .27);
-                // The level-bar tooltip's size depends on this, so cached tooltip sizes go stale with it.
-                if (setStyleVarIfChanged(document.documentElement, '--bbgl-tip-title-fs', `${fs.toFixed(2)}px`)) TooltipController.clearSizeCache();
-            }
-            Perf.end('titles:sign');
         }
         Perf.start('titles:ready');
         // Not settled yet if any stat block still measures 0x0 — achRefreshPageDom()'s retry loop
@@ -1836,7 +1821,20 @@
     }
 
 
+    // Marks the plaque title's words that wrapped onto a later line, so CSS can drop just those a
+    // touch (relative offset, no layout change) without raising "The" or the first line. Also run on
+    // the level card's copy of the plaque (fillLevelCardTip()).
+    function markTitleWrappedWords(root = document) {
+        root.querySelectorAll('.bbgl-title-card-value').forEach(value => {
+            const words = value.querySelectorAll('.bbgl-title-word');
+            if (!words.length) return;
+            const firstTop = words[0].offsetTop;
+            words.forEach(w => w.classList.toggle('is-wrapped', w.offsetTop > firstTop + 1));
+        });
+    }
+
     function layoutTitlesPageGeometry() {
+        markTitleWrappedWords();
         const framesReady = Perf.wrap('titles:frames', layoutTitleBlockFrames);
         const rankReady = Perf.wrap('titles:rank', layoutRankBarCenter);
         return framesReady && rankReady;
@@ -2019,7 +2017,9 @@
         }
         bar.container.dataset.atrophy = atrophy;
         bar.container.dataset.level = level;
-        bar.container.setAttribute('data-tooltip', achLevelBarTooltipHTML(atrophy, level, pct));
+        // Read when the level card opens, and refreshed live while it is open on this bar.
+        bar.container._levelTip = [atrophy, level, pct];
+        if (levelCard.bar === bar.container && levelCard.open) fillLevelCardTip();
     }
 
     // renderLevelBar() alone always animates the width change via the fill's CSS transition —
@@ -3884,9 +3884,246 @@
         return `<svg class="bbgl-level-svg" viewBox="0 0 500 100" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:5;display:block;pointer-events:none">${defs}${housingDefs}${body}</svg>`.replaceAll('lvl-', gradientPrefix);
     }
 
+    // ─── Level card ─────────────────────────────────────────────────────────
+    // Hovering a level bar's valve lifts the card tucked behind it (.bbgl-exp-card) into the level
+    // tooltip, and leaving lowers it; a click or tap pins it up until the next click. It rises until
+    // it just clears the crown, grows into the tooltip's box, then the tooltip fills in. The rise runs twice in step: the in-bar card (layered behind the valve and
+    // crown) and a fixed copy (.bbgl-level-card-shell) clipped to above the crown's top, so the part
+    // that has cleared the crown can't be cut off by the panel's scroll box. Once clear, the copy
+    // alone grows into the tooltip.
+    const LEVEL_CARD_GAP = 2;
+    const LEVEL_CARD_LEAVE_MS = 120;
+    // want: the bar whose card should be up (null = down). Hover and clicks only ever set this;
+    // syncLevelCard() drives the card toward it, picking up again after any animation in flight.
+    const levelCard = {
+        bar: null, open: false, busy: false, want: null, pinned: false, hoverBar: null, leaveTimer: null,
+        clip: null, shell: null, tip: null, geo: null, anims: []
+    };
+
+    function syncLevelCard() {
+        // A hover-raised tooltip lets the pointer through: where there's no room above the crown it
+        // is pushed down over the valve, and catching the pointer there would drop it, uncover the
+        // valve and raise it again in a loop. Pinned, it takes presses so they don't land underneath.
+        if (levelCard.tip) levelCard.tip.style.pointerEvents = levelCard.pinned ? 'auto' : 'none';
+        if (levelCard.busy) return;
+        const want = levelCard.want && levelCard.want.isConnected ? levelCard.want : null;
+        if (want && levelCard.open && levelCard.bar !== want) closeLevelCard(true);
+        if (want && !levelCard.open) openLevelCard(want);
+        else if (!want && levelCard.open) closeLevelCard();
+    }
+
+    function setLevelCardWant(bar) {
+        levelCard.want = bar;
+        syncLevelCard();
+    }
+
+    function levelCardEls() {
+        if (levelCard.tip) return;
+        levelCard.clip = document.createElement('div');
+        levelCard.clip.className = 'bbgl-level-card-clip';
+        levelCard.shell = document.createElement('div');
+        levelCard.shell.className = 'bbgl-level-card-shell';
+        levelCard.clip.appendChild(levelCard.shell);
+        levelCard.tip = document.createElement('div');
+        levelCard.tip.className = 'bbgl-level-card-tip';
+        document.body.append(levelCard.clip, levelCard.tip);
+    }
+
+    function fillLevelCardTip() {
+        const args = levelCard.bar && levelCard.bar._levelTip;
+        if (!args) return;
+        levelCard.tip.innerHTML = achLevelBarTooltipHTML(...args);
+        markTitleWrappedWords(levelCard.tip);
+    }
+
+    // Everything in viewport px. The crown's art spans the middle 70% of its square (the flag's
+    // ::before), so its top is 15% down the square.
+    function measureLevelCard(bar) {
+        const card = bar.querySelector('.bbgl-exp-card'),
+            flag = bar.querySelector('.bbgl-exp-flag'),
+            valve = bar.querySelector('.bbgl-level-valve');
+        const cr = card.getBoundingClientRect(),
+            fr = flag.getBoundingClientRect(),
+            vr = valve.getBoundingClientRect(),
+            crown = getComputedStyle(flag, '::before');
+        const crownW = parseFloat(crown.height) || 0;
+        const crownTop = fr.bottom - (parseFloat(crown.bottom) || 0) - crownW * .85;
+        const raisedTop = crownTop - LEVEL_CARD_GAP - cr.height;
+        const tip = levelCard.tip;
+        tip.style.visibility = 'hidden';
+        tip.style.display = 'block';
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        const cx = vr.left + vr.width / 2;
+        return {
+            crownTop,
+            dy: raisedTop - cr.top,
+            dormant: { left: cr.left, top: cr.top, width: cr.width, height: cr.height },
+            raised: { left: cr.left, top: raisedTop, width: cr.width, height: cr.height },
+            open: {
+                left: Math.max(5, Math.min(cx - tw / 2, window.innerWidth - tw - 5)),
+                top: Math.max(5, crownTop - LEVEL_CARD_GAP - th),
+                width: tw,
+                height: th
+            }
+        };
+    }
+
+    const levelCardPx = r => ({ left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+    const LEVEL_CARD_SMALL = { borderRadius: '4px', borderColor: 'rgba(145, 115, 176, .6)' };
+    const LEVEL_CARD_FULL = { borderRadius: '6px', borderColor: 'rgba(145, 115, 176, .32)' };
+
+    function levelCardAnimate(el, frames, ms, easing) {
+        const a = el.animate(frames, { duration: ms, easing, fill: 'forwards' });
+        levelCard.anims.push(a);
+        return a.finished.catch(() => {});
+    }
+
+    async function openLevelCard(bar) {
+        levelCardEls();
+        TooltipController.hide();
+        levelCard.busy = true;
+        levelCard.bar = bar;
+        fillLevelCardTip();
+        const g = levelCard.geo = measureLevelCard(bar);
+        const { clip, shell, tip } = levelCard;
+        const card = bar.querySelector('.bbgl-exp-card');
+        Object.assign(tip.style, levelCardPx(g.open), { opacity: 0, visibility: '' });
+        Object.assign(shell.style, levelCardPx(g.dormant), LEVEL_CARD_SMALL, { display: 'block' });
+        clip.style.height = Math.max(0, g.crownTop) + 'px';
+        clip.style.display = 'block';
+        levelCard.open = true;
+        document.addEventListener('pointerdown', levelCardOutside, true);
+        document.addEventListener('keydown', levelCardKey, true);
+        window.addEventListener('scroll', levelCardSnap, { capture: true, passive: true });
+        window.addEventListener('resize', levelCardSnap, { passive: true });
+        const k = userConfig.animations ? 1 : 0;
+        const rise = 'cubic-bezier(.4, 0, .6, 1)';
+        await Promise.all([
+            levelCardAnimate(card, [{ transform: 'none' }, { transform: `translateY(${g.dy}px)` }], 140 * k, rise),
+            levelCardAnimate(shell, [levelCardPx(g.dormant), levelCardPx(g.raised)], 140 * k, rise)
+        ]);
+        if (levelCard.bar !== bar) return;
+        card.classList.add('is-lifted');
+        clip.style.height = '100%';
+        await levelCardAnimate(shell, [
+            { ...levelCardPx(g.raised), ...LEVEL_CARD_SMALL },
+            { ...levelCardPx(g.open), ...LEVEL_CARD_FULL }
+        ], 260 * k, 'cubic-bezier(.2, .8, .3, 1)');
+        if (levelCard.bar !== bar) return;
+        await levelCardAnimate(tip, [{ opacity: 0 }, { opacity: 1 }], 140 * k, 'linear');
+        if (levelCard.bar !== bar) return;
+        shell.style.display = 'none';
+        levelCard.busy = false;
+        syncLevelCard();
+    }
+
+    // instant: no animation, for anything that moves the bar out from under the card (scroll,
+    // resize, the panel closing).
+    async function closeLevelCard(instant = false) {
+        if (!levelCard.open) return;
+        const bar = levelCard.bar, g = levelCard.geo;
+        const { clip, shell, tip } = levelCard;
+        const card = bar && bar.querySelector('.bbgl-exp-card');
+        const finish = () => {
+            levelCard.anims.forEach(a => a.cancel());
+            levelCard.anims = [];
+            if (card) card.classList.remove('is-lifted');
+            tip.style.display = 'none';
+            shell.style.display = 'none';
+            clip.style.display = 'none';
+            levelCard.open = false;
+            levelCard.busy = false;
+            levelCard.bar = null;
+            if (instant) {
+                levelCard.want = null;
+                levelCard.pinned = false;
+            }
+            document.removeEventListener('pointerdown', levelCardOutside, true);
+            document.removeEventListener('keydown', levelCardKey, true);
+            window.removeEventListener('scroll', levelCardSnap, true);
+            window.removeEventListener('resize', levelCardSnap);
+        };
+        if (instant || !card || !card.isConnected) return finish();
+        if (!userConfig.animations) {
+            finish();
+            return syncLevelCard();
+        }
+        levelCard.busy = true;
+        const rise = 'cubic-bezier(.4, 0, .6, 1)';
+        await levelCardAnimate(tip, [{ opacity: 1 }, { opacity: 0 }], 110, 'linear');
+        if (levelCard.bar !== bar) return;
+        shell.style.display = 'block';
+        await levelCardAnimate(shell, [
+            { ...levelCardPx(g.open), ...LEVEL_CARD_FULL },
+            { ...levelCardPx(g.raised), ...LEVEL_CARD_SMALL }
+        ], 220, 'cubic-bezier(.2, .8, .3, 1)');
+        if (levelCard.bar !== bar) return;
+        clip.style.height = Math.max(0, g.crownTop) + 'px';
+        card.classList.remove('is-lifted');
+        await Promise.all([
+            levelCardAnimate(card, [{ transform: `translateY(${g.dy}px)` }, { transform: 'none' }], 140, rise),
+            levelCardAnimate(shell, [levelCardPx(g.raised), levelCardPx(g.dormant)], 140, rise)
+        ]);
+        if (levelCard.bar !== bar) return;
+        finish();
+        syncLevelCard();
+    }
+
+    // A pinned card drops on a press anywhere, the card itself included. The valve's own press is
+    // left to the click handler below, which unpins it.
+    function levelCardOutside(e) {
+        if (!levelCard.pinned) return;
+        if (e.target.closest && e.target.closest('.bbgl-exp-hit')) return;
+        levelCard.pinned = false;
+        setLevelCardWant(levelCard.hoverBar);
+    }
+
+    function levelCardKey(e) {
+        if (e.key !== 'Escape') return;
+        levelCard.pinned = false;
+        setLevelCardWant(null);
+    }
+
+    function levelCardSnap() {
+        closeLevelCard(true);
+    }
+
+    // Hover (mouse and pen only; touch goes through the click below). Only the valve's hit area
+    // holds the card up; moving on to the lifted card lowers it again. The short grace only covers
+    // pointer jitter at the hit area's edge.
+    document.addEventListener('pointerover', e => {
+        if (e.pointerType === 'touch') return;
+        const hit = e.target.closest && e.target.closest('.bbgl-exp-hit');
+        const bar = hit ? hit.closest('.bbgl-exp-bar') : null;
+        levelCard.hoverBar = bar;
+        clearTimeout(levelCard.leaveTimer);
+        if (levelCard.pinned) return;
+        if (bar) setLevelCardWant(bar);
+        else if (levelCard.want) levelCard.leaveTimer = setTimeout(() => {
+            if (!levelCard.pinned && !levelCard.hoverBar) setLevelCardWant(null);
+        }, LEVEL_CARD_LEAVE_MS);
+    }, true);
+
+    // Capture phase, so the tap doesn't also reach the panel's own click handling under the bar.
+    // Pins the card up, or unpins and drops it even with the pointer still on the valve; hover only
+    // raises it again once the pointer leaves and comes back.
+    document.addEventListener('click', e => {
+        const hit = e.target.closest && e.target.closest('.bbgl-exp-hit');
+        if (!hit) return;
+        e.stopPropagation();
+        const bar = hit.closest('.bbgl-exp-bar');
+        if (levelCard.pinned && levelCard.want === bar) {
+            levelCard.pinned = false;
+            setLevelCardWant(null);
+        } else {
+            levelCard.pinned = true;
+            setLevelCardWant(bar);
+        }
+    }, true);
+
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div>${gym ? '' : '<div class="bbgl-exp-hit" aria-hidden="true"></div>'}</div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div><div class="bbgl-exp-card-cut" aria-hidden="true"><div class="bbgl-exp-card"></div></div><div class="bbgl-exp-hit" aria-hidden="true"></div></div>`;
     }
 
     function buildLevelValveSVG(prefix) {

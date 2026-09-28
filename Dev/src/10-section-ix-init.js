@@ -982,6 +982,7 @@
     function closePanel(e) {
         if (e) e.stopPropagation();
         if (runtime.isClosing) return;
+        closeLevelCard(true);
         const p = dom.panel,
             b = dom.gymTab;
         if (!p) return;

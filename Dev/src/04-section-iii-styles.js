@@ -1389,7 +1389,8 @@
                         font-weight: 700;
                     }
 
-                    #bbgl-tooltip i {
+                    /* Not the plaque title (also an <i>): this out-ranks the plaque's own rules. */
+                    #bbgl-tooltip i:not(.bbgl-titles-title) {
                         display: block;
                         margin-top: 4px;
                         color: #bbb;
@@ -1398,16 +1399,48 @@
                         font-weight: 400;
                     }
 
-                    #bbgl-tooltip.is-level-title {
-                        background: none;
-                        padding: 0;
-                        border-radius: 0;
-                        filter: none;
-                        max-width: 268px;
+                    /* The level card's lifted state: holds the level tooltip once the card has grown into
+                       its box (openLevelCard(), 07-section-vi-ui.js). Same type as #bbgl-tooltip. */
+                    .bbgl-level-card-tip {
+                        position: fixed;
+                        z-index: 1000000;
+                        display: none;
+                        width: 268px;
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        line-height: 1.5;
+                        color: #ddd;
+                        box-sizing: border-box;
+                        pointer-events: auto;
                     }
 
-                    #bbgl-tooltip.is-level-title #bbgl-tooltip-arrow {
+                    /* The card rising out from behind the valve and growing into the tooltip. The clip
+                       wrapper only shows the part above the crown while the in-bar card still covers the
+                       rest, so the hand-off between the two is invisible. */
+                    .bbgl-level-card-clip {
+                        position: fixed;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        overflow: hidden;
+                        z-index: 999999;
+                        pointer-events: none;
                         display: none;
+                    }
+
+                    .bbgl-level-card-shell {
+                        position: absolute;
+                    }
+
+                    .bbgl-exp-card,
+                    .bbgl-level-card-shell {
+                        box-sizing: border-box;
+                        border: 1px solid rgba(145, 115, 176, .6);
+                        border-radius: 4px;
+                        background:
+                            radial-gradient(ellipse 80% 50% at 50% 0%, rgba(126, 66, 183, .38), transparent 72%),
+                            linear-gradient(180deg, #26272d, #111216);
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, .6);
                     }
 
                     .bbgl-level-title-tooltip {
@@ -1546,16 +1579,6 @@
                         align-self: center;
                     }
 
-                    /* Title text matches the expanded titles page: --bbgl-tip-title-fs is its
-                       measured px, set on the root by layoutTitleBlockFrames() (07-section-vi-ui.js).
-                       Until that page has been laid out, the normal plaque-relative size applies.
-                       line-height restores the plaque value that .bbgl-lvl-title.bbgl-titles-title
-                       (1.55, later in the file) overrides; its extra leading opened a gap under The. */
-                    #bbgl-tooltip .bbgl-level-title-tooltip .bbgl-titles-title {
-                        font-style: normal;
-                        font-size: var(--bbgl-tip-title-fs, min(14cqw, 25cqh));
-                        line-height: 1.05;
-                    }
 
                     /* Title finish progression, Phase 0-9 — dull silver to iridescent diamond.
                        Scoped to the individual WORD, not the whole title: the two slots are chosen
@@ -5871,27 +5894,82 @@
                         --bbgl-track-h: calc(var(--bbgl-pedestal-track-h) + var(--bbgl-exp-growth));
                     }
 
-                    /* The panel's level bar answers the pointer only through .bbgl-exp-hit below. The
-                       track used to be the hit area, and it runs the bar's full width, under the month
-                       arrows, labels and summary buttons at either side. */
-                    #bbgl-level-container .bbgl-exp-track {
+                    /* Both level bars answer the pointer only through .bbgl-exp-hit below. The track runs
+                       the bar's full width, under the month arrows and summary buttons at the panel bar's
+                       sides and the BestGym toggle on the gym bar's. */
+                    .bbgl-exp-bar .bbgl-exp-track {
                         pointer-events: none;
                     }
 
-                    /* One square over the middle of the bar: the valve's width plus 4px either side, and
-                       as tall as it is wide from 4px under the tube, which takes in the crown, the valve
-                       and the tube around them in every mode (the crown's top clears it by 16px or more).
-                       Inside the container that carries the tooltip, so hovering or tapping it shows the
-                       level tooltip; sized off --bbgl-valve-w so it scales with them. */
+                    /* The valve, the resting level card and the whole crown: the card's width (wider than
+                       the crown), from 4px under the tube up to the crown art's top, .683 of the crown's
+                       width above the valve (see .bbgl-exp-card). Hovering or tapping it lifts the card. */
                     .bbgl-exp-hit {
                         position: absolute;
                         left: 50%;
                         bottom: -4px;
-                        width: calc(var(--bbgl-valve-w) + 8px);
-                        height: calc(var(--bbgl-valve-w) + 8px);
+                        width: calc(var(--bbgl-valve-w) * 72 / 66);
+                        height: calc(var(--bbgl-valve-h) * 34 / 38 + 3px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-crown-w) * .683);
                         transform: translateX(-50%);
                         pointer-events: auto;
                         z-index: 5;
+                    }
+
+                    /* The level card, tucked behind the valve and crown (z 0, under the valve backing,
+                       track and crown flag). Its top sits a little under halfway up the crown: the crown's
+                       square starts .833 of its width above the valve top and its art spans the middle 70%,
+                       so the art's midpoint is .333 of the width above the valve; the card stops at .25. It runs on down past
+                       the edge of whatever sits under the bar and is cut off there by .bbgl-exp-card-cut,
+                       which stays put while the card lifts, so the card slides out from under that content.
+                       --bbgl-exp-card-tuck is where that edge is below the bar (the panel's week row starts
+                       2px below; the gym page's content is layered over the bar); --bbgl-exp-card-under is
+                       how much of the card sits past it. */
+                    .bbgl-exp-card-cut {
+                        position: absolute;
+                        z-index: 0;
+                        left: 0;
+                        right: 0;
+                        top: -9999px;
+                        bottom: calc(var(--bbgl-exp-card-tuck, 2px) * -1);
+                        overflow: hidden;
+                        pointer-events: none;
+                    }
+
+                    .bbgl-exp-card {
+                        --bbgl-exp-card-w: calc(var(--bbgl-valve-w) * 72 / 66);
+                        position: absolute;
+                        left: 50%;
+                        margin-left: calc(var(--bbgl-exp-card-w) / -2);
+                        width: var(--bbgl-exp-card-w);
+                        --bbgl-exp-card-under: 16px;
+                        bottom: calc(var(--bbgl-exp-card-under) * -1);
+                        height: calc(var(--bbgl-valve-h) * 34 / 38 - 1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-crown-w) * .25 + var(--bbgl-exp-card-tuck, 2px) + var(--bbgl-exp-card-under));
+                        pointer-events: none;
+                    }
+
+                    #bbgl-gym-level-container .bbgl-exp-card-cut {
+                        --bbgl-exp-card-tuck: 16px;
+                    }
+
+                    /* Up arrows at the card's top corners, either side of the crown. */
+                    .bbgl-exp-card::before,
+                    .bbgl-exp-card::after {
+                        content: '';
+                        position: absolute;
+                        top: 3px;
+                        width: 5px;
+                        height: 5px;
+                        border-left: 1.5px solid #c9a8ee;
+                        border-top: 1.5px solid #c9a8ee;
+                        transform: rotate(45deg);
+                        opacity: .85;
+                    }
+
+                    .bbgl-exp-card::before { left: 4px; }
+                    .bbgl-exp-card::after { right: 4px; }
+
+                    .bbgl-exp-card.is-lifted {
+                        visibility: hidden;
                     }
 
                     .bbgl-exp-track {
@@ -9262,7 +9340,7 @@
                         isolation: isolate;
                         display: flex;
                         flex-direction: column;
-                        gap: .75cqh;
+                        gap: 1.25cqh;
                         align-items: center;
                         justify-content: center;
                         width: 100%;
@@ -9296,11 +9374,13 @@
                         text-align: center;
                     }
 
-                    .bbgl-title-card-value .bbgl-titles-title {
+                    /* .bbgl-lvl-title: out-ranks the shared .bbgl-lvl-title.bbgl-titles-title rule further down,
+                       whose 1.55 line-height would otherwise space a wrapped title far apart on the drape. */
+                    .bbgl-title-card-value .bbgl-lvl-title.bbgl-titles-title {
                         display: block;
                         max-width: 100%;
                         font-size: min(15cqw, 27cqh);
-                        line-height: 1.05;
+                        line-height: 1.1;
                         overflow-wrap: normal;
                         word-break: keep-all;
                         white-space: normal;
@@ -9322,6 +9402,11 @@
                         mix-blend-mode: soft-light;
                         filter: none;
                         animation: none;
+                    }
+
+                    .bbgl-title-card-value .bbgl-title-word.is-wrapped {
+                        position: relative;
+                        top: .06em;
                     }
 
                     .bbgl-title-card-sign-face .bbgl-title-reset,

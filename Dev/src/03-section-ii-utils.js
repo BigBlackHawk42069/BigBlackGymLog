@@ -179,7 +179,7 @@
         // show() otherwise forces two synchronous layouts per new target just to size the box, and
         // mousing across the calendar/graph revisits the same few tooltips constantly. Only valid
         // for the viewport width it was measured at, and cleared whenever something that feeds the
-        // tooltip's size changes (viewport resize, web fonts finishing, --bbgl-tip-title-fs).
+        // tooltip's size changes (viewport resize, web fonts finishing).
         _sizeCache: new Map(),
         clearSizeCache() {
             this._sizeCache.clear();
@@ -211,9 +211,6 @@
             }
             this.el.style.display = 'block';
             this.el.className = '';
-            // Stands in for #bbgl-tooltip:has(.bbgl-level-title-tooltip): set before measuring, since
-            // those rules size the box. A class is cheaper than a :has() re-check on every content swap.
-            if (html.includes('bbgl-level-title-tooltip')) this.el.classList.add('is-level-title');
             const gap = 12,
                 edge = 5,
                 view = {
