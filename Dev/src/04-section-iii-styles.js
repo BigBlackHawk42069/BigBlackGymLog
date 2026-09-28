@@ -5901,17 +5901,18 @@
                         pointer-events: none;
                     }
 
-                    /* The valve, the resting level card and the whole crown: the card's width (wider than
-                       the crown), from 4px under the tube up to the crown art's top, .683 of the crown's
+                    /* The valve, the resting level card and the whole crown: the valve body's width (the
+                       card's too), from 4px under the tube up to the crown art's top, .683 of the crown's
                        width above the valve (see .bbgl-exp-card). Hovering or tapping it lifts the card. */
                     .bbgl-exp-hit {
                         position: absolute;
                         left: 50%;
                         bottom: -4px;
-                        width: calc(var(--bbgl-valve-w) * 72 / 66);
+                        width: var(--bbgl-valve-span);
                         height: calc(var(--bbgl-valve-h) * 34 / 38 + 3px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-crown-w) * .683);
                         transform: translateX(-50%);
                         pointer-events: auto;
+                        cursor: pointer;
                         z-index: 5;
                     }
 
@@ -5921,29 +5922,31 @@
                        so the art's midpoint is .333 of the width above the valve; the card stops at .25. It runs on down past
                        the edge of whatever sits under the bar and is cut off there by .bbgl-exp-card-cut,
                        which stays put while the card lifts, so the card slides out from under that content.
-                       --bbgl-exp-card-tuck is where that edge is below the bar (the panel's week row starts
-                       2px below; the gym page's content is layered over the bar); --bbgl-exp-card-under is
-                       how much of the card sits past it. */
+                       --bbgl-exp-card-tuck is where that edge is below the bar. The panel's week row starts
+                       about 2px below, but the cut runs a few px past it: the week row is solid and paints
+                       over the bar, so the overlap is hidden and no mode's rounding can open a gap between
+                       the card and the row. The gym page's content is layered over the bar.
+                       --bbgl-exp-card-under is how much of the card sits past the cut. */
                     .bbgl-exp-card-cut {
                         position: absolute;
                         z-index: 0;
                         left: 0;
                         right: 0;
                         top: -9999px;
-                        bottom: calc(var(--bbgl-exp-card-tuck, 2px) * -1);
+                        bottom: calc(var(--bbgl-exp-card-tuck, 6px) * -1);
                         overflow: hidden;
                         pointer-events: none;
                     }
 
                     .bbgl-exp-card {
-                        --bbgl-exp-card-w: calc(var(--bbgl-valve-w) * 72 / 66);
+                        --bbgl-exp-card-w: var(--bbgl-valve-span);
                         position: absolute;
                         left: 50%;
                         margin-left: calc(var(--bbgl-exp-card-w) / -2);
                         width: var(--bbgl-exp-card-w);
                         --bbgl-exp-card-under: 16px;
                         bottom: calc(var(--bbgl-exp-card-under) * -1);
-                        height: calc(var(--bbgl-valve-h) * 34 / 38 - 1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-crown-w) * .25 + var(--bbgl-exp-card-tuck, 2px) + var(--bbgl-exp-card-under));
+                        height: calc(var(--bbgl-valve-h) * 34 / 38 - 1px - var(--bbgl-valve-rise) + var(--bbgl-valve-lift) + var(--bbgl-crown-w) * .25 + var(--bbgl-exp-card-tuck, 6px) + var(--bbgl-exp-card-under));
                         pointer-events: none;
                     }
 
@@ -5971,6 +5974,26 @@
                     .bbgl-exp-card.is-lifted {
                         visibility: hidden;
                     }
+
+                    /* Hover peek: the card rises a little and lights up so it reads as something to
+                       click. Margin, not a transform, for the reason at levelCardRise (07). */
+                    .bbgl-exp-card {
+                        transition: margin-bottom .15s cubic-bezier(.4, 0, .6, 1), border-color .15s, box-shadow .15s;
+                    }
+                    .bbgl-exp-peek .bbgl-exp-card {
+                        margin-bottom: calc(var(--bbgl-crown-w) * .12);
+                        border-color: rgba(206, 172, 245, .95);
+                        background:
+                            radial-gradient(ellipse 80% 50% at 50% 0%, rgba(156, 92, 224, .6), transparent 72%),
+                            linear-gradient(180deg, #2e2f37, #15161b);
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, .6), 0 0 6px rgba(164, 110, 230, .55);
+                    }
+                    .bbgl-exp-peek .bbgl-exp-card::before,
+                    .bbgl-exp-peek .bbgl-exp-card::after {
+                        border-color: #eadcff;
+                        opacity: 1;
+                    }
+                    #bbgl-panel.bbgl-no-animations .bbgl-exp-card { transition: none; }
 
                     .bbgl-exp-track {
                         position: relative;
@@ -6504,14 +6527,21 @@
                     }
 
                     .bbgl-exp-bar {
-                        --bbgl-valve-w: calc(var(--crwn-s, 38px) * 1.3 + 22px);
-                        /* The crown is a fixed share of the valve, so it reads the same against it in
-                           every mode. The share is compact's: there --crwn-s sits on its 30px floor
-                           (8cqi of a 300px panel is under it), giving a 39px crown on a 61px valve.
-                           Deriving the crown from --crwn-s instead let the valve's fixed 22px of
+                        /* --bbgl-valve-base is the crown's reference size. The tube couplings in the
+                           valve's box end 5% in from each side (where the tube glass's cut stops), and
+                           span 72/66 of the base. The level card spans only the valve body, out to its
+                           sockets' rims at 11.2/88.8 of the valve SVG, so it stays in front of opaque
+                           metal and never shows through the glass. */
+                        --bbgl-valve-base: calc(var(--crwn-s, 38px) * 1.3 + 22px);
+                        --bbgl-valve-w: calc(var(--bbgl-valve-base) * 72 / 66 / .9);
+                        --bbgl-valve-span: calc(var(--bbgl-valve-w) * .776);
+                        /* The crown is a fixed share of the valve base, so it reads the same against it
+                           in every mode. The share is compact's: there --crwn-s sits on its 30px floor
+                           (8cqi of a 300px panel is under it), giving a 39px crown on a 61px base.
+                           Deriving the crown from --crwn-s instead let the base's fixed 22px of
                            sockets shrink in proportion as the bar scaled up, so expanded and page
                            mode crowns ran wide. */
-                        --bbgl-crown-w: calc(var(--bbgl-valve-w) * 39 / 61);
+                        --bbgl-crown-w: calc(var(--bbgl-valve-base) * 39 / 61);
                         --bbgl-valve-rise: 5px;
                         --bbgl-tube-extra: 5px;
                         --bbgl-valve-lift: 4px;
@@ -6529,6 +6559,11 @@
                            stays inside the valve body's top edge, so it never peeks out past the steel. */
                         --bbgl-notch-top: calc(var(--bbgl-track-box) + 2.2px + var(--bbgl-valve-rise) - var(--bbgl-valve-lift) - var(--bbgl-valve-h) * .84 - var(--bbgl-fill-top) - var(--bbgl-fill-nudge));
                         --bbgl-notch-bot: calc(var(--bbgl-notch-top) + var(--bbgl-valve-h) * .68);
+                    }
+                    /* The gym bar's taller tube left its crown-derived valve looking pinched, so its
+                       valve goes by its height instead; the crown still follows --bbgl-valve-base. */
+                    #bbgl-gym-level-container {
+                        --bbgl-valve-w: calc(var(--bbgl-valve-h) * 3.6);
                     }
                     .bbgl-exp-bar::after { content: none; }
                     .bbgl-exp-bar::before {

@@ -3856,7 +3856,7 @@
     function buildLevelTrackSVG() {
         const gradientPrefix = `bbgl-level-${++levelTrackSvgSerial}-`;
         const defs = `<defs><linearGradient id="lvl-tube-metal" x1="0" y1="0" x2="0" y2="1">${vmStops('collar', [0, .22, .42, .5, .6, .8, 1])}</linearGradient><linearGradient id="lvl-tube-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset=".23" stop-color="#fff" stop-opacity=".07"/><stop offset=".4" stop-color="#fff" stop-opacity=".04"/><stop offset=".6" stop-color="#000" stop-opacity=".06"/><stop offset=".8" stop-color="#000" stop-opacity=".18"/><stop offset="1" stop-color="#000" stop-opacity=".36"/></linearGradient><linearGradient id="lvl-channel-lower" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#040805"/><stop offset=".55" stop-color="#11180e"/><stop offset="1" stop-color="#1b2216"/></linearGradient><radialGradient id="lvl-glass-reflection" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#dce7df" stop-opacity=".34"/><stop offset=".45" stop-color="#c1d4c7" stop-opacity=".12"/><stop offset="1" stop-color="#c1d4c7" stop-opacity="0"/></radialGradient></defs>`;
-        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient></defs>`;
+        const housingDefs = `<defs><linearGradient id="lvl-collar-depth" x1="0" y1="0" x2="1" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="lvl-collar-depth-r" x1="1" y1="0" x2="0" y2="0">${COLLAR_DEPTH_STOPS}</linearGradient><linearGradient id="lvl-collar-rim" x1="0" y1="0" x2="0" y2="1">${vmStops('collarRim', [0, .2, .3, .45, .7, .86, 1])}</linearGradient><linearGradient id="lvl-smoked-glass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05090c" stop-opacity=".3"/><stop offset=".16" stop-color="#effaff" stop-opacity=".48"/><stop offset=".3" stop-color="#d9edf5" stop-opacity=".12"/><stop offset=".48" stop-color="#101820" stop-opacity=".08"/><stop offset=".78" stop-color="#080e14" stop-opacity=".2"/><stop offset="1" stop-color="#dceff7" stop-opacity=".3"/></linearGradient><linearGradient id="lvl-rim-reflection" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#effaff" stop-opacity=".15"/><stop offset=".18" stop-color="#fff" stop-opacity=".8"/><stop offset=".56" stop-color="#e7f6ff" stop-opacity=".5"/><stop offset="1" stop-color="#e7f6ff" stop-opacity=".12"/></linearGradient><linearGradient id="lvl-housing" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#242424"/><stop offset=".22" stop-color="#333333"/><stop offset=".55" stop-color="#202020"/><stop offset="1" stop-color="#101010"/></linearGradient><linearGradient id="lvl-shoulder" x1="0" y1="0" x2="0" y2="1">${CAST_SHOULDER_STOPS}</linearGradient></defs>`;
         const body = `<rect x="25" y="27.05" width="450" height="45.9" rx="2" ry="10.2" fill="url(#lvl-tube-glass)"/>
                 <g class="bbgl-calendar-glass">
                     <path d="M27 77.2H473" stroke="#000" stroke-opacity=".3" stroke-width="4.25"/>
@@ -3867,12 +3867,12 @@
                 </g>
                 <rect x="72" y="28.75" width="338" height="20.4" fill="url(#lvl-glass-reflection)"/><ellipse cx="28" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/><ellipse cx="472" cy="45.75" rx="2" ry="13.6" fill="url(#lvl-glass-reflection)"/>
                 <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-tube-metal)"/>
-                <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/>
+                <rect x="18" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth)"/><rect x="475" y="17" width="7" height="66" rx="1.5" ry="5" fill="url(#lvl-collar-depth-r)"/>
                 <path d="M19.4 22V78 M21.2 20V80 M478.8 20V80 M480.6 22V78" stroke="#080b0d" stroke-opacity=".5" stroke-width=".45"/>
                 <rect x="23" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/><rect x="475" y="20" width="2" height="60" rx=".6" ry="4" fill="url(#lvl-collar-rim)"/>
                 <path d="M25.5 25V75 M474.5 25V75" stroke="#050708" stroke-opacity=".8" stroke-width=".8"/>
                 <path d="M18.8 22V37 M481.2 22V37" stroke="#edf2f3" stroke-opacity=".5" stroke-width=".55"/>
-                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M477 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>
+                <path d="M25 21V79 M475 21V79" stroke="#101310" stroke-width="1"/><path d="M20 24V76 M480 24V76" stroke="#b7bcb5" stroke-opacity=".28" stroke-width=".8"/>
                 <rect y="10" width="16" height="80" fill="url(#lvl-housing)"/><rect x="484" y="10" width="16" height="80" fill="url(#lvl-housing)"/>
                 <path d="M16 21H20V79H16Z M480 21H484V79H480Z" fill="#080c08"/>
                 <path d="M16 23L18 19V81L16 77Z M484 23L482 19V81L484 77Z" fill="url(#lvl-collar-rim)"/>
@@ -3885,25 +3885,24 @@
     }
 
     // ─── Level card ─────────────────────────────────────────────────────────
-    // Hovering a level bar's valve lifts the card tucked behind it (.bbgl-exp-card) into the level
-    // tooltip, and leaving lowers it; a click or tap pins it up until the next click. It rises until
-    // it just clears the crown, grows into the tooltip's box, then the tooltip fills in. The rise runs twice in step: the in-bar card (layered behind the valve and
+    // Hovering a level bar's valve only peeks the card tucked behind it (.bbgl-exp-card): it lifts a
+    // little and lights up (.bbgl-exp-peek). A click or tap opens it into the level tooltip until the
+    // next click, a press elsewhere or Escape. It rises until it just clears the crown, grows into
+    // the tooltip's box, then the tooltip fills in. The rise runs twice in step: the in-bar card (layered behind the valve and
     // crown) and a fixed copy (.bbgl-level-card-shell) clipped to above the crown's top, so the part
     // that has cleared the crown can't be cut off by the panel's scroll box. Once clear, the copy
     // alone grows into the tooltip.
     const LEVEL_CARD_GAP = 2;
     const LEVEL_CARD_LEAVE_MS = 120;
-    // want: the bar whose card should be up (null = down). Hover and clicks only ever set this;
-    // syncLevelCard() drives the card toward it, picking up again after any animation in flight.
+    // want: the bar whose card should be up (null = down). Clicks only ever set this; syncLevelCard()
+    // drives the card toward it, picking up again after any animation in flight.
     const levelCard = {
-        bar: null, open: false, busy: false, want: null, pinned: false, hoverBar: null, leaveTimer: null,
-        clip: null, shell: null, tip: null, geo: null, anims: []
+        bar: null, open: false, busy: false, want: null, pinned: false, peekBar: null, leaveTimer: null,
+        clip: null, shell: null, tip: null, geo: null, anims: [], cardAnim: null
     };
 
     function syncLevelCard() {
-        // A hover-raised tooltip lets the pointer through: where there's no room above the crown it
-        // is pushed down over the valve, and catching the pointer there would drop it, uncover the
-        // valve and raise it again in a loop. Pinned, it takes presses so they don't land underneath.
+        // The open tooltip takes presses so they don't land underneath; while it drops it lets them through.
         if (levelCard.tip) levelCard.tip.style.pointerEvents = levelCard.pinned ? 'auto' : 'none';
         if (levelCard.busy) return;
         const want = levelCard.want && levelCard.want.isConnected ? levelCard.want : null;
@@ -3972,6 +3971,33 @@
     const LEVEL_CARD_SMALL = { borderRadius: '4px', borderColor: 'rgba(145, 115, 176, .6)' };
     const LEVEL_CARD_FULL = { borderRadius: '6px', borderColor: 'rgba(145, 115, 176, .32)' };
 
+    // The in-bar card moves by its bottom margin, not a transform: a transform lifts it onto its own
+    // compositor layer for the run, which drags the valve above it onto one too and re-rasterises the
+    // valve's hairline collar ridges, so they flash. The rise starts from wherever the hover peek has
+    // it, and the drop lands wherever the CSS margin is by then (peeked if the pointer is still on
+    // the valve), so the fixed copy is sent to the same spot rather than back to where it started.
+    function levelCardRise(card, g, ms, easing) {
+        const from = parseFloat(getComputedStyle(card).marginBottom) || 0;
+        g.lift = from - g.dy;
+        levelCard.cardAnim = card.animate([{ marginBottom: `${from}px` }, { marginBottom: `${g.lift}px` }], { duration: ms, easing, fill: 'forwards' });
+        levelCard.anims.push(levelCard.cardAnim);
+        return levelCard.cardAnim.finished.catch(() => {});
+    }
+
+    function levelCardDrop(card, shell, g, ms, easing) {
+        // With the transition off, dropping the rise's held end can't start one, so this reads the
+        // CSS margin itself.
+        if (levelCard.cardAnim) levelCard.cardAnim.cancel();
+        card.style.transition = 'none';
+        const to = parseFloat(getComputedStyle(card).marginBottom) || 0;
+        card.style.transition = '';
+        const landed = { ...g.raised, top: g.raised.top + g.lift - to };
+        return Promise.all([
+            levelCardAnimate(card, [{ marginBottom: `${g.lift}px` }, { marginBottom: `${to}px` }], ms, easing),
+            levelCardAnimate(shell, [levelCardPx(g.raised), levelCardPx(landed)], ms, easing)
+        ]);
+    }
+
     function levelCardAnimate(el, frames, ms, easing) {
         const a = el.animate(frames, { duration: ms, easing, fill: 'forwards' });
         levelCard.anims.push(a);
@@ -3999,7 +4025,7 @@
         const k = userConfig.animations ? 1 : 0;
         const rise = 'cubic-bezier(.4, 0, .6, 1)';
         await Promise.all([
-            levelCardAnimate(card, [{ transform: 'none' }, { transform: `translateY(${g.dy}px)` }], 140 * k, rise),
+            levelCardRise(card, g, 140 * k, rise),
             levelCardAnimate(shell, [levelCardPx(g.dormant), levelCardPx(g.raised)], 140 * k, rise)
         ]);
         if (levelCard.bar !== bar) return;
@@ -4027,6 +4053,7 @@
         const finish = () => {
             levelCard.anims.forEach(a => a.cancel());
             levelCard.anims = [];
+            levelCard.cardAnim = null;
             if (card) card.classList.remove('is-lifted');
             tip.style.display = 'none';
             shell.style.display = 'none';
@@ -4060,22 +4087,19 @@
         if (levelCard.bar !== bar) return;
         clip.style.height = Math.max(0, g.crownTop) + 'px';
         card.classList.remove('is-lifted');
-        await Promise.all([
-            levelCardAnimate(card, [{ transform: `translateY(${g.dy}px)` }, { transform: 'none' }], 140, rise),
-            levelCardAnimate(shell, [levelCardPx(g.raised), levelCardPx(g.dormant)], 140, rise)
-        ]);
+        await levelCardDrop(card, shell, g, 140, rise);
         if (levelCard.bar !== bar) return;
         finish();
         syncLevelCard();
     }
 
-    // A pinned card drops on a press anywhere, the card itself included. The valve's own press is
-    // left to the click handler below, which unpins it.
+    // An open card drops on a press anywhere, the card itself included. The valve's own press is
+    // left to the click handler below, which closes it.
     function levelCardOutside(e) {
         if (!levelCard.pinned) return;
         if (e.target.closest && e.target.closest('.bbgl-exp-hit')) return;
         levelCard.pinned = false;
-        setLevelCardWant(levelCard.hoverBar);
+        setLevelCardWant(null);
     }
 
     function levelCardKey(e) {
@@ -4088,25 +4112,26 @@
         closeLevelCard(true);
     }
 
-    // Hover (mouse and pen only; touch goes through the click below). Only the valve's hit area
-    // holds the card up; moving on to the lifted card lowers it again. The short grace only covers
-    // pointer jitter at the hit area's edge.
+    function setLevelCardPeek(bar) {
+        if (levelCard.peekBar === bar) return;
+        if (levelCard.peekBar) levelCard.peekBar.classList.remove('bbgl-exp-peek');
+        levelCard.peekBar = bar;
+        if (bar) bar.classList.add('bbgl-exp-peek');
+    }
+
+    // Hover (mouse and pen only; touch goes straight to the click below) peeks the card while the
+    // pointer is on the valve's hit area. The short grace only covers pointer jitter at its edge.
     document.addEventListener('pointerover', e => {
         if (e.pointerType === 'touch') return;
         const hit = e.target.closest && e.target.closest('.bbgl-exp-hit');
         const bar = hit ? hit.closest('.bbgl-exp-bar') : null;
-        levelCard.hoverBar = bar;
         clearTimeout(levelCard.leaveTimer);
-        if (levelCard.pinned) return;
-        if (bar) setLevelCardWant(bar);
-        else if (levelCard.want) levelCard.leaveTimer = setTimeout(() => {
-            if (!levelCard.pinned && !levelCard.hoverBar) setLevelCardWant(null);
-        }, LEVEL_CARD_LEAVE_MS);
+        if (bar) setLevelCardPeek(bar);
+        else if (levelCard.peekBar) levelCard.leaveTimer = setTimeout(() => setLevelCardPeek(null), LEVEL_CARD_LEAVE_MS);
     }, true);
 
     // Capture phase, so the tap doesn't also reach the panel's own click handling under the bar.
-    // Pins the card up, or unpins and drops it even with the pointer still on the valve; hover only
-    // raises it again once the pointer leaves and comes back.
+    // Opens the card, or drops it again if it's already open.
     document.addEventListener('click', e => {
         const hit = e.target.closest && e.target.closest('.bbgl-exp-hit');
         if (!hit) return;
