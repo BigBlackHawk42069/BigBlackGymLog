@@ -3015,7 +3015,10 @@
             pPointer = 'auto';
         }
         const totalShift = viewState.expanded ? 581 : 305;
-        if (tb) tb.classList.add('bbgl-tab-active');
+        // Guarded: classList.add() writes the attribute even when the class is already there, and the
+        // tab sits inside #chatRoot, whose class changes re-run this function (attachLayoutObservers()).
+        // Unguarded, that looped every frame the panel was open.
+        if (tb && !tb.classList.contains('bbgl-tab-active')) tb.classList.add('bbgl-tab-active');
         p.style.setProperty('max-height', `calc(100vh - ${topCeiling}px)`, 'important');
         p.style.right = pRight;
         p.style.opacity = pOpacity;
@@ -3091,16 +3094,19 @@
                 // Chat traffic alone fires this path constantly (watchChatRoot below observes
                 // #chatRoot's whole subtree), so the duplicate was not cheap.
                 handleLayout();
-                // The settle resync exists to re-observe windows that were still animating open
-                // when the frame above measured them. With the panel closed handleLayout()
-                // fast-paths out and nothing consumes a resize, so don't schedule a third pass.
+                // Settle pass: re-measures once windows that were still animating open when the
+                // frame above measured them have finished (a mid-open Notes window read as
+                // "expanded" and shoved the panel an extra ~280px). A full handleLayout(), not just
+                // an observer resync — a window can settle without resizing, so the
+                // ResizeObserver alone can't be relied on to fire. With the panel closed
+                // handleLayout() fast-paths out, so don't schedule it.
                 clearTimeout(runtime._layoutResyncTimer);
                 runtime._layoutResyncTimer = null;
                 const _p = dom.panel;
                 if (_p && _p.style.display !== 'none' && !_p.classList.contains('bbgl-mode-page')) {
                     runtime._layoutResyncTimer = setTimeout(function() {
                         runtime._layoutResyncTimer = null;
-                        _syncLayoutResizeTargets();
+                        handleLayout();
                     }, 350);
                 }
             });

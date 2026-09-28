@@ -46,9 +46,10 @@
         });
     }
 
-    function buildDevSection(title, children) {
+    // One column of the widget's horizontal strip; the divider sits on its left edge.
+    function buildDevSection(title, children, width) {
         const section = document.createElement('div');
-        section.style.cssText = 'display:flex;flex-direction:column;gap:6px;border-top:1px solid #444;padding-top:8px;';
+        section.style.cssText = `display:flex;flex-direction:column;gap:6px;flex:0 0 ${width || 200}px;min-width:0;padding:0 10px;border-left:1px solid #444;`;
         const label = document.createElement('div');
         label.textContent = title;
         label.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;';
@@ -97,9 +98,54 @@
     }
 
     // ─── Level helpers ──────────────────────────────────────────────────────
+    // Level ▲ clicks that land while a level sequence is playing add their EXP without joining the
+    // animation queue (runLevelAnimationQueue() only ever extends to _targetLevelExp, which these
+    // never touch); the bar's number follows the clicks and snaps to the total once it finishes.
+    let levelUpSnapPending = false;
+
     // The EXP total the bar is displaying right now (lags the real total while it animates).
     function shownLevelExp() {
+        if (levelUpSnapPending) return getLiveLevelExp();
         return runtime._lastLevelExp !== undefined ? runtime._lastLevelExp : getLiveLevelExp();
+    }
+
+    function addNextLevelExp() {
+        const p = calculateLevelProgress(getLiveLevelExp());
+        runtime.careerLevelExp = (runtime.careerLevelExp || 0) + Math.max(1, p.expToNext - p.expInLevel);
+    }
+
+    // Drives the level bar directly instead of dispatching bbgl:dataUpdated, whose listener also
+    // rebuilds the calendar (restarting today's jewel shine) for EXP that changes nothing there.
+    function devLevelUp() {
+        if (!runtime._isAnimatingLevel) {
+            addNextLevelExp();
+            updateLevelBar();
+            return;
+        }
+        addNextLevelExp();
+        if (levelUpSnapPending) return;
+        levelUpSnapPending = true;
+        const tick = () => {
+            if (runtime._isAnimatingLevel) {
+                // The sequence writes its own level number as each step lands; keep ours on top,
+                // unless it's mid-atrophy, where the digits belong to that sequence.
+                const target = calculateLevelProgress(getLiveLevelExp());
+                if (target.atrophy === calculateLevelProgress(runtime._lastLevelExp).atrophy) {
+                    getLevelBars().forEach(b => {
+                        if (b.container.dataset.level !== String(target.level)) setLevelBarNumber(b, target.level);
+                    });
+                }
+                requestAnimationFrame(tick);
+                return;
+            }
+            levelUpSnapPending = false;
+            // Silent: snaps to the new total instead of queueing another climb. A snap plays no
+            // sequence, so the titles page's rank readout is repainted here instead.
+            updateLevelBar(true);
+            refreshRankDisplays();
+            runRefreshers();
+        };
+        requestAnimationFrame(tick);
     }
 
     function shownProgress() {
@@ -136,45 +182,33 @@
         saveViewState();
     }
 
-    // ─── API Counter section ───────────────────────────────────────────────
-    function buildApiCounterSection() {
+    // ─── API Counter (widget header, no section) ────────────────────────────
+    function buildApiCounter() {
         const hud = document.createElement('div');
         hud.id = 'bbgl-api-hud';
         hud.style.cssText = 'color:#fff;font-family:sans-serif;font-size:12px;text-align:center;';
         hud.innerHTML = `API Calls: ${runtime.apiCallTotal}`;
-        return buildDevSection('API', [hud]);
+        return hud;
     }
 
     // ─── Triggers section (XP/level testing) ───────────────────────────────
     function buildTriggersSection() {
-        const trainInput = document.createElement('input');
-        trainInput.type = 'number';
-        trainInput.min = '10';
-        trainInput.max = '1500';
-        trainInput.step = '10';
-        trainInput.value = '150';
-        trainInput.style.cssText = inputStyle;
-        const trainBtn = buildDevButton('Train (E)', () => {
-            let e = parseInt(trainInput.value, 10);
-            if (!Number.isFinite(e)) e = 150;
-            e = Math.min(1500, Math.max(10, Math.round(e / 10) * 10));
-            trainInput.value = e;
-            const { hjDaySet } = DataController.getHappyJumpData();
-            const isHJ = hjDaySet.has(Formatter.dateLogical());
-            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + computeDailyLevelExp(e, true, isHJ);
+        const addExp = gain => {
+            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + gain;
             window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-        }, 'flex:1;');
-        const trainRow = buildRow([trainInput, trainBtn], 'gap:6px;');
-
+        };
+        const tierBtn = 'flex:1;padding:6px 2px;font-size:10px;';
         const dayTierRow = buildRow([
-            ['Happy Jump', () => computeDailyLevelExp(1000, true, true)],
-            ['Green Day', () => computeDailyLevelExp(1000, true, false)],
-            ['Gold Day', () => computeDailyLevelExp(1500, true, false)],
-            ['Diamond Day', () => computeDailyLevelExp(2000, true, false)]
-        ].map(([label, computeGain]) => buildDevButton(label, () => {
-            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + computeGain();
-            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-        }, 'flex:1;padding:6px 2px;font-size:10px;')));
+            ['Green Day', 1000],
+            ['Gold Day', 1500],
+            ['Diamond Day', 2000]
+        ].map(([label, e]) => buildDevButton(label, () => addExp(computeDailyLevelExp(e, true, false)), tierBtn)));
+
+        // Follows today's real Happy Jump state, like a real train would.
+        const trainRow = buildRow([100, 150, 400].map(e => buildDevButton(`Train ${e}E`, () => {
+            const { hjDaySet } = DataController.getHappyJumpData();
+            addExp(computeDailyLevelExp(e, true, hjDaySet.has(Formatter.dateLogical())));
+        }, tierBtn)));
 
         // Level stepper: the input always mirrors the level on the bar; typing a level jumps to it
         // within the current atrophy tier.
@@ -196,12 +230,8 @@
             if (p.level > LEVEL_ATRO_START[p.atrophy]) jumpToLevel(p.atrophy, p.level - 1);
             else if (p.atrophy > 0) jumpToLevel(p.atrophy - 1, LEVEL_CAP - 1);
         }, smallBtn);
-        // Level Up adds the EXP normally so the real level-up animation still plays.
-        const upBtn = buildDevButton('Level ▲', () => {
-            const p = calculateLevelProgress(getLiveLevelExp());
-            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + Math.max(1, p.expToNext - p.expInLevel);
-            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-        }, smallBtn);
+        // Level Up adds the EXP normally so the real level-up animation still plays (once — see devLevelUp()).
+        const upBtn = buildDevButton('Level ▲', devLevelUp, smallBtn);
         const levelRow = buildRow([downBtn, levelInput, upBtn]);
 
         refreshers.push(() => {
@@ -212,20 +242,7 @@
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
-        // Reward popups, fired straight at the queue with force so an already-seen one still
-        // shows (RewardsController, 07-section-vi-ui.js). The real ones come off the level
-        // sequences; these are just for looking at them.
-        const popupRow = buildRow([
-            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
-            ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
-            ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],
-            ['Bricked', { kind: 'bricked', id: 'dev:bricked' }]
-        ].map(([label, evt]) => buildDevButton(label, () => emitReward(evt, true), 'flex:1;padding:6px 2px;font-size:10px;')));
-
-        // Forgets every popup already shown, so the real ones fire again on the next climb.
-        const popupResetRow = buildRow([buildDevButton('Reset Popup Memory', () => clearRewardMemory(null), 'flex:1;padding:5px 4px;font-size:10px;')]);
-
-        return buildDevSection('Triggers', [trainRow, dayTierRow, levelRow, popupRow, popupResetRow]);
+        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow], 220);
     }
 
     // ─── Rank Preview section ───────────────────────────────────────────────
@@ -251,7 +268,7 @@
                 const { atrophy } = shownProgress();
                 jumpToLevel(atrophy, b.start);
                 emitReward({ kind: 'rank', id: `rank:${atrophy}:${i}`, atrophy, band: i, label: LEVEL_TITLE_BANDS[i].titles[atrophy] }, true);
-            }, 'text-align:left;padding:5px 8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;');
+            }, smallBtn);
             return btn;
         });
         // Snaps to Lv 99, then adds the last level's EXP normally (like Level ▲) so the real
@@ -262,133 +279,173 @@
             // So the modal at the end plays every time you test the sequence.
             clearRewardMemory(['atrophy:', 'bricked']);
             jumpToLevel(atrophy, LEVEL_CAP - 1);
-            const p = calculateLevelProgress(getLiveLevelExp());
-            runtime.careerLevelExp = (runtime.careerLevelExp || 0) + Math.max(1, p.expToNext - p.expInLevel);
+            addNextLevelExp();
             window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
-        }, 'text-align:left;padding:5px 8px;font-size:11px;');
+        }, smallBtn);
 
+        // Range-only labels keep this to 2 rows of 3; the rank name for the current atrophy is
+        // each button's hover title.
+        const setTitleIfChanged = (btn, t) => { if (btn.title !== t) btn.title = t; };
         refreshers.push(() => {
             const p = shownProgress();
             atrophyBtns.forEach((btn, a) => setActive(btn, a === p.atrophy));
             rankBtns.forEach((btn, i) => {
                 const b = bands[i];
-                setTextIfChanged(btn, `${b.start}–${b.max} · ${LEVEL_TITLE_BANDS[i].titles[p.atrophy]}`);
+                setTextIfChanged(btn, `${b.start}–${b.max}`);
+                setTitleIfChanged(btn, LEVEL_TITLE_BANDS[i].titles[p.atrophy]);
                 setActive(btn, p.level >= (i === 0 ? -Infinity : b.start) && p.level <= b.max);
             });
-            setTextIfChanged(capBtn, p.atrophy < 2 ? `100 · Finish Atrophy ${p.atrophy}` : '100 · Fully Bricked');
+            setTextIfChanged(capBtn, '100');
+            setTitleIfChanged(capBtn, p.atrophy < 2 ? `Finish Atrophy ${p.atrophy}` : 'Fully Bricked');
             setActive(capBtn, isFullyBricked(p.atrophy, p.level));
         });
 
-        return buildDevSection('Rank Preview', [atrophyRow, ...rankBtns, capBtn]);
+        const rankGrid = [...rankBtns, capBtn];
+        return buildDevSection('Rank Preview', [atrophyRow, buildRow(rankGrid.slice(0, 3)), buildRow(rankGrid.slice(3))]);
     }
 
-    // ─── Title Preview section (stat-title slot testing) ───────────────────
-    // Sets runtime._devTitleOverride, read by getLiveStatTitleSelection() (07-section-vi-ui.js) behind
-    // runtime.devMode. Each slot picks its own tier, the only way to preview a mismatched pair like
-    // a Tier 1 word on a Tier 10 word.
+    // ─── Title Preview section (stat-title board testing) ───────────────────
+    // A fully unlocked copy of the titles page's star board. Picks follow the real two-click rule
+    // (handleTitleStarPick(), 07-section-vi-ui.js): the first click is the adjective and parks in
+    // runtime._titlePick, so the real card shows its one-word preview; the second is the noun and
+    // commits the pair to runtime._devTitleOverride (read by getLiveStatTitleSelection() behind
+    // runtime.devMode) instead of the player's saved title.
+    const ROLE_BG = {
+        '': '#333',
+        secondary: '#00838f',
+        primary: ACTIVE_BG,
+        both: `linear-gradient(135deg,#00838f 50%,${ACTIVE_BG} 50%)`
+    };
+
     function buildTitlePreviewSection() {
-        const tierCount = STAT_TITLE_THRESHOLDS.length;
-        const statOptions = STAT_KEYS.map(k => [k, achStatFull(k)]);
-        const tierOptions = STAT_TITLE_THRESHOLDS.map((_, i) => [String(i), `T${i + 1}`]);
-        const tierSelectStyle = 'flex:0 0 52px;';
-
-        function buildSlot(label, statIndex) {
-            const tag = document.createElement('span');
-            tag.textContent = label;
-            tag.style.cssText = 'flex:0 0 26px;color:#aaa;font-family:sans-serif;font-size:10px;font-weight:bold;';
-            const stat = buildSelect(statOptions);
-            stat.selectedIndex = statIndex;
-            const tier = buildSelect(tierOptions);
-            tier.style.cssText += tierSelectStyle;
-            return { stat, tier, row: buildRow([tag, stat, tier]) };
-        }
-        const slot1 = buildSlot('1st', 0);
-        const slot2 = buildSlot('2nd', 1);
-
-        const status = document.createElement('div');
-        status.style.cssText = 'font-family:sans-serif;font-size:10px;text-align:center;';
-
         function refreshTitleUI() {
             if (typeof refreshStatTitleUI === 'function') refreshStatTitleUI();
         }
-        function apply() {
-            runtime._devTitleOverride = {
-                primary: { stat: slot1.stat.value, phase: parseInt(slot1.tier.value, 10) },
-                secondary: { stat: slot2.stat.value, phase: parseInt(slot2.tier.value, 10) }
-            };
+
+        const cells = [];
+        const pick = (stat, phase) => {
+            const pending = runtime._titlePick;
+            if (!pending) {
+                runtime._titlePick = { stat, phase };
+            } else {
+                runtime._devTitleOverride = { primary: { stat, phase }, secondary: pending };
+                runtime._titlePick = null;
+            }
             refreshTitleUI();
-            renderStatus();
-        }
-        function renderStatus() {
+            renderBoard();
+        };
+
+        // str+def over spd+dex puts str/spd in the left column and def/dex in the right, like the page.
+        const board = document.createElement('div');
+        board.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;';
+        STAT_KEYS.forEach(stat => {
+            const block = document.createElement('div');
+            block.style.cssText = 'display:flex;flex-direction:column;gap:2px;min-width:0;';
+            const label = document.createElement('div');
+            label.textContent = achStatFull(stat);
+            label.style.cssText = 'color:#aaa;font-family:sans-serif;font-size:10px;font-weight:bold;text-align:center;';
+            block.appendChild(label);
+            [0, 5].forEach(offset => {
+                block.appendChild(buildRow(STAT_TITLE_THRESHOLDS.slice(offset, offset + 5).map((_, i) => {
+                    const phase = offset + i;
+                    const words = STAT_TITLE_WORDS[stat][phase];
+                    const cell = buildDevButton(String(phase + 1), () => pick(stat, phase), 'flex:1;min-width:0;padding:3px 0;font-size:10px;border-radius:3px;');
+                    cell.title = `${words.adj} • ${words.noun} · Tier ${phase + 1}`;
+                    cells.push({ cell, stat, phase });
+                    return cell;
+                }), 'gap:2px;'));
+            });
+            board.appendChild(block);
+        });
+
+        const status = document.createElement('div');
+        status.style.cssText = 'font-family:sans-serif;font-size:11px;text-align:center;min-height:14px;';
+
+        function renderBoard() {
+            const sel = getLiveStatTitleSelection();
+            const pending = runtime._titlePick;
+            cells.forEach(c => {
+                const role = achTitleStarRole(sel, pending, c.stat, c.phase);
+                if (c.cell._bbglRole === role) return;
+                c.cell._bbglRole = role;
+                c.cell.style.background = ROLE_BG[role];
+            });
+            let text;
+            if (pending) {
+                const w = statTitleWord(pending.stat, pending.phase);
+                text = w ? `${w.adj} …` : '…';
+            } else {
+                const parts = composeStatTitleParts(sel);
+                text = parts ? parts.map(p => p.text).join(' ') : 'Unequipped';
+            }
             const on = !!runtime._devTitleOverride;
-            status.textContent = on ? 'Override ON' : 'Override OFF (real titles)';
+            setTextIfChanged(status, on ? text : `${text} (real)`);
             status.style.color = on ? '#ce93d8' : '#777';
         }
-        [slot1.stat, slot1.tier, slot2.stat, slot2.tier].forEach(sel => sel.addEventListener('change', apply));
+        refreshers.push(renderBoard);
 
-        const setTiers = t => {
-            slot1.tier.value = slot2.tier.value = String(t);
-            apply();
-        };
-        const presetRow = buildRow([
-            buildDevButton('All T1', () => setTiers(0), smallBtn),
-            buildDevButton(`All T${Math.ceil(tierCount / 2)}`, () => setTiers(Math.ceil(tierCount / 2) - 1), smallBtn),
-            buildDevButton(`All T${tierCount}`, () => setTiers(tierCount - 1), smallBtn),
+        const actionRow = buildRow([
             // The title a player sees before any stat has unlocked a word.
-            buildDevButton('None', () => {
+            buildDevButton('Untitled', () => {
+                runtime._titlePick = null;
                 runtime._devTitleOverride = { placeholder: true, primary: null, secondary: null };
                 refreshTitleUI();
-                renderStatus();
-            }, smallBtn)
-        ]);
-
-        // Progressive plaque step (runtime._devPlaqueStage, read by getLivePlaqueStage(),
-        // 07-section-vi-ui.js). "Live" follows the real unlock count.
-        const stageTag = document.createElement('span');
-        stageTag.textContent = 'Plaque';
-        stageTag.style.cssText = 'flex:0 0 40px;color:#aaa;font-family:sans-serif;font-size:10px;font-weight:bold;';
-        const stageOptions = [0, ...TITLE_PLAQUE_STEPS].map((n, s) => [String(s), s ? `Step ${s} · ${n}+` : `Step 0 · <${TITLE_PLAQUE_STEPS[0]}`]);
-        const stageSelect = buildSelect([['', 'Live'], ...stageOptions]);
-        stageSelect.addEventListener('change', () => {
-            runtime._devPlaqueStage = stageSelect.value === '' ? null : parseInt(stageSelect.value, 10);
-            refreshTitleUI();
-        });
-        const stageStep = dir => {
-            const cur = Number.isFinite(runtime._devPlaqueStage) ? runtime._devPlaqueStage : getLivePlaqueStage();
-            runtime._devPlaqueStage = Math.max(0, Math.min(TITLE_PLAQUE_STEPS.length, cur + dir));
-            stageSelect.value = String(runtime._devPlaqueStage);
-            refreshTitleUI();
-        };
-        const stageRow = buildRow([
-            stageTag,
-            buildDevButton('◀', () => stageStep(-1), smallBtn + 'flex:0 0 24px;'),
-            stageSelect,
-            buildDevButton('▶', () => stageStep(1), smallBtn + 'flex:0 0 24px;')
-        ]);
-        const actionRow = buildRow([
-            buildDevButton('Swap', () => {
-                [slot1.stat.value, slot2.stat.value] = [slot2.stat.value, slot1.stat.value];
-                [slot1.tier.value, slot2.tier.value] = [slot2.tier.value, slot1.tier.value];
-                apply();
+                renderBoard();
             }, smallBtn),
-            buildDevButton('Random', () => {
-                const i = Math.floor(Math.random() * STAT_KEYS.length);
-                const j = (i + 1 + Math.floor(Math.random() * (STAT_KEYS.length - 1))) % STAT_KEYS.length;
-                slot1.stat.selectedIndex = i;
-                slot2.stat.selectedIndex = j;
-                slot1.tier.selectedIndex = Math.floor(Math.random() * tierCount);
-                slot2.tier.selectedIndex = Math.floor(Math.random() * tierCount);
-                apply();
-            }, smallBtn),
-            buildDevButton('Clear', () => {
+            buildDevButton('Real Title', () => {
+                runtime._titlePick = null;
                 runtime._devTitleOverride = null;
                 refreshTitleUI();
-                renderStatus();
+                renderBoard();
             }, smallBtn + 'background:#5a1a1a;border-color:#833;')
         ]);
-        renderStatus();
 
-        return buildDevSection('Title Preview', [slot1.row, slot2.row, presetRow, actionRow, status, stageRow]);
+        return buildDevSection('Title Preview', [board, status, actionRow], 240);
+    }
+
+    // ─── Plaque Preview section ─────────────────────────────────────────────
+    // Progressive plaque step (runtime._devPlaqueStage, read by getLivePlaqueStage(),
+    // 07-section-vi-ui.js). "Live" follows the real unlock count.
+    function buildPlaquePreviewSection() {
+        const refresh = () => {
+            if (typeof refreshStatTitleUI === 'function') refreshStatTitleUI();
+        };
+        const stageOptions = [0, ...TITLE_PLAQUE_STEPS].map((n, s) => [String(s), s ? `Step ${s} · ${n}+` : `Step 0 · <${TITLE_PLAQUE_STEPS[0]}`]);
+        const stageSelect = buildSelect([['', 'Live'], ...stageOptions]);
+        const setStage = s => {
+            runtime._devPlaqueStage = s;
+            stageSelect.value = s === null ? '' : String(s);
+            refresh();
+        };
+        stageSelect.addEventListener('change', () => setStage(stageSelect.value === '' ? null : parseInt(stageSelect.value, 10)));
+        const stageStep = dir => {
+            const cur = Number.isFinite(runtime._devPlaqueStage) ? runtime._devPlaqueStage : getLivePlaqueStage();
+            setStage(Math.max(0, Math.min(TITLE_PLAQUE_STEPS.length, cur + dir)));
+        };
+        const stepRow = buildRow([
+            buildDevButton('◀', () => stageStep(-1), smallBtn + 'flex:0 0 28px;'),
+            stageSelect,
+            buildDevButton('▶', () => stageStep(1), smallBtn + 'flex:0 0 28px;')
+        ]);
+        const liveRow = buildRow([buildDevButton('Live', () => setStage(null), smallBtn)]);
+
+        // Reward popups, fired straight at the queue with force so an already-seen one still
+        // shows (emitReward(), 07-section-vi-ui.js). The real ones come off the level sequences;
+        // these are just for looking at them.
+        const popupLabel = document.createElement('div');
+        popupLabel.textContent = 'Popups';
+        popupLabel.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;';
+        const popupBtns = [
+            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
+            ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
+            ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],
+            ['Bricked', { kind: 'bricked', id: 'dev:bricked' }]
+        ].map(([label, evt]) => buildDevButton(label, () => emitReward(evt, true), 'flex:1;padding:6px 2px;font-size:10px;'));
+
+        // Forgets every popup already shown, so the real ones fire again on the next climb.
+        const popupResetRow = buildRow([buildDevButton('Reset Popup Memory', () => clearRewardMemory(null), 'flex:1;padding:5px 4px;font-size:10px;')]);
+
+        return buildDevSection('Plaque Preview', [stepRow, liveRow, popupLabel, buildRow(popupBtns.slice(0, 2)), buildRow(popupBtns.slice(2)), popupResetRow], 180);
     }
 
     // ─── Books section (Library layout testing) ────────────────────────────
@@ -487,11 +544,11 @@
         }, smallBtn));
         modeBtns.forEach((b, i) => setActive(b, modes[i][0] === mode));
 
-        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)]);
+        return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)], 230);
     }
 
-    // ─── Sidebar section ────────────────────────────────────────────────────
-    function buildSidebarSection() {
+    // ─── Config section (sidebar notif, factory reset) ─────────────────────
+    function buildConfigSection() {
         const notifBtn = buildDevButton('Toggle Sidebar Notif', () => {
             const ids = [SB_DESKTOP.id, SB_MOBILE.id, SB_FLYOUT.id];
             const anyActive = ids.some(id => {
@@ -499,16 +556,11 @@
                 return el && el.classList.contains('bbgl-sb-notif');
             });
             syncChangelogNotif(!anyActive);
-        });
-        return buildDevSection('Sidebar', [notifBtn]);
-    }
-
-    // ─── Reset section ──────────────────────────────────────────────────────
-    function buildResetSection() {
+        }, smallBtn);
         const factoryResetBtn = buildDevButton('DEV: FACTORY RESET', () => {
             devFactoryReset();
-        }, 'background:#5a1a1a;border-color:#833;');
-        return buildDevSection('Reset', [factoryResetBtn]);
+        }, smallBtn + 'background:#5a1a1a;border-color:#833;');
+        return buildDevSection('Config', [buildRow([notifBtn]), buildRow([factoryResetBtn])], 160);
     }
 
     async function devFactoryReset() {
@@ -668,7 +720,7 @@
     // ─── Widget assembly ────────────────────────────────────────────────────
     function buildWidget() {
         const w = document.createElement('div');
-        w.style.cssText = 'position:fixed;top:100px;left:20px;background:#222;border:1px solid #555;padding:10px;z-index:999999;border-radius:6px;display:none;flex-direction:column;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.5);width:230px;max-height:calc(100vh - 20px);overflow-y:auto;box-sizing:border-box;';
+        w.style.cssText = 'position:fixed;top:100px;left:20px;background:#222;border:1px solid #555;padding:10px 0;z-index:999999;border-radius:6px;display:none;flex-direction:column;gap:8px;box-shadow:0 4px 12px rgba(0,0,0,0.5);max-width:calc(100vw - 20px);max-height:calc(100vh - 20px);overflow:auto;box-sizing:border-box;';
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
@@ -682,20 +734,24 @@
         title.title = 'Drag to move';
         title.style.cssText = 'color:#fff;font-family:sans-serif;font-size:12px;font-weight:bold;text-align:center;margin-bottom:2px;cursor:move;user-select:none;';
         w.appendChild(title);
-
-        w.appendChild(buildApiCounterSection());
-        w.appendChild(buildTriggersSection());
-        w.appendChild(buildRankPreviewSection());
-        w.appendChild(buildTitlePreviewSection());
-        w.appendChild(buildBooksSection());
-        w.appendChild(buildSidebarSection());
-        w.appendChild(buildResetSection());
+        w.appendChild(buildApiCounter());
 
         consoleOverlay = buildConsoleOverlay();
         const consoleBtn = buildDevButton('Console', () => {
             consoleOverlay.style.display = consoleOverlay.style.display === 'none' ? 'flex' : 'none';
-        }, 'margin-top:4px;');
+        }, 'position:absolute;top:6px;left:8px;padding:3px 8px;font-size:11px;');
         w.appendChild(consoleBtn);
+
+        const strip = buildRow([
+            buildTriggersSection(),
+            buildRankPreviewSection(),
+            buildTitlePreviewSection(),
+            buildPlaquePreviewSection(),
+            buildBooksSection(),
+            buildConfigSection()
+        ], 'align-items:stretch;gap:0;');
+        strip.firstChild.style.borderLeft = 'none';
+        w.appendChild(strip);
 
         document.body.appendChild(w);
         makeDraggable(w, title, POS_KEY);
