@@ -531,7 +531,9 @@
         _titlePick: null,
         _devTitleOverride: null,
         _devBookOverride: null,
-        _devDocsBase: null
+        _devDocsBase: null,
+        _devNewNoteDate: null,
+        _devPostItStackDate: null
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
@@ -7204,12 +7206,16 @@
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
                        topmost note (the one covering everything) leaves with zero delay the
                        moment you hover, while notes further down follow in sequence behind it. */
-                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty).is-hover-intent .bbgl-event-post-it,
-                    .bbgl-day-cell.has-sticker.is-scrub-hovered .bbgl-event-post-it,
-                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it {
+                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty):not(.has-new-note).is-hover-intent .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker:not(.has-new-note).is-scrub-hovered .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it,
+                    .bbgl-event-post-it.bbgl-new-sticker-note.is-cleared {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
-                        transition-delay: calc(((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.15s);
+                        /* Each note waits for the one above it to leave (.25s) and then holds a moment
+                           so it can be read. --pi-clear-offset is one step while a new-sticker note is
+                           leaving first (renderCell). */
+                        transition-delay: calc(var(--pi-clear-offset, 0s) + ((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.4s);
                     }
 
                     /* No sticker awarded that day: only the note actually blocking the stack (marked
@@ -7500,26 +7506,6 @@
                         object-fit: contain;
                         filter: brightness(.9) sepia(.2) contrast(1.1);
                         transition: transform .2s;
-                    }
-
-                    .new-sticker-post-it {
-                        position: absolute;
-                        top: calc(4% - var(--bbgl-cell-lift));
-                        left: 4%;
-                        width: 92%;
-                        height: 92%;
-                        background: url('${ASSETS.NEW_STICKER_FRAME}') no-repeat center / contain;
-                        z-index: 20;
-                        filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
-                        transform-origin: top right;
-                        transition: transform .6s cubic-bezier(.5, 0, 1, 1);
-                        cursor: pointer;
-                        transform: rotate(-5deg);
-                    }
-
-                    .post-it-rip {
-                        transform: translateX(250%) translateY(-80%) rotate(75deg) scale(1.3) !important;
-                        pointer-events: none;
                     }
 
                     /* Same inner-band technique as the jewel shines: the gradient (set inline per tier by
@@ -21950,16 +21936,14 @@ const BestGymController = {
     // `ctx` carries the per-render constants hoisted out of this function by renderPanelContent()
     // (see there) — single call site, so the extra parameter stays contained.
     // Event post-it stack geometry, in % of the day cell. These pair with .bbgl-event-post-it in
-    // 04-section-iii-styles.js, which is 70% tall. POST_IT_TOP is where a lone post-it sits, and a
-    // stack stays centred on it until it reaches one of the band's edges. The band bounds the TOPS:
-    // POST_IT_BAND_BOT keeps the last post-it's bottom edge inside the cell (29 + 70 = 99), and
-    // POST_IT_BAND_TOP lets the first ride a touch above the cell's top edge. POST_IT_STEP is how
-    // far apart a small stack wants to sit; past what the band can hold, the step shrinks to fit.
+    // 04-section-iii-styles.js, which is 70% tall. POST_IT_TOP is where a lone post-it sits. Any
+    // stack of two or more puts its first post-it at POST_IT_CEIL and its last at POST_IT_FLOOR,
+    // with the rest spread evenly between; the count only changes the spacing. Both bound the TOPS:
+    // POST_IT_FLOOR keeps the last post-it's bottom edge inside the cell (29 + 70 = 99).
     // POST_IT_TOP includes the cell's 2% --bbgl-cell-lift (a lone post-it used to sit at 15).
     const POST_IT_TOP = 13,
-        POST_IT_STEP = 18,
-        POST_IT_BAND_TOP = -1,
-        POST_IT_BAND_BOT = 29;
+        POST_IT_CEIL = 7,
+        POST_IT_FLOOR = 29;
 
     // Every calendar shine's gradient rides an inner band moved by transform (see .jewel-shine-band,
     // .sticker-shine-band), so it's drawn once and slid instead of repainted each frame.
@@ -22053,6 +22037,13 @@ const BestGymController = {
         ns.className = 'day-num';
         ns.innerText = d;
         cell.appendChild(ns);
+        const stickerItem = isFlipped && sl.meta.tier > 0 ? DataController.getStickerMap().get(ds) : null;
+        // An uncleared newly-awarded sticker gets its own post-it over the event stack. It clears when
+        // the day is clicked rather than on hover, and holds the stack beneath it in place until then.
+        const devNewNote = !!stickerItem && runtime.devMode && runtime._devNewNoteDate === ds;
+        const hasNewNote = devNewNote || (!!stickerItem && !!DataController._cache.featuredDays &&
+            DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(stickerItem.id));
+        let clearNewNote = null;
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
@@ -22069,13 +22060,14 @@ const BestGymController = {
                 if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'bkprk-end.webp');
                 if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'bkprk-rec.webp');
             }
-            // The stack spreads across a fixed window in the cell rather than stepping by a fixed
-            // amount, so it can't outgrow the day: centred on POST_IT_TOP, then pushed back inside
-            // the band if either end would cross it, with the step shrinking once the band is full.
+            if (runtime.devMode && runtime._devPostItStackDate === ds) {
+                ['lsod.webp', 'wr-strt.webp', 'trnbk-strt.webp'].forEach(f => {
+                    if (!eventImgs.includes(CAL_IMG_BASE + f)) eventImgs.push(CAL_IMG_BASE + f);
+                });
+            }
             const nEvents = eventImgs.length,
-                piStep = nEvents > 1 ? Math.min(POST_IT_STEP, (POST_IT_BAND_BOT - POST_IT_BAND_TOP) / (nEvents - 1)) : 0,
-                piSpan = (nEvents - 1) * piStep,
-                piBase = Math.min(Math.max(POST_IT_TOP - piSpan / 2, POST_IT_BAND_TOP), POST_IT_BAND_BOT - piSpan);
+                piStep = nEvents > 1 ? (POST_IT_FLOOR - POST_IT_CEIL) / (nEvents - 1) : 0,
+                piBase = nEvents > 1 ? POST_IT_CEIL : POST_IT_TOP;
             cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%');
             cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%');
             eventImgs.forEach((url, i) => {
@@ -22086,55 +22078,57 @@ const BestGymController = {
                 ep.style.setProperty('--stack-total', eventImgs.length);
                 cell.appendChild(ep);
             });
-        }
-        if (isFlipped && sl.meta.tier > 0) {
-            const item = DataController.getStickerMap().get(ds);
-            if (item) {
-                const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000);
-                const sw = document.createElement('div'),
-                    si = document.createElement('img');
-                sw.className = 'sticker-wrapper' + (sl.meta.tier === 3 ? ' sticker-tier-diamond' : '');
-                sw.style.setProperty('--rot', `${(uid * 17) % 21 - 10}deg`);
-                si.src = item.thumbUrl;
-                si.className = 'cell-sticker-deco';
-                sw.appendChild(si);
-                cell.appendChild(sw);
-                // Stands in for :has(.sticker-wrapper) in the post-it peel CSS: a plain class check is far
-                // cheaper for the browser to re-evaluate on every hover change than a :has() lookup.
-                cell.classList.add('has-sticker');
-                buildShine = () => {
-                    if (sw.querySelector('.sticker-shine')) return;
-                    const ss = document.createElement('div');
-                    ss.className = 'sticker-shine';
-                    ss.style.webkitMaskImage = `url("${item.thumbUrl}")`;
-                    ss.style.maskImage = `url("${item.thumbUrl}")`;
-                    let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
-                    if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
-                    else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
-                    addShineBand(ss, 'sticker-shine-band', grad);
-                    ss.style.mixBlendMode = "overlay";
-                    if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
-                    sw.appendChild(ss);
+            if (hasNewNote) {
+                // Always sits in the lone-post-it spot, centred over whatever stack is beneath it.
+                const np = document.createElement('div');
+                np.className = 'bbgl-event-post-it bbgl-new-sticker-note';
+                np.style.backgroundImage = `url('${ASSETS.NEW_STICKER_FRAME}')`;
+                np.style.setProperty('--pi-base', POST_IT_TOP + '%');
+                np.style.setProperty('--pi-step', '0%');
+                np.style.setProperty('--ei', 0);
+                np.style.setProperty('--stack-total', 1);
+                np.style.setProperty('--pi-clear-offset', '0s');
+                cell.classList.add('has-new-note');
+                cell.appendChild(np);
+                clearNewNote = () => {
+                    clearNewNote = null;
+                    np.classList.add('is-cleared');
+                    cell.style.setProperty('--pi-clear-offset', '0.4s');
+                    cell.classList.remove('has-new-note');
+                    if (devNewNote) runtime._devNewNoteDate = null;
+                    else DataController.markStickerCleared(stickerItem.id);
+                    setTimeout(() => np.remove(), 250);
                 };
-                if (DataController._cache.featuredDays && DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(item.id)) {
-                    const pi = document.createElement('div');
-                    pi.className = 'new-sticker-post-it';
-                    pi.onclick = (e) => {
-                        e.stopPropagation();
-                        cell.style.setProperty('overflow', 'visible', 'important');
-                        cell.style.setProperty('z-index', '100', 'important');
-                        pi.classList.add('post-it-rip');
-                        DataController.markStickerCleared(item.id);
-                        setTimeout(() => {
-                            if (pi.parentNode) pi.remove();
-                            cell.style.removeProperty('overflow');
-                            cell.style.removeProperty('z-index');
-                            cell.click();
-                        }, 600);
-                    };
-                    cell.appendChild(pi);
-                }
             }
+        }
+        if (stickerItem) {
+            const item = stickerItem;
+            const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000);
+            const sw = document.createElement('div'),
+                si = document.createElement('img');
+            sw.className = 'sticker-wrapper' + (sl.meta.tier === 3 ? ' sticker-tier-diamond' : '');
+            sw.style.setProperty('--rot', `${(uid * 17) % 21 - 10}deg`);
+            si.src = item.thumbUrl;
+            si.className = 'cell-sticker-deco';
+            sw.appendChild(si);
+            cell.appendChild(sw);
+            // Stands in for :has(.sticker-wrapper) in the post-it peel CSS: a plain class check is far
+            // cheaper for the browser to re-evaluate on every hover change than a :has() lookup.
+            cell.classList.add('has-sticker');
+            buildShine = () => {
+                if (sw.querySelector('.sticker-shine')) return;
+                const ss = document.createElement('div');
+                ss.className = 'sticker-shine';
+                ss.style.webkitMaskImage = `url("${item.thumbUrl}")`;
+                ss.style.maskImage = `url("${item.thumbUrl}")`;
+                let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
+                if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
+                else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
+                addShineBand(ss, 'sticker-shine-band', grad);
+                ss.style.mixBlendMode = "overlay";
+                if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)";
+                sw.appendChild(ss);
+            };
         }
         if (isToday) cell.id = `active-date-today`;
         cell._buildShine = buildShine;
@@ -22153,6 +22147,7 @@ const BestGymController = {
             cell._bbglTip = () => generateRichTooltip(sl);
         } else cell.setAttribute('data-tooltip', TOOLTIPS.CELL_DATE(ds));
         cell.onclick = () => {
+            if (clearNewNote) clearNewNote();
             if (isToday) closeHistory();
             else if (isInteractive) openHistory(sl, ds);
         };
@@ -29815,7 +29810,26 @@ const BestGymController = {
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
-        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow], 220);
+        // Puts a new-sticker post-it on last week's latest sticker day (or the most recent earlier one
+        // if last week has none). Clearing it only drops the override; the sticker's real state is untouched.
+        const placeNewNote = withStack => {
+            const today = Formatter.dateLogical();
+            const thisWeek = getWeekKey(today);
+            const lastWeek = getWeekKey(Formatter.dateISO(...(d => [d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()])(new Date(Formatter.parse(today).getTime() - 7 * 86400000))));
+            const days = [...DataController.getStickerMap().keys()].filter(d => getWeekKey(d) < thisWeek).sort();
+            const target = days.filter(d => getWeekKey(d) === lastWeek).pop() || days.pop();
+            if (!target) { Log.info('[dev] No sticker days before this week to put a post-it on'); return; }
+            runtime._devNewNoteDate = target;
+            runtime._devPostItStackDate = withStack ? target : null;
+            Log.info(`[dev] New sticker post-it${withStack ? ' over a 3-note stack' : ''} on ${target}${getWeekKey(target) === lastWeek ? '' : ' (last week has no sticker)'}`);
+            if (dom.panel) renderPanelContent();
+        };
+        const newNoteRow = buildRow([
+            buildDevButton('New Sticker Post-it', () => placeNewNote(false), tierBtn),
+            buildDevButton('+ 3-Note Stack', () => placeNewNote(true), tierBtn)
+        ]);
+
+        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow, newNoteRow], 220);
     }
 
     // ─── Rank Preview section ───────────────────────────────────────────────

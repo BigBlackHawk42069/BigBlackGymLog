@@ -245,7 +245,26 @@
             if (levelInput.value !== String(p.level)) levelInput.value = p.level;
         });
 
-        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow], 220);
+        // Puts a new-sticker post-it on last week's latest sticker day (or the most recent earlier one
+        // if last week has none). Clearing it only drops the override; the sticker's real state is untouched.
+        const placeNewNote = withStack => {
+            const today = Formatter.dateLogical();
+            const thisWeek = getWeekKey(today);
+            const lastWeek = getWeekKey(Formatter.dateISO(...(d => [d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()])(new Date(Formatter.parse(today).getTime() - 7 * 86400000))));
+            const days = [...DataController.getStickerMap().keys()].filter(d => getWeekKey(d) < thisWeek).sort();
+            const target = days.filter(d => getWeekKey(d) === lastWeek).pop() || days.pop();
+            if (!target) { Log.info('[dev] No sticker days before this week to put a post-it on'); return; }
+            runtime._devNewNoteDate = target;
+            runtime._devPostItStackDate = withStack ? target : null;
+            Log.info(`[dev] New sticker post-it${withStack ? ' over a 3-note stack' : ''} on ${target}${getWeekKey(target) === lastWeek ? '' : ' (last week has no sticker)'}`);
+            if (dom.panel) renderPanelContent();
+        };
+        const newNoteRow = buildRow([
+            buildDevButton('New Sticker Post-it', () => placeNewNote(false), tierBtn),
+            buildDevButton('+ 3-Note Stack', () => placeNewNote(true), tierBtn)
+        ]);
+
+        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow, newNoteRow], 220);
     }
 
     // ─── Rank Preview section ───────────────────────────────────────────────

@@ -4937,12 +4937,16 @@
                     /* Sticker awarded that day (cleared or not): the whole stack peels together. Staggered so the
                        topmost note (the one covering everything) leaves with zero delay the
                        moment you hover, while notes further down follow in sequence behind it. */
-                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty).is-hover-intent .bbgl-event-post-it,
-                    .bbgl-day-cell.has-sticker.is-scrub-hovered .bbgl-event-post-it,
-                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it {
+                    body:not(.is-touch-device) .bbgl-day-cell.has-sticker:not(.empty):not(.has-new-note).is-hover-intent .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker:not(.has-new-note).is-scrub-hovered .bbgl-event-post-it,
+                    .bbgl-day-cell.has-sticker.is-viewing .bbgl-event-post-it,
+                    .bbgl-event-post-it.bbgl-new-sticker-note.is-cleared {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
-                        transition-delay: calc(((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.15s);
+                        /* Each note waits for the one above it to leave (.25s) and then holds a moment
+                           so it can be read. --pi-clear-offset is one step while a new-sticker note is
+                           leaving first (renderCell). */
+                        transition-delay: calc(var(--pi-clear-offset, 0s) + ((var(--stack-total, 1) - 1) - var(--ei, 0)) * 0.4s);
                     }
 
                     /* No sticker awarded that day: only the note actually blocking the stack (marked
@@ -5233,26 +5237,6 @@
                         object-fit: contain;
                         filter: brightness(.9) sepia(.2) contrast(1.1);
                         transition: transform .2s;
-                    }
-
-                    .new-sticker-post-it {
-                        position: absolute;
-                        top: calc(4% - var(--bbgl-cell-lift));
-                        left: 4%;
-                        width: 92%;
-                        height: 92%;
-                        background: url('${ASSETS.NEW_STICKER_FRAME}') no-repeat center / contain;
-                        z-index: 20;
-                        filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
-                        transform-origin: top right;
-                        transition: transform .6s cubic-bezier(.5, 0, 1, 1);
-                        cursor: pointer;
-                        transform: rotate(-5deg);
-                    }
-
-                    .post-it-rip {
-                        transform: translateX(250%) translateY(-80%) rotate(75deg) scale(1.3) !important;
-                        pointer-events: none;
                     }
 
                     /* Same inner-band technique as the jewel shines: the gradient (set inline per tier by

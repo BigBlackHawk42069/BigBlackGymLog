@@ -464,7 +464,9 @@
         _titlePick: null,
         _devTitleOverride: null,
         _devBookOverride: null,
-        _devDocsBase: null
+        _devDocsBase: null,
+        _devNewNoteDate: null,
+        _devPostItStackDate: null
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
