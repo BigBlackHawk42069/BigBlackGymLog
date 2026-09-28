@@ -15,6 +15,9 @@
     const ACTIVE_BG = '#6a1b9a';
     const POS_KEY = 'bbgl_dev_widget_pos';
 
+    // Set at load rather than in initDevTools(), so it's in place before any doc can be fetched.
+    runtime._devDocsBase = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/DevBranch/UserDocs/';
+
     let widgetEl = null;
     let toggleBtn = null;
     let refreshTimer = null;

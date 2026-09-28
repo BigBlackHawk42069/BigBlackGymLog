@@ -3486,13 +3486,18 @@
                         left: 0;
                         width: 100%;
                         height: 100%;
-                        background-image: url('${ASSETS.STICKER_BG}');
                         background-size: cover;
                         background-position: center;
                         z-index: 5;
                         opacity: 0;
                         transition: opacity .3s;
                         pointer-events: none;
+                    }
+
+                    /* opacity: 0 doesn't stop a background downloading and decoding, so the image
+                       is attached on the first visit to the sticker book (switchView()) and kept. */
+                    #bbgl-sticker-bg.bbgl-bg-loaded {
+                        background-image: url('${ASSETS.STICKER_BG}');
                     }
 
                     .viewing-stickers #bbgl-sticker-bg {

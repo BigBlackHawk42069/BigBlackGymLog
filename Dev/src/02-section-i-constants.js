@@ -69,13 +69,21 @@
     // Rewrites a raw.githubusercontent.com URL to the jsDelivr CDN equivalent — raw.github
     // sets weak cache headers and throttles hotlinking, jsDelivr is a real edge CDN and free
     // for public repos.
+    // A repo listed in CDN_PINS is served at that commit instead of its branch. jsDelivr caches a
+    // commit URL as immutable for a year, where a branch URL is re-resolved every 12h and
+    // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
+    // bumping its hash here, or the script keeps serving the old commit.
+    const CDN_PINS = {
+        'BigBlackHawk42069/asdfaskijdnfawef': 'ee480c233c62d1470ed538b1b0877900c670eafc'
+    };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
-        'https://cdn.jsdelivr.net/gh/$1/$2@$3/'
+        (m, owner, repo, ref) => `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${CDN_PINS[owner + '/' + repo] || ref}/`
     );
-    // TEMP (dev iteration): bypassing cdnize so doc edits show up immediately with no jsDelivr purge step.
-    // Re-wrap in cdnize(...) before this ships for real.
-    const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/DevBranch/UserDocs/';
+    // Docs stay on raw GitHub rather than jsDelivr: a branch URL there can serve a stale changelog
+    // for up to 12h after a release, and each doc is fetched at most once per page session.
+    // The dev build points this at DevBranch through runtime._devDocsBase.
+    const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/main/UserDocs/';
     const CONSTANTS = {
         MONTHS: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
         MONTHS_SHORT: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
@@ -395,7 +403,12 @@
             url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbHNscy1zY2stZHkud2VicA==')
         }
     ];
-    CUSTOM_STICKERS.forEach(s => { s.url = cdnize(s.url); });
+    // thumbUrl is a 192px copy under Calendar/Stickers/, for the calendar cells and the sticker book
+    // grid; url stays full size for the sticker viewer.
+    CUSTOM_STICKERS.forEach(s => {
+        s.url = cdnize(s.url);
+        s.thumbUrl = s.url.replace('/ScrptImgs/Stickerbook/', '/ScrptImgs/Calendar/Stickers/');
+    });
     let runtime = {
         isClosing: false,
         isViewAnimating: false,
@@ -450,7 +463,8 @@
         // been clicked, null otherwise. See handleTitleStarPick() in 07-section-vi-ui.js.
         _titlePick: null,
         _devTitleOverride: null,
-        _devBookOverride: null
+        _devBookOverride: null,
+        _devDocsBase: null
     };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;

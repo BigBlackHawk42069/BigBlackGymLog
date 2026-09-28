@@ -9,9 +9,12 @@
 
 # Builds
 !/BigBlackGymLog.js
+!/BigBlackGymLog.meta.js
 !/Dev/
 !/Dev/BBGLDev.js
+!/Dev/BBGLDev.meta.js
 !/Dev/BBGLRelease.js
+!/Dev/BBGLRelease.meta.js
 
 # Source
 !/Dev/src/

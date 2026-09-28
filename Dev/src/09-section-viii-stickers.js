@@ -130,7 +130,7 @@
                         sl.setAttribute('data-tooltip', TOOLTIPS.LOCKED);
                         sl.onclick = null;
                     }
-                    if (img.src !== it.url) img.src = it.url;
+                    if (img.src !== it.thumbUrl) img.src = it.thumbUrl;
                 } else {
                     sl.className = 'sticker-slot';
                     sl.onclick = null;

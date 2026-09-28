@@ -888,6 +888,7 @@
                 }));
             } else if (tgt === 'stickers') {
                 tp.classList.add('viewing-stickers');
+                if (dom.stickerBg) dom.stickerBg.classList.add('bbgl-bg-loaded');
                 renderStickers();
                 // One-time gold attention glow on the prev arrow, which carries the sponsor page's
                 // gold treatment via .is-sponsor (set in renderStickers()). The CSS rule is scoped

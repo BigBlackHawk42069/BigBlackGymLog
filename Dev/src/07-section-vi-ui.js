@@ -1106,7 +1106,7 @@
                     si = document.createElement('img');
                 sw.className = 'sticker-wrapper' + (sl.meta.tier === 3 ? ' sticker-tier-diamond' : '');
                 sw.style.setProperty('--rot', `${(uid * 17) % 21 - 10}deg`);
-                si.src = item.url;
+                si.src = item.thumbUrl;
                 si.className = 'cell-sticker-deco';
                 sw.appendChild(si);
                 cell.appendChild(sw);
@@ -1117,8 +1117,8 @@
                     if (sw.querySelector('.sticker-shine')) return;
                     const ss = document.createElement('div');
                     ss.className = 'sticker-shine';
-                    ss.style.webkitMaskImage = `url("${item.url}")`;
-                    ss.style.maskImage = `url("${item.url}")`;
+                    ss.style.webkitMaskImage = `url("${item.thumbUrl}")`;
+                    ss.style.maskImage = `url("${item.thumbUrl}")`;
                     let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`;
                     if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;
                     else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`;
@@ -3474,11 +3474,10 @@
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'GET',
-                // Cache-busting query param, tied to the TEMP raw.githubusercontent.com bypass in
-                // BASE_DOCS_URL (see 02-section-i-constants.js) — raw.githubusercontent.com sits
-                // behind its own short-lived CDN cache too, so without this a push can take a few
-                // minutes to actually show up. Drop this once BASE_DOCS_URL is re-wrapped in cdnize(...).
-                url: BASE_DOCS_URL + name + '.html?_=' + Date.now(),
+                // Dev builds cache-bust so a docs push shows up without waiting out raw GitHub's 5-minute cache.
+                url: runtime._devDocsBase
+                    ? runtime._devDocsBase + name + '.html?_=' + Date.now()
+                    : BASE_DOCS_URL + name + '.html',
                 onload(res) {
                     if (res.status >= 200 && res.status < 300) {
                         docCache[name] = res.responseText;
