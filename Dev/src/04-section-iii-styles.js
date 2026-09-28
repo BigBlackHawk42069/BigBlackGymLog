@@ -40,6 +40,7 @@
         // --bbgl-t-star (see .bbgl-title-star-fill below).
         TITLE_CROWN: `<svg viewBox="47 5 307 217" fill="none"><path d="M193.132 22.044 C 181.137 27.985,178.771 45.621,188.766 54.592 C 192.860 58.266,192.797 58.939,187.236 70.810 C 160.809 127.227,139.426 132.713,96.187 94.170 C 89.016 87.778,88.968 87.704,90.098 84.744 C 95.207 71.365,76.527 57.225,64.916 65.683 C 54.502 73.267,60.796 91.707,74.374 93.393 C 86.535 126.777,87.611 127.407,88.243 129.069 C 89.543 132.488,100.349 172.625,104.966 191.182 C 107.267 200.432,109.322 208.494,109.532 209.099 C 109.800 209.869,111.627 209.423,115.639 207.608 C 154.845 189.875,247.090 189.878,286.205 207.613 C 293.432 210.890,291.721 213.896,299.107 184.950 C 311.947 134.626,314.454 126.636,317.401 126.636 C 336.733 93.636,345.351 79.275,340.775 70.347 C 332.390 53.985,304.856 68.675,311.874 85.767 C 314.350 91.794,276.778 117.463,263.445 118.855 C 245.763 120.700,228.905 103.733,213.296 68.380 L 208.768 58.124 212.234 55.097 C 228.702 40.716,212.398 12.503,193.132 22.044 Z" /></svg>`,
         CLOSE: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+        DOUBLE_CHEVRON: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 6l6 6-6 6M13 6l6 6-6 6"/></svg>`,
         // Titles page — reverts a hand-picked title to the auto-follow pair. Only rendered while a
         // custom pick is actually active, so it doubles as the indicator that one exists.
         REFRESH: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 0-.6 4"/><path d="M20 4v7h-7"/></svg>`,
@@ -1369,7 +1370,9 @@
                         border-radius: 5px;
                         box-shadow: none;
                         filter: drop-shadow(0 0 1px rgba(0, 0, 0, .5));
-                        z-index: 1000000;
+                        /* One over the open level card (.bbgl-level-card-tip), which is added to the
+                           body later and would otherwise cover its buttons' tooltips. */
+                        z-index: 1000001;
                         pointer-events: none;
                         /* Own compositor layer: without it every show/move/hide as the mouse crosses the
                            grid also repainted the panel content under the tooltip's box (scaled
@@ -1457,7 +1460,7 @@
                         --bbgl-t-wire-h: 8px;
                         --bbgl-t-wire-lift: 4px;
                         width: 268px;
-                        padding: 37px 8px 8px;
+                        padding: 46px 8px 8px;
                         border: 1px solid rgba(145, 115, 176, .32);
                         border-radius: 6px;
                         background:
@@ -1465,6 +1468,39 @@
                             linear-gradient(180deg, #202126, #111216);
                         box-shadow: 0 3px 10px rgba(0, 0, 0, .65), inset 0 1px 0 rgba(255, 255, 255, .08);
                         box-sizing: border-box;
+                    }
+
+                    /* The open level card's top-right corner: the full ranks page, then close. */
+                    .bbgl-level-card-btns {
+                        position: absolute;
+                        top: 4px;
+                        right: 4px;
+                        z-index: 1;
+                        display: flex;
+                        gap: 3px;
+                    }
+                    /* Both sit as an unlit tube and light up in the name's neon purple on hover. */
+                    .bbgl-level-card-btn {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        width: 16px;
+                        height: 16px;
+                        padding: 0;
+                        border: none;
+                        background: none;
+                        color: #8f7aa8;
+                        cursor: pointer;
+                        transition: color .15s ease, filter .15s ease;
+                    }
+                    .bbgl-level-card-btn svg {
+                        display: block;
+                        width: 12px;
+                        height: 12px;
+                    }
+                    .bbgl-level-card-btn:hover {
+                        color: #e4c9ff;
+                        filter: drop-shadow(0 0 1.5px #a855f7) drop-shadow(0 0 4px #a855f7);
                     }
 
                     .bbgl-tooltip-rank-progress {
@@ -1559,9 +1595,11 @@
                         color: color-mix(in srgb, var(--bbgl-t-win-color) 45%, #eee9f2);
                     }
 
+                    /* Starts below the corner buttons' row (.bbgl-level-card-btns), so it keeps the
+                       card's full width. */
                     .bbgl-level-title-tooltip .bbgl-tooltip-player-name {
                         position: absolute;
-                        top: 5px;
+                        top: 14px;
                         left: 2px;
                         right: 2px;
                         width: auto;

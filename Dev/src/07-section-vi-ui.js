@@ -2317,6 +2317,14 @@
         switchView('achievements');
     }
 
+    // Page mode is its own page load, so the view and page are saved first for its boot to restore.
+    function openRanksPageMode() {
+        viewState.subView = 'achievements';
+        viewState.achPage = 0;
+        saveViewState();
+        window.location.href = '/calendar.php#gymlog';
+    }
+
     // A card shown on both bars is one notification, so dismissing either dismisses its twin.
     function dismissRewardGroup(group) {
         document.querySelectorAll(`.bbgl-toast[data-toast-group="${group}"]`).forEach(dismissRewardToast);
@@ -3925,13 +3933,34 @@
         levelCard.clip.appendChild(levelCard.shell);
         levelCard.tip = document.createElement('div');
         levelCard.tip.className = 'bbgl-level-card-tip';
+        levelCard.tip.addEventListener('click', e => {
+            const btn = e.target.closest('.bbgl-level-card-btn');
+            if (!btn) return;
+            TooltipController.hide();
+            if (btn.classList.contains('bbgl-level-card-view')) {
+                const fromGym = levelCard.bar && levelCard.bar.id === 'bbgl-gym-level-container';
+                const panel = document.getElementById('bbgl-panel');
+                const panelOpen = !!(panel && panel.style.display && panel.style.display !== 'none');
+                closeLevelCard(true);
+                if (fromGym && !panelOpen) openRanksPageMode();
+                else openRanksPage();
+            } else {
+                levelCard.pinned = false;
+                setLevelCardWant(null);
+            }
+        });
         document.body.append(levelCard.clip, levelCard.tip);
     }
+
+    const LEVEL_CARD_BTNS = `<div class="bbgl-level-card-btns">` +
+        `<button type="button" class="bbgl-level-card-btn bbgl-level-card-view" data-tooltip="View full page" aria-label="View full page">${ICONS.DOUBLE_CHEVRON}</button>` +
+        `<button type="button" class="bbgl-level-card-btn bbgl-level-card-close" data-tooltip="Close" aria-label="Close">${ICONS.CLOSE}</button></div>`;
 
     function fillLevelCardTip() {
         const args = levelCard.bar && levelCard.bar._levelTip;
         if (!args) return;
         levelCard.tip.innerHTML = achLevelBarTooltipHTML(...args);
+        levelCard.tip.firstElementChild.insertAdjacentHTML('beforeend', LEVEL_CARD_BTNS);
         markTitleWrappedWords(levelCard.tip);
     }
 
@@ -4093,11 +4122,12 @@
         syncLevelCard();
     }
 
-    // An open card drops on a press anywhere, the card itself included. The valve's own press is
-    // left to the click handler below, which closes it.
+    // An open card drops on a press anywhere, the card itself included. Its corner buttons and the
+    // valve are left to their own click handlers: dropping on the press would stop the tooltip taking
+    // the pointer before the click lands.
     function levelCardOutside(e) {
         if (!levelCard.pinned) return;
-        if (e.target.closest && e.target.closest('.bbgl-exp-hit')) return;
+        if (e.target.closest && e.target.closest('.bbgl-exp-hit, .bbgl-level-card-btn')) return;
         levelCard.pinned = false;
         setLevelCardWant(null);
     }
