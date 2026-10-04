@@ -1,4 +1,4 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name         Big Black Gym Log Teste
 // @namespace    http://tampermonkey.net/
 // @version      0.9.93
@@ -9,6 +9,6 @@
 // @connect      raw.githubusercontent.com
 // @connect      cdn.jsdelivr.net
 // @run-at       document-start
-// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/DevBranch/Dev/BBGLDev.meta.js
-// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/DevBranch/Dev/BBGLDev.js
+// @updateURL    https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/main/BigBlackGymLog.meta.js
+// @downloadURL  https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/main/BigBlackGymLog.js
 // ==/UserScript==
