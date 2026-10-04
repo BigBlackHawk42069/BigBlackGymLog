@@ -1,4 +1,38 @@
 <div style="display:flex; flex-direction:column; align-items:center; width:100%; margin-bottom:12px;">
+  <h2 style="margin:0; font-family:'Barlow Condensed',sans-serif; font-size:22px; color:#fff; letter-spacing:0.5px; text-align:center;">Big Black Gym Log <span style="background:#4a1070; color:#fff; padding:2px 6px; border-radius:4px; font-size:13px; vertical-align:middle; margin-left:6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">v0.9.93</span></h2>
+  <div style="font-size:11px; color:#888; margin-top:4px; font-style:italic; text-align:center;">Released: October 4, 2026</div>
+</div>
+
+<hr style="border:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,0.3),transparent); margin:16px 0;">
+
+<div style="font-weight:700; color:#fff; font-size:13px; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">NEW FEATURES</div>
+<div style="margin-bottom:20px;">
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span><strong>Library</strong>: Added a Library page that tracks every book you read. Training books show the gains they actually gave you, other books are checked off as you finish them, and your reading now shows up on the calendar as post-its. <strong>Custom API keys need the Books log category added in Torn's API settings, or syncing will fail.</strong></span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span><strong>Custom Notes</strong>: Pin your own post-it notes to any day of the calendar.</span></div>
+</div>
+
+<div style="font-weight:700; color:#fff; font-size:13px; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">IMPROVEMENTS</div>
+<div style="margin-bottom:20px;">
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Gave the calendar a full visual overhaul with new grid art, new post-it art, seasonal header banners, a redesigned weekly bar with glass tubes and metal brackets, neater post-it stacks, and easier-to-read day numbers.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Overhauled the EXP bar with a gunmetal finish, smoked glass, and a new crown for each atrophy tier. It now celebrates every level-up, opens a card with your rank, title, and progress when you click the crown, and pops up for new ranks, title words, atrophy tiers, and Fully Bricked, each with a button straight to your titles page.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Refined the titles page layout and rank plaques. Your title plaque now upgrades as you unlock more titles, and rank names on the scale are easier to hover and tap.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Greatly improved performance. The titles page uses far less CPU/GPU, the calendar, tooltips, and month changes are lighter, the panel snaps between sizes instantly, and images are around 45% smaller.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Added several quality-of-life touches: hover effects wait a moment before starting so sweeping across the calendar stays calm, page mode keeps its header in view while scrolling <span style="color:#666; font-style:italic;">(Suggested by Svegarn)</span>, the stickerbook has a bigger grid, swiping back now suppresses Torn's Fly-Out Sidebar on the first swipe, and copied ledger and achievements text is cleaner.</span></div>
+</div>
+
+<div style="font-weight:700; color:#fff; font-size:13px; letter-spacing:0.8px; text-transform:uppercase; margin-bottom:6px;">BUG FIXES</div>
+<div style="margin-bottom:20px;">
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Fixed war history from past factions never loading during Backfill. <strong>Existing API keys need the Faction log category added in Torn's API settings.</strong></span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Fixed the calendar reopening on the last month viewed instead of today. <span style="color:#666; font-style:italic;">(Found by Fishman)</span></span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Fixed several mobile issues: the grey tap flash, the off-center expanded panel, and near-misses on the expand button closing the panel.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Fixed several visual glitches: the blank Ecstasy OD post-it, the selected day's number shrinking in the expanded panel, and a misaligned Best Happy Jump row that showed duplicate totals for single-stat jumps.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Fixed the stickerbook briefly flashing the calendar on open.</span></div>
+  <div style="display:flex; align-items:flex-start; margin-bottom:7px;"><span style="flex-shrink:0; width:2px; height:22px; background:rgba(160,100,255,0.45); border-radius:1px; margin-right:8px; margin-top:3px;"></span><span>Addressed the graph occasionally going blank when switching to Rates.</span></div>
+</div>
+
+<div style="width:100%; height:1px; background:rgba(255,255,255,0.1); margin:32px 0 24px 0;"></div>
+
+<div style="display:flex; flex-direction:column; align-items:center; width:100%; margin-bottom:12px;">
   <h2 style="margin:0; font-family:'Barlow Condensed',sans-serif; font-size:22px; color:#fff; letter-spacing:0.5px; text-align:center;">Big Black Gym Log <span style="background:#4a1070; color:#fff; padding:2px 6px; border-radius:4px; font-size:13px; vertical-align:middle; margin-left:6px; box-shadow:inset 0 1px 0 rgba(255,255,255,0.2);">v0.9.92</span></h2>
   <div style="font-size:11px; color:#888; margin-top:4px; font-style:italic; text-align:center;">Released: September 11, 2026</div>
 </div>
