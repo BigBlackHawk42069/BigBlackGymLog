@@ -139,10 +139,6 @@ const DataController = {
         const notes = this._noteStore(false);
         return notes && Object.prototype.hasOwnProperty.call(notes, ds) ? notes[ds] : null;
     },
-    hasCustomNotes() {
-        const notes = this._noteStore(false);
-        return !!notes && Object.keys(notes).length > 0;
-    },
     setCustomNote(ds, text) {
         const notes = this._noteStore(true);
         if (!notes) return false;

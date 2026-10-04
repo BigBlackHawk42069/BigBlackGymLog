@@ -985,9 +985,9 @@
     // can move it anywhere. The clear button engages a mode where clicking a day with a note
     // removes it. One note per day; saving onto a day that has one replaces it.
     // NOTE_MAX_CHARS is only a backstop: the editor also refuses text that overflows the paper.
-    const NOTE_MAX_CHARS = 48;
+    const NOTE_MAX_CHARS = 35;
 
-    function buildNotePaper(cls, text) {
+    function buildNotePaper(cls, text, fit = false) {
         const p = document.createElement('div'),
             t = document.createElement('div'),
             s = document.createElement('span');
@@ -996,11 +996,70 @@
         s.textContent = text;
         t.appendChild(s);
         p.appendChild(t);
+        if (fit) applyNoteFit(s);
         return p;
     }
 
+    // A note's lettering is as large as the paper allows: the biggest size at which it fits without
+    // breaking a word, so it only shrinks as the note fills up. Below NOTE_FS_MIN words may break
+    // and anything that still overflows doesn't fit. Sizes are in the paper's container units, so
+    // one measurement on a hidden reference paper serves every paper size; it's cached per text.
+    const NOTE_FS_MIN = 18,
+        NOTE_FS_MAX = 60;
+    const noteFitCache = new Map();
+    let noteMeasurePaper = null;
+
+    function noteFit(text) {
+        const cached = noteFitCache.get(text);
+        if (cached) return cached;
+        if (!noteMeasurePaper || !noteMeasurePaper.isConnected) {
+            noteMeasurePaper = buildNotePaper('bbgl-note-measure', '');
+            document.body.appendChild(noteMeasurePaper);
+        }
+        const box = noteMeasurePaper.firstChild,
+            span = box.firstChild;
+        span.textContent = text;
+        const fitsAt = (fs, anywhere) => {
+            span.style.fontSize = fs + 'cqw';
+            span.style.overflowWrap = anywhere ? 'anywhere' : 'normal';
+            return span.scrollWidth <= box.clientWidth + .5 && span.offsetHeight <= box.clientHeight + .5;
+        };
+        let fit;
+        if (fitsAt(NOTE_FS_MIN, false)) {
+            let lo = NOTE_FS_MIN,
+                hi = NOTE_FS_MAX;
+            if (fitsAt(hi, false)) lo = hi;
+            else for (let i = 0; i < 8; i++) {
+                const mid = (lo + hi) / 2;
+                if (fitsAt(mid, false)) lo = mid;
+                else hi = mid;
+            }
+            fit = { size: Math.floor(lo * 10) / 10, anywhere: false, fits: true };
+        } else fit = { size: NOTE_FS_MIN, anywhere: true, fits: fitsAt(NOTE_FS_MIN, true) };
+        noteFitCache.set(text, fit);
+        return fit;
+    }
+
+    function applyNoteFit(span) {
+        const fit = noteFit(span.textContent);
+        span.style.fontSize = fit.size + 'cqw';
+        span.style.overflowWrap = fit.anywhere ? 'anywhere' : 'normal';
+        return fit;
+    }
+
+    // Measurements taken before Patrick Hand arrived used a fallback face; redo them with it.
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => {
+        if (!noteFitCache.size) return;
+        noteFitCache.clear();
+        document.querySelectorAll('.bbgl-custom-note .bbgl-note-text > span, .bbgl-note-editor-preview .bbgl-note-text > span').forEach(applyNoteFit);
+    });
+
     function buildNoteToolsHTML() {
         return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear Note</div></div>`;
+    }
+
+    function monthHasNotes() {
+        return !!(dom.calContainer && dom.calContainer.querySelector('.has-custom-note'));
     }
 
     function syncNoteTools() {
@@ -1009,7 +1068,8 @@
         if (dom.panel) dom.panel.classList.toggle('bbgl-note-clearing', clearing);
         if (cb) {
             cb.classList.toggle('is-engaged', clearing);
-            cb.classList.toggle('is-empty', !clearing && !DataController.hasCustomNotes());
+            // Faded when no day on the month shown (spill-over days included) carries a note.
+            cb.classList.toggle('is-empty', !clearing && !monthHasNotes());
         }
     }
 
@@ -1077,7 +1137,7 @@
         };
         // The preview is the calendar note scaled up, so text that overflows it would overflow the
         // day cell too. Anything that doesn't fit is rolled back to the last text that did.
-        const fits = () => span.offsetHeight <= box.clientHeight + .5;
+        const fits = () => applyNoteFit(span).fits;
         const refresh = () => {
             span.textContent = input.value;
             if (fits()) {
@@ -1087,6 +1147,7 @@
                 const caret = Math.min(input.selectionStart, good.length);
                 input.value = good;
                 span.textContent = good;
+                applyNoteFit(span);
                 input.setSelectionRange(caret, caret);
                 isFull = true;
             }
@@ -1239,7 +1300,7 @@
             if (note) note.remove();
             cell.classList.remove('has-custom-note', 'is-note-held');
             cell.style.removeProperty('--pi-clear-offset');
-            if (!DataController.hasCustomNotes()) setNoteMode(null);
+            if (!monthHasNotes()) setNoteMode(null);
         }, true);
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && runtime._noteMode && !document.getElementById('bbgl-note-editor')) setNoteMode(null);
@@ -1341,9 +1402,13 @@
             hasCustomNote = noteText != null;
         // Sits under a new-sticker note but over everything else, so it leaves first and the event
         // stack waits one step (--pi-clear-offset) behind it.
-        const appendCustomNote = () => {
+        // stackSlot: with exactly one event post-it the note takes the second slot of a two-post-it
+        // stack; otherwise it sits centred in the lone post-it spot.
+        const appendCustomNote = (stackSlot = null) => {
             if (!hasCustomNote) return;
-            cell.appendChild(buildNotePaper('bbgl-custom-note', noteText));
+            const note = buildNotePaper('bbgl-custom-note', noteText, true);
+            if (stackSlot != null) note.style.top = `calc(var(--pi-base) + ${stackSlot} * var(--pi-step))`;
+            cell.appendChild(note);
             cell.classList.add('has-custom-note');
             cell.style.setProperty('--pi-clear-offset', '0.4s');
             if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held');
@@ -1369,9 +1434,13 @@
                     if (!eventImgs.includes(CAL_IMG_BASE + f)) eventImgs.push(CAL_IMG_BASE + f);
                 });
             }
+            // A custom note counts as a slot in the stack, so the event post-its spread as if it were
+            // one of them. With one event post-it it takes the second slot itself; with more it
+            // stays centred over them.
             const nEvents = eventImgs.length,
-                piStep = nEvents > 1 ? (POST_IT_FLOOR - POST_IT_CEIL) / (nEvents - 1) : 0,
-                piBase = nEvents > 1 ? POST_IT_CEIL : POST_IT_TOP;
+                nSlots = nEvents + (hasCustomNote && nEvents ? 1 : 0),
+                piStep = nSlots > 1 ? (POST_IT_FLOOR - POST_IT_CEIL) / (nSlots - 1) : 0,
+                piBase = nSlots > 1 ? POST_IT_CEIL : POST_IT_TOP;
             cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%');
             cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%');
             eventImgs.forEach((url, i) => {
@@ -1382,7 +1451,7 @@
                 ep.style.setProperty('--stack-total', eventImgs.length);
                 cell.appendChild(ep);
             });
-            appendCustomNote();
+            appendCustomNote(nEvents === 1 ? 1 : null);
             if (hasNewNote) {
                 // Always sits in the lone-post-it spot, centred over whatever stack is beneath it.
                 const np = document.createElement('div');

@@ -7,6 +7,7 @@
         GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
         STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
         NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
+        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -5103,17 +5104,29 @@
                         container-type: size;
                         position: relative;
                         box-sizing: border-box;
-                        background: #fbfaf4;
-                        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+                        background: url('${ASSETS.CUSTOM_NOTE}') no-repeat center / 100% 100%;
                     }
 
                     .bbgl-custom-note.bbgl-note-paper {
                         position: absolute;
                     }
 
+                    /* Off-screen reference paper that note text is measured on (noteFit()). */
+                    .bbgl-note-paper.bbgl-note-measure {
+                        position: fixed;
+                        left: -10000px;
+                        top: 0;
+                        width: 200px;
+                        height: 200px;
+                        visibility: hidden;
+                        pointer-events: none;
+                        contain: strict;
+                    }
+
+                    /* Inset to the paper itself, which sits 8-98% across and 10-96% down the art. */
                     .bbgl-note-text {
                         position: absolute;
-                        inset: 7%;
+                        inset: 15% 7% 9% 13%;
                         display: flex;
                         align-items: center;
                         justify-content: center;
@@ -5138,14 +5151,14 @@
                     }
 
                     #bbgl-panel.bbgl-note-clearing .bbgl-custom-note {
-                        box-shadow: inset 0 0 0 1px rgba(214, 64, 64, .9);
+                        filter: drop-shadow(0 0 .5px #d64040) drop-shadow(0 0 .5px #d64040) drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
                     }
 
                     #bbgl-panel.bbgl-note-clearing .bbgl-custom-note::after {
                         content: '✕';
                         position: absolute;
-                        top: -1px;
-                        right: 2%;
+                        top: 9%;
+                        right: 5%;
                         font: 700 26cqw/1 Arial, sans-serif;
                         color: #d64040;
                     }
@@ -5193,12 +5206,12 @@
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
+                        --bbgl-note-btn: clamp(33px, calc(33px + 6px * var(--bbgl-dock-t)), 39px);
                         top: 3px;
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
+                        --bbgl-note-btn: clamp(35px, calc(35px + 14px * var(--bbgl-page-t)), 49px);
                         top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
                     }
 
