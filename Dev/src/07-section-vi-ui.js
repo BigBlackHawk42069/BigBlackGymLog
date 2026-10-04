@@ -804,7 +804,7 @@
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.jpg)`);
+                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.webp)`);
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx);

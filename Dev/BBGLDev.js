@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/asdfaskijdnfawef': '9c32edde8611dee6746e6dac94af5e482c6af84b'
+        'BigBlackHawk42069/asdfaskijdnfawef': 'efd4a45dbae452a5434603aeaf8ea08301b22494'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -22349,7 +22349,7 @@ const BestGymController = {
                     isArch = weekEndStr < todayStr;
                 rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : '');
                 rd.style.setProperty('--row-idx', ridx);
-                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.jpg)`);
+                if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.webp)`);
                 let wdb = [];
                 batch.forEach(function tickWeekCell(i, cIdx) {
                     renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx);
