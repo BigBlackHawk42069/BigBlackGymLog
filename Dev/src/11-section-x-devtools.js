@@ -408,7 +408,7 @@
 
         const actionRow = buildRow([
             // The title a player sees before any stat has unlocked a word.
-            buildDevButton('Untitled', () => {
+            buildDevButton('Fresh Meat', () => {
                 runtime._titlePick = null;
                 runtime._devTitleOverride = { placeholder: true, primary: null, secondary: null };
                 refreshTitleUI();

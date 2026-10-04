@@ -1447,7 +1447,7 @@
 
     // Shown only while no stat has unlocked a word. One unlock is enough to replace it outright
     // (that stat fills both slots), so it never has to mix with a real word.
-    const STAT_TITLE_PLACEHOLDER = { adj: 'Untitled', noun: 'Man' };
+    const STAT_TITLE_PLACEHOLDER = { adj: 'Fresh', noun: 'Meat' };
 
     // One evolving noun+adjective ladder per stat, indexed by phase (0-9).
     const STAT_TITLE_WORDS = {
@@ -31208,7 +31208,7 @@ const BestGymController = {
 
         const actionRow = buildRow([
             // The title a player sees before any stat has unlocked a word.
-            buildDevButton('Untitled', () => {
+            buildDevButton('Fresh Meat', () => {
                 runtime._titlePick = null;
                 runtime._devTitleOverride = { placeholder: true, primary: null, secondary: null };
                 refreshTitleUI();
