@@ -501,5 +501,40 @@
             style.id = 'bbgl-plaque-art';
             (document.head || document.documentElement).appendChild(style);
         }
-        style.textContent += plaqueArtCSS(stage);
+        const css = plaqueArtCSS(stage);
+        style.textContent += css;
+        bakePlaqueArt(stage, css);
+    }
+    // Chrome re-rasterizes an SVG background, filters and all, whenever anything sharing its tile
+    // repaints, which made any animation on the titles page expensive. So once the card is laid out,
+    // each step's art is drawn to a canvas at the ::before's device-pixel size and swapped in as a
+    // bitmap. The SVG shows until then, and stays if the card never gets a size.
+    function bakePlaqueArt(stage, css, attempts = 30) {
+        const face = document.querySelector(`.bbgl-title-card.is-progressive[data-sign-stage="${stage}"] .bbgl-title-card-sign-face`);
+        const box = face && getComputedStyle(face, '::before');
+        const w = box ? parseFloat(box.width) : 0, h = box ? parseFloat(box.height) : 0;
+        if (!(w > 0 && h > 0)) {
+            if (attempts > 0) requestAnimationFrame(() => bakePlaqueArt(stage, css, attempts - 1));
+            return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        const cw = Math.ceil(w * dpr), ch = Math.ceil(h * dpr);
+        const urls = [...new Set(css.match(/url\("data:image\/svg\+xml,[^"]*"\)/g) || [])];
+        Promise.all(urls.map(u => {
+            const img = new Image();
+            img.src = u.slice(5, -2);
+            return img.decode().then(() => {
+                const c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+                return [u, `url("${c.toDataURL()}")`];
+            });
+        })).then(pairs => {
+            const style = document.getElementById('bbgl-plaque-art');
+            if (!style) return;
+            let baked = css;
+            for (const [from, to] of pairs) baked = baked.split(from).join(to);
+            style.textContent = style.textContent.replace(css, () => baked);
+        }).catch(() => {});
     }

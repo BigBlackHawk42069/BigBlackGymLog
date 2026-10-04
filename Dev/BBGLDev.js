@@ -529,6 +529,10 @@
         // Half-finished stat-title pick on the titles page: {stat, phase} once the first word has
         // been clicked, null otherwise. See handleTitleStarPick() in 07-section-vi-ui.js.
         _titlePick: null,
+        // Custom notes: whether clearing mode is engaged ('clear' or null), and the day whose
+        // note was just written, which stays put until that cell is next left or clicked.
+        _noteMode: null,
+        _heldNoteDate: null,
         _devTitleOverride: null,
         _devBookOverride: null,
         _devDocsBase: null,
@@ -2262,7 +2266,42 @@
             style.id = 'bbgl-plaque-art';
             (document.head || document.documentElement).appendChild(style);
         }
-        style.textContent += plaqueArtCSS(stage);
+        const css = plaqueArtCSS(stage);
+        style.textContent += css;
+        bakePlaqueArt(stage, css);
+    }
+    // Chrome re-rasterizes an SVG background, filters and all, whenever anything sharing its tile
+    // repaints, which made any animation on the titles page expensive. So once the card is laid out,
+    // each step's art is drawn to a canvas at the ::before's device-pixel size and swapped in as a
+    // bitmap. The SVG shows until then, and stays if the card never gets a size.
+    function bakePlaqueArt(stage, css, attempts = 30) {
+        const face = document.querySelector(`.bbgl-title-card.is-progressive[data-sign-stage="${stage}"] .bbgl-title-card-sign-face`);
+        const box = face && getComputedStyle(face, '::before');
+        const w = box ? parseFloat(box.width) : 0, h = box ? parseFloat(box.height) : 0;
+        if (!(w > 0 && h > 0)) {
+            if (attempts > 0) requestAnimationFrame(() => bakePlaqueArt(stage, css, attempts - 1));
+            return;
+        }
+        const dpr = window.devicePixelRatio || 1;
+        const cw = Math.ceil(w * dpr), ch = Math.ceil(h * dpr);
+        const urls = [...new Set(css.match(/url\("data:image\/svg\+xml,[^"]*"\)/g) || [])];
+        Promise.all(urls.map(u => {
+            const img = new Image();
+            img.src = u.slice(5, -2);
+            return img.decode().then(() => {
+                const c = document.createElement('canvas');
+                c.width = cw;
+                c.height = ch;
+                c.getContext('2d').drawImage(img, 0, 0, cw, ch);
+                return [u, `url("${c.toDataURL()}")`];
+            });
+        })).then(pairs => {
+            const style = document.getElementById('bbgl-plaque-art');
+            if (!style) return;
+            let baked = css;
+            for (const [from, to] of pairs) baked = baked.split(from).join(to);
+            style.textContent = style.textContent.replace(css, () => baked);
+        }).catch(() => {});
     }
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
@@ -2382,6 +2421,48 @@
                         background-blend-mode: screen, screen, soft-light, normal, normal;
                         box-shadow: none;`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
+    // Paint-bound loops (background-position sheens, SVG glints) repaint on every display refresh,
+    // and Chrome re-rasterizes whatever shares their tile each time; even a transform-only loop makes
+    // the compositor redraw the whole page each refresh. These keyframes hold each value
+    // for one 30fps tick with the original easing baked into the stops (run them with step-end), so a
+    // slow drift looks the same but repaints 30 times a second. Chrome skips frames whose value didn't
+    // change, so the held stops cost nothing.
+    const SHEEN_FPS = 30;
+    const cubicBezier = (x1, y1, x2, y2) => {
+        const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+        const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+        const x = u => ((ax * u + bx) * u + cx) * u;
+        const y = u => ((ay * u + by) * u + cy) * u;
+        return t => {
+            let lo = 0, hi = 1, u = t;
+            for (let i = 0; i < 40 && Math.abs(x(u) - t) > 1e-6; i++) {
+                if (x(u) < t) lo = u; else hi = u;
+                u = (lo + hi) / 2;
+            }
+            return y(u);
+        };
+    };
+    const EASE_IN_OUT = cubicBezier(.42, 0, .58, 1);
+    const LINEAR = t => t;
+    // stops: [[offset 0-1, [numbers]], ...]; ease applies per segment, as a CSS timing function does.
+    function steppedKeyframes(name, seconds, stops, ease, decl) {
+        const n = Math.max(2, Math.round(seconds * SHEEN_FPS));
+        // Every tick, plus the authored stops themselves so peaks land exactly.
+        const times = [...new Set([...Array(n + 1).keys()].map(i => i / n).concat(stops.map(st => st[0])))].sort((x, y) => x - y);
+        let out = `@keyframes ${name} {\n`, prev = null;
+        for (const t of times) {
+            let k = 0;
+            while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+            const [t0, a] = stops[k], [t1, b] = stops[k + 1];
+            const p = t1 > t0 ? ease(Math.min(1, (t - t0) / (t1 - t0))) : 1;
+            const body = decl(a.map((v, j) => +(v + (b[j] - v) * p).toFixed(4)));
+            if (body === prev && t < 1) continue;
+            out += `${+(t * 100).toFixed(4)}% { ${body} }\n`;
+            prev = body;
+        }
+        return out + '}';
+    }
+
     const CSS_STYLES = `
 
 
@@ -3956,14 +4037,11 @@
                         color: transparent;
                         text-shadow: none;
                         filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
-                        animation: bbgl-title-iridescent 3s linear infinite;
+                        animation: bbgl-title-iridescent 3s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-title-iridescent {
-                        0% { background-position: 0% 50%; }
-                        100% { background-position: 400% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-title-iridescent', 3, [[0, [0]], [1, [400]]], LINEAR, v => `background-position: ${v[0]}% 50%;`)}
 
                     .tt-header {
                         color: #999;
@@ -7285,6 +7363,294 @@
                     .bbgl-day-cell.is-viewing:not(.has-sticker) .bbgl-event-post-it-top {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
+                        /* One step behind a custom note leaving first (renderCell). */
+                        transition-delay: var(--pi-clear-offset, 0s);
+                    }
+
+                    /* Custom note: the user's own post-it. Same box and lone-post-it spot as the
+                       new-sticker note, over the event stack and under a new-sticker note. It is not
+                       a .bbgl-event-post-it, so the stack rules above never move it; it always leaves
+                       first, --pi-note-offset after a new-sticker note that is leaving ahead of it. */
+                    .bbgl-custom-note {
+                        position: absolute;
+                        top: 13%;
+                        left: 15%;
+                        width: 70%;
+                        height: 70%;
+                        z-index: 17;
+                        filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
+                        transform-origin: top right;
+                        transition: transform .35s ease-out;
+                        pointer-events: none;
+                    }
+
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.has-new-note).is-hover-intent .bbgl-custom-note,
+                    .bbgl-day-cell:not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
+                    .bbgl-day-cell.is-viewing .bbgl-custom-note {
+                        transform: translateX(110%) translateY(-20%) rotate(20deg);
+                        transition: transform .25s ease-in;
+                        transition-delay: var(--pi-note-offset, 0s);
+                    }
+
+                    /* A note just written stays in view until its cell is next left or clicked, and
+                       holds the stack under it too. Clearing mode holds every note so it can be picked.
+                       The id outranks every peel rule above. */
+                    #bbgl-panel .bbgl-day-cell.is-note-held :is(.bbgl-custom-note, .bbgl-event-post-it),
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note {
+                        transform: none;
+                        transition-delay: 0s;
+                    }
+
+                    /* The paper. Its lettering is sized in container units so one character limit
+                       (NOTE_MAX_CHARS, 07-section-vi-ui.js) fits the note at every cell size. Shared
+                       with the header button, the drag ghost and the editor's preview. */
+                    .bbgl-note-paper {
+                        container-type: size;
+                        position: relative;
+                        box-sizing: border-box;
+                        background: #fbfaf4;
+                        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+                    }
+
+                    .bbgl-custom-note.bbgl-note-paper {
+                        position: absolute;
+                    }
+
+                    .bbgl-note-text {
+                        position: absolute;
+                        inset: 7%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
+                    }
+
+                    .bbgl-note-text > span {
+                        display: block;
+                        max-width: 100%;
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: 18cqw;
+                        line-height: 1;
+                        color: #26231d;
+                        text-align: center;
+                        white-space: pre-line;
+                        overflow-wrap: anywhere;
+                    }
+
+                    /* Clearing mode: every note wears a red cross and its day takes the click. */
+                    #bbgl-panel.bbgl-note-clearing .bbgl-day-cell.has-custom-note {
+                        cursor: pointer;
+                    }
+
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note {
+                        box-shadow: inset 0 0 0 1px rgba(214, 64, 64, .9);
+                    }
+
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note::after {
+                        content: '✕';
+                        position: absolute;
+                        top: -1px;
+                        right: 2%;
+                        font: 700 26cqw/1 Arial, sans-serif;
+                        color: #d64040;
+                    }
+
+                    /* The day under a note being dragged out of the header. */
+                    #bbgl-panel .bbgl-day-cell.is-note-target {
+                        outline: 2px solid rgba(169, 123, 255, .95);
+                        outline-offset: -2px;
+                    }
+
+                    /* The month header fills the header's full height so the arrow group below can
+                       reach its top. It is the wrapper's only in-flow child and the title group is its
+                       tallest item, so bottom-aligning the title group keeps everything where it was. */
+                    .bbgl-month-header {
+                        flex: 1 1 auto;
+                    }
+
+                    .bbgl-month-header > .title-group {
+                        align-self: flex-end;
+                    }
+
+                    /* The month arrows as one flex item running the header's full height, so the note
+                       tools can sit at its top, centred over the pair. The arrows keep their own
+                       flex-end, and gap: inherit keeps them as far apart as the header's gap had them. */
+                    .bbgl-month-nav {
+                        position: relative;
+                        display: flex;
+                        align-self: stretch;
+                        gap: inherit;
+                    }
+
+                    /* Note over Clear Note, at the top of the header. Its top is measured from the
+                       month header's 4px top padding. Out of flow, so the header's layout is unchanged. */
+                    .bbgl-note-tools {
+                        --bbgl-note-btn: 24px;
+                        position: absolute;
+                        top: 1px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        z-index: 12;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 3px;
+                    }
+
+                    #bbgl-panel.bbgl-expanded .bbgl-note-tools {
+                        --bbgl-note-btn: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
+                        top: 3px;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page .bbgl-note-tools {
+                        --bbgl-note-btn: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
+                        top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
+                    }
+
+                    .bbgl-note-btn {
+                        width: var(--bbgl-note-btn);
+                        height: var(--bbgl-note-btn);
+                        flex: 0 0 auto;
+                        cursor: grab;
+                        touch-action: none;
+                        user-select: none;
+                        -webkit-user-select: none;
+                        transform: rotate(-4deg);
+                        filter: drop-shadow(-1px 3px 3px rgba(0, 0, 0, .55));
+                        transition: transform .15s ease-out, filter .15s ease-out;
+                    }
+
+                    .bbgl-note-btn .bbgl-note-text > span {
+                        font-size: 25cqw;
+                        line-height: .95;
+                    }
+
+                    @media (hover: hover) {
+                        .bbgl-note-btn:hover {
+                            transform: rotate(-1deg) scale(1.06);
+                        }
+                    }
+
+                    .bbgl-note-btn.is-dragging {
+                        opacity: .35;
+                    }
+
+                    /* Plain handwritten label, no box. */
+                    .bbgl-note-clear-btn {
+                        padding: 1px 2px;
+                        color: rgba(255, 255, 255, .75);
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: calc(var(--bbgl-note-btn) * .4);
+                        line-height: 1;
+                        white-space: nowrap;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 1px 2px #000;
+                        cursor: pointer;
+                        user-select: none;
+                        -webkit-user-select: none;
+                        transition: color .15s, text-shadow .15s, opacity .15s;
+                    }
+
+                    @media (hover: hover) {
+                        .bbgl-note-clear-btn:hover {
+                            color: #fff;
+                        }
+                    }
+
+                    .bbgl-note-clear-btn.is-engaged {
+                        color: #ff8a8a;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 6px rgba(214, 64, 64, .9);
+                    }
+
+                    .bbgl-note-clear-btn.is-empty {
+                        opacity: .4;
+                        pointer-events: none;
+                    }
+
+                    /* The note following the pointer while it is dragged out of the header. */
+                    .bbgl-note-ghost {
+                        position: fixed;
+                        z-index: 9999998;
+                        pointer-events: none;
+                        transform: translate(-50%, -50%) rotate(-8deg);
+                        filter: drop-shadow(-2px 6px 6px rgba(0, 0, 0, .5));
+                    }
+
+                    .bbgl-note-ghost .bbgl-note-text > span {
+                        font-size: 25cqw;
+                        line-height: .95;
+                    }
+
+                    /* Editor: a large preview of the note over the text box, then the date pickers. The
+                       preview uses the same lettering as the calendar, so what fits here fits there. */
+                    .bbgl-note-editor .bbgl-modal-window {
+                        width: min(300px, 92vw);
+                    }
+
+                    .bbgl-note-editor .bbgl-settings-body {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                    }
+
+                    .bbgl-note-editor-preview {
+                        width: 150px;
+                        height: 150px;
+                        margin: 4px auto 10px;
+                        transform: rotate(-2deg);
+                        filter: drop-shadow(-2px 5px 6px rgba(0, 0, 0, .5));
+                    }
+
+                    .bbgl-note-editor textarea {
+                        display: block;
+                        width: 100%;
+                        box-sizing: border-box;
+                        height: 58px;
+                        resize: none;
+                        padding: 6px 8px;
+                        background: #1e1e1e;
+                        border: 1px solid #444;
+                        border-radius: 4px;
+                        color: #ddd;
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: 15px;
+                        line-height: 1.2;
+                        outline: none;
+                    }
+
+                    .bbgl-note-editor textarea:focus {
+                        border-color: #a97bff;
+                    }
+
+                    .bbgl-note-editor-meta {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 4px 2px 6px;
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        color: #888;
+                    }
+
+                    .bbgl-note-editor-msg {
+                        color: #c9a86a;
+                    }
+
+                    .bbgl-note-editor-msg.is-warn {
+                        color: #e07a7a;
+                    }
+
+                    /* Month, day, year pickers under the text box. Fixed grid tracks, so the boxes share the
+                       modal's width instead of sizing to their longest option. */
+                    .bbgl-note-editor-date {
+                        display: grid;
+                        grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1.3fr);
+                        gap: 6px;
+                        margin: 0 0 10px;
+                    }
+
+                    .bbgl-note-editor-date .bbgl-native-select {
+                        width: 100%;
+                        min-width: 0;
+                        box-sizing: border-box;
+                        padding: 4px 4px;
                     }
 
                     .bbgl-day-cell.is-plate {
@@ -12267,7 +12633,7 @@
                         background-position: 100% 50%, 0 0;
                         text-shadow: 0 1px 1px rgba(57, 65, 78, .42);
                         filter: drop-shadow(0 0 3.5px rgba(239, 251, 255, .62));
-                        animation: bbgl-rank-name-diamond 4.2s ease-in-out infinite alternate;
+                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -12300,7 +12666,7 @@
                         filter: blur(6.5px);
                         opacity: .80;
                         pointer-events: none;
-                        animation: bbgl-rank-name-diamond-glow 4.2s ease-in-out infinite alternate;
+                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -12362,15 +12728,9 @@
                         }
                     }
 
-                    @keyframes bbgl-rank-name-diamond {
-                        from { background-position: 100% 50%, 0 0; }
-                        to { background-position: 0% 50%, 0 0; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-name-diamond', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%, 0 0;`)}
 
-                    @keyframes bbgl-rank-name-diamond-glow {
-                        from { background-position: 100% 50%; }
-                        to { background-position: 0% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
                         animation: none;
@@ -12845,14 +13205,11 @@
                     .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
                     .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after {
                         background-size: 320% 100%;
-                        animation: bbgl-rank-pearl 5.5s ease-in-out infinite alternate;
+                        animation: bbgl-rank-pearl 5.5s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-rank-pearl {
-                        from { background-position: 0% 50%; }
-                        to { background-position: 100% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-pearl', 5.5, [[0, [0]], [1, [100]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
@@ -13274,16 +13631,34 @@
                         display: none;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                    /* The sweep is a 300%-wide band slid by transform inside a static masked clip, so it
+                       runs on the compositor. A background-position sweep repainted the card every frame,
+                       and Chrome re-rasterized the plaque's filtered neighbours with it. */
+                    .bbgl-rank-bronze-sheen {
+                        display: none;
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
                         display: block;
+                        position: absolute;
                         inset: 0;
-                        width: 100%;
-                        transform: none;
-                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-                        background-size: 300% 100%;
-                        background-repeat: no-repeat;
+                        z-index: 3;
+                        overflow: hidden;
+                        pointer-events: none;
                         mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        animation: bbgl-bronze-plaque-sheen 9s ease-in-out infinite;
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        bottom: 0;
+                        left: 0;
+                        width: 300%;
+                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+                        transform: translateX(-46.666667%);
+                        will-change: transform;
+                        animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -13292,27 +13667,27 @@
                             linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%),
                             linear-gradient(141deg, #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%, #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%, #ad7b45 90%, #593820 100%);
                         background-size: 375% 100%, 100% 100%;
-                        animation: bbgl-bronze-title-sheen 9s ease-in-out infinite;
+                        will-change: transform;
+                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-bronze-plaque-sheen {
-                        0%, 100% { background-position: 70% 0; }
-                        50% { background-position: 30% 0; }
-                    }
+                    ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
 
-                    @keyframes bbgl-bronze-title-sheen {
-                        0%, 100% { background-position: 68.181818% 0, 0 0; }
-                        50% { background-position: 31.818182% 0, 0 0; }
-                    }
+                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0, 0 0;`)}
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
                         animation: none;
                         background-position: 140.909091% 0, 0 0;
                     }
 
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
+                        animation: none;
+                        opacity: 0;
+                    }
+
                     @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
                             animation: none;
                             opacity: 0;
                         }
@@ -13630,15 +14005,11 @@
                         opacity: 0;
                         transform-box: fill-box;
                         transform-origin: center;
-                        animation: bbgl-platinum-glint 8s linear infinite;
+                        animation: bbgl-platinum-glint 8s step-end infinite;
                         animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
                     }
 
-                    @keyframes bbgl-platinum-glint {
-                        0%, 9%, 100% { opacity: 0; transform: scale(.3) rotate(-12deg); }
-                        3% { opacity: .95; transform: scale(1) rotate(0deg); }
-                        6% { opacity: .3; transform: scale(.6) rotate(12deg); }
-                    }
+                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
 
                     #bbgl-panel.bbgl-no-animations .bbgl-platinum-metalwork { filter: none; }
                     #bbgl-panel.bbgl-no-animations .bbgl-platinum-glint { display: none; }
@@ -16773,6 +17144,40 @@ const DataController = {
         if (runtime.demoMode) return;
         persistStickerCleared(id);
     },
+    // Custom calendar notes, { 'YYYY-MM-DD': text } in history meta, so export, import and Clear
+    // Data carry them with the log. Demo mode keeps them on the demo history, never saved. With no
+    // history yet there is nowhere to keep one, so placing is refused.
+    _noteStore(create) {
+        const meta = runtime.demoMode ? getActiveHistory().meta : (_historyCache && _historyCache.meta);
+        if (!meta) return null;
+        if (!meta.notes && create) meta.notes = {};
+        return meta.notes || null;
+    },
+    _persistNotes() {
+        if (runtime.demoMode || !_historyCache) return;
+        DBManager.saveDays(_historyCache.meta, []).catch(e => Log.warn('Failed to save custom notes', e));
+    },
+    getCustomNote(ds) {
+        const notes = this._noteStore(false);
+        return notes && Object.prototype.hasOwnProperty.call(notes, ds) ? notes[ds] : null;
+    },
+    hasCustomNotes() {
+        const notes = this._noteStore(false);
+        return !!notes && Object.keys(notes).length > 0;
+    },
+    setCustomNote(ds, text) {
+        const notes = this._noteStore(true);
+        if (!notes) return false;
+        notes[ds] = String(text || '');
+        this._persistNotes();
+        return true;
+    },
+    removeCustomNote(ds) {
+        const notes = this._noteStore(false);
+        if (!notes || !Object.prototype.hasOwnProperty.call(notes, ds)) return;
+        delete notes[ds];
+        this._persistNotes();
+    },
     getHappyJumpData() {
         if (this._cache.hjData) return this._cache.hjData;
         const hjDaySet = new Set();
@@ -19064,7 +19469,8 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
         : pearlMarquee ? `${achPearlMarqueeHTML()}<span class="bbgl-rank-marquee-heading">RANK</span>` : '';
     const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
     if (lighting) style += lighting.style;
-    const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines);
+    const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
+        + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
     return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span></span></div>`;
 }
@@ -21956,6 +22362,7 @@ const BestGymController = {
         });
         c.appendChild(frag);
         Perf.end('renderPanel:cells');
+        syncNoteTools();
         // Consume any pending persisted-selection restore (set by renderCell()/injectWeeklyBar()
         // above) now that the built cells/bars are actually attached to the live DOM — calling
         // openHistory() any earlier would leave updateCellSelection()'s querySelector unable to
@@ -22109,6 +22516,272 @@ const BestGymController = {
         shine.appendChild(band);
     }
 
+    // Custom notes. Every note goes through the one editor: tapping the header note opens it on
+    // today, dragging the note onto a day opens it on that day, and its month/day/year dropdowns
+    // can move it anywhere. The clear button engages a mode where clicking a day with a note
+    // removes it. One note per day; saving onto a day that has one replaces it.
+    // NOTE_MAX_CHARS is only a backstop: the editor also refuses text that overflows the paper.
+    const NOTE_MAX_CHARS = 48;
+
+    function buildNotePaper(cls, text) {
+        const p = document.createElement('div'),
+            t = document.createElement('div'),
+            s = document.createElement('span');
+        p.className = 'bbgl-note-paper ' + cls;
+        t.className = 'bbgl-note-text';
+        s.textContent = text;
+        t.appendChild(s);
+        p.appendChild(t);
+        return p;
+    }
+
+    function buildNoteToolsHTML() {
+        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear Note</div></div>`;
+    }
+
+    function syncNoteTools() {
+        const clearing = runtime._noteMode === 'clear',
+            cb = dom.noteClearBtn;
+        if (dom.panel) dom.panel.classList.toggle('bbgl-note-clearing', clearing);
+        if (cb) {
+            cb.classList.toggle('is-engaged', clearing);
+            cb.classList.toggle('is-empty', !clearing && !DataController.hasCustomNotes());
+        }
+    }
+
+    function setNoteMode(mode) {
+        runtime._noteMode = mode || null;
+        syncNoteTools();
+    }
+
+    function releaseHeldNote(cell) {
+        if (!cell.classList.contains('is-note-held')) return;
+        cell.classList.remove('is-note-held');
+        if (runtime._heldNoteDate === cell.dataset.date) runtime._heldNoteDate = null;
+    }
+
+    function noteCellAt(el) {
+        const cell = el && el.closest ? el.closest('.bbgl-day-cell') : null;
+        return cell && dom.calContainer && dom.calContainer.contains(cell) && !cell.classList.contains('empty') ? cell : null;
+    }
+
+    function closeNoteEditor() {
+        const m = document.getElementById('bbgl-note-editor');
+        if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+
+    // ds is the day the editor opens on; with none it opens on today.
+    function openNoteEditor(ds) {
+        closeNoteEditor();
+        const today = Formatter.dateLogical();
+        let [selY, selM, selD] = (ds || today).split('-').map(Number);
+        // Years run from the log's first day to next year, stretched to take in the opening day.
+        const tl = DataController.getTimeline(),
+            thisYear = Number(today.slice(0, 4)),
+            firstYear = Math.min(tl.length ? Number(tl[0].date.slice(0, 4)) : thisYear, selY),
+            lastYear = Math.max(thisYear + 1, selY);
+        const yearOpts = [];
+        for (let yy = firstYear; yy <= lastYear; yy++) yearOpts.push(`<option value="${yy}">${yy}</option>`);
+        const monthOpts = CONSTANTS.MONTHS.map((mn, i) => `<option value="${i + 1}">${mn}</option>`).join('');
+        const dateRow = `<div class="bbgl-note-editor-date"><select id="bbgl-note-month" class="bbgl-native-select">${monthOpts}</select><select id="bbgl-note-day" class="bbgl-native-select"></select><select id="bbgl-note-year" class="bbgl-native-select">${yearOpts.join('')}</select></div>`;
+        const body = `<div class="bbgl-note-editor-preview-slot"></div><textarea id="bbgl-note-input" maxlength="${NOTE_MAX_CHARS}" placeholder="Write a note..." spellcheck="false"></textarea><div class="bbgl-note-editor-meta"><span class="bbgl-note-editor-msg"></span><span id="bbgl-note-count"></span></div>${dateRow}<div style="display:flex; gap:0; margin:0 0 2px;">${buildButton('bbgl-note-left-btn', 'CANCEL', '', 'flex:1; border-radius:4px 0 0 4px; margin:0;')}${buildButton('bbgl-note-save-btn', 'SAVE', 'purple', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</div>`;
+        document.body.insertAdjacentHTML('beforeend', `<div class="bbgl-modal-overlay bbgl-note-editor" id="bbgl-note-editor"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-note-close" title="Close">${ICONS.CLOSE}</div>${buildSection('Custom Note', body, 'margin-bottom:4px;')}</div></div>`);
+        const modal = document.getElementById('bbgl-note-editor');
+        if (!modal) return;
+        const preview = buildNotePaper('bbgl-note-editor-preview', ''),
+            box = preview.firstChild,
+            span = box.firstChild,
+            input = modal.querySelector('#bbgl-note-input'),
+            count = modal.querySelector('#bbgl-note-count'),
+            msg = modal.querySelector('.bbgl-note-editor-msg'),
+            leftBtn = modal.querySelector('#bbgl-note-left-btn'),
+            selMonth = modal.querySelector('#bbgl-note-month'),
+            selDay = modal.querySelector('#bbgl-note-day'),
+            selYear = modal.querySelector('#bbgl-note-year');
+        modal.querySelector('.bbgl-note-editor-preview-slot').replaceWith(preview);
+        const selectedDs = () => Formatter.dateISO(selY, selM - 1, selD);
+        // `loaded` is what the selected day already held when the editor last read it. Until the
+        // text is edited, changing the date swaps in that day's note; once edited, the text stays
+        // and a note already on the new day is flagged as about to be replaced.
+        let loaded = '',
+            good = '',
+            isFull = false;
+        const showMsg = () => {
+            const replacing = DataController.getCustomNote(selectedDs()) != null && input.value !== loaded;
+            msg.textContent = isFull ? 'Note is full' : replacing ? "Replaces this day's note" : '';
+            msg.classList.toggle('is-warn', isFull);
+        };
+        // The preview is the calendar note scaled up, so text that overflows it would overflow the
+        // day cell too. Anything that doesn't fit is rolled back to the last text that did.
+        const fits = () => span.offsetHeight <= box.clientHeight + .5;
+        const refresh = () => {
+            span.textContent = input.value;
+            if (fits()) {
+                good = input.value;
+                isFull = input.value.length >= NOTE_MAX_CHARS;
+            } else {
+                const caret = Math.min(input.selectionStart, good.length);
+                input.value = good;
+                span.textContent = good;
+                input.setSelectionRange(caret, caret);
+                isFull = true;
+            }
+            count.textContent = `${input.value.length}/${NOTE_MAX_CHARS}`;
+            showMsg();
+        };
+        const syncDate = (fromPicker) => {
+            const dim = new Date(Date.UTC(selY, selM, 0)).getUTCDate();
+            if (selD > dim) selD = dim;
+            if (selDay.options.length !== dim) {
+                let opts = '';
+                for (let i = 1; i <= dim; i++) opts += `<option value="${i}">${i}</option>`;
+                selDay.innerHTML = opts;
+            }
+            selMonth.value = String(selM);
+            selDay.value = String(selD);
+            selYear.value = String(selY);
+            const existing = DataController.getCustomNote(selectedDs());
+            if (!fromPicker || input.value === loaded) {
+                loaded = existing != null ? existing : '';
+                input.value = loaded;
+            } else loaded = existing != null ? existing : '';
+            const hasNote = existing != null;
+            leftBtn.textContent = hasNote ? 'REMOVE' : 'CANCEL';
+            leftBtn.classList.toggle('is-remove', hasNote);
+            refresh();
+        };
+        const onPick = () => {
+            const wasEdited = input.value !== loaded;
+            selY = Number(selYear.value);
+            selM = Number(selMonth.value);
+            selD = Number(selDay.value);
+            // Carry an edit across the switch: syncDate only keeps the text when it differs from loaded.
+            if (wasEdited) loaded = null;
+            syncDate(true);
+        };
+        selMonth.onchange = selDay.onchange = selYear.onchange = onPick;
+        const close = () => closeNoteEditor();
+        const save = () => {
+            const target = selectedDs();
+            if (!DataController.setCustomNote(target, input.value.trim())) {
+                close();
+                return;
+            }
+            runtime._heldNoteDate = target;
+            close();
+            renderPanelContent();
+        };
+        input.oninput = refresh;
+        // Torn binds its own keys on the page; nothing typed here should reach them.
+        modal.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') close();
+            else if (e.key === 'Enter' && !e.shiftKey && e.target === input) {
+                e.preventDefault();
+                save();
+            }
+        });
+        modal.querySelector('#bbgl-note-close').onclick = close;
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+        modal.querySelector('#bbgl-note-save-btn').onclick = save;
+        leftBtn.onclick = () => {
+            if (leftBtn.classList.contains('is-remove')) {
+                DataController.removeCustomNote(selectedDs());
+                renderPanelContent();
+            }
+            close();
+        };
+        // Patrick Hand may still be loading on the first open; measure with the real face.
+        const start = () => {
+            syncDate(false);
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        };
+        if (document.fonts && document.fonts.load) document.fonts.load("18px 'Patrick Hand'").then(start, start);
+        else start();
+    }
+
+    function bindNoteTools(root) {
+        const nb = root.querySelector('#bbgl-note-btn'),
+            cb = root.querySelector('#bbgl-note-clear-btn'),
+            cal = dom.calContainer;
+        if (!nb || !cb || !cal) return;
+        dom.noteBtn = nb;
+        dom.noteClearBtn = cb;
+        cb.onclick = (e) => {
+            e.stopPropagation();
+            setNoteMode(runtime._noteMode === 'clear' ? null : 'clear');
+        };
+        // Pointer events cover mouse and touch alike. A press that travels becomes a drag with a
+        // ghost note under the pointer; one that doesn't is a tap that opens the editor on today.
+        let drag = null;
+        const endDrag = () => {
+            if (!drag) return;
+            if (drag.ghost) drag.ghost.remove();
+            if (drag.target) drag.target.classList.remove('is-note-target');
+            nb.classList.remove('is-dragging');
+            drag = null;
+        };
+        nb.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            endDrag();
+            drag = { id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, target: null };
+            try { nb.setPointerCapture(e.pointerId); } catch (err) { /* capture is best-effort */ }
+        });
+        nb.addEventListener('pointermove', (e) => {
+            if (!drag || e.pointerId !== drag.id) return;
+            if (!drag.ghost) {
+                if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+                const size = nb.getBoundingClientRect().width;
+                drag.ghost = buildNotePaper('bbgl-note-ghost', 'Custom Note');
+                drag.ghost.style.width = drag.ghost.style.height = size + 'px';
+                document.body.appendChild(drag.ghost);
+                nb.classList.add('is-dragging');
+                TooltipController.hide();
+            }
+            drag.ghost.style.left = e.clientX + 'px';
+            drag.ghost.style.top = e.clientY + 'px';
+            const cell = noteCellAt(document.elementFromPoint(e.clientX, e.clientY));
+            if (cell !== drag.target) {
+                if (drag.target) drag.target.classList.remove('is-note-target');
+                if (cell) cell.classList.add('is-note-target');
+                drag.target = cell;
+            }
+        });
+        nb.addEventListener('pointerup', (e) => {
+            if (!drag || e.pointerId !== drag.id) return;
+            const wasDrag = !!drag.ghost,
+                cell = drag.target;
+            endDrag();
+            if (wasDrag && !cell) return;
+            setNoteMode(null);
+            TooltipController.hide();
+            openNoteEditor(wasDrag ? cell.dataset.date : null);
+        });
+        nb.addEventListener('pointercancel', endDrag);
+        syncNoteTools();
+        // The calendar container and document outlive a rebuilt header, so these bind once.
+        if (cal._bbglNotesBound) return;
+        cal._bbglNotesBound = true;
+        // Capture phase, so clearing mode gets the day click before the cell's own handler.
+        cal.addEventListener('click', (e) => {
+            if (runtime._noteMode !== 'clear') return;
+            const cell = noteCellAt(e.target);
+            if (!cell || !cell.classList.contains('has-custom-note')) return;
+            e.stopPropagation();
+            DataController.removeCustomNote(cell.dataset.date);
+            const note = cell.querySelector('.bbgl-custom-note');
+            if (note) note.remove();
+            cell.classList.remove('has-custom-note', 'is-note-held');
+            cell.style.removeProperty('--pi-clear-offset');
+            if (!DataController.hasCustomNotes()) setNoteMode(null);
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && runtime._noteMode && !document.getElementById('bbgl-note-editor')) setNoteMode(null);
+        });
+    }
+
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
             sl = DataController.getSlice('DAY', ds),
@@ -22138,6 +22811,7 @@ const BestGymController = {
         }, () => {
             cell.classList.remove('is-hover-intent');
             if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active');
+            releaseHeldNote(cell);
         });
         const isToday = (ds === ctx.today);
         if (isFlipped && sl.meta.tier > 0) {
@@ -22199,6 +22873,17 @@ const BestGymController = {
         const hasNewNote = devNewNote || (!!stickerItem && !!DataController._cache.featuredDays &&
             DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(stickerItem.id));
         let clearNewNote = null;
+        const noteText = DataController.getCustomNote(ds),
+            hasCustomNote = noteText != null;
+        // Sits under a new-sticker note but over everything else, so it leaves first and the event
+        // stack waits one step (--pi-clear-offset) behind it.
+        const appendCustomNote = () => {
+            if (!hasCustomNote) return;
+            cell.appendChild(buildNotePaper('bbgl-custom-note', noteText));
+            cell.classList.add('has-custom-note');
+            cell.style.setProperty('--pi-clear-offset', '0.4s');
+            if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held');
+        };
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
@@ -22233,6 +22918,7 @@ const BestGymController = {
                 ep.style.setProperty('--stack-total', eventImgs.length);
                 cell.appendChild(ep);
             });
+            appendCustomNote();
             if (hasNewNote) {
                 // Always sits in the lone-post-it spot, centred over whatever stack is beneath it.
                 const np = document.createElement('div');
@@ -22248,14 +22934,15 @@ const BestGymController = {
                 clearNewNote = () => {
                     clearNewNote = null;
                     np.classList.add('is-cleared');
-                    cell.style.setProperty('--pi-clear-offset', '0.4s');
+                    cell.style.setProperty('--pi-clear-offset', hasCustomNote ? '0.8s' : '0.4s');
+                    cell.style.setProperty('--pi-note-offset', '0.4s');
                     cell.classList.remove('has-new-note');
                     if (devNewNote) runtime._devNewNoteDate = null;
                     else DataController.markStickerCleared(stickerItem.id);
                     setTimeout(() => np.remove(), 250);
                 };
             }
-        }
+        } else appendCustomNote();
         if (stickerItem) {
             const item = stickerItem;
             const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000);
@@ -22302,6 +22989,7 @@ const BestGymController = {
             cell._bbglTip = () => generateRichTooltip(sl);
         } else cell.setAttribute('data-tooltip', TOOLTIPS.CELL_DATE(ds));
         cell.onclick = () => {
+            releaseHeldNote(cell);
             if (clearNewNote) clearNewNote();
             if (isToday) closeHistory();
             else if (isInteractive) openHistory(sl, ds);
@@ -24545,6 +25233,8 @@ const BestGymController = {
         STICKERBOOK: "Stickerbook",
         ACHIEVEMENTS: "Achievements",
         LIBRARY: "Library",
+        CUSTOM_NOTE: "Tap to write a note, or drag it onto a day",
+        CLEAR_NOTES: "Remove custom notes",
         COPY_SESSION: "Copy Session Data",
         ALL_TIME_SUMMARY: "All-Time Summary",
         YEARLY_SUMMARY: "Yearly Summary",
@@ -25377,7 +26067,7 @@ const BestGymController = {
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><div class="bbgl-month-nav">${buildNoteToolsHTML()}<button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
@@ -28081,12 +28771,6 @@ const BestGymController = {
                 saveViewState();
             }
             switchView('stickers', true);
-            const i = runtime.stickerData.find(x => x.id === ti);
-            if (i) {
-                const bp = dom.bottomPanel;
-                if (bp) bp.style.setProperty('display', 'none', 'important');
-                setTimeout(() => openItemViewer(i, false), 50);
-            }
         } else if (viewState.subView === 'achievements') {
             switchView('achievements', true);
         } else if (viewState.subView === 'library') {
@@ -28315,6 +28999,13 @@ const BestGymController = {
                 tp.classList.add('viewing-stickers');
                 if (dom.stickerBg) dom.stickerBg.classList.add('bbgl-bg-loaded');
                 renderStickers();
+                // The viewer replaces the calendar in the same step the sticker book appears;
+                // opening it on a later timer left the calendar showing under the sticker book.
+                if (viewState.activeItemId) {
+                    if (!runtime.stickerData.length) loadStickerData();
+                    const it = runtime.stickerData.find(x => x.id === Number(viewState.activeItemId));
+                    if (it) openItemViewer(it, false);
+                }
                 // One-time gold attention glow on the prev arrow, which carries the sponsor page's
                 // gold treatment via .is-sponsor (set in renderStickers()). The CSS rule is scoped
                 // to .is-sponsor too, so this can't glow gold on a plain grey arrow if the view is
@@ -28484,12 +29175,12 @@ const BestGymController = {
 
     function toggleStickerView() {
         viewState.activeItemId = 1;
-        switchView('stickers');
-        setTimeout(() => {
+        // Already on the sticker book, switchView() is a no-op; the icon still returns to the first sticker.
+        if (topPanelView(dom.topPanel) === 'stickers') {
             if (!runtime.stickerData.length) loadStickerData();
-            const i = runtime.stickerData.find(x => x.id === (viewState.activeItemId || 1));
-            if (i) openItemViewer(i, true);
-        }, 400);
+            const it = runtime.stickerData.find(x => x.id === 1);
+            if (it) openItemViewer(it, true);
+        } else switchView('stickers');
         saveViewState();
     }
 
@@ -28553,11 +29244,6 @@ const BestGymController = {
             if (t === 'viewer') {
                 switchView('stickers');
                 viewState.subView = 'stickers';
-                if (viewState.activeItemId) setTimeout(() => {
-                    if (!runtime.stickerData.length) loadStickerData();
-                    const i = runtime.stickerData.find(x => x.id === viewState.activeItemId);
-                    if (i) openItemViewer(i, false);
-                }, 50);
             } else {
                 switchView(t);
                 viewState.subView = t;
@@ -29056,6 +29742,7 @@ const BestGymController = {
         if (pm) pm.onclick = () => changeMonth(-1);
         const nm = get('next-month-btn');
         if (nm) nm.onclick = () => changeMonth(1);
+        bindNoteTools(root);
         const mt = get('month-trigger');
         if (mt) mt.onclick = (e) => {
             e.stopPropagation();

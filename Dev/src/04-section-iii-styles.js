@@ -116,6 +116,48 @@
                         background-blend-mode: screen, screen, soft-light, normal, normal;
                         box-shadow: none;`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
+    // Paint-bound loops (background-position sheens, SVG glints) repaint on every display refresh,
+    // and Chrome re-rasterizes whatever shares their tile each time; even a transform-only loop makes
+    // the compositor redraw the whole page each refresh. These keyframes hold each value
+    // for one 30fps tick with the original easing baked into the stops (run them with step-end), so a
+    // slow drift looks the same but repaints 30 times a second. Chrome skips frames whose value didn't
+    // change, so the held stops cost nothing.
+    const SHEEN_FPS = 30;
+    const cubicBezier = (x1, y1, x2, y2) => {
+        const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+        const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+        const x = u => ((ax * u + bx) * u + cx) * u;
+        const y = u => ((ay * u + by) * u + cy) * u;
+        return t => {
+            let lo = 0, hi = 1, u = t;
+            for (let i = 0; i < 40 && Math.abs(x(u) - t) > 1e-6; i++) {
+                if (x(u) < t) lo = u; else hi = u;
+                u = (lo + hi) / 2;
+            }
+            return y(u);
+        };
+    };
+    const EASE_IN_OUT = cubicBezier(.42, 0, .58, 1);
+    const LINEAR = t => t;
+    // stops: [[offset 0-1, [numbers]], ...]; ease applies per segment, as a CSS timing function does.
+    function steppedKeyframes(name, seconds, stops, ease, decl) {
+        const n = Math.max(2, Math.round(seconds * SHEEN_FPS));
+        // Every tick, plus the authored stops themselves so peaks land exactly.
+        const times = [...new Set([...Array(n + 1).keys()].map(i => i / n).concat(stops.map(st => st[0])))].sort((x, y) => x - y);
+        let out = `@keyframes ${name} {\n`, prev = null;
+        for (const t of times) {
+            let k = 0;
+            while (k < stops.length - 2 && t > stops[k + 1][0]) k++;
+            const [t0, a] = stops[k], [t1, b] = stops[k + 1];
+            const p = t1 > t0 ? ease(Math.min(1, (t - t0) / (t1 - t0))) : 1;
+            const body = decl(a.map((v, j) => +(v + (b[j] - v) * p).toFixed(4)));
+            if (body === prev && t < 1) continue;
+            out += `${+(t * 100).toFixed(4)}% { ${body} }\n`;
+            prev = body;
+        }
+        return out + '}';
+    }
+
     const CSS_STYLES = `
 
 
@@ -1690,14 +1732,11 @@
                         color: transparent;
                         text-shadow: none;
                         filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.5));
-                        animation: bbgl-title-iridescent 3s linear infinite;
+                        animation: bbgl-title-iridescent 3s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-title-iridescent {
-                        0% { background-position: 0% 50%; }
-                        100% { background-position: 400% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-title-iridescent', 3, [[0, [0]], [1, [400]]], LINEAR, v => `background-position: ${v[0]}% 50%;`)}
 
                     .tt-header {
                         color: #999;
@@ -5019,6 +5058,294 @@
                     .bbgl-day-cell.is-viewing:not(.has-sticker) .bbgl-event-post-it-top {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
+                        /* One step behind a custom note leaving first (renderCell). */
+                        transition-delay: var(--pi-clear-offset, 0s);
+                    }
+
+                    /* Custom note: the user's own post-it. Same box and lone-post-it spot as the
+                       new-sticker note, over the event stack and under a new-sticker note. It is not
+                       a .bbgl-event-post-it, so the stack rules above never move it; it always leaves
+                       first, --pi-note-offset after a new-sticker note that is leaving ahead of it. */
+                    .bbgl-custom-note {
+                        position: absolute;
+                        top: 13%;
+                        left: 15%;
+                        width: 70%;
+                        height: 70%;
+                        z-index: 17;
+                        filter: drop-shadow(-2px 4px 5px rgba(0, 0, 0, .4));
+                        transform-origin: top right;
+                        transition: transform .35s ease-out;
+                        pointer-events: none;
+                    }
+
+                    body:not(.is-touch-device) .bbgl-day-cell:not(.has-new-note).is-hover-intent .bbgl-custom-note,
+                    .bbgl-day-cell:not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
+                    .bbgl-day-cell.is-viewing .bbgl-custom-note {
+                        transform: translateX(110%) translateY(-20%) rotate(20deg);
+                        transition: transform .25s ease-in;
+                        transition-delay: var(--pi-note-offset, 0s);
+                    }
+
+                    /* A note just written stays in view until its cell is next left or clicked, and
+                       holds the stack under it too. Clearing mode holds every note so it can be picked.
+                       The id outranks every peel rule above. */
+                    #bbgl-panel .bbgl-day-cell.is-note-held :is(.bbgl-custom-note, .bbgl-event-post-it),
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note {
+                        transform: none;
+                        transition-delay: 0s;
+                    }
+
+                    /* The paper. Its lettering is sized in container units so one character limit
+                       (NOTE_MAX_CHARS, 07-section-vi-ui.js) fits the note at every cell size. Shared
+                       with the header button, the drag ghost and the editor's preview. */
+                    .bbgl-note-paper {
+                        container-type: size;
+                        position: relative;
+                        box-sizing: border-box;
+                        background: #fbfaf4;
+                        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .08);
+                    }
+
+                    .bbgl-custom-note.bbgl-note-paper {
+                        position: absolute;
+                    }
+
+                    .bbgl-note-text {
+                        position: absolute;
+                        inset: 7%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        overflow: hidden;
+                    }
+
+                    .bbgl-note-text > span {
+                        display: block;
+                        max-width: 100%;
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: 18cqw;
+                        line-height: 1;
+                        color: #26231d;
+                        text-align: center;
+                        white-space: pre-line;
+                        overflow-wrap: anywhere;
+                    }
+
+                    /* Clearing mode: every note wears a red cross and its day takes the click. */
+                    #bbgl-panel.bbgl-note-clearing .bbgl-day-cell.has-custom-note {
+                        cursor: pointer;
+                    }
+
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note {
+                        box-shadow: inset 0 0 0 1px rgba(214, 64, 64, .9);
+                    }
+
+                    #bbgl-panel.bbgl-note-clearing .bbgl-custom-note::after {
+                        content: '✕';
+                        position: absolute;
+                        top: -1px;
+                        right: 2%;
+                        font: 700 26cqw/1 Arial, sans-serif;
+                        color: #d64040;
+                    }
+
+                    /* The day under a note being dragged out of the header. */
+                    #bbgl-panel .bbgl-day-cell.is-note-target {
+                        outline: 2px solid rgba(169, 123, 255, .95);
+                        outline-offset: -2px;
+                    }
+
+                    /* The month header fills the header's full height so the arrow group below can
+                       reach its top. It is the wrapper's only in-flow child and the title group is its
+                       tallest item, so bottom-aligning the title group keeps everything where it was. */
+                    .bbgl-month-header {
+                        flex: 1 1 auto;
+                    }
+
+                    .bbgl-month-header > .title-group {
+                        align-self: flex-end;
+                    }
+
+                    /* The month arrows as one flex item running the header's full height, so the note
+                       tools can sit at its top, centred over the pair. The arrows keep their own
+                       flex-end, and gap: inherit keeps them as far apart as the header's gap had them. */
+                    .bbgl-month-nav {
+                        position: relative;
+                        display: flex;
+                        align-self: stretch;
+                        gap: inherit;
+                    }
+
+                    /* Note over Clear Note, at the top of the header. Its top is measured from the
+                       month header's 4px top padding. Out of flow, so the header's layout is unchanged. */
+                    .bbgl-note-tools {
+                        --bbgl-note-btn: 24px;
+                        position: absolute;
+                        top: 1px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        z-index: 12;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 3px;
+                    }
+
+                    #bbgl-panel.bbgl-expanded .bbgl-note-tools {
+                        --bbgl-note-btn: clamp(26px, calc(26px + 6px * var(--bbgl-dock-t)), 32px);
+                        top: 3px;
+                    }
+
+                    #bbgl-panel.bbgl-mode-page .bbgl-note-tools {
+                        --bbgl-note-btn: clamp(28px, calc(28px + 12px * var(--bbgl-page-t)), 40px);
+                        top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
+                    }
+
+                    .bbgl-note-btn {
+                        width: var(--bbgl-note-btn);
+                        height: var(--bbgl-note-btn);
+                        flex: 0 0 auto;
+                        cursor: grab;
+                        touch-action: none;
+                        user-select: none;
+                        -webkit-user-select: none;
+                        transform: rotate(-4deg);
+                        filter: drop-shadow(-1px 3px 3px rgba(0, 0, 0, .55));
+                        transition: transform .15s ease-out, filter .15s ease-out;
+                    }
+
+                    .bbgl-note-btn .bbgl-note-text > span {
+                        font-size: 25cqw;
+                        line-height: .95;
+                    }
+
+                    @media (hover: hover) {
+                        .bbgl-note-btn:hover {
+                            transform: rotate(-1deg) scale(1.06);
+                        }
+                    }
+
+                    .bbgl-note-btn.is-dragging {
+                        opacity: .35;
+                    }
+
+                    /* Plain handwritten label, no box. */
+                    .bbgl-note-clear-btn {
+                        padding: 1px 2px;
+                        color: rgba(255, 255, 255, .75);
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: calc(var(--bbgl-note-btn) * .4);
+                        line-height: 1;
+                        white-space: nowrap;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 1px 2px #000;
+                        cursor: pointer;
+                        user-select: none;
+                        -webkit-user-select: none;
+                        transition: color .15s, text-shadow .15s, opacity .15s;
+                    }
+
+                    @media (hover: hover) {
+                        .bbgl-note-clear-btn:hover {
+                            color: #fff;
+                        }
+                    }
+
+                    .bbgl-note-clear-btn.is-engaged {
+                        color: #ff8a8a;
+                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 6px rgba(214, 64, 64, .9);
+                    }
+
+                    .bbgl-note-clear-btn.is-empty {
+                        opacity: .4;
+                        pointer-events: none;
+                    }
+
+                    /* The note following the pointer while it is dragged out of the header. */
+                    .bbgl-note-ghost {
+                        position: fixed;
+                        z-index: 9999998;
+                        pointer-events: none;
+                        transform: translate(-50%, -50%) rotate(-8deg);
+                        filter: drop-shadow(-2px 6px 6px rgba(0, 0, 0, .5));
+                    }
+
+                    .bbgl-note-ghost .bbgl-note-text > span {
+                        font-size: 25cqw;
+                        line-height: .95;
+                    }
+
+                    /* Editor: a large preview of the note over the text box, then the date pickers. The
+                       preview uses the same lettering as the calendar, so what fits here fits there. */
+                    .bbgl-note-editor .bbgl-modal-window {
+                        width: min(300px, 92vw);
+                    }
+
+                    .bbgl-note-editor .bbgl-settings-body {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                    }
+
+                    .bbgl-note-editor-preview {
+                        width: 150px;
+                        height: 150px;
+                        margin: 4px auto 10px;
+                        transform: rotate(-2deg);
+                        filter: drop-shadow(-2px 5px 6px rgba(0, 0, 0, .5));
+                    }
+
+                    .bbgl-note-editor textarea {
+                        display: block;
+                        width: 100%;
+                        box-sizing: border-box;
+                        height: 58px;
+                        resize: none;
+                        padding: 6px 8px;
+                        background: #1e1e1e;
+                        border: 1px solid #444;
+                        border-radius: 4px;
+                        color: #ddd;
+                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
+                        font-size: 15px;
+                        line-height: 1.2;
+                        outline: none;
+                    }
+
+                    .bbgl-note-editor textarea:focus {
+                        border-color: #a97bff;
+                    }
+
+                    .bbgl-note-editor-meta {
+                        display: flex;
+                        justify-content: space-between;
+                        margin: 4px 2px 6px;
+                        font-family: Arial, sans-serif;
+                        font-size: 11px;
+                        color: #888;
+                    }
+
+                    .bbgl-note-editor-msg {
+                        color: #c9a86a;
+                    }
+
+                    .bbgl-note-editor-msg.is-warn {
+                        color: #e07a7a;
+                    }
+
+                    /* Month, day, year pickers under the text box. Fixed grid tracks, so the boxes share the
+                       modal's width instead of sizing to their longest option. */
+                    .bbgl-note-editor-date {
+                        display: grid;
+                        grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr) minmax(0, 1.3fr);
+                        gap: 6px;
+                        margin: 0 0 10px;
+                    }
+
+                    .bbgl-note-editor-date .bbgl-native-select {
+                        width: 100%;
+                        min-width: 0;
+                        box-sizing: border-box;
+                        padding: 4px 4px;
                     }
 
                     .bbgl-day-cell.is-plate {
@@ -10001,7 +10328,7 @@
                         background-position: 100% 50%, 0 0;
                         text-shadow: 0 1px 1px rgba(57, 65, 78, .42);
                         filter: drop-shadow(0 0 3.5px rgba(239, 251, 255, .62));
-                        animation: bbgl-rank-name-diamond 4.2s ease-in-out infinite alternate;
+                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -10034,7 +10361,7 @@
                         filter: blur(6.5px);
                         opacity: .80;
                         pointer-events: none;
-                        animation: bbgl-rank-name-diamond-glow 4.2s ease-in-out infinite alternate;
+                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -10096,15 +10423,9 @@
                         }
                     }
 
-                    @keyframes bbgl-rank-name-diamond {
-                        from { background-position: 100% 50%, 0 0; }
-                        to { background-position: 0% 50%, 0 0; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-name-diamond', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%, 0 0;`)}
 
-                    @keyframes bbgl-rank-name-diamond-glow {
-                        from { background-position: 100% 50%; }
-                        to { background-position: 0% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
                         animation: none;
@@ -10579,14 +10900,11 @@
                     .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
                     .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after {
                         background-size: 320% 100%;
-                        animation: bbgl-rank-pearl 5.5s ease-in-out infinite alternate;
+                        animation: bbgl-rank-pearl 5.5s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-rank-pearl {
-                        from { background-position: 0% 50%; }
-                        to { background-position: 100% 50%; }
-                    }
+                    ${steppedKeyframes('bbgl-rank-pearl', 5.5, [[0, [0]], [1, [100]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
@@ -11008,16 +11326,34 @@
                         display: none;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                    /* The sweep is a 300%-wide band slid by transform inside a static masked clip, so it
+                       runs on the compositor. A background-position sweep repainted the card every frame,
+                       and Chrome re-rasterized the plaque's filtered neighbours with it. */
+                    .bbgl-rank-bronze-sheen {
+                        display: none;
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
                         display: block;
+                        position: absolute;
                         inset: 0;
-                        width: 100%;
-                        transform: none;
-                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-                        background-size: 300% 100%;
-                        background-repeat: no-repeat;
+                        z-index: 3;
+                        overflow: hidden;
+                        pointer-events: none;
                         mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        animation: bbgl-bronze-plaque-sheen 9s ease-in-out infinite;
+                    }
+
+                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
+                        content: '';
+                        position: absolute;
+                        top: 0;
+                        bottom: 0;
+                        left: 0;
+                        width: 300%;
+                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+                        transform: translateX(-46.666667%);
+                        will-change: transform;
+                        animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
@@ -11026,27 +11362,27 @@
                             linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%),
                             linear-gradient(141deg, #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%, #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%, #ad7b45 90%, #593820 100%);
                         background-size: 375% 100%, 100% 100%;
-                        animation: bbgl-bronze-title-sheen 9s ease-in-out infinite;
+                        will-change: transform;
+                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    @keyframes bbgl-bronze-plaque-sheen {
-                        0%, 100% { background-position: 70% 0; }
-                        50% { background-position: 30% 0; }
-                    }
+                    ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
 
-                    @keyframes bbgl-bronze-title-sheen {
-                        0%, 100% { background-position: 68.181818% 0, 0 0; }
-                        50% { background-position: 31.818182% 0, 0 0; }
-                    }
+                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0, 0 0;`)}
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
                         animation: none;
                         background-position: 140.909091% 0, 0 0;
                     }
 
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
+                        animation: none;
+                        opacity: 0;
+                    }
+
                     @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-notch-face::after {
+                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
                             animation: none;
                             opacity: 0;
                         }
@@ -11364,15 +11700,11 @@
                         opacity: 0;
                         transform-box: fill-box;
                         transform-origin: center;
-                        animation: bbgl-platinum-glint 8s linear infinite;
+                        animation: bbgl-platinum-glint 8s step-end infinite;
                         animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
                     }
 
-                    @keyframes bbgl-platinum-glint {
-                        0%, 9%, 100% { opacity: 0; transform: scale(.3) rotate(-12deg); }
-                        3% { opacity: .95; transform: scale(1) rotate(0deg); }
-                        6% { opacity: .3; transform: scale(.6) rotate(12deg); }
-                    }
+                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
 
                     #bbgl-panel.bbgl-no-animations .bbgl-platinum-metalwork { filter: none; }
                     #bbgl-panel.bbgl-no-animations .bbgl-platinum-glint { display: none; }

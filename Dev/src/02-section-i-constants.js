@@ -462,6 +462,10 @@
         // Half-finished stat-title pick on the titles page: {stat, phase} once the first word has
         // been clicked, null otherwise. See handleTitleStarPick() in 07-section-vi-ui.js.
         _titlePick: null,
+        // Custom notes: whether clearing mode is engaged ('clear' or null), and the day whose
+        // note was just written, which stays put until that cell is next left or clicked.
+        _noteMode: null,
+        _heldNoteDate: null,
         _devTitleOverride: null,
         _devBookOverride: null,
         _devDocsBase: null,

@@ -122,6 +122,40 @@ const DataController = {
         if (runtime.demoMode) return;
         persistStickerCleared(id);
     },
+    // Custom calendar notes, { 'YYYY-MM-DD': text } in history meta, so export, import and Clear
+    // Data carry them with the log. Demo mode keeps them on the demo history, never saved. With no
+    // history yet there is nowhere to keep one, so placing is refused.
+    _noteStore(create) {
+        const meta = runtime.demoMode ? getActiveHistory().meta : (_historyCache && _historyCache.meta);
+        if (!meta) return null;
+        if (!meta.notes && create) meta.notes = {};
+        return meta.notes || null;
+    },
+    _persistNotes() {
+        if (runtime.demoMode || !_historyCache) return;
+        DBManager.saveDays(_historyCache.meta, []).catch(e => Log.warn('Failed to save custom notes', e));
+    },
+    getCustomNote(ds) {
+        const notes = this._noteStore(false);
+        return notes && Object.prototype.hasOwnProperty.call(notes, ds) ? notes[ds] : null;
+    },
+    hasCustomNotes() {
+        const notes = this._noteStore(false);
+        return !!notes && Object.keys(notes).length > 0;
+    },
+    setCustomNote(ds, text) {
+        const notes = this._noteStore(true);
+        if (!notes) return false;
+        notes[ds] = String(text || '');
+        this._persistNotes();
+        return true;
+    },
+    removeCustomNote(ds) {
+        const notes = this._noteStore(false);
+        if (!notes || !Object.prototype.hasOwnProperty.call(notes, ds)) return;
+        delete notes[ds];
+        this._persistNotes();
+    },
     getHappyJumpData() {
         if (this._cache.hjData) return this._cache.hjData;
         const hjDaySet = new Set();
@@ -2413,7 +2447,8 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
         : pearlMarquee ? `${achPearlMarqueeHTML()}<span class="bbgl-rank-marquee-heading">RANK</span>` : '';
     const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
     if (lighting) style += lighting.style;
-    const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines);
+    const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
+        + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
     return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span></span></div>`;
 }

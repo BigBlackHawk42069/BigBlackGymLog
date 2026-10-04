@@ -656,12 +656,6 @@
                 saveViewState();
             }
             switchView('stickers', true);
-            const i = runtime.stickerData.find(x => x.id === ti);
-            if (i) {
-                const bp = dom.bottomPanel;
-                if (bp) bp.style.setProperty('display', 'none', 'important');
-                setTimeout(() => openItemViewer(i, false), 50);
-            }
         } else if (viewState.subView === 'achievements') {
             switchView('achievements', true);
         } else if (viewState.subView === 'library') {
@@ -890,6 +884,13 @@
                 tp.classList.add('viewing-stickers');
                 if (dom.stickerBg) dom.stickerBg.classList.add('bbgl-bg-loaded');
                 renderStickers();
+                // The viewer replaces the calendar in the same step the sticker book appears;
+                // opening it on a later timer left the calendar showing under the sticker book.
+                if (viewState.activeItemId) {
+                    if (!runtime.stickerData.length) loadStickerData();
+                    const it = runtime.stickerData.find(x => x.id === Number(viewState.activeItemId));
+                    if (it) openItemViewer(it, false);
+                }
                 // One-time gold attention glow on the prev arrow, which carries the sponsor page's
                 // gold treatment via .is-sponsor (set in renderStickers()). The CSS rule is scoped
                 // to .is-sponsor too, so this can't glow gold on a plain grey arrow if the view is
@@ -1059,12 +1060,12 @@
 
     function toggleStickerView() {
         viewState.activeItemId = 1;
-        switchView('stickers');
-        setTimeout(() => {
+        // Already on the sticker book, switchView() is a no-op; the icon still returns to the first sticker.
+        if (topPanelView(dom.topPanel) === 'stickers') {
             if (!runtime.stickerData.length) loadStickerData();
-            const i = runtime.stickerData.find(x => x.id === (viewState.activeItemId || 1));
-            if (i) openItemViewer(i, true);
-        }, 400);
+            const it = runtime.stickerData.find(x => x.id === 1);
+            if (it) openItemViewer(it, true);
+        } else switchView('stickers');
         saveViewState();
     }
 
@@ -1128,11 +1129,6 @@
             if (t === 'viewer') {
                 switchView('stickers');
                 viewState.subView = 'stickers';
-                if (viewState.activeItemId) setTimeout(() => {
-                    if (!runtime.stickerData.length) loadStickerData();
-                    const i = runtime.stickerData.find(x => x.id === viewState.activeItemId);
-                    if (i) openItemViewer(i, false);
-                }, 50);
             } else {
                 switchView(t);
                 viewState.subView = t;
@@ -1631,6 +1627,7 @@
         if (pm) pm.onclick = () => changeMonth(-1);
         const nm = get('next-month-btn');
         if (nm) nm.onclick = () => changeMonth(1);
+        bindNoteTools(root);
         const mt = get('month-trigger');
         if (mt) mt.onclick = (e) => {
             e.stopPropagation();

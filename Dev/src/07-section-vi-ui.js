@@ -826,6 +826,7 @@
         });
         c.appendChild(frag);
         Perf.end('renderPanel:cells');
+        syncNoteTools();
         // Consume any pending persisted-selection restore (set by renderCell()/injectWeeklyBar()
         // above) now that the built cells/bars are actually attached to the live DOM — calling
         // openHistory() any earlier would leave updateCellSelection()'s querySelector unable to
@@ -979,6 +980,272 @@
         shine.appendChild(band);
     }
 
+    // Custom notes. Every note goes through the one editor: tapping the header note opens it on
+    // today, dragging the note onto a day opens it on that day, and its month/day/year dropdowns
+    // can move it anywhere. The clear button engages a mode where clicking a day with a note
+    // removes it. One note per day; saving onto a day that has one replaces it.
+    // NOTE_MAX_CHARS is only a backstop: the editor also refuses text that overflows the paper.
+    const NOTE_MAX_CHARS = 48;
+
+    function buildNotePaper(cls, text) {
+        const p = document.createElement('div'),
+            t = document.createElement('div'),
+            s = document.createElement('span');
+        p.className = 'bbgl-note-paper ' + cls;
+        t.className = 'bbgl-note-text';
+        s.textContent = text;
+        t.appendChild(s);
+        p.appendChild(t);
+        return p;
+    }
+
+    function buildNoteToolsHTML() {
+        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear Note</div></div>`;
+    }
+
+    function syncNoteTools() {
+        const clearing = runtime._noteMode === 'clear',
+            cb = dom.noteClearBtn;
+        if (dom.panel) dom.panel.classList.toggle('bbgl-note-clearing', clearing);
+        if (cb) {
+            cb.classList.toggle('is-engaged', clearing);
+            cb.classList.toggle('is-empty', !clearing && !DataController.hasCustomNotes());
+        }
+    }
+
+    function setNoteMode(mode) {
+        runtime._noteMode = mode || null;
+        syncNoteTools();
+    }
+
+    function releaseHeldNote(cell) {
+        if (!cell.classList.contains('is-note-held')) return;
+        cell.classList.remove('is-note-held');
+        if (runtime._heldNoteDate === cell.dataset.date) runtime._heldNoteDate = null;
+    }
+
+    function noteCellAt(el) {
+        const cell = el && el.closest ? el.closest('.bbgl-day-cell') : null;
+        return cell && dom.calContainer && dom.calContainer.contains(cell) && !cell.classList.contains('empty') ? cell : null;
+    }
+
+    function closeNoteEditor() {
+        const m = document.getElementById('bbgl-note-editor');
+        if (m && m.parentNode) m.parentNode.removeChild(m);
+    }
+
+    // ds is the day the editor opens on; with none it opens on today.
+    function openNoteEditor(ds) {
+        closeNoteEditor();
+        const today = Formatter.dateLogical();
+        let [selY, selM, selD] = (ds || today).split('-').map(Number);
+        // Years run from the log's first day to next year, stretched to take in the opening day.
+        const tl = DataController.getTimeline(),
+            thisYear = Number(today.slice(0, 4)),
+            firstYear = Math.min(tl.length ? Number(tl[0].date.slice(0, 4)) : thisYear, selY),
+            lastYear = Math.max(thisYear + 1, selY);
+        const yearOpts = [];
+        for (let yy = firstYear; yy <= lastYear; yy++) yearOpts.push(`<option value="${yy}">${yy}</option>`);
+        const monthOpts = CONSTANTS.MONTHS.map((mn, i) => `<option value="${i + 1}">${mn}</option>`).join('');
+        const dateRow = `<div class="bbgl-note-editor-date"><select id="bbgl-note-month" class="bbgl-native-select">${monthOpts}</select><select id="bbgl-note-day" class="bbgl-native-select"></select><select id="bbgl-note-year" class="bbgl-native-select">${yearOpts.join('')}</select></div>`;
+        const body = `<div class="bbgl-note-editor-preview-slot"></div><textarea id="bbgl-note-input" maxlength="${NOTE_MAX_CHARS}" placeholder="Write a note..." spellcheck="false"></textarea><div class="bbgl-note-editor-meta"><span class="bbgl-note-editor-msg"></span><span id="bbgl-note-count"></span></div>${dateRow}<div style="display:flex; gap:0; margin:0 0 2px;">${buildButton('bbgl-note-left-btn', 'CANCEL', '', 'flex:1; border-radius:4px 0 0 4px; margin:0;')}${buildButton('bbgl-note-save-btn', 'SAVE', 'purple', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</div>`;
+        document.body.insertAdjacentHTML('beforeend', `<div class="bbgl-modal-overlay bbgl-note-editor" id="bbgl-note-editor"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-note-close" title="Close">${ICONS.CLOSE}</div>${buildSection('Custom Note', body, 'margin-bottom:4px;')}</div></div>`);
+        const modal = document.getElementById('bbgl-note-editor');
+        if (!modal) return;
+        const preview = buildNotePaper('bbgl-note-editor-preview', ''),
+            box = preview.firstChild,
+            span = box.firstChild,
+            input = modal.querySelector('#bbgl-note-input'),
+            count = modal.querySelector('#bbgl-note-count'),
+            msg = modal.querySelector('.bbgl-note-editor-msg'),
+            leftBtn = modal.querySelector('#bbgl-note-left-btn'),
+            selMonth = modal.querySelector('#bbgl-note-month'),
+            selDay = modal.querySelector('#bbgl-note-day'),
+            selYear = modal.querySelector('#bbgl-note-year');
+        modal.querySelector('.bbgl-note-editor-preview-slot').replaceWith(preview);
+        const selectedDs = () => Formatter.dateISO(selY, selM - 1, selD);
+        // `loaded` is what the selected day already held when the editor last read it. Until the
+        // text is edited, changing the date swaps in that day's note; once edited, the text stays
+        // and a note already on the new day is flagged as about to be replaced.
+        let loaded = '',
+            good = '',
+            isFull = false;
+        const showMsg = () => {
+            const replacing = DataController.getCustomNote(selectedDs()) != null && input.value !== loaded;
+            msg.textContent = isFull ? 'Note is full' : replacing ? "Replaces this day's note" : '';
+            msg.classList.toggle('is-warn', isFull);
+        };
+        // The preview is the calendar note scaled up, so text that overflows it would overflow the
+        // day cell too. Anything that doesn't fit is rolled back to the last text that did.
+        const fits = () => span.offsetHeight <= box.clientHeight + .5;
+        const refresh = () => {
+            span.textContent = input.value;
+            if (fits()) {
+                good = input.value;
+                isFull = input.value.length >= NOTE_MAX_CHARS;
+            } else {
+                const caret = Math.min(input.selectionStart, good.length);
+                input.value = good;
+                span.textContent = good;
+                input.setSelectionRange(caret, caret);
+                isFull = true;
+            }
+            count.textContent = `${input.value.length}/${NOTE_MAX_CHARS}`;
+            showMsg();
+        };
+        const syncDate = (fromPicker) => {
+            const dim = new Date(Date.UTC(selY, selM, 0)).getUTCDate();
+            if (selD > dim) selD = dim;
+            if (selDay.options.length !== dim) {
+                let opts = '';
+                for (let i = 1; i <= dim; i++) opts += `<option value="${i}">${i}</option>`;
+                selDay.innerHTML = opts;
+            }
+            selMonth.value = String(selM);
+            selDay.value = String(selD);
+            selYear.value = String(selY);
+            const existing = DataController.getCustomNote(selectedDs());
+            if (!fromPicker || input.value === loaded) {
+                loaded = existing != null ? existing : '';
+                input.value = loaded;
+            } else loaded = existing != null ? existing : '';
+            const hasNote = existing != null;
+            leftBtn.textContent = hasNote ? 'REMOVE' : 'CANCEL';
+            leftBtn.classList.toggle('is-remove', hasNote);
+            refresh();
+        };
+        const onPick = () => {
+            const wasEdited = input.value !== loaded;
+            selY = Number(selYear.value);
+            selM = Number(selMonth.value);
+            selD = Number(selDay.value);
+            // Carry an edit across the switch: syncDate only keeps the text when it differs from loaded.
+            if (wasEdited) loaded = null;
+            syncDate(true);
+        };
+        selMonth.onchange = selDay.onchange = selYear.onchange = onPick;
+        const close = () => closeNoteEditor();
+        const save = () => {
+            const target = selectedDs();
+            if (!DataController.setCustomNote(target, input.value.trim())) {
+                close();
+                return;
+            }
+            runtime._heldNoteDate = target;
+            close();
+            renderPanelContent();
+        };
+        input.oninput = refresh;
+        // Torn binds its own keys on the page; nothing typed here should reach them.
+        modal.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+            if (e.key === 'Escape') close();
+            else if (e.key === 'Enter' && !e.shiftKey && e.target === input) {
+                e.preventDefault();
+                save();
+            }
+        });
+        modal.querySelector('#bbgl-note-close').onclick = close;
+        modal.onclick = (e) => { if (e.target === modal) close(); };
+        modal.querySelector('#bbgl-note-save-btn').onclick = save;
+        leftBtn.onclick = () => {
+            if (leftBtn.classList.contains('is-remove')) {
+                DataController.removeCustomNote(selectedDs());
+                renderPanelContent();
+            }
+            close();
+        };
+        // Patrick Hand may still be loading on the first open; measure with the real face.
+        const start = () => {
+            syncDate(false);
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        };
+        if (document.fonts && document.fonts.load) document.fonts.load("18px 'Patrick Hand'").then(start, start);
+        else start();
+    }
+
+    function bindNoteTools(root) {
+        const nb = root.querySelector('#bbgl-note-btn'),
+            cb = root.querySelector('#bbgl-note-clear-btn'),
+            cal = dom.calContainer;
+        if (!nb || !cb || !cal) return;
+        dom.noteBtn = nb;
+        dom.noteClearBtn = cb;
+        cb.onclick = (e) => {
+            e.stopPropagation();
+            setNoteMode(runtime._noteMode === 'clear' ? null : 'clear');
+        };
+        // Pointer events cover mouse and touch alike. A press that travels becomes a drag with a
+        // ghost note under the pointer; one that doesn't is a tap that opens the editor on today.
+        let drag = null;
+        const endDrag = () => {
+            if (!drag) return;
+            if (drag.ghost) drag.ghost.remove();
+            if (drag.target) drag.target.classList.remove('is-note-target');
+            nb.classList.remove('is-dragging');
+            drag = null;
+        };
+        nb.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            endDrag();
+            drag = { id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, target: null };
+            try { nb.setPointerCapture(e.pointerId); } catch (err) { /* capture is best-effort */ }
+        });
+        nb.addEventListener('pointermove', (e) => {
+            if (!drag || e.pointerId !== drag.id) return;
+            if (!drag.ghost) {
+                if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+                const size = nb.getBoundingClientRect().width;
+                drag.ghost = buildNotePaper('bbgl-note-ghost', 'Custom Note');
+                drag.ghost.style.width = drag.ghost.style.height = size + 'px';
+                document.body.appendChild(drag.ghost);
+                nb.classList.add('is-dragging');
+                TooltipController.hide();
+            }
+            drag.ghost.style.left = e.clientX + 'px';
+            drag.ghost.style.top = e.clientY + 'px';
+            const cell = noteCellAt(document.elementFromPoint(e.clientX, e.clientY));
+            if (cell !== drag.target) {
+                if (drag.target) drag.target.classList.remove('is-note-target');
+                if (cell) cell.classList.add('is-note-target');
+                drag.target = cell;
+            }
+        });
+        nb.addEventListener('pointerup', (e) => {
+            if (!drag || e.pointerId !== drag.id) return;
+            const wasDrag = !!drag.ghost,
+                cell = drag.target;
+            endDrag();
+            if (wasDrag && !cell) return;
+            setNoteMode(null);
+            TooltipController.hide();
+            openNoteEditor(wasDrag ? cell.dataset.date : null);
+        });
+        nb.addEventListener('pointercancel', endDrag);
+        syncNoteTools();
+        // The calendar container and document outlive a rebuilt header, so these bind once.
+        if (cal._bbglNotesBound) return;
+        cal._bbglNotesBound = true;
+        // Capture phase, so clearing mode gets the day click before the cell's own handler.
+        cal.addEventListener('click', (e) => {
+            if (runtime._noteMode !== 'clear') return;
+            const cell = noteCellAt(e.target);
+            if (!cell || !cell.classList.contains('has-custom-note')) return;
+            e.stopPropagation();
+            DataController.removeCustomNote(cell.dataset.date);
+            const note = cell.querySelector('.bbgl-custom-note');
+            if (note) note.remove();
+            cell.classList.remove('has-custom-note', 'is-note-held');
+            cell.style.removeProperty('--pi-clear-offset');
+            if (!DataController.hasCustomNotes()) setNoteMode(null);
+        }, true);
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && runtime._noteMode && !document.getElementById('bbgl-note-editor')) setNoteMode(null);
+        });
+    }
+
     function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) {
         const ds = Formatter.dateISO(y, m, d),
             sl = DataController.getSlice('DAY', ds),
@@ -1008,6 +1275,7 @@
         }, () => {
             cell.classList.remove('is-hover-intent');
             if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active');
+            releaseHeldNote(cell);
         });
         const isToday = (ds === ctx.today);
         if (isFlipped && sl.meta.tier > 0) {
@@ -1069,6 +1337,17 @@
         const hasNewNote = devNewNote || (!!stickerItem && !!DataController._cache.featuredDays &&
             DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(stickerItem.id));
         let clearNewNote = null;
+        const noteText = DataController.getCustomNote(ds),
+            hasCustomNote = noteText != null;
+        // Sits under a new-sticker note but over everything else, so it leaves first and the event
+        // stack waits one step (--pi-clear-offset) behind it.
+        const appendCustomNote = () => {
+            if (!hasCustomNote) return;
+            cell.appendChild(buildNotePaper('bbgl-custom-note', noteText));
+            cell.classList.add('has-custom-note');
+            cell.style.setProperty('--pi-clear-offset', '0.4s');
+            if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held');
+        };
         if (isFlipped) {
             const wm = ctx.warMarkers[ds];
             const eventImgs = [];
@@ -1103,6 +1382,7 @@
                 ep.style.setProperty('--stack-total', eventImgs.length);
                 cell.appendChild(ep);
             });
+            appendCustomNote();
             if (hasNewNote) {
                 // Always sits in the lone-post-it spot, centred over whatever stack is beneath it.
                 const np = document.createElement('div');
@@ -1118,14 +1398,15 @@
                 clearNewNote = () => {
                     clearNewNote = null;
                     np.classList.add('is-cleared');
-                    cell.style.setProperty('--pi-clear-offset', '0.4s');
+                    cell.style.setProperty('--pi-clear-offset', hasCustomNote ? '0.8s' : '0.4s');
+                    cell.style.setProperty('--pi-note-offset', '0.4s');
                     cell.classList.remove('has-new-note');
                     if (devNewNote) runtime._devNewNoteDate = null;
                     else DataController.markStickerCleared(stickerItem.id);
                     setTimeout(() => np.remove(), 250);
                 };
             }
-        }
+        } else appendCustomNote();
         if (stickerItem) {
             const item = stickerItem;
             const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000);
@@ -1172,6 +1453,7 @@
             cell._bbglTip = () => generateRichTooltip(sl);
         } else cell.setAttribute('data-tooltip', TOOLTIPS.CELL_DATE(ds));
         cell.onclick = () => {
+            releaseHeldNote(cell);
             if (clearNewNote) clearNewNote();
             if (isToday) closeHistory();
             else if (isInteractive) openHistory(sl, ds);
@@ -3415,6 +3697,8 @@
         STICKERBOOK: "Stickerbook",
         ACHIEVEMENTS: "Achievements",
         LIBRARY: "Library",
+        CUSTOM_NOTE: "Tap to write a note, or drag it onto a day",
+        CLEAR_NOTES: "Remove custom notes",
         COPY_SESSION: "Copy Session Data",
         ALL_TIME_SUMMARY: "All-Time Summary",
         YEARLY_SUMMARY: "Yearly Summary",
@@ -4247,7 +4531,7 @@
     function getDashboardHTML() {
         const weekDays = userConfig.weekStartMode === 'mon' ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const weekRowHTML = weekDays.map(d => `<span>${d}</span>`).join('');
-        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
+        return `<div class="bbgl-header" id="bbgl-header-bar"><div class="bbgl-header-left">${ICONS.LOGO}<span class="bbgl-header-text"><span class="bbgl-short-title">Big Black Log</span><span class="bbgl-long-title">Big Black Gym Log</span></span></div><div class="bbgl-header-right"><span id="bbgl-demo-exit-btn" class="close-settings-btn bbgl-close-purple" style="display:${runtime.demoMode ? 'flex' : 'none'};" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}"><span class="bbgl-demo-x-label">Demo</span>${ICONS.CLOSE}</span><span id="bbgl-settings-btn" class="bbgl-custom-icon">⚙</span><span id="bbgl-close-btn" class="bbgl-native-icon">${ICONS.MINIMIZE}</span><span id="bbgl-pop-btn" class="bbgl-native-icon">${viewState.expanded ? ICONS.COMPRESS : ICONS.POPOUT}</span></div></div><div id="bbgl-content-wrapper"><div id="bbgl-top-panel"><div id="bbgl-toolbar"><div id="bbgl-toolbar-icons"><div id="bbgl-ledger-toggle" data-tooltip="${TOOLTIPS.LEDGER_VIEW}">${ICONS.LEDGER}</div><div id="bbgl-graph-toggle" data-tooltip="${TOOLTIPS.GRAPH_VIEW}">${ICONS.GRAPH}</div><div id="bbgl-achievements-toggle" data-tooltip="${TOOLTIPS.ACHIEVEMENTS}">${ICONS.ACHIEVEMENTS}</div><div id="bbgl-library-toggle" data-tooltip="${TOOLTIPS.LIBRARY}">${ICONS.LIBRARY}</div><div id="bbgl-sticker-toggle" data-tooltip="${TOOLTIPS.STICKERBOOK}">${ICONS.STICKERBOOK}</div><div class="g-hud-sep"></div><div class="g-toggles g-mode"><div class="g-pill active" data-type="mode" data-val="values">Gains</div><div class="g-pill" data-type="mode" data-val="rates">Rates</div></div></div><div id="bbgl-item-counters"></div><div id="bbgl-copy-btn" class="copy-hist-btn" data-tooltip="${TOOLTIPS.COPY_SESSION}">${ICONS.CLIPBOARD}</div><div class="g-toggles g-stat"><div class="g-pill p-str active" data-type="stat" data-val="str">STR</div><div class="g-pill p-def" data-type="stat" data-val="def">DEF</div><div class="g-pill p-spd active" data-type="stat" data-val="spd">SPD</div><div class="g-pill p-dex" data-type="stat" data-val="dex">DEX</div><div class="g-pill p-tot" data-type="stat" data-val="total">TOT</div></div></div><div id="bbgl-sticker-title"></div><div class="ui-floating-label" id="bbgl-date-label">LOADING...</div><div class="ui-floating-summary" id="bbgl-summary-label"></div><div id="bbgl-ledger-view" class="ledger-content"></div><div id="bbgl-graph-container"><svg id="bbgl-graph-svg"></svg></div><div id="bbgl-achievements-container" class="ledger-content"></div><div id="bbgl-library-container"></div><div id="bbgl-lib-pagination-bar"><button type="button" id="lib-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous library page">${ICONS.CHEVRON}</button><div id="bbgl-lib-pagination"></div><button type="button" id="lib-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next library page">${ICONS.CHEVRON}</button></div><div id="bbgl-ach-footer"><button type="button" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous achievements page">${ICONS.CHEVRON}</button><div id="bbgl-ach-pageindicator"></div><button type="button" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next achievements page">${ICONS.CHEVRON}</button></div><div id="bbgl-sticker-bg"></div><div id="bbgl-sticker-container"><div id="sticker-prev-btn" class="sticker-nav-btn">❮</div><div id="sticker-next-btn" class="sticker-nav-btn">❯</div><div id="bbgl-sticker-grid"></div></div><div id="bbgl-sticker-pagination-bar"><button type="button" id="sticker-mini-prev-btn" class="bbgl-ach-nav bbgl-ach-prev" aria-label="Previous sticker page">${ICONS.CHEVRON}</button><div id="bbgl-sticker-pagination"></div><button type="button" id="sticker-mini-next-btn" class="bbgl-ach-nav bbgl-ach-next" aria-label="Next sticker page">${ICONS.CHEVRON}</button></div><div class="glass-overlay"></div></div><div id="bbgl-bottom-panel"><div id="bbgl-demo-exit" style="display: ${runtime.demoMode ? 'flex' : 'none'};" data-tooltip="${TOOLTIPS.DEMO_EXIT}" data-tooltip-html="${TOOLTIPS.DEMO_EXIT_HTML}">DEMO MODE</div><div class="bbgl-header-wrapper"><div id="bbgl-header-bg" class="bbgl-header-bg"></div><div class="bbgl-month-header"><div class="title-group"><div class="title-stack"><div class="header-row header-row--alltime"><div class="stats-btn" id="all-time-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="all-time-trigger">All Time</div></div><div class="header-row header-row--year"><div class="stats-btn" id="year-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="year-trigger"></div><div id="bbgl-year-dropdown" class="bbgl-dropdown-menu"></div></div><div class="header-row header-row--month"><div class="stats-btn" id="month-stats-btn">${buildChartSVG(null)}</div><div class="header-trigger" id="month-trigger"></div><div id="bbgl-month-dropdown" class="bbgl-dropdown-menu"></div></div></div></div><div class="bbgl-month-nav">${buildNoteToolsHTML()}<button class="arrow-btn" id="prev-month-btn">❮</button><button class="arrow-btn" id="next-month-btn">❯</button></div></div><div class="bbgl-level-lens" aria-hidden="true"></div>${buildLevelBarHTML()}</div><div class="bbgl-grid-container"><div class="bbgl-week-row">${weekRowHTML}</div><div class="calendar-wrapper" id="swipe-area"><div id="bbgl-cal-container" class="bbgl-cal-container"></div></div></div></div><div id="bbgl-item-viewer"><div class="viewer-window"><div class="viewer-stage"><div class="viewer-pedestal" id="vi-pedestal-wrapper"><div class="viewer-obj" id="vi-obj-target"><div class="layer-front"></div><div class="layer-back"><div class="lb-brand"><span class="lb-brand-sm">Fully</span><span class="lb-brand-lg">Bricked</span><span class="lb-brand-sm">Fitness<sup class="lb-brand-tm">™</sup></span><span class="lb-brand-tag">Authentic</span></div></div></div></div></div></div><div class="viewer-info-overlay"><div class="vi-name" id="vi-name-target">Item Name</div></div></div><div id="bbgl-settings-view">${getSettingsHTML()}</div><div id="bbgl-welcome-view"></div></div>`;
     }
 
     /**
