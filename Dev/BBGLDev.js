@@ -17465,7 +17465,7 @@ const DataController = {
         }
         if (best === -1) return (or[stat] || 0);
         const rate = arr[best].rates[stat];
-        return rate !== null ? rate : (or[stat] || 0);
+        return rate != null ? rate : (or[stat] || 0);
     },
     getOriginRate(stat) {
         if (!this._cache.rateArr) this._buildRateCache();
@@ -27109,7 +27109,26 @@ const BestGymController = {
             }
             return "Tooltip";
         },
+        // Any draw failure is logged with what was being drawn, since it has only shown up in
+        // sessions nobody could reproduce. A failure before the plot is built leaves it blank.
         draw() {
+            try {
+                GraphController._drawBody();
+            } catch (err) {
+                Perf.end('graphDraw');
+                GraphController._logDrawError('draw', err);
+            }
+        },
+        _logDrawError(stage, err, viewType) {
+            Log.error(`Graph ${stage} failed`, {
+                mode: graphState.mode,
+                stats: [...graphState.activeStats],
+                viewType: viewType || null,
+                label: calendarState.selectedLabel,
+                year: calendarState.year
+            }, err);
+        },
+        _drawBody() {
             Perf.start('graphDraw');
             if (document.hidden) {
                 runtime.graphDirty = true;
@@ -27401,85 +27420,93 @@ const BestGymController = {
                     g.appendChild(lt);
                 });
             }
-            graphState.activeStats.forEach(s => {
-                if (!tr[s] || tr[s].length === 0) return;
-                const arr = tr[s],
-                    sty = arr[0].y,
-                    col = (s === 'total' ? CONSTANTS.COLORS.TOT : (CONSTANTS.COLORS[s.toUpperCase()] || '#ffffff'));
-                let str = sty;
-                const vs = arr.find(p => p.y > 0);
-                if (vs) str = vs.y;
-                let d = "",
-                    _ps = false;
-                arr.forEach((p) => {
-                    const x = gx(p.x),
-                        y = gy(p.y);
-                    if (!isFinite(x) || !isFinite(y)) {
+            // A failure here still attaches what was built, so it shows as a partial graph
+            // and leaves a console record instead of a blank one.
+            try {
+                graphState.activeStats.forEach(s => {
+                    if (!tr[s] || tr[s].length === 0) return;
+                    const arr = tr[s],
+                        sty = arr[0].y,
+                        col = (s === 'total' ? CONSTANTS.COLORS.TOT : (CONSTANTS.COLORS[s.toUpperCase()] || '#ffffff'));
+                    let str = sty;
+                    const vs = arr.find(p => p.y > 0);
+                    if (vs) str = vs.y;
+                    let d = "",
                         _ps = false;
-                        return;
-                    }
-                    if (!_ps) {
-                        d += `M ${x} ${y}`;
-                        _ps = true;
-                    } else d += ` L ${x} ${y}`;
+                    arr.forEach((p) => {
+                        const x = gx(p.x),
+                            y = gy(p.y);
+                        if (!isFinite(x) || !isFinite(y)) {
+                            _ps = false;
+                            return;
+                        }
+                        if (!_ps) {
+                            d += `M ${x} ${y}`;
+                            _ps = true;
+                        } else d += ` L ${x} ${y}`;
+                    });
+                    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+                    p.setAttribute("d", d);
+                    p.setAttribute("stroke", col);
+                    p.setAttribute("class", "g-path");
+                    p.setAttribute("vector-effect", "non-scaling-stroke");
+                    g.appendChild(p);
+                    const dns = (vt !== 'YEAR' && arr.length > 50);
+                    arr.forEach((p, i) => {
+                        const x = gx(p.x),
+                            y = gy(p.y),
+                            grp = document.createElementNS("http://www.w3.org/2000/svg", "g");
+                        grp.setAttribute("class", "g-point-group");
+                        grp.setAttribute("data-stat", s);
+                        grp.setAttribute("data-cx", x);
+                        grp.setAttribute("data-cy", y);
+                        const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                        hit.setAttribute("cx", x);
+                        hit.setAttribute("cy", y);
+                        hit.setAttribute("r", 8);
+                        hit.setAttribute("fill", "transparent");
+                        grp.appendChild(hit);
+                        if (!dns || i === arr.length - 1) {
+                            const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+                            dot.setAttribute("cx", x);
+                            dot.setAttribute("cy", y);
+                            dot.setAttribute("r", 4);
+                            dot.setAttribute("fill", col);
+                            dot.setAttribute("class", "g-point-visual");
+                            grp.appendChild(dot);
+                        }
+                        let stt = s === 'str' ? "STRENGTH" : s === 'def' ? "DEFENSE" : s === 'spd' ? "SPEED" : s === 'dex' ? "DEXTERITY" : "TOTAL STATS",
+                            body = "";
+                        const tl = GraphController._graphTooltipHeader(vt, p, i, arr, dat);
+                        let prevVal = sty;
+                        if (vt === 'YEAR') {
+                            if (i === 0) prevVal = p.y;
+                            else prevVal = arr[i - 1].y;
+                        } else prevVal = sty;
+                        if (graphState.mode === 'rates' && !Number.isFinite(p.y)) {
+                            body = `<div class="tt-row"><span class="tt-label">Rate</span> <span class="tt-total">—</span></div>`;
+                        } else if (graphState.mode === 'rates') {
+                            const cr = p.y,
+                                dl = cr - str,
+                                sg = dl >= 0 ? '+' : '',
+                                pc = str > 0 ? (dl / str) * 100 : 0,
+                                crStr = Math.abs(cr) > 99 ? cr.toLocaleString(undefined, { maximumFractionDigits: 0 }) : cr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                                dlStr = Math.abs(dl) > 99 ? Math.round(dl).toLocaleString() : dl.toFixed(2);
+                            body = `<div class="tt-row"><span class="tt-label">Rate</span> <span class="tt-total">${crStr}</span></div><div class="tt-row"><span class="tt-label">Growth</span> <span style="color:${dl >= 0 ? CONSTANTS.COLORS.GAINS : '#ff5252'}; font-weight:bold;">${sg}${dlStr} <span style="font-size:10px; opacity:0.8;">(${sg}${pc.toFixed(1)}%)</span></span></div>`;
+                        } else if (graphState.mode === 'gains') body = `<div class="tt-row"><span class="tt-label">Gained</span> <span class="tt-val">+${Formatter.dual(p.y)}</span></div>`;
+                        else {
+                            const cv = p.y,
+                                gv = (vt === 'YEAR' && i === 0) ? 0 : cv - prevVal,
+                                gs = gv >= 0 ? '+' : '';
+                            body = `<div class="tt-row"><span class="tt-label">Total</span> <span class="tt-total">${Formatter.number(cv)}</span></div><div class="tt-row"><span class="tt-label">Gains</span> <span class="tt-val">${gs}${Formatter.number(gv)}</span></div>`;
+                        }
+                        grp.setAttribute("data-tooltip-html", `<div class="tt-header" style="border:none; margin-bottom:0; padding-bottom:0;">${tl}</div><div style="text-align:center; font-weight:bold; font-size:10px; color:${col}; margin-bottom:4px; letter-spacing:1px;">${stt}</div><div style="border-bottom:1px solid rgba(255,255,240,0.15); margin-bottom:5px;"></div>${body}`);
+                        g.appendChild(grp);
+                    });
                 });
-                const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
-                p.setAttribute("d", d);
-                p.setAttribute("stroke", col);
-                p.setAttribute("class", "g-path");
-                p.setAttribute("vector-effect", "non-scaling-stroke");
-                g.appendChild(p);
-                const dns = (vt !== 'YEAR' && arr.length > 50);
-                arr.forEach((p, i) => {
-                    const x = gx(p.x),
-                        y = gy(p.y),
-                        grp = document.createElementNS("http://www.w3.org/2000/svg", "g");
-                    grp.setAttribute("class", "g-point-group");
-                    grp.setAttribute("data-stat", s);
-                    grp.setAttribute("data-cx", x);
-                    grp.setAttribute("data-cy", y);
-                    const hit = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                    hit.setAttribute("cx", x);
-                    hit.setAttribute("cy", y);
-                    hit.setAttribute("r", 8);
-                    hit.setAttribute("fill", "transparent");
-                    grp.appendChild(hit);
-                    if (!dns || i === arr.length - 1) {
-                        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-                        dot.setAttribute("cx", x);
-                        dot.setAttribute("cy", y);
-                        dot.setAttribute("r", 4);
-                        dot.setAttribute("fill", col);
-                        dot.setAttribute("class", "g-point-visual");
-                        grp.appendChild(dot);
-                    }
-                    let stt = s === 'str' ? "STRENGTH" : s === 'def' ? "DEFENSE" : s === 'spd' ? "SPEED" : s === 'dex' ? "DEXTERITY" : "TOTAL STATS",
-                        body = "";
-                    const tl = GraphController._graphTooltipHeader(vt, p, i, arr, dat);
-                    let prevVal = sty;
-                    if (vt === 'YEAR') {
-                        if (i === 0) prevVal = p.y;
-                        else prevVal = arr[i - 1].y;
-                    } else prevVal = sty;
-                    if (graphState.mode === 'rates') {
-                        const cr = p.y,
-                            dl = cr - str,
-                            sg = dl >= 0 ? '+' : '',
-                            pc = str > 0 ? (dl / str) * 100 : 0,
-                            crStr = Math.abs(cr) > 99 ? cr.toLocaleString(undefined, { maximumFractionDigits: 0 }) : cr.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                            dlStr = Math.abs(dl) > 99 ? Math.round(dl).toLocaleString() : dl.toFixed(2);
-                        body = `<div class="tt-row"><span class="tt-label">Rate</span> <span class="tt-total">${crStr}</span></div><div class="tt-row"><span class="tt-label">Growth</span> <span style="color:${dl >= 0 ? CONSTANTS.COLORS.GAINS : '#ff5252'}; font-weight:bold;">${sg}${dlStr} <span style="font-size:10px; opacity:0.8;">(${sg}${pc.toFixed(1)}%)</span></span></div>`;
-                    } else if (graphState.mode === 'gains') body = `<div class="tt-row"><span class="tt-label">Gained</span> <span class="tt-val">+${Formatter.dual(p.y)}</span></div>`;
-                    else {
-                        const cv = p.y,
-                            gv = (vt === 'YEAR' && i === 0) ? 0 : cv - prevVal,
-                            gs = gv >= 0 ? '+' : '';
-                        body = `<div class="tt-row"><span class="tt-label">Total</span> <span class="tt-total">${Formatter.number(cv)}</span></div><div class="tt-row"><span class="tt-label">Gains</span> <span class="tt-val">${gs}${Formatter.number(gv)}</span></div>`;
-                    }
-                    grp.setAttribute("data-tooltip-html", `<div class="tt-header" style="border:none; margin-bottom:0; padding-bottom:0;">${tl}</div><div style="text-align:center; font-weight:bold; font-size:10px; color:${col}; margin-bottom:4px; letter-spacing:1px;">${stt}</div><div style="border-bottom:1px solid rgba(255,255,240,0.15); margin-bottom:5px;"></div>${body}`);
-                    g.appendChild(grp);
-                });
-            });
+            } catch (err) {
+                GraphController._logDrawError('lines', err, vt);
+            }
             svg.appendChild(g);
             GraphController._setupScrubbing(cont, svg, mar);
             Perf.end('graphDraw');

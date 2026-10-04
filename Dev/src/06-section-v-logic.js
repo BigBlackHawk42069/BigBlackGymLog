@@ -430,7 +430,7 @@ const DataController = {
         }
         if (best === -1) return (or[stat] || 0);
         const rate = arr[best].rates[stat];
-        return rate !== null ? rate : (or[stat] || 0);
+        return rate != null ? rate : (or[stat] || 0);
     },
     getOriginRate(stat) {
         if (!this._cache.rateArr) this._buildRateCache();
