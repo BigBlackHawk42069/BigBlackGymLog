@@ -453,6 +453,12 @@
         const pm = window.location.hash.includes('gymlog');
         syncSidebarState();
         if (pm) {
+            // A View button pressed with no panel open sends a new tab here to land on the titles page.
+            if (window.location.hash === '#gymlog-ranks') {
+                viewState.subView = 'achievements';
+                viewState.achPage = 0;
+                history.replaceState(null, '', '/calendar.php#gymlog');
+            }
             document.title = "Gym Log | TORN";
             document.body.classList.add('bbgl-page-mode-active');
             renderPageMode();

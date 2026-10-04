@@ -24198,27 +24198,20 @@ const BestGymController = {
         });
     }
 
-    // Clicking a toast goes to the titles/ranks page. In the script's own page mode that's the page
-    // itself; otherwise the panel opens at whatever size it was left at (viewState.expanded) and
-    // switches views — including from Torn's gym page, where the toast came off the gym bar.
+    // The one route to the titles/ranks page, shared by the reward toasts' View and the level card's
+    // View. In page mode, or with the panel open (clicked on the panel or on the gym page under it),
+    // it switches views in place. Otherwise it opens page mode in a new tab; the #gymlog-ranks hash
+    // has that tab start on the titles page (checkViewRouting()), so this tab's shared view state
+    // isn't changed to get it there.
     function openRanksPage() {
-        if (dom.panel && dom.panel.classList.contains('bbgl-mode-page')) {
-            runtime._achPage = 0;
-            switchView('achievements');
+        const panel = document.getElementById('bbgl-panel');
+        const inPlace = !!panel && (panel.classList.contains('bbgl-mode-page') || (!!panel.style.display && panel.style.display !== 'none'));
+        if (!inPlace) {
+            window.open('/calendar.php#gymlog-ranks', '_blank');
             return;
         }
-        const panel = document.getElementById('bbgl-panel');
-        if (!panel || panel.style.display === 'none' || !panel.style.display) togglePanel();
         runtime._achPage = 0;
         switchView('achievements');
-    }
-
-    // Page mode is its own page load, so the view and page are saved first for its boot to restore.
-    function openRanksPageMode() {
-        viewState.subView = 'achievements';
-        viewState.achPage = 0;
-        saveViewState();
-        window.location.href = '/calendar.php#gymlog';
     }
 
     // A card shown on both bars is one notification, so dismissing either dismisses its twin.
@@ -25836,12 +25829,8 @@ const BestGymController = {
             if (!btn) return;
             TooltipController.hide();
             if (btn.classList.contains('bbgl-level-card-view')) {
-                const fromGym = levelCard.bar && levelCard.bar.id === 'bbgl-gym-level-container';
-                const panel = document.getElementById('bbgl-panel');
-                const panelOpen = !!(panel && panel.style.display && panel.style.display !== 'none');
                 closeLevelCard(true);
-                if (fromGym && !panelOpen) openRanksPageMode();
-                else openRanksPage();
+                openRanksPage();
             } else {
                 levelCard.pinned = false;
                 setLevelCardWant(null);
@@ -28673,6 +28662,12 @@ const BestGymController = {
         const pm = window.location.hash.includes('gymlog');
         syncSidebarState();
         if (pm) {
+            // A View button pressed with no panel open sends a new tab here to land on the titles page.
+            if (window.location.hash === '#gymlog-ranks') {
+                viewState.subView = 'achievements';
+                viewState.achPage = 0;
+                history.replaceState(null, '', '/calendar.php#gymlog');
+            }
             document.title = "Gym Log | TORN";
             document.body.classList.add('bbgl-page-mode-active');
             renderPageMode();
