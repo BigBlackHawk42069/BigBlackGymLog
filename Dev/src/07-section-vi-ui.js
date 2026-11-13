@@ -5,7 +5,7 @@
      *  You should still get a Tetanus Booster!
      */
 
-    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/');
+    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/');
 
     function buildChartSVG(sl) {
         const stats = sl && sl.stats;

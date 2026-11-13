@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/asdfaskijdnfawef': 'efd4a45dbae452a5434603aeaf8ea08301b22494'
+        'BigBlackHawk42069/BigBlackGymLog': '1f587b350ee837b12a65ef6aefcf7bb49d45c298'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -383,91 +383,90 @@
     // stickerPageTitle()/gotoStickerPage() in 09-section-viii-stickers.js.
     const STICKER_SPONSOR_PAGE = -1;
     const STICKER_SPONSOR_TITLE = "Sponsorship";
-    const _d = s => atob(s);
     const CUSTOM_STICKERS = [
         //Sweat Equity
         {
             id: 1,
             name: "Just Checking the Mirror",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vanN0LWNoay1taXJyci53ZWJw')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/jst-chk-mirrr.webp'
         }, {
             id: 2,
             name: "Up, Down, Repeat",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXAtZG4tcnB0LndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/up-dn-rpt.webp'
         }, {
             id: 3,
             name: "Flat Bench Therapy",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vZmx0LWJuY2gtdGhycHkud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/flt-bnch-thrpy.webp'
         }, {
             id: 4,
             name: "Bring Home the Feed",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYnJuZy1obS1mZWVkLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/brng-hm-feed.webp'
         }, {
             id: 5,
             name: "Never Skip Leg Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vbnZyLXNrcC1sZWcud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/nvr-skp-leg.webp'
         }, {
             id: 6,
             name: "Tire Rotation",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdGlyZS1yb3RuLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/tire-rotn.webp'
         }, {
             id: 7,
             name: "Back End Engagement",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vYmNrLWVuZC1lbmdtdC53ZWJw')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/bck-end-engmt.webp'
         }, {
             id: 8,
             name: "The Upside of Exercise",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vdXBzZC1leHJjc2Uud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/upsd-exrcse.webp'
         }, {
             id: 9,
             name: "Shellshock Stretches",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vc2hsc2hrLXN0cmNoLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/shlshk-strch.webp'
         }, {
             id: 10,
             name: "Certified Cardio",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9HeW0vY3J0ZmQtY3JkaW8ud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/crtfd-crdio.webp'
         },
         //Casino Collection
         {
             id: 11,
             name: "Just One More Spin",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vanN0LW9uZS1zcG4ud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/jst-one-spn.webp'
         }, {
             id: 12,
             name: "Bingo! I Think...",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vYmluZ28taS10aG5rLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/bingo-i-thnk.webp'
         }, {
             id: 13,
             name: "Lucky Shot",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbGNreS1zaHQud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lcky-sht.webp'
         }, {
             id: 14,
             name: "Holy Craps",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaG9seS1jcnBzLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/holy-crps.webp'
         }, {
             id: 15,
             name: "Tilted in My Favor",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdGx0ZC1teS1mdnIud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/tltd-my-fvr.webp'
         }, {
             id: 16,
             name: "Choose Wisely",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vY2hzZS13c2x5LndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/chse-wsly.webp'
         }, {
             id: 17,
             name: "Hit Me",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vaGl0LW1lLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/hit-me.webp'
         }, {
             id: 18,
             name: "Dead Men's Hand",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vZGVhZC1tZW5zLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/dead-mens.webp'
         }, {
             id: 19,
             name: "Trigger Warning",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vdHJnci13cm5nLndlYnA=')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/trgr-wrng.webp'
         }, {
             id: 20,
             name: "Leslie's Sick Day",
-            url: _d('aHR0cHM6Ly9yYXcuZ2l0aHVidXNlcmNvbnRlbnQuY29tL0JpZ0JsYWNrSGF3azQyMDY5L2FzZGZhc2tpamRuZmF3ZWYvcmVmcy9oZWFkcy9tYWluL1NjcnB0SW1ncy9TdGlja2VyYm9vay9DYXNpbm8vbHNscy1zY2stZHkud2VicA==')
+            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lsls-sck-dy.webp'
         }
     ];
     // thumbUrl is a 192px copy under Calendar/Stickers/, for the calendar cells and the sticker book
@@ -2306,13 +2305,13 @@
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
-    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
-        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
+        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
+        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
+        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
+        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -2370,7 +2369,7 @@
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
-        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
     // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
     // so the valve's shading holds while the finish changes. Offsets live with the SVG.
@@ -21550,7 +21549,7 @@ const BestGymController = {
      *  You should still get a Tetanus Booster!
      */
 
-    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/');
+    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/');
 
     function buildChartSVG(sl) {
         const stats = sl && sl.stats;

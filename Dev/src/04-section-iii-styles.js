@@ -1,13 +1,13 @@
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
-    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
-        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
+        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
+        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
+        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
+        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -65,7 +65,7 @@
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
-        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/asdfaskijdnfawef/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
     // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
     // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
     // so the valve's shading holds while the finish changes. Offsets live with the SVG.
