@@ -1,10 +1,19 @@
-/Dev
-Dev/LEVELING_PLAN.md
-CLAUDE.md
-Dev/BBGL Technical Changelog.md
-Dev/BBGLRelease.js
-/.vscode
-/Dev/src
-/Build Tools
-AGENTS.md
-.claude/launch.json
+# Allowlist for the release branch: ignore everything by default, then un-ignore only
+# what a user of the script needs on GitHub. Dev source, dev builds, build tooling and
+# notes stay local, even though they sit in the same folder as on DevBranch.
+
+/*
+
+# Repo config
+!/.gitignore
+!/README.md
+
+# Release build and its update-check file
+!/BigBlackGymLog.js
+!/BigBlackGymLog.meta.js
+
+# Docs the script loads at runtime
+!/UserDocs/
+
+# Images the script loads at runtime
+!/ScrptImgs/
