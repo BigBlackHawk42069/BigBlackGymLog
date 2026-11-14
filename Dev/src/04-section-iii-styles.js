@@ -3500,12 +3500,16 @@
                        once the end insets, the icons, the divider with its two gaps and the minimum
                        centre gap are taken out. */
                     #bbgl-panel.bbgl-compact .g-toggles {
-                        gap: 1px;
+                        gap: 2px;
+                    }
+
+                    #bbgl-panel.bbgl-compact .g-pill.p-tot {
+                        display: none;
                     }
 
                     #bbgl-panel.bbgl-compact .g-pill {
-                        font-size: 7px;
-                        padding: 1.5px;
+                        font-size: 7.5px;
+                        padding: 1.75px 2px;
                         line-height: 1;
                         display: inline-flex;
                         align-items: center;

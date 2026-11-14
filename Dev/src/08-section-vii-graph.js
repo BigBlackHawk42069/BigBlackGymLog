@@ -1,9 +1,32 @@
     const GraphController = {
+        _resolveSlice(selectedData, selectedLabel, year) {
+            return this._transformData({ selectedData, selectedLabel, year, sliceOnly: true });
+        },
+        // Lights only the stats gained in the selected period. A period with no gains falls back to
+        // the most recent earlier training day. TOT is left as the user set it.
+        autoSelectStats() {
+            const sl = this._resolveSlice(calendarState.selectedData, calendarState.selectedLabel, calendarState.year);
+            let picks = STAT_KEYS.filter(k => sl && sl.stats && sl.stats[k] && sl.stats[k].gain > 0);
+            if (!picks.length) {
+                const from = (sl && sl.date) || calendarState.selectedLabel || Formatter.dateLogical();
+                const tl = DataController.getTimeline();
+                for (let i = tl.length - 1; i >= 0 && !picks.length; i--) {
+                    const d = tl[i];
+                    if (d.date > from || !d.gains) continue;
+                    picks = STAT_KEYS.filter(k => d.gains[k] > 0);
+                }
+            }
+            if (!picks.length) return;
+            graphState.activeStats = graphState.activeStats.includes('total') ? [...picks, 'total'] : picks;
+            viewState.graphStats = graphState.activeStats;
+            this.restoreUi();
+        },
         _transformData({
             selectedData,
             selectedLabel,
             year,
-            graphMode
+            graphMode,
+            sliceOnly
         }) {
             const isToday = !selectedData,
                 lbl = selectedLabel || "";
@@ -28,6 +51,7 @@
                 sl = selectedData;
                 vt = 'WEEK';
             }
+            if (sliceOnly) return sl;
             if (!sl) return {
                 labels: [],
                 trends: {
@@ -1015,11 +1039,13 @@
             const cmp = w < 300;
             const expandedPanel = !!cont.closest('#bbgl-panel.bbgl-expanded:not(.bbgl-mode-page)');
             const isPageMode = !!cont.closest('#bbgl-panel.bbgl-mode-page');
+            // Compact has no TOT pill; Total stays selected and returns in the other modes.
+            const drawStats = cont.closest('#bbgl-panel.bbgl-compact') ? graphState.activeStats.filter(s => s !== 'total') : graphState.activeStats;
             svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
             let _yMin = Infinity,
                 _yMax = -Infinity,
                 _yHas = false;
-            graphState.activeStats.forEach(s => {
+            drawStats.forEach(s => {
                 if (tr[s] && tr[s].length > 0) {
                     _yHas = true;
                     tr[s].forEach(p => {
@@ -1267,7 +1293,7 @@
             // A failure here still attaches what was built, so it shows as a partial graph
             // and leaves a console record instead of a blank one.
             try {
-                graphState.activeStats.forEach(s => {
+                drawStats.forEach(s => {
                     if (!tr[s] || tr[s].length === 0) return;
                     const arr = tr[s],
                         sty = arr[0].y,
@@ -1593,31 +1619,4 @@
                 else b.classList.remove('active');
             });
         },
-        applyDefaultsIfNeeded() {
-            if (viewState.graphStats) return;
-            if (_historyCache) {
-                let lastTrainedWeekStart = null;
-                const statsTrainedInThatWeek = new Set();
-                const daysToCheck = [...((_historyCache.history || []))];
-                if (_historyCache.today) daysToCheck.push(_historyCache.today);
-                for (let i = daysToCheck.length - 1; i >= 0; i--) {
-                    const day = daysToCheck[i];
-                    const eSpent = day.eSpent || {};
-                    if (!(eSpent.total > 0)) continue;
-                    const dayWeekStart = getWeekKey(day.date);
-                    if (!lastTrainedWeekStart) lastTrainedWeekStart = dayWeekStart;
-                    if (dayWeekStart === lastTrainedWeekStart) {
-                        if (eSpent.str > 0) statsTrainedInThatWeek.add('str');
-                        if (eSpent.def > 0) statsTrainedInThatWeek.add('def');
-                        if (eSpent.spd > 0) statsTrainedInThatWeek.add('spd');
-                        if (eSpent.dex > 0) statsTrainedInThatWeek.add('dex');
-                    } else break;
-                }
-                if (statsTrainedInThatWeek.size > 0) graphState.activeStats = Array.from(statsTrainedInThatWeek);
-            }
-            viewState.graphStats = graphState.activeStats;
-            graphState.mode = 'values';
-            viewState.graphMode = 'gains';
-            saveViewState();
-        }
     };

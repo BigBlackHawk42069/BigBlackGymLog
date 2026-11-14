@@ -109,6 +109,7 @@
             return;
         }
         if (tp.classList.contains('viewing-graph')) {
+            GraphController.autoSelectStats();
             GraphController.draw();
             const de = dom.dateLabel;
             if (de) de.innerText = Formatter.datePretty(l) || l;
@@ -154,6 +155,7 @@
         const tp = dom.topPanel,
             ts = Formatter.dateLogical();
         if (tp.classList.contains('viewing-graph')) {
+            GraphController.autoSelectStats();
             GraphController.draw();
             const de = dom.dateLabel;
             if (de) de.innerText = Formatter.datePretty(ts) || ts;
@@ -624,7 +626,6 @@
             calendarState.month = viewState.calMonth;
         }
         if (viewState.currentStickerPage !== undefined) runtime.currentStickerPage = viewState.currentStickerPage;
-        GraphController.applyDefaultsIfNeeded();
         if (viewState.graphMode) graphState.mode = (viewState.graphMode === 'gains' ? 'values' : viewState.graphMode) || 'values';
         if (viewState.graphStats) graphState.activeStats = viewState.graphStats;
         GraphController.restoreUi();
@@ -881,6 +882,7 @@
                 refreshDemoMasks();
             } else if (tgt === 'graph') {
                 tp.classList.add('viewing-graph');
+                GraphController.autoSelectStats();
                 GraphController.restoreUi();
                 GraphController.draw();
                 requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -2189,7 +2191,6 @@
                 const loaded = await DBManager.loadHistory();
                 Perf.end('init:loadHistory');
                 Perf.wrap('init:hydrate', () => DataController.hydrate(loaded));
-                GraphController.applyDefaultsIfNeeded();
                 // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
                 // stale; release it so the Resume button works again without a 24h lockout.
                 await recoverInterruptedBackfill();
