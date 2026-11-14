@@ -9886,6 +9886,34 @@
                         display: flex;
                     }
 
+                    /* Used only by the fetched docs (UserDocs/welcome.html), so a search of src finds no users. */
+                    .bbgl-author-block {
+                        margin: 8px 10px 10px;
+                        padding: 8px 10px;
+                        background: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        border-radius: 4px;
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        color: #aaa;
+                        line-height: 1.6;
+                    }
+
+                    .bbgl-author-block strong {
+                        color: #ddd;
+                        display: block;
+                        margin-bottom: 4px;
+                        font-size: 13px;
+                    }
+
+                    .bbgl-author-block p {
+                        margin: 0 0 6px;
+                    }
+
+                    .bbgl-author-block p:last-child {
+                        margin-bottom: 0;
+                    }
+
                     /* CSP-safe author link (replaces inline onmouseover/onmouseout handlers). */
                     .bbgl-author-link {
                         color: #69f0ae;
@@ -24963,14 +24991,12 @@ const BestGymController = {
         return document.getElementById('chatRoot');
     }
 
+    // Walks up from each open window's message list because the message rows (`virtualItem___`)
+    // also match [class*="item___"].
     function _bbglGetChatShoveTargets() {
         const targets = [];
-        document.querySelectorAll('[id^="channel_panel_button:"]').forEach(b => {
-            const id = b.id.slice('channel_panel_button:'.length);
-            if (!id) return;
-            const box = document.getElementById(id);
-            if (!box) return;
-            const wrap = box.closest('[class*="item___"]');
+        document.querySelectorAll('#chatRoot [class*="scrollWrapper___"]').forEach(sw => {
+            const wrap = sw.closest('[class*="item___"]');
             if (wrap && !targets.includes(wrap)) targets.push(wrap);
         });
         return targets;
@@ -31378,10 +31404,18 @@ const BestGymController = {
             });
             syncChangelogNotif(!anyActive);
         }, smallBtn);
+        // A closed panel opens straight onto the welcome view: restoreInternalState() reads subView.
+        const welcomeBtn = buildDevButton('Show Welcome Page', () => {
+            const p = document.getElementById('bbgl-panel');
+            if ((!p || p.style.display === 'none' || !p.style.display) && !window.location.hash.includes('gymlog')) {
+                viewState.subView = 'welcome';
+                togglePanel();
+            } else switchView('welcome');
+        }, smallBtn);
         const factoryResetBtn = buildDevButton('DEV: FACTORY RESET', () => {
             devFactoryReset();
         }, smallBtn + 'background:#5a1a1a;border-color:#833;');
-        return buildDevSection('Config', [buildRow([notifBtn]), buildRow([factoryResetBtn])], 160);
+        return buildDevSection('Config', [buildRow([notifBtn]), buildRow([welcomeBtn]), buildRow([factoryResetBtn])], 160);
     }
 
     async function devFactoryReset() {

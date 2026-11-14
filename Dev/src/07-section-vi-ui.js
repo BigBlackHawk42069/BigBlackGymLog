@@ -3419,14 +3419,12 @@
         return document.getElementById('chatRoot');
     }
 
+    // Walks up from each open window's message list because the message rows (`virtualItem___`)
+    // also match [class*="item___"].
     function _bbglGetChatShoveTargets() {
         const targets = [];
-        document.querySelectorAll('[id^="channel_panel_button:"]').forEach(b => {
-            const id = b.id.slice('channel_panel_button:'.length);
-            if (!id) return;
-            const box = document.getElementById(id);
-            if (!box) return;
-            const wrap = box.closest('[class*="item___"]');
+        document.querySelectorAll('#chatRoot [class*="scrollWrapper___"]').forEach(sw => {
+            const wrap = sw.closest('[class*="item___"]');
             if (wrap && !targets.includes(wrap)) targets.push(wrap);
         });
         return targets;

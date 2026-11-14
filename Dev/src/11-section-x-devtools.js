@@ -579,10 +579,18 @@
             });
             syncChangelogNotif(!anyActive);
         }, smallBtn);
+        // A closed panel opens straight onto the welcome view: restoreInternalState() reads subView.
+        const welcomeBtn = buildDevButton('Show Welcome Page', () => {
+            const p = document.getElementById('bbgl-panel');
+            if ((!p || p.style.display === 'none' || !p.style.display) && !window.location.hash.includes('gymlog')) {
+                viewState.subView = 'welcome';
+                togglePanel();
+            } else switchView('welcome');
+        }, smallBtn);
         const factoryResetBtn = buildDevButton('DEV: FACTORY RESET', () => {
             devFactoryReset();
         }, smallBtn + 'background:#5a1a1a;border-color:#833;');
-        return buildDevSection('Config', [buildRow([notifBtn]), buildRow([factoryResetBtn])], 160);
+        return buildDevSection('Config', [buildRow([notifBtn]), buildRow([welcomeBtn]), buildRow([factoryResetBtn])], 160);
     }
 
     async function devFactoryReset() {

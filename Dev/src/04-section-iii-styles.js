@@ -7582,6 +7582,34 @@
                         display: flex;
                     }
 
+                    /* Used only by the fetched docs (UserDocs/welcome.html), so a search of src finds no users. */
+                    .bbgl-author-block {
+                        margin: 8px 10px 10px;
+                        padding: 8px 10px;
+                        background: #2a2a2a;
+                        border: 1px solid #3a3a3a;
+                        border-radius: 4px;
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        color: #aaa;
+                        line-height: 1.6;
+                    }
+
+                    .bbgl-author-block strong {
+                        color: #ddd;
+                        display: block;
+                        margin-bottom: 4px;
+                        font-size: 13px;
+                    }
+
+                    .bbgl-author-block p {
+                        margin: 0 0 6px;
+                    }
+
+                    .bbgl-author-block p:last-child {
+                        margin-bottom: 0;
+                    }
+
                     /* CSP-safe author link (replaces inline onmouseover/onmouseout handlers). */
                     .bbgl-author-link {
                         color: #69f0ae;
