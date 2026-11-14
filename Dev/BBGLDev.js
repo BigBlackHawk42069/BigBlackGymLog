@@ -7498,19 +7498,17 @@
                         gap: inherit;
                     }
 
-                    /* Note over Clear Note, at the top of the header. Its top is measured from the
-                       month header's 4px top padding. Out of flow, so the header's layout is unchanged. */
+                    /* Note button at the top centre of the header, Clear hanging off its left side so
+                       the note stays centred. Its top is measured from the month header's 4px top
+                       padding. Out of flow, so the header's layout is unchanged. */
                     .bbgl-note-tools {
-                        --bbgl-note-btn: 24px;
+                        --bbgl-note-btn: 27px;
                         position: absolute;
                         top: 1px;
                         left: 50%;
                         transform: translateX(-50%);
                         z-index: 12;
                         display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 3px;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-note-tools {
@@ -7553,6 +7551,10 @@
 
                     /* Plain handwritten label, no box. */
                     .bbgl-note-clear-btn {
+                        position: absolute;
+                        right: calc(100% + 3px);
+                        top: 50%;
+                        transform: translateY(-50%);
                         padding: 1px 2px;
                         color: rgba(255, 255, 255, .75);
                         font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
@@ -22631,7 +22633,7 @@ const BestGymController = {
     });
 
     function buildNoteToolsHTML() {
-        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear Note</div></div>`;
+        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear</div></div>`;
     }
 
     function monthHasNotes() {
@@ -22671,6 +22673,18 @@ const BestGymController = {
     }
 
     // ds is the day the editor opens on; with none it opens on today.
+    // A plain tap on the note button dates the note from the current selection: the day itself, a
+    // week's first day, a month's first day, or today for a year, All-Time or no selection.
+    function noteDefaultDate() {
+        const l = calendarState.selectedLabel,
+            sl = calendarState.selectedData;
+        if (!l || !sl || l === 'All-Time' || /^\d{4}$/.test(l)) return null;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(l)) return l;
+        const mi = CONSTANTS.MONTHS.indexOf(l);
+        if (mi > -1) return Formatter.dateISO(calendarState.year, mi, 1);
+        return sl.date ? getWeekKey(sl.date) : null;
+    }
+
     function openNoteEditor(ds) {
         closeNoteEditor();
         const today = Formatter.dateLogical();
@@ -22858,7 +22872,7 @@ const BestGymController = {
             if (wasDrag && !cell) return;
             setNoteMode(null);
             TooltipController.hide();
-            openNoteEditor(wasDrag ? cell.dataset.date : null);
+            openNoteEditor(wasDrag ? cell.dataset.date : noteDefaultDate());
         });
         nb.addEventListener('pointercancel', endDrag);
         syncNoteTools();

@@ -5194,19 +5194,17 @@
                         gap: inherit;
                     }
 
-                    /* Note over Clear Note, at the top of the header. Its top is measured from the
-                       month header's 4px top padding. Out of flow, so the header's layout is unchanged. */
+                    /* Note button at the top centre of the header, Clear hanging off its left side so
+                       the note stays centred. Its top is measured from the month header's 4px top
+                       padding. Out of flow, so the header's layout is unchanged. */
                     .bbgl-note-tools {
-                        --bbgl-note-btn: 24px;
+                        --bbgl-note-btn: 27px;
                         position: absolute;
                         top: 1px;
                         left: 50%;
                         transform: translateX(-50%);
                         z-index: 12;
                         display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        gap: 3px;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-note-tools {
@@ -5249,6 +5247,10 @@
 
                     /* Plain handwritten label, no box. */
                     .bbgl-note-clear-btn {
+                        position: absolute;
+                        right: calc(100% + 3px);
+                        top: 50%;
+                        transform: translateY(-50%);
                         padding: 1px 2px;
                         color: rgba(255, 255, 255, .75);
                         font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
