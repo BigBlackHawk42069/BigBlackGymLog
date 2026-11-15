@@ -383,98 +383,6 @@
     // stickerPageTitle()/gotoStickerPage() in 09-section-viii-stickers.js.
     const STICKER_SPONSOR_PAGE = -1;
     const STICKER_SPONSOR_TITLE = "Sponsorship";
-    const CUSTOM_STICKERS = [
-        //Sweat Equity
-        {
-            id: 1,
-            name: "Just Checking the Mirror",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/jst-chk-mirrr.webp'
-        }, {
-            id: 2,
-            name: "Up, Down, Repeat",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/up-dn-rpt.webp'
-        }, {
-            id: 3,
-            name: "Flat Bench Therapy",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/flt-bnch-thrpy.webp'
-        }, {
-            id: 4,
-            name: "Bring Home the Feed",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/brng-hm-feed.webp'
-        }, {
-            id: 5,
-            name: "Never Skip Leg Day",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/nvr-skp-leg.webp'
-        }, {
-            id: 6,
-            name: "Tire Rotation",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/tire-rotn.webp'
-        }, {
-            id: 7,
-            name: "Back End Engagement",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/bck-end-engmt.webp'
-        }, {
-            id: 8,
-            name: "The Upside of Exercise",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/upsd-exrcse.webp'
-        }, {
-            id: 9,
-            name: "Shellshock Stretches",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/shlshk-strch.webp'
-        }, {
-            id: 10,
-            name: "Certified Cardio",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/crtfd-crdio.webp'
-        },
-        //Casino Collection
-        {
-            id: 11,
-            name: "Just One More Spin",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/jst-one-spn.webp'
-        }, {
-            id: 12,
-            name: "Bingo! I Think...",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/bingo-i-thnk.webp'
-        }, {
-            id: 13,
-            name: "Lucky Shot",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lcky-sht.webp'
-        }, {
-            id: 14,
-            name: "Holy Craps",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/holy-crps.webp'
-        }, {
-            id: 15,
-            name: "Tilted in My Favor",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/tltd-my-fvr.webp'
-        }, {
-            id: 16,
-            name: "Choose Wisely",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/chse-wsly.webp'
-        }, {
-            id: 17,
-            name: "Hit Me",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/hit-me.webp'
-        }, {
-            id: 18,
-            name: "Dead Men's Hand",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/dead-mens.webp'
-        }, {
-            id: 19,
-            name: "Trigger Warning",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/trgr-wrng.webp'
-        }, {
-            id: 20,
-            name: "Leslie's Sick Day",
-            url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lsls-sck-dy.webp'
-        }
-    ];
-    // thumbUrl is a 192px copy under Calendar/Stickers/, for the calendar cells and the sticker book
-    // grid; url stays full size for the sticker viewer.
-    CUSTOM_STICKERS.forEach(s => {
-        s.url = cdnize(s.url);
-        s.thumbUrl = s.url.replace('/ScrptImgs/Stickerbook/', '/ScrptImgs/Calendar/Stickers/');
-    });
     let runtime = {
         isClosing: false,
         isViewAnimating: false,
@@ -2306,16 +2214,50 @@
             style.textContent = style.textContent.replace(css, () => baked);
         }).catch(() => {});
     }
+    // Every remote image lives under the repo's Assets/ folder and goes through cdnize (02), so a
+    // CDN_PINS bump covers all of it.
+    const ASSET_ROOT = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/Assets/';
+    const CAL_IMG_BASE = cdnize(ASSET_ROOT + 'Calendar/');
+    // art is the path under Assets/Stickerbook/. thumbUrl is a 192px copy under Calendar/Stickers/
+    // for the calendar cells and the sticker book grid; url stays full size for the sticker viewer.
+    const CUSTOM_STICKERS = [
+        // Sweat Equity
+        { id: 1, name: "Just Checking the Mirror", art: 'Gym/jst-chk-mirrr' },
+        { id: 2, name: "Up, Down, Repeat", art: 'Gym/up-dn-rpt' },
+        { id: 3, name: "Flat Bench Therapy", art: 'Gym/flt-bnch-thrpy' },
+        { id: 4, name: "Bring Home the Feed", art: 'Gym/brng-hm-feed' },
+        { id: 5, name: "Never Skip Leg Day", art: 'Gym/nvr-skp-leg' },
+        { id: 6, name: "Tire Rotation", art: 'Gym/tire-rotn' },
+        { id: 7, name: "Back End Engagement", art: 'Gym/bck-end-engmt' },
+        { id: 8, name: "The Upside of Exercise", art: 'Gym/upsd-exrcse' },
+        { id: 9, name: "Shellshock Stretches", art: 'Gym/shlshk-strch' },
+        { id: 10, name: "Certified Cardio", art: 'Gym/crtfd-crdio' },
+        // Casino Collection
+        { id: 11, name: "Just One More Spin", art: 'Casino/jst-one-spn' },
+        { id: 12, name: "Bingo! I Think...", art: 'Casino/bingo-i-thnk' },
+        { id: 13, name: "Lucky Shot", art: 'Casino/lcky-sht' },
+        { id: 14, name: "Holy Craps", art: 'Casino/holy-crps' },
+        { id: 15, name: "Tilted in My Favor", art: 'Casino/tltd-my-fvr' },
+        { id: 16, name: "Choose Wisely", art: 'Casino/chse-wsly' },
+        { id: 17, name: "Hit Me", art: 'Casino/hit-me' },
+        { id: 18, name: "Dead Men's Hand", art: 'Casino/dead-mens' },
+        { id: 19, name: "Trigger Warning", art: 'Casino/trgr-wrng' },
+        { id: 20, name: "Leslie's Sick Day", art: 'Casino/lsls-sck-dy' }
+    ];
+    CUSTOM_STICKERS.forEach(s => {
+        s.url = cdnize(ASSET_ROOT + 'Stickerbook/' + s.art + '.webp');
+        s.thumbUrl = cdnize(ASSET_ROOT + 'Calendar/Stickers/' + s.art + '.webp');
+    });
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
-    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    ].map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
-        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
+        GLASS_OVERLAY: cdnize(ASSET_ROOT + 'Calendar/glass-ovly.webp'),
+        STICKER_BG: cdnize(ASSET_ROOT + 'Stickerbook/stkr-bckgr.webp'),
+        NEW_STICKER_FRAME: cdnize(ASSET_ROOT + 'Calendar/nw-stickr.webp'),
+        CUSTOM_NOTE: cdnize(ASSET_ROOT + 'Calendar/cstm-note.webp'),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -2373,7 +2315,7 @@
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
-        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+        .map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
     // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
     // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
     // so the valve's shading holds while the finish changes. Offsets live with the SVG.
@@ -22171,8 +22113,6 @@ const BestGymController = {
      *  Whether you use it for a day or you use it for ten years:
      *  You should still get a Tetanus Booster!
      */
-
-    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/');
 
     function buildChartSVG(sl) {
         const stats = sl && sl.stats;
