@@ -98,7 +98,6 @@
     };
     const GAME = {
         GOLD_WEEK_JUMPS: 3,
-        HJ_WINDOW_SECONDS: 300, // legacy rolling-burst window, still used by the demo-mode data generator only
         HJ_QUARTER_SECONDS: 900, // real HJ windows run from an Ecstasy dose to the next :00/:15/:30/:45 happy reset
         STAT_MAP: {
             5300: 'strength',

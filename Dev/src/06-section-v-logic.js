@@ -1046,6 +1046,11 @@ function hashMix(n) {
     return (t ^ (t >>> 14)) >>> 0;
 }
 
+// One simulated year that starts from Torn's 10/10/10/10, worked out train by train with Vladar's
+// formula (5.0 gym, 5,000 happy, no perks). Each day's energy comes from what that day used:
+// natural regen, about two Xanax, a refill on ~150 days, and whatever energy items landed on it.
+// Non-training items are used in the evening, after the last train, so no Ecstasy dose ever has
+// 1,000E of training after it and the demo shows no Happy Jumps.
 function generateDemoData() {
     let _seed = 0x9e3779b9;
 
@@ -1057,168 +1062,214 @@ function generateDemoData() {
     function randInt(lo, hi) {
         return lo + Math.floor(rand() * (hi - lo + 1));
     }
+
+    function pickWeighted(weights) {
+        let r = rand() * weights.reduce((a, w) => a + w, 0);
+        for (let i = 0; i < weights.length; i++) {
+            r -= weights[i];
+            if (r < 0) return i;
+        }
+        return weights.length - 1;
+    }
+    // `count` distinct day indexes from [lo, hi], at least `gap` days apart where possible.
+    function pickDays(count, lo, hi, gap, taken) {
+        const out = [];
+        for (let tries = 0; out.length < count && tries < count * 200; tries++) {
+            const i = randInt(lo, hi);
+            if (taken.has(i) || out.some(o => Math.abs(o - i) < gap)) continue;
+            out.push(i);
+        }
+        out.forEach(i => taken.add(i));
+        return out;
+    }
     const today = Formatter.dateLogical();
     const todayMs = Formatter.parse(today).getTime();
     const DAY_MS = 86400000;
     const NUM_DAYS = 365;
-    const Simulation = {
-        A: 3.480061091e-7,
-        B: 250,
-        C: 3.091619094e-6,
-        D: 6.82775184551527e-5,
-        E: -0.0301431777,
+    const GYM_DOTS = 5.0;
+    const BASE_HAPPY = 5000;
+    const E_PER_TRAIN = 25;
+    const DAILY_CAP = 1700;
+    // Vladar's per-stat constants.
+    const STAT_AB = {
+        str: [1600, 1700],
+        spd: [1600, 2000],
+        def: [2100, -600],
+        dex: [1800, 1500]
     };
-    const DEMO_GYM_DOTS = 9.0;
-    const DEMO_HAPPY = 4950;
-    const DEMO_MODIFIERS = 2.5;
-    const DEMO_E_PER_TRAIN = 5;
-    const DEMO_FORMULA_E_BASE = 10;
+    const r4 = x => Math.round(x * 10000) / 10000;
 
-    function simulationGain(statTotal) {
-        const happyFactor = DEMO_HAPPY + Simulation.B;
-        const base = (Simulation.A * Math.log(happyFactor) + Simulation.C) * statTotal + Simulation.D * happyFactor + Simulation.E;
-        const perStandardTrain = base * DEMO_GYM_DOTS * DEMO_MODIFIERS;
-        const perTrain = perStandardTrain * (DEMO_E_PER_TRAIN / DEMO_FORMULA_E_BASE);
-        return Math.max(0, perTrain);
+    function vladarGain(stat, S, H, E) {
+        const [A, B] = STAT_AB[stat];
+        const s = Math.min(S, 50000000);
+        return (s * r4(1 + 0.07 * r4(Math.log(1 + H / 250))) + 8 * Math.pow(H, 1.05) + (1 - Math.pow(H / 99999, 2)) * A + B) * (GYM_DOTS * E / 200000);
     }
     const statKeys = ['str', 'def', 'spd', 'dex'];
+    const STAT_WEIGHTS = [0.3, 0.25, 0.25, 0.2];
+    const STAT_ENH_STAT = { 2150: 'str', 2130: 'spd', 2140: 'def', 2120: 'dex' };
+    // Yearly totals for every other item, each spread over random days. `energy`/`happy` are what
+    // one use logs.
+    const EXTRA_ITEMS = [
+        { id: 2040, min: 10, max: 100, energy: () => [5, 10, 15, 20, 25, 30][randInt(0, 5)] },
+        { id: 2230, min: 10, max: 100, energy: () => 50 },
+        { id: 2190, min: 10, max: 100, energy: () => 100 },
+        { id: 8981, min: 10, max: 100, energy: () => 50 },
+        { id: 2020, min: 10, max: 100, happy: () => [25, 35, 50, 75][randInt(0, 3)] },
+        { id: 2180, min: 10, max: 100, happy: () => 2500 },
+        { id: 2210, min: 10, max: 100, happy: () => BASE_HAPPY },
+        { id: 8983, min: 10, max: 100, happy: () => 1000 },
+        { id: 2150, min: 10, max: 100, stat: true },
+        { id: 2130, min: 10, max: 100, stat: true },
+        { id: 2140, min: 10, max: 100, stat: true },
+        { id: 2120, min: 10, max: 100, stat: true },
+        { id: LSD_OD_LOG, min: 2, max: 5, energyLost: () => randInt(4, 12) * 25 },
+        { id: EX_OD_LOG, min: 2, max: 5, energyLost: () => randInt(4, 12) * 25, happyLost: () => randInt(2000, BASE_HAPPY) }
+    ];
     const dates = [];
-    for (let i = NUM_DAYS - 1; i >= 0; i--) {
-        const ms = todayMs - i * DAY_MS;
-        const d = new Date(ms);
+    for (let i = NUM_DAYS; i >= 1; i--) {
+        const d = new Date(todayMs - i * DAY_MS);
         dates.push(Formatter.dateISO(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
     }
-    const baseline = {};
-    statKeys.forEach(k => {
-        baseline[k] = 15000 + randInt(0, 10000);
+    const plans = dates.map(() => ({ skip: rand() < 0.08, xanax: 0, refill: false, od: false, diamond: false, extras: [] }));
+    const special = new Set();
+    // Diamond days: weighted toward the last nine months.
+    pickDays(1, 0, 89, 20, special).forEach(i => { plans[i].diamond = true; });
+    pickDays(6, 90, NUM_DAYS - 1, 20, special).forEach(i => { plans[i].diamond = true; });
+    pickDays(10, 0, NUM_DAYS - 1, 14, special).forEach(i => { plans[i].od = true; });
+    plans.forEach(p => {
+        if (p.diamond || p.od) p.skip = false;
     });
-    const weekStartOffset = userConfig.weekStartMode === 'mon' ? 1 : 0;
-    const todayDate = new Date(todayMs);
-    const todayDow = todayDate.getUTCDay();
-    const daysFromWeekStart = (todayDow - weekStartOffset + 7) % 7;
-    const weekDay0Str = dates[NUM_DAYS - 1 - daysFromWeekStart] || null;
-    const weekDay1Str = daysFromWeekStart >= 1 ? dates[NUM_DAYS - daysFromWeekStart] : null;
-    const running = {
-        ...baseline
-    };
+    const trainDays = plans.map((p, i) => i).filter(i => !plans[i].skip && !plans[i].od);
+    const refillDays = new Set(plans.map((p, i) => i).filter(i => plans[i].diamond));
+    while (refillDays.size < 150) refillDays.add(trainDays[randInt(0, trainDays.length - 1)]);
+    refillDays.forEach(i => { plans[i].refill = true; });
+    EXTRA_ITEMS.forEach(item => {
+        const n = randInt(item.min, item.max);
+        for (let k = 0; k < n; k++) plans[randInt(0, NUM_DAYS - 1)].extras.push(item);
+    });
+    const running = { str: 10, def: 10, spd: 10, dex: 10 };
+    const baseline = { ...running };
     const history = [];
-    let mixedWeek = 0;
+    let logSeq = 0;
     dates.forEach((dateStr, idx) => {
-        const roll = rand();
-        if (roll < 0.10) return;
-        if (mixedWeek === 0 && rand() < 0.08) mixedWeek = 7;
-        let eTotalRaw;
-        if (mixedWeek > 0) {
-            mixedWeek--;
-            const subRoll = rand();
-            if (subRoll < 0.25) {
-                eTotalRaw = randInt(200, 260) * 10;
-            } else if (subRoll < 0.55) {
-                eTotalRaw = randInt(150, 190) * 10;
-            } else if (subRoll < 0.85) {
-                eTotalRaw = randInt(100, 149) * 10;
-            } else {
-                eTotalRaw = randInt(50, 99) * 10;
-            }
-        } else if (roll < 0.15) {
-            eTotalRaw = randInt(70, 99) * 10;
-        } else {
-            eTotalRaw = randInt(100, 160) * 10;
-        }
-        if (dateStr === weekDay0Str) eTotalRaw = Math.max(eTotalRaw, 2500);
-        else if (dateStr === weekDay1Str && eTotalRaw < 2000) eTotalRaw = Math.min(Math.max(eTotalRaw, 1000), 1499);
-        else if (rand() < 0.05) eTotalRaw = Math.max(eTotalRaw, 2500);
-        const hjRoll = rand();
-        const isDiamondHJDay = hjRoll < 0.05;
-        const isHJDay = isDiamondHJDay || hjRoll < 0.18;
-        if (isDiamondHJDay && eTotalRaw < 1800) eTotalRaw = randInt(180, 220) * 10;
-        else if (isHJDay && eTotalRaw < 1000) eTotalRaw = randInt(100, 170) * 10;
-        const hjWindowStart = isHJDay ? randInt(36000, 36000 + 28800 - GAME.HJ_WINDOW_SECONDS) : null;
-        const eTotal = eTotalRaw;
-        const numStats = randInt(1, 4);
-        const chosenStats = [...statKeys].sort(() => rand() - 0.5).slice(0, numStats);
-        const ePerStat = {};
-        let eRemain = eTotal;
-        chosenStats.forEach((k, i) => {
-            const share = i === chosenStats.length - 1 ? eRemain : Math.round((rand() * 0.4 + 0.1) * eTotal / numStats) * 10 || 10;
-            ePerStat[k] = Math.max(10, Math.min(share, eRemain));
-            eRemain -= ePerStat[k];
-        });
-        if (eRemain > 0 && chosenStats.length) ePerStat[chosenStats[0]] += eRemain;
-        const startBreakdown = {
-            ...running
-        };
-        const eSpent = {
-            total: eTotal,
-            ...ZERO_BREAKDOWN
-        };
-        const gains = {
-            total: 0,
-            ...ZERO_BREAKDOWN
-        };
-        const series = [];
+        const p = plans[idx];
         const dayStartSec = Math.floor(Formatter.parse(dateStr).getTime() / 1000);
-        chosenStats.forEach(k => {
-            const cost = ePerStat[k] || 0;
-            if (!cost) return;
-            const trainsForStat = Math.floor(cost / DEMO_E_PER_TRAIN);
-            let statGainAccum = 0;
-            for (let t = 0; t < trainsForStat; t++) {
-                const raw = simulationGain(running[k]);
-                const jittered = raw * (0.97 + rand() * 0.06);
-                running[k] += jittered;
-                statGainAccum += jittered;
-                const ts = hjWindowStart !== null ? dayStartSec + hjWindowStart + Math.floor(rand() * GAME.HJ_WINDOW_SECONDS) : dayStartSec + 36000 + Math.floor((t + rand()) * (28800 / Math.max(1, trainsForStat)));
-                series.push({
-                    ts,
-                    stat: k,
-                    gain: Math.round(jittered),
-                    cost: DEMO_E_PER_TRAIN,
-                    after: Math.round(running[k]),
-                    rate: r2((Math.round(jittered) / DEMO_E_PER_TRAIN) * 150),
-                    synthetic: true,
-                });
-            }
-            eSpent[k] = cost;
-            const roundedStatGain = Math.round(statGainAccum);
-            gains[k] = roundedStatGain;
-            gains.total += roundedStatGain;
-        });
-        eSpent.total = (eSpent.str + eSpent.def + eSpent.spd + eSpent.dex);
-        const endBreakdown = {
-            ...running
+        const day = initializeDayObject(dateStr, running);
+        const series = [];
+        const addItem = (logId, ts, fields) => {
+            const e = { type: 'item', id: `demo${++logSeq}`, ts, logId, ...fields };
+            series.push(e);
+            day.items[logId] = (day.items[logId] || 0) + 1;
+            day.itemLogIds.push(`${ts}_${logId}`);
+            if (logId === ECAN_LOG && e.energy) day.itemEnergy += e.energy;
+            if (e.energyLost != null) day.itemEnergyLost = (day.itemEnergyLost || 0) + e.energyLost;
+            if (e.happyLost != null) day.itemHappyLost = (day.itemHappyLost || 0) + e.happyLost;
+            if (e.happy) day.itemHappy += e.happy;
+            return e;
         };
-        const day = initializeDayObject(dateStr, startBreakdown);
-        day.gains = gains;
-        day.eSpent = eSpent;
-        day.endBreakdown = endBreakdown;
-        day.endTotal = endBreakdown.str + endBreakdown.def + endBreakdown.spd + endBreakdown.dex;
+        // Energy sessions: [energy, item log that supplied it or null].
+        const sessions = [];
+        let cap = DAILY_CAP;
+        if (!p.skip) {
+            sessions.push([randInt(12, 30) * 25, null]);
+            if (p.diamond) {
+                p.xanax = 3;
+                cap = randInt(80, 96) * 25;
+            } else if (p.od) {
+                p.xanax = 1;
+                cap = randInt(4, 16) * 25;
+            } else {
+                p.xanax = [0, 1, 2, 3][pickWeighted([0.06, 0.16, 0.66, 0.12])];
+            }
+            for (let k = 0; k < p.xanax; k++) sessions.push([250, XANAX_LOG]);
+            if (p.refill) sessions.push([150, 4900]);
+        }
+        const dayEnergyItems = p.extras.filter(x => x.energy);
+        if (!p.skip) dayEnergyItems.forEach(x => sessions.push([x.energy(), x.id]));
+        if (p.diamond) {
+            let have = sessions.reduce((a, s) => a + s[0], 0);
+            while (have < cap) {
+                sessions.push([25, ECAN_LOG]);
+                have += 25;
+            }
+        }
+        const t0 = dayStartSec + 8 * 3600;
+        const span = 11 * 3600;
+        let spent = 0;
+        sessions.forEach(([energy, logId], k) => {
+            const ts = t0 + Math.floor((k + rand() * 0.8) * span / sessions.length);
+            if (logId) {
+                const fields = {};
+                if (logId === XANAX_LOG) fields.energy = 250;
+                else if (logId !== 4900) fields.energy = energy;
+                addItem(logId, ts, fields);
+            }
+            const trains = Math.floor(Math.min(energy, cap - spent) / E_PER_TRAIN);
+            if (trains <= 0) return;
+            spent += trains * E_PER_TRAIN;
+            const stat = statKeys[pickWeighted(STAT_WEIGHTS)];
+            const clicks = trains >= 4 && rand() < 0.4 ? 2 : 1;
+            let happy = BASE_HAPPY;
+            let left = trains;
+            for (let c = 0; c < clicks; c++) {
+                const n = c === clicks - 1 ? left : Math.ceil(trains / 2);
+                left -= n;
+                let gain = 0;
+                for (let t = 0; t < n; t++) {
+                    const g = vladarGain(stat, running[stat], happy, E_PER_TRAIN);
+                    running[stat] += g;
+                    gain += g;
+                    happy = Math.max(0, happy - Math.round(E_PER_TRAIN * (0.4 + rand() * 0.2)));
+                }
+                const cost = n * E_PER_TRAIN;
+                const g2 = r2(gain);
+                series.push({
+                    type: 'gym',
+                    id: `demo${++logSeq}`,
+                    ts: ts + 20 + c * 15,
+                    stat,
+                    gain: g2,
+                    cost,
+                    after: r2(running[stat]),
+                    rate: r2((g2 / cost) * 150)
+                });
+                day.gains[stat] += g2;
+                day.gains.total += g2;
+                day.eSpent[stat] += cost;
+                day.eSpent.total += cost;
+            }
+        });
+        const t1 = dayStartSec + 20 * 3600;
+        if (p.od) addItem(XANAX_OD_LOG, t1 - randInt(600, 1800), { energyLost: randInt(4, 12) * 25 });
+        p.extras.filter(x => !x.energy).forEach(x => {
+            const ts = t1 + randInt(0, 5400);
+            const fields = {};
+            if (x.happy) fields.happy = x.happy();
+            if (x.energyLost) fields.energyLost = x.energyLost();
+            if (x.happyLost) fields.happyLost = x.happyLost();
+            if (x.stat) {
+                const sk = STAT_ENH_STAT[x.id];
+                fields.statKey = sk;
+                fields.statGain = r2(Math.max(5, running[sk] * (0.002 + rand() * 0.003)));
+                running[sk] += fields.statGain;
+            }
+            addItem(x.id, ts, fields);
+        });
+        series.sort((a, b) => a.ts - b.ts);
         day.series = series;
-        day.lastLogTimestamp = series.length ? series[series.length - 1].ts : 0;
+        day.endBreakdown = { ...running };
+        day.endTotal = sumStats(day.endBreakdown);
+        const lastGym = series.filter(e => e.type === 'gym').pop();
+        day.lastLogTimestamp = lastGym ? lastGym.ts : 0;
         history.push(day);
     });
-    const lastHistDay = history.length ? history[history.length - 1] : null;
-    const todayStart = lastHistDay ? {
-        ...lastHistDay.endBreakdown
-    } : {
-        ...running
-    };
-    const todayObj = initializeDayObject(today, todayStart);
-    const oldestDate = history.length ? history[0].date : today;
-    const logStartDate = Math.floor(Formatter.parse(oldestDate).getTime() / 1000);
-    const lastRates = {};
-    statKeys.forEach(k => {
-        const perFiveE = simulationGain(running[k]);
-        lastRates[k] = perFiveE * (DEMO_FORMULA_E_BASE / DEMO_E_PER_TRAIN);
-    });
-    const meta = {
-        baselineBreakdown: {
-            ...baseline
-        },
-        logStartDate
-    };
+    const todayObj = initializeDayObject(today, running);
+    const logStartDate = Math.floor(Formatter.parse(dates[0]).getTime() / 1000);
     return {
-        meta,
+        meta: {
+            baselineBreakdown: baseline,
+            logStartDate
+        },
         history,
         today: todayObj
     };
