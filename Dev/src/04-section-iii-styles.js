@@ -1,13 +1,47 @@
+    // Every remote image lives under the repo's Assets/ folder and goes through cdnize (02), so a
+    // CDN_PINS bump covers all of it.
+    const ASSET_ROOT = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/Assets/';
+    const CAL_IMG_BASE = cdnize(ASSET_ROOT + 'Calendar/');
+    // art is the path under Assets/Stickerbook/. thumbUrl is a 192px copy under Calendar/Stickers/
+    // for the calendar cells and the sticker book grid; url stays full size for the sticker viewer.
+    const CUSTOM_STICKERS = [
+        // Sweat Equity
+        { id: 1, name: "Just Checking the Mirror", art: 'Gym/jst-chk-mirrr' },
+        { id: 2, name: "Up, Down, Repeat", art: 'Gym/up-dn-rpt' },
+        { id: 3, name: "Flat Bench Therapy", art: 'Gym/flt-bnch-thrpy' },
+        { id: 4, name: "Bring Home the Feed", art: 'Gym/brng-hm-feed' },
+        { id: 5, name: "Never Skip Leg Day", art: 'Gym/nvr-skp-leg' },
+        { id: 6, name: "Tire Rotation", art: 'Gym/tire-rotn' },
+        { id: 7, name: "Back End Engagement", art: 'Gym/bck-end-engmt' },
+        { id: 8, name: "The Upside of Exercise", art: 'Gym/upsd-exrcse' },
+        { id: 9, name: "Shellshock Stretches", art: 'Gym/shlshk-strch' },
+        { id: 10, name: "Certified Cardio", art: 'Gym/crtfd-crdio' },
+        // Casino Collection
+        { id: 11, name: "Just One More Spin", art: 'Casino/jst-one-spn' },
+        { id: 12, name: "Bingo! I Think...", art: 'Casino/bingo-i-thnk' },
+        { id: 13, name: "Lucky Shot", art: 'Casino/lcky-sht' },
+        { id: 14, name: "Holy Craps", art: 'Casino/holy-crps' },
+        { id: 15, name: "Tilted in My Favor", art: 'Casino/tltd-my-fvr' },
+        { id: 16, name: "Choose Wisely", art: 'Casino/chse-wsly' },
+        { id: 17, name: "Hit Me", art: 'Casino/hit-me' },
+        { id: 18, name: "Dead Men's Hand", art: 'Casino/dead-mens' },
+        { id: 19, name: "Trigger Warning", art: 'Casino/trgr-wrng' },
+        { id: 20, name: "Leslie's Sick Day", art: 'Casino/lsls-sck-dy' }
+    ];
+    CUSTOM_STICKERS.forEach(s => {
+        s.url = cdnize(ASSET_ROOT + 'Stickerbook/' + s.art + '.webp');
+        s.thumbUrl = cdnize(ASSET_ROOT + 'Calendar/Stickers/' + s.art + '.webp');
+    });
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
-    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    ].map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
     const ASSETS = {
         HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
-        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
+        GLASS_OVERLAY: cdnize(ASSET_ROOT + 'Calendar/glass-ovly.webp'),
+        STICKER_BG: cdnize(ASSET_ROOT + 'Stickerbook/stkr-bckgr.webp'),
+        NEW_STICKER_FRAME: cdnize(ASSET_ROOT + 'Calendar/nw-stickr.webp'),
+        CUSTOM_NOTE: cdnize(ASSET_ROOT + 'Calendar/cstm-note.webp'),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -65,7 +99,7 @@
     // level 100 (Fully Bricked). Square 264px art, so the crown ::before rules paint it with
     // `contain` - the box they size is wider than it is tall, and 100% 100% would stretch it.
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
-        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+        .map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
     // Valve and end-coupling metal (buildLevelValveSVG, buildLevelTrackSVG): every gradient stop reads --vm-<gradient>-<i>. A0 is the
     // hand-tuned steel below; the other tiers remap each stop's brightness onto their crown's metal,
     // so the valve's shading holds while the finish changes. Offsets live with the SVG.
