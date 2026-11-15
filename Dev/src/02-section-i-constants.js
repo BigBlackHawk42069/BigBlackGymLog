@@ -212,7 +212,7 @@
     // Per-group code lists for the live request architecture. battlestats is always fetched on its
     // own call (it can't share a request with `log`), and any one `log=` call may carry at most 10
     // log types — so items are split across the train-click call (energy) and the heartbeat /
-    // reconciliation calls (stat + happy + od). Backfill ignores these and paginates one type at a time.
+    // reconciliation calls (stat + happy + od). The backfill scans with the same groups (BACKFILL_GROUPS).
     const ENERGY_LOGS = itemLogsByGroup('energy');   // 6
     const STAT_LOGS = itemLogsByGroup('stat');        // 4
     const HAPPY_LOGS = itemLogsByGroup('happy');      // 4
@@ -255,33 +255,34 @@
     // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
     // makes the overlap harmless.
     const SYNC_FROM_BUFFER = 3 * 3600;
-    // Backfill Logs: a resumable backward scan that walks the activity log to the beginning of
-    // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data reads
-    // at 50,000 rows/day per category (shared across every log type and script the user runs).
-    // SOFT_CAP leaves headroom for that; once crossed, the scan keeps paging only to finish the
-    // current day across every frontier, bounded by HARD_CAP as an absolute failsafe.
-    //
-    // rowsUsed is a single cumulative counter across resumes/cancels; the per-run budget is
-    // SOFT_CAP minus what's already spent. When exhausted, the cooldown arms to now + COOLDOWN_MS
-    // (24h6m), anchored at the cap-hit itself so every counted row has aged out of Torn's rolling
-    // 24h before the next scan may begin. rowsUsed resets only on a full completion or once an
-    // armed cooldown has elapsed — any other stop (interrupt/crash/network/pause) leaves it clear
-    // so Resume works immediately.
-    //
-    // Progress checkpoints every CHECKPOINT_ROWS rows and every HEARTBEAT_MS; the heartbeat lock
-    // (dead after LOCK_STALE_MS) guards against two tabs scanning at once. ORIGIN_MAX_STAT
-    // classifies completion: every baseline stat at/under it means the scan reached the account's
-    // true origin, otherwise it merely exhausted Torn's retained logs.
+    // Automatic backfill (runBackfill, 05): pages backwards through the log, one call per tick.
+    // Torn caps log reads at 50,000 rows/day per category, shared with live sync and any other
+    // script, so CAP (never exceeded: a call returns at most PAGE rows) leaves ~6k for them; the
+    // cooldown is anchored at the cap-hit so every counted row has aged out of Torn's rolling 24h.
+    // THROTTLE_MS (~50 calls/min) leaves half of Torn's 100/min for everything else.
     const BACKFILL = {
-        SOFT_CAP: 38000,   // stop *starting* new days once crossed
-        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
+        CAP: 44000,
+        PAGE: 100,
         COOLDOWN_MS: Math.round(24.1 * 3600 * 1000),  // 24h6m; armed at cap-hit, covers Torn's rolling 24h
-        THROTTLE_MS: 700,
-        CHECKPOINT_ROWS: 2000,
-        HEARTBEAT_MS: 15000,
-        LOCK_STALE_MS: 45000,
-        ORIGIN_MAX_STAT: 50
+        THROTTLE_MS: 1200,
+        RATE_BACKOFF_MS: 60000,
+        RETRY_STEPS_MS: [60000, 120000, 240000, 600000],
+        ERROR_NOTICE_MS: 600000,
+        LEASE_RENEW_MS: 5000,
+        LEASE_STALE_MS: 15000
     };
+    // Dev overrides (11-section-x-devtools.js) only apply behind runtime.devMode.
+    const BACKFILL_DEV_OVERRIDES = {
+        CAP: '_devBackfillCap',
+        COOLDOWN_MS: '_devBackfillCooldownMs',
+        THROTTLE_MS: '_devBackfillThrottleMs',
+        ERROR_NOTICE_MS: '_devBackfillErrorWindowMs'
+    };
+    function bfConst(name) {
+        const o = BACKFILL_DEV_OVERRIDES[name];
+        if (o && runtime.devMode && Number.isFinite(runtime[o]) && runtime[o] > 0) return runtime[o];
+        return BACKFILL[name];
+    }
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
     // BestGym treats a whole group as one rank and only moves to a strictly higher group.
@@ -412,8 +413,19 @@
         isClosing: false,
         isViewAnimating: false,
         isSyncing: false,
-        backfilling: false,
-        backfillAbort: null,   // null | 'pause' | 'cancel' — checked each scan-loop iteration
+        // Automatic scan (05 runBackfill): this tab holds the scan lock / is queued for it / is
+        // checking whether to start / was told to stop (bf:stop after Clear Log).
+        bfScanning: false,
+        bfWaitingLock: false,
+        bfChecking: false,
+        bfStop: false,
+        bfYield: false,          // hand the scan to a visible tab (bf:want)
+        bfWake: null,            // ends the scan's current wait early
+        bfRateUntil: 0,          // no scan calls before this (Torn code 5, any tab)
+        bfFailSince: 0,          // first failed page in the current failure streak, this page load
+        bfFailCount: 0,
+        bfKeyBlockedFor: null,   // API key rejected on this page load; no more tries until it changes
+        bfInboxCount: 0,         // lines collected so far, for the overlay's counter
         apiCallTotal: 0,
         resizeObserver: null,
         // Titles page (07-section-vi-ui.js, layoutTitleBlockFrames/observeTitleBlockFrames) —

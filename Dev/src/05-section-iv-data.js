@@ -17,8 +17,12 @@
         _META_STORE: 'meta',
         _DAYS_STORE: 'days',
         _META_KEY: 'meta',
+        _BF_STORE: 'backfill',
+        _INBOX_STORE: 'inbox',
 
         // This function sets up a private database on your browser to save your history.
+        // 'backfill' holds the history scan's progress, and 'inbox' holds the log lines it has
+        // downloaded but not yet added to your log. Both stay in your browser like everything else.
         initDB() {
             return new Promise((resolve, reject) => {
                 if (this._db) {
@@ -26,15 +30,28 @@
                     return;
                 }
                 Perf.start('initDB');
-                const req = indexedDB.open(this._DB_NAME, 2);
+                const req = indexedDB.open(this._DB_NAME, 3);
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     if (db.objectStoreNames.contains('history')) db.deleteObjectStore('history');
                     if (!db.objectStoreNames.contains(this._META_STORE)) db.createObjectStore(this._META_STORE);
                     if (!db.objectStoreNames.contains(this._DAYS_STORE)) db.createObjectStore(this._DAYS_STORE);
+                    if (!db.objectStoreNames.contains(this._BF_STORE)) db.createObjectStore(this._BF_STORE);
+                    if (!db.objectStoreNames.contains(this._INBOX_STORE)) {
+                        db.createObjectStore(this._INBOX_STORE, { keyPath: 'id' }).createIndex('group_ts', ['group', 'ts']);
+                    }
                 };
+                // A tab still running an older version holds the database open and delays this
+                // upgrade until it's closed.
+                req.onblocked = () => Log.warn('IndexedDB upgrade waiting for another Torn tab to close');
                 req.onsuccess = (e) => {
                     this._db = e.target.result;
+                    // Let a newer version in another tab upgrade instead of blocking it; the next
+                    // call here reopens.
+                    this._db.onversionchange = () => {
+                        this._db.close();
+                        this._db = null;
+                    };
                     Perf.end('initDB');
                     resolve(this._db);
                 };
@@ -71,13 +88,16 @@
         async resetRewardStartDate() {
             const db = await this._ensureDb();
             if (!db) return false;
-            const meta = (await this._readMeta()) || {};
-            meta.rewardStartDate = Math.floor(Date.now() / 1000);
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(this._META_STORE, 'readwrite');
-                tx.objectStore(this._META_STORE).put(meta, this._META_KEY);
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
+            await this.withHistoryWrite(async () => {
+                const meta = (await this._readMeta()) || {};
+                meta.rewardStartDate = Math.floor(Date.now() / 1000);
+                meta.historyGen = (meta.historyGen || 0) + 1;
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(this._META_STORE, 'readwrite');
+                    tx.objectStore(this._META_STORE).put(meta, this._META_KEY);
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
             });
             _syncChannel.postMessage({ type: 'update', from: _TAB_ID });
             return true;
@@ -102,27 +122,60 @@
             });
         },
 
+        // Every change to your saved history goes through here, one at a time across all your open
+        // Torn tabs, so two tabs can never overwrite each other's changes.
+        withHistoryWrite(fn) {
+            const locks = getWebLocks();
+            return locks ? locks.request('bbgl-history-write', () => fn()) : Promise.resolve().then(fn);
+        },
+
         // Saves your gym data to your browser's private storage.
-        _persist(meta, dayObjs, replaceAll) {
+        // opts.inLock: the caller already holds withHistoryWrite. opts.bumpGen: this write replaces
+        // history other tabs may have cached, so they must reload. opts.force: a deliberate full
+        // replace (import) that skips the staleness check and bumps. opts.extraStores + opts.extraOps(tx):
+        // more writes that must commit in the same transaction (the backfill merge's state and inbox).
+        _persist(meta, dayObjs, replaceAll, opts = {}) {
+            const run = () => this._persistUnlocked(meta, dayObjs, replaceAll, opts);
+            return opts.inLock ? run() : this.withHistoryWrite(run);
+        },
+
+        // historyGen guard: a tab whose cached meta is older than the stored one (another tab merged,
+        // cleared or imported since it loaded) must not write, since its whole-meta put would undo
+        // that change. It reloads instead and resolves 'stale'; callers re-apply their change if needed.
+        _persistUnlocked(meta, dayObjs, replaceAll, opts) {
             return new Promise((resolve, reject) => {
                 if (!this._db) {
                     reject(new Error("Database not initialized"));
                     return;
                 }
                 try {
-                    const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                    let stale = false;
+                    const m = meta || {};
+                    const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE, ...(opts.extraStores || [])], 'readwrite');
                     const dayStore = tx.objectStore(this._DAYS_STORE);
-                    if (replaceAll) dayStore.clear();
-                    tx.objectStore(this._META_STORE).put(meta || {}, this._META_KEY);
-                    (dayObjs || []).forEach(d => {
-                        if (d && d.date) dayStore.put(d, d.date);
-                    });
+                    const metaStore = tx.objectStore(this._META_STORE);
+                    const read = metaStore.get(this._META_KEY);
+                    read.onsuccess = () => {
+                        const storedGen = (read.result && read.result.historyGen) || 0;
+                        if (!opts.force && storedGen > (m.historyGen || 0)) {
+                            stale = true;
+                            tx.abort();
+                            return;
+                        }
+                        if (opts.force || opts.bumpGen) m.historyGen = storedGen + 1;
+                        if (replaceAll) dayStore.clear();
+                        metaStore.put(m, this._META_KEY);
+                        (dayObjs || []).forEach(d => {
+                            if (d && d.date) dayStore.put(d, d.date);
+                        });
+                        if (opts.extraOps) opts.extraOps(tx);
+                    };
                     tx.oncomplete = () => {
                         _syncChannel.postMessage({
                             type: 'update',
                             from: _TAB_ID
                         });
-                        resolve();
+                        resolve('ok');
                     };
                     tx.onerror = (e) => {
                         const err = e.target.error;
@@ -132,10 +185,21 @@
                         }
                         reject(err);
                     };
+                    tx.onabort = () => {
+                        if (!stale) return reject(tx.error);
+                        this._reloadAfterStale().catch(e => Log.warn('Reload after stale write failed', e)).then(() => resolve('stale'));
+                    };
                 } catch (e) {
                     reject(e);
                 }
             });
+        },
+
+        async _reloadAfterStale() {
+            Log.warn('Saved history changed in another tab; reloaded it instead of saving over it');
+            if (runtime.demoMode) return;
+            DataController.hydrate(await this.loadHistory());
+            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
         },
 
         // Loads your complete gym history from your browser's private storage.
@@ -162,9 +226,9 @@
         },
 
         // Saves your latest gym session to your browser.
-        async saveDays(meta, dayObjs) {
+        async saveDays(meta, dayObjs, opts) {
             await this._ensureDb();
-            return this._persist(meta, dayObjs, false);
+            return this._persist(meta, dayObjs, false, opts);
         },
 
         // Packages your gym history for export.
@@ -201,28 +265,44 @@
         },
 
         // Restores your gym history from an imported backup file.
-        async setStorage(data) {
+        async setStorage(data, opts) {
             await this._ensureDb();
             if (!this._db) throw new Error("Database not initialized");
             const meta = (data && data.meta) || {};
             const series = (data && Array.isArray(data.series)) ? data.series : [];
             const rebuilt = DataController._rebuildFromSeries(series, meta.baselineBreakdown || ZERO_BREAKDOWN);
-            return this._persist(meta, [...rebuilt.history, rebuilt.today], true);
+            return this._persist(meta, [...rebuilt.history, rebuilt.today], true, opts);
         },
 
-        // This function permanently deletes your gym history from your browser when you click 'Clear Data'.
-        async clearStorage() {
+        // This function permanently deletes your gym history from your browser, along with any
+        // history scan in progress. With keepRewards (the Clear Log button) it keeps only your reward
+        // start date, sticker progress and custom notes, so a later Refill Log restores your log
+        // exactly as it was. A factory reset deletes everything.
+        async clearStorage(opts = {}) {
             await this._ensureDb();
-            return new Promise((resolve, reject) => {
+            return this.withHistoryWrite(() => new Promise((resolve, reject) => {
                 if (!this._db) {
                     resolve();
                     return;
                 }
-                const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                const stores = [this._META_STORE, this._DAYS_STORE, this._BF_STORE, this._INBOX_STORE];
+                const tx = this._db.transaction(stores, 'readwrite');
                 const metaStore = tx.objectStore(this._META_STORE);
-                metaStore.clear();
-                metaStore.put({ rewardStartDate: Math.floor(Date.now() / 1000) }, this._META_KEY);
-                tx.objectStore(this._DAYS_STORE).clear();
+                const read = metaStore.get(this._META_KEY);
+                read.onsuccess = () => {
+                    const old = read.result || {};
+                    const kept = { historyGen: (old.historyGen || 0) + 1 };
+                    if (opts.keepRewards) {
+                        if (typeof old.rewardStartDate === 'number') kept.rewardStartDate = old.rewardStartDate;
+                        if (old.stickers) kept.stickers = old.stickers;
+                        if (old.notes) kept.notes = old.notes;
+                    }
+                    metaStore.clear();
+                    metaStore.put(kept, this._META_KEY);
+                    tx.objectStore(this._DAYS_STORE).clear();
+                    tx.objectStore(this._BF_STORE).clear();
+                    tx.objectStore(this._INBOX_STORE).clear();
+                };
                 tx.oncomplete = () => {
                     _syncChannel.postMessage({
                         type: 'update',
@@ -234,14 +314,171 @@
                     Log.error('IndexedDB clear failed', e);
                     reject(e);
                 };
+            }));
+        },
+
+        // ─── History scan storage ───────────────────────────────────────────
+        // Reads one record of the scan's saved progress ('state' or 'notices'), or null if there is none.
+        async getBackfillRecord(key) {
+            const db = await this._ensureDb();
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._BF_STORE, 'readonly').objectStore(this._BF_STORE).get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        // No saved state means no log has been started yet (a new install, or right after Clear Log).
+        getBackfillState() {
+            return this.getBackfillRecord('state');
+        },
+
+        async getNotices() {
+            return Object.assign({ seenErrorEpoch: 0, seenCapEpoch: 0, completionSeen: false }, await this.getBackfillRecord('notices'));
+        },
+
+        // Remembers which scan messages you've already seen, so each one shows only once.
+        async setNotices(patch) {
+            const db = await this._ensureDb();
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this._BF_STORE, 'readwrite');
+                const store = tx.objectStore(this._BF_STORE);
+                const read = store.get('notices');
+                read.onsuccess = () => store.put(Object.assign({}, read.result || {}, patch), 'notices');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        // Starts over: empties the inbox and replaces the scan's state and notices in one step.
+        // A null state removes it (no log started).
+        async resetBackfill(state, notices) {
+            const db = await this._ensureDb();
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction([this._BF_STORE, this._INBOX_STORE], 'readwrite');
+                const store = tx.objectStore(this._BF_STORE);
+                tx.objectStore(this._INBOX_STORE).clear();
+                if (state) store.put(state, 'state');
+                else store.delete('state');
+                store.put(notices || {}, 'notices');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        // Saves one page of downloaded log lines together with the scan's progress, in a single
+        // step, so the two can never disagree. Lines are stored under Torn's own log ID, so a page
+        // downloaded twice just overwrites itself. If the scan was stopped (Clear Log) since it
+        // started, nothing is saved and this returns false.
+        async inboxCommitPage(runId, group, lines, statePatch) {
+            const db = await this._ensureDb();
+            if (!db) return false;
+            return new Promise((resolve, reject) => {
+                let stale = false;
+                const tx = db.transaction([this._BF_STORE, this._INBOX_STORE], 'readwrite');
+                const bf = tx.objectStore(this._BF_STORE);
+                const inbox = tx.objectStore(this._INBOX_STORE);
+                const read = bf.get('state');
+                read.onsuccess = () => {
+                    const state = read.result;
+                    if (!state || state.runId !== runId) {
+                        stale = true;
+                        tx.abort();
+                        return;
+                    }
+                    (lines || []).forEach(l => {
+                        if (l && l.id) inbox.put(Object.assign({}, l, { group }));
+                    });
+                    bf.put(Object.assign(state, statePatch || {}), 'state');
+                };
+                tx.oncomplete = () => resolve(true);
+                tx.onabort = () => (stale ? resolve(false) : reject(tx.error));
+            });
+        },
+
+        // The oldest downloaded line for one log group, or null if it has none yet.
+        async inboxOldest(group) {
+            const db = await this._ensureDb();
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const range = IDBKeyRange.bound([group, -Infinity], [group, Infinity]);
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).index('group_ts').openCursor(range, 'next');
+                req.onsuccess = () => resolve(req.result ? req.result.value : null);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        // Which of these log IDs are already in the inbox, to tell a fresh page from a repeat.
+        async inboxExistingIds(ids) {
+            const found = new Set();
+            const db = await this._ensureDb();
+            if (!db || !ids.length) return found;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this._INBOX_STORE, 'readonly');
+                const store = tx.objectStore(this._INBOX_STORE);
+                ids.forEach(id => {
+                    const req = store.getKey(id);
+                    req.onsuccess = () => {
+                        if (req.result !== undefined) found.add(id);
+                    };
+                });
+                tx.oncomplete = () => resolve(found);
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        async inboxAll() {
+            const db = await this._ensureDb();
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        async inboxCount() {
+            const db = await this._ensureDb();
+            if (!db) return 0;
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).count();
+                req.onsuccess = () => resolve(req.result || 0);
+                req.onerror = () => reject(req.error);
             });
         }
     };
+
+    // Web Locks let your open Torn tabs take turns: only one tab scans your history at a time, and
+    // saves to your history happen one after another. Very old browsers don't have them; the script
+    // then falls back to simpler tab coordination. Nothing here leaves your browser.
+    let _webLocks;
+    function getWebLocks() {
+        if (runtime.devMode && runtime._devForceNoWebLocks) return null;
+        if (_webLocks === undefined) {
+            _webLocks = null;
+            try {
+                _webLocks = navigator.locks || (typeof unsafeWindow !== 'undefined' && unsafeWindow.navigator && unsafeWindow.navigator.locks) || null;
+            } catch (e) { /* stays null */ }
+        }
+        return _webLocks;
+    }
+
+    function hasWebLocks() {
+        return !!getWebLocks();
+    }
 
     const _syncChannel = new BroadcastChannel('bbgl_sync');
     let _xtabSyncTimer = null;
     _syncChannel.onmessage = (event) => {
         if (event.data && event.data.from === _TAB_ID) return;
+        // Scan coordination messages, handled before the Demo check: the scan runs during Demo too.
+        if (event.data && typeof event.data.type === 'string' && event.data.type.startsWith('bf:')) {
+            handleBackfillMessage(event.data);
+            return;
+        }
         if (runtime.demoMode) return;
         if (_xtabSyncTimer) clearTimeout(_xtabSyncTimer);
         _xtabSyncTimer = setTimeout(async () => {
@@ -250,50 +487,19 @@
                 const loaded = await DBManager.loadHistory();
                 DataController.hydrate(loaded);
                 if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
-                renderScanUI();
+                refreshBackfillUI();
+                maybeStartBackfill();
             } catch (e) {
                 Log.warn('Cross-tab sync failed', e);
             }
         }, 200);
     };
 
-    function defaultBackfill() {
-        return {
-            targets: {},
-            rowsUsed: 0,
-            cooldownUntil: 0,
-            lastResult: null,
-            stopReason: null,
-            completion: null,
-            acknowledged: true,
-            lock: 0,
-            lockOwner: null
-        };
-    }
-
-    function normalizeBackfill(ds) {
-        const d = defaultBackfill();
-        if (ds && typeof ds === 'object') {
-            if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
-            if (typeof ds.rowsUsed === 'number') d.rowsUsed = ds.rowsUsed;
-            else if (typeof ds.rowsThisWindow === 'number') d.rowsUsed = ds.rowsThisWindow;
-            if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
-            if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
-            if (ds.stopReason === 'paused' || ds.stopReason === 'error' || ds.stopReason === 'interrupted' || ds.stopReason === 'cap') d.stopReason = ds.stopReason;
-            if (ds.completion === 'origin' || ds.completion === 'exhausted') d.completion = ds.completion;
-            if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
-            if (typeof ds.lock === 'number') d.lock = ds.lock;
-            if (typeof ds.lockOwner === 'string') d.lockOwner = ds.lockOwner;
-        }
-        return d;
-    }
-
     function sanitizeMeta(metaRaw) {
         const m = (metaRaw && typeof metaRaw === 'object') ? metaRaw : {};
         if (!m.baselineBreakdown) m.baselineBreakdown = {
             ...ZERO_BREAKDOWN
         };
-        m.backfill = normalizeBackfill(m.backfill);
         const k = ['str', 'def', 'spd', 'dex'];
         k.forEach(key => {
             if (m.baselineBreakdown[key] !== undefined) m.baselineBreakdown[key] = parseFloat(m.baselineBreakdown[key]) || 0;
@@ -345,7 +551,7 @@
             const importedVer = (j.meta && j.meta.version) ? String(j.meta.version) : '';
             if (!importedVer || compareVersions(importedVer, WIPE_BELOW_VERSION) < 0) return {
                 ok: false,
-                msg: "This export is from before a required data reset and can no longer be imported. Please start tracking fresh."
+                msg: "This export is from before a required data reset and can no longer be imported. Please initialize a fresh log."
             };
         }
         if (!j.storage || typeof j.storage !== 'object') return {
@@ -382,6 +588,9 @@
             const res = await fetch(`https://api.torn.com/${path}?${qs}`);
             if (!res.ok) return { ok: false, http: res.status };
             const data = await res.json();
+            // Code 5 is Torn saying "too many requests": the history scan slows down so your normal
+            // syncing keeps working.
+            if (data.error && data.error.code === 5) noteRateLimit(false);
             if (data.error) return { ok: false, apiError: data.error, data };
             return { ok: true, data };
         } catch (netErr) {
@@ -422,7 +631,7 @@
     async function fetchFactionHistory() {
         try {
             const r = await tornGet('user/', { selections: 'log', log: 6253 });
-            if (!r.ok) return;
+            if (!r.ok) return false;
             const joinEvents = Object.values(r.data.log || {})
                 .filter(e => e && e.data && e.data.faction && e.timestamp)
                 .sort((a, b) => a.timestamp - b.timestamp);
@@ -432,8 +641,10 @@
                 leftAt: joinEvents[i + 1] ? joinEvents[i + 1].timestamp : null
             }));
             localStorage.setItem(KEYS.FACTION_HISTORY, JSON.stringify(factionHistory));
+            return true;
         } catch (e) {
             Log.warn('Faction history fetch failed', e);
+            return false;
         }
     }
 
@@ -480,10 +691,6 @@
         if (runtime.demoMode) return {
             success: false,
             demo: true
-        };
-        if (runtime.backfilling) return {
-            ok: false,
-            suppressed: true
         };
         const {
             manualWars = false,
@@ -557,7 +764,11 @@
                 localStorage.removeItem(KEYS.PENDING_SYNC);
             }
 
-            await DataController.processDataPayload(logs, bs, { silent });
+            if (await DataController.processDataPayload(logs, bs, { silent }) === 'STALE' && !options._staleRetry) {
+                // Another tab replaced the saved history mid-sync. This tab has reloaded it (with the
+                // older sync floor), so fetch once more against it rather than wait for the next heartbeat.
+                return universalFetch(mission, { ...options, _staleRetry: true });
+            }
 
             const _s = getActiveHistory();
             const needsEnhancers = mission === 'FULL_SYNC' && bs &&
@@ -573,6 +784,9 @@
                 } catch (e) { Log.warn('Stat enhancer fetch failed', e); }
             }
 
+            // A backfill waiting on this sync (it needs logStartDate) can start now rather than on
+            // the next page load.
+            maybeStartBackfill();
             return {
                 ok: true
             };
@@ -611,8 +825,6 @@
                     resetRefreshBtn(btn);
                 }, 2000);
             }
-        } else if (result.suppressed) {
-            resetRefreshBtn(btn);
         } else {
             bbglError("Sync Error: " + result.error);
             resetRefreshBtn(btn);
@@ -667,482 +879,663 @@
         heartbeatTick();
     }
 
-    const GYM_STAT_LOGS = {
-        str: '5300',
-        def: '5301',
-        spd: '5302',
-        dex: '5303'
-    };
-
     function backfillDayStart(ts) {
         return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    function ensureBackfillTargets(ds) {
-        if (!ds.targets || typeof ds.targets !== 'object') ds.targets = {};
-        const fr = ds.targets.frontiers;
-        const validShape = fr && typeof fr === 'object' &&
-            BACKFILL_GROUP_KEYS.every(g => fr[g] && typeof fr[g].cursor === 'number') &&
-            Object.keys(fr).every(k => BACKFILL_GROUP_KEYS.includes(k));
-        if (!validShape) {
-            ds.targets.frontiers = {};
-            const seed = Math.floor(Date.now() / 1000);
-            BACKFILL_GROUP_KEYS.forEach(g => {
-                ds.targets.frontiers[g] = { cursor: seed, complete: false };
-            });
-        }
-        return ds.targets.frontiers;
-    }
-
-    function seriesEntryCode(e) {
-        return e.type === 'item' ? String(e.logId) : GYM_STAT_LOGS[e.stat];
-    }
-
-    function computeBackfillFloor(stored, frontiers) {
-        const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
-        if (!stored.series.length) return existing;
-
-        const perGroupOldest = {};
-        stored.series.forEach(e => {
-            const code = seriesEntryCode(e);
-            const g = code && BACKFILL_GROUP_OF[code];
-            if (g && (perGroupOldest[g] === undefined || e.ts < perGroupOldest[g])) perGroupOldest[g] = e.ts;
-        });
-
-        let shallowPartialDayStart = null;
-        Object.keys(frontiers || {}).forEach(g => {
-            const fr = frontiers[g];
-            if (fr && !fr.complete && perGroupOldest[g] !== undefined) {
-                const dayStart = backfillDayStart(perGroupOldest[g]);
-                if (shallowPartialDayStart === null || dayStart > shallowPartialDayStart) shallowPartialDayStart = dayStart;
+    // Adds downloaded log lines into a stored series, skipping any already there (gym lines by
+    // time + stat + stat-after, item lines by time + log type), and keeps it in time order.
+    function mergeLinesIntoSeries(stored, lines) {
+        const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
+        const itemKey = e => `${e.ts}_${e.logId}`;
+        const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
+        let added = 0;
+        (lines || []).forEach(l => {
+            if (l.type === 'item') {
+                const key = itemKey(l);
+                if (!seenItem.has(key)) {
+                    seenItem.add(key);
+                    const entry = {
+                        ts: l.ts,
+                        type: 'item',
+                        id: l.id,
+                        logId: l.logId
+                    };
+                    if (l.energy) entry.energy = l.energy;
+                    if (l.energyLost != null) entry.energyLost = l.energyLost;
+                    if (l.happyLost != null) entry.happyLost = l.happyLost;
+                    if (l.happy) entry.happy = l.happy;
+                    if (l.bookId) entry.bookId = l.bookId;
+                    if (l.statKey) {
+                        entry.statKey = l.statKey;
+                        entry.statGain = l.statGain;
+                    }
+                    stored.series.push(entry);
+                    added++;
+                }
+                return;
+            }
+            const after = r2(l.after);
+            const key = `${l.ts}_${l.stat}_${after}`;
+            if (!seenGym.has(key)) {
+                seenGym.add(key);
+                stored.series.push({
+                    ts: l.ts,
+                    stat: l.stat,
+                    gain: r2(l.gain),
+                    cost: l.cost,
+                    after,
+                    rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
+                });
+                added++;
             }
         });
-
-        let newFloor;
-        if (shallowPartialDayStart !== null) {
-            newFloor = shallowPartialDayStart + 86400;
-        } else {
-            newFloor = backfillDayStart(stored.series[0].ts);
-        }
-        if (existing !== null) newFloor = Math.min(newFloor, existing);
-        return newFloor;
+        stored.series.sort((a, b) => a.ts - b.ts);
+        return added;
     }
 
-    async function persistBackfillState(ds) {
-        let meta;
-        if (_historyCache && _historyCache.meta) {
-            meta = _historyCache.meta;
-        } else {
-            meta = (await DBManager.getStorage() || sanitizeStorageRecord(null)).meta;
-        }
-        meta.backfill = ds;
-        await DBManager.saveDays(meta, []);
+    // Starting stats = each stat's value just before its oldest stored train.
+    function recomputeBaseline(stored) {
+        const baseline = {
+            ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
+        };
+        STAT_KEYS.forEach(k => {
+            const first = stored.series.find(e => e.stat === k);
+            if (first) baseline[k] = r2(first.after - first.gain);
+        });
+        stored.meta.baselineBreakdown = baseline;
     }
 
-    async function _persistBackfillSeries(ds, collected) {
-        const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
+    /* ==========================================================================
+     *  Automatic history scan (Big Black Backfill)
+     *  After you click Initialize Log or Refill Log, this pages backwards through your Torn logs,
+     *  100 lines per request, using only tornGet() above. It reads the same gym and item logs the
+     *  live sync reads, nothing else. Each page goes into the inbox in your browser; your calendar
+     *  is built from it once at the end. Closing the tab or changing pages just pauses it: the next
+     *  page you open carries on from the oldest line already saved.
+     * ========================================================================== */
 
-        if (collected && collected.length > 0) {
-            const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
-            const itemKey = e => `${e.ts}_${e.logId}`;
-            const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
-            collected.forEach(l => {
-                if (l.type === 'item') {
-                    const key = itemKey(l);
-                    if (!seenItem.has(key)) {
-                        seenItem.add(key);
-                        const entry = {
-                            ts: l.ts,
-                            type: 'item',
-                            id: l.id,
-                            logId: l.logId
-                        };
-                        if (l.energy) entry.energy = l.energy;
-                        if (l.energyLost != null) entry.energyLost = l.energyLost;
-                        if (l.happyLost != null) entry.happyLost = l.happyLost;
-                        if (l.happy) entry.happy = l.happy;
-                        if (l.bookId) entry.bookId = l.bookId;
-                        if (l.statKey) {
-                            entry.statKey = l.statKey;
-                            entry.statGain = l.statGain;
-                        }
-                        stored.series.push(entry);
-                    }
+    const BF_LEASE_KEY = 'bbgl_bf_lease';
+    const BF_KEY_ERROR_CODES = [2, 10, 13, 16, 18];
+
+    function newBackfillState(mode) {
+        const done = {};
+        BACKFILL_GROUP_KEYS.forEach(g => { done[g] = false; });
+        return {
+            v: 1,
+            runId: Math.random().toString(36).slice(2) + Date.now().toString(36),
+            mode,
+            status: 'scanning',
+            done,
+            roundStart: 0,
+            rowsUsed: 0,
+            cooldownUntil: 0,
+            factionFetched: false,
+            pendingMerge: null,
+            firstMergeDone: false,
+            lastError: null,
+            errorEpoch: 0,
+            capEpoch: 0
+        };
+    }
+
+    // What an imported log is marked as: already built, nothing left to scan.
+    function completedBackfillState() {
+        const st = newBackfillState('initialize');
+        BACKFILL_GROUP_KEYS.forEach(g => { st.done[g] = true; });
+        return Object.assign(st, { status: 'complete', firstMergeDone: true });
+    }
+
+    // True while the backfill is actively scanning (not during a cap cooldown, when import and
+    // export are allowed: an import then replaces the partial log and ends the backfill).
+    async function backfillScanning() {
+        const st = await DBManager.getBackfillState();
+        return !!st && st.status === 'scanning';
+    }
+
+    // The scan state changed: refresh this tab's overlay/notices/buttons and tell the other tabs.
+    function announceBackfillState() {
+        _syncChannel.postMessage({ type: 'bf:state', from: _TAB_ID });
+        refreshBackfillUI();
+    }
+
+    // Initialize Log (welcome screen; the first sync stamps a new reward start date) and Refill Log
+    // (after Clear Log; the kept reward start date stays) both start here. The sync makes sure the
+    // log exists before the scan starts, since the scan works back from its start date.
+    async function startLog({ newRewardDate }) {
+        await DBManager.resetBackfill(newBackfillState(newRewardDate ? 'initialize' : 'refill'), {});
+        announceBackfillState();
+        switchView('ledger');
+        await syncWithFeedback('FULL_SYNC');
+        maybeStartBackfill();
+    }
+
+    // Pause/Resume from the overlay. Saved in the scan state, so it holds in every tab and across
+    // page loads until resumed; the scanning tab stops before its next call.
+    async function setBackfillPaused(paused) {
+        const st = await DBManager.getBackfillState();
+        if (!st || !await DBManager.inboxCommitPage(st.runId, null, [], { paused })) return;
+        if (paused) {
+            handleBackfillMessage({ type: 'bf:pause' });
+            _syncChannel.postMessage({ type: 'bf:pause', from: _TAB_ID });
+        } else {
+            announceBackfillState();
+            maybeStartBackfill();
+        }
+    }
+
+    // End Backfill: build what's been scanned (up to the last fully scanned day) and stop for good
+    // until the player resumes it from Settings. Waits for the scan lock so a tab mid-page finishes
+    // saving first.
+    async function endBackfill() {
+        let lock = null;
+        for (let i = 0; i < 10 && !lock; i++) {
+            lock = await acquireBackfillLock();
+            if (!lock) await new Promise(r => setTimeout(r, 500));
+        }
+        if (!lock) return;
+        try {
+            const st = await DBManager.getBackfillState();
+            if (!st || st.status !== 'scanning') return;
+            if (!await DBManager.inboxCommitPage(st.runId, null, [], { pendingMerge: 'stop', paused: false })) return;
+            Object.assign(st, { pendingMerge: 'stop', paused: false });
+            await mergeInbox('stop', st);
+        } finally {
+            lock.release();
+        }
+    }
+
+    // Resume Backfill (Settings, only after End Backfill): carries on from the oldest built day,
+    // keeping finished groups, with the overlay back until the next build.
+    async function resumeStoppedBackfill() {
+        const st = await DBManager.getBackfillState();
+        if (!st || st.status !== 'stopped') return;
+        if (!await DBManager.inboxCommitPage(st.runId, null, [], { status: 'scanning', firstMergeDone: false, roundStart: 0, paused: false, lastError: null })) return;
+        announceBackfillState();
+        switchView('ledger');
+        maybeStartBackfill();
+    }
+
+    // The date End Backfill would build back to, for the confirmation pop-up.
+    async function backfillStopFloor() {
+        const st = await DBManager.getBackfillState();
+        const meta = await readStoredMeta();
+        const existing = meta && typeof meta.logStartDate === 'number' ? meta.logStartDate : null;
+        if (!st) return existing;
+        const floor = computeScanFloor(await DBManager.inboxAll(), st);
+        return existing !== null ? Math.min(floor, existing) : floor;
+    }
+
+    async function readStoredMeta() {
+        const db = await DBManager._ensureDb();
+        return db ? DBManager._readMeta() : null;
+    }
+
+    // Why the scan can't run right now, or null if it can. The first sync after Initialize or Clear
+    // stamps logStartDate/rewardStartDate; the scan waits for it, since it scans back from logStartDate.
+    function backfillBlockReason(st, meta) {
+        if (!userConfig.apiKey || userConfig.apiKey.length < 16) return 'no API key';
+        if (!localStorage.getItem('bbgl_initialized')) return 'not initialized';
+        if (!st) return 'no log started';
+        if (st.status === 'complete') return 'complete';
+        if (st.status === 'stopped') return 'ended by the player';
+        if (st.paused) return 'paused';
+        if (st.status === 'cooldown' && Date.now() < st.cooldownUntil) return 'cooling down';
+        if (!meta || typeof meta.logStartDate !== 'number' || typeof meta.rewardStartDate !== 'number') return 'waiting for first sync';
+        return null;
+    }
+
+    // ─── Tab coordination ────────────────────────────────────────────────────
+    function readLease() {
+        try { return JSON.parse(localStorage.getItem(BF_LEASE_KEY)); } catch (e) { return null; }
+    }
+
+    function leaseIsMine() {
+        const l = readLease();
+        return !!l && l.tabId === _TAB_ID;
+    }
+
+    function writeLease() {
+        localStorage.setItem(BF_LEASE_KEY, JSON.stringify({ tabId: _TAB_ID, at: Date.now() }));
+    }
+
+    // No-Web-Locks fallback: a lease in localStorage, renewed while scanning, deleted on pagehide so
+    // the next page takes over at once, and treated as dead after LEASE_STALE_MS if a tab crashed.
+    // Two tabs racing for it is unlikely after the write-then-read-back, and harmless if it happens:
+    // inbox writes overwrite by id.
+    async function acquireLease() {
+        const cur = readLease();
+        if (cur && cur.tabId !== _TAB_ID && Date.now() - cur.at < BACKFILL.LEASE_STALE_MS) return null;
+        writeLease();
+        await new Promise(r => setTimeout(r, 250));
+        if (!leaseIsMine()) return null;
+        const timer = setInterval(() => { if (leaseIsMine()) writeLease(); }, BACKFILL.LEASE_RENEW_MS);
+        const release = () => {
+            clearInterval(timer);
+            window.removeEventListener('pagehide', release);
+            if (leaseIsMine()) localStorage.removeItem(BF_LEASE_KEY);
+        };
+        window.addEventListener('pagehide', release);
+        return { release, check: leaseIsMine };
+    }
+
+    // Resolves { release, check } once this tab may scan, or null. With Web Locks, a tab that finds
+    // the lock taken queues for it, so it takes over the moment the scanning tab closes or navigates.
+    function acquireBackfillLock() {
+        const locks = getWebLocks();
+        if (!locks) return acquireLease();
+        const request = (opts) => new Promise(resolve => {
+            let release;
+            const held = new Promise(r => { release = r; });
+            locks.request('bbgl-backfill', opts, lock => {
+                if (!lock) {
+                    resolve(null);
                     return;
                 }
-                const after = r2(l.after);
-                const key = `${l.ts}_${l.stat}_${after}`;
-                if (!seenGym.has(key)) {
-                    seenGym.add(key);
-                    stored.series.push({
-                        ts: l.ts,
-                        stat: l.stat,
-                        gain: r2(l.gain),
-                        cost: l.cost,
-                        after,
-                        rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
-                    });
+                resolve({ release, check: () => true });
+                return held;
+            }).catch(e => {
+                Log.warn('Backfill lock request failed', e);
+                resolve(null);
+            });
+        });
+        return request({ ifAvailable: true }).then(lock => {
+            if (lock) return lock;
+            if (document.visibilityState === 'visible') _syncChannel.postMessage({ type: 'bf:want', from: _TAB_ID });
+            runtime.bfWaitingLock = true;
+            return request({}).finally(() => { runtime.bfWaitingLock = false; });
+        });
+    }
+
+    // A wait the scan can be woken from early (stop, hand-off, Try Again).
+    function bfSleep(ms) {
+        return new Promise(resolve => {
+            const done = () => {
+                clearTimeout(timer);
+                if (runtime.bfWake === done) runtime.bfWake = null;
+                resolve();
+            };
+            const timer = setTimeout(done, ms);
+            runtime.bfWake = done;
+        });
+    }
+
+    function wakeBackfill() {
+        if (runtime.bfWake) runtime.bfWake();
+    }
+
+    // Torn's "too many requests" (code 5) from any call in any tab: the scan backs off for a minute.
+    // Live sync never waits on this.
+    function noteRateLimit(fromOtherTab) {
+        runtime.bfRateUntil = Date.now() + BACKFILL.RATE_BACKOFF_MS;
+        if (!fromOtherTab) _syncChannel.postMessage({ type: 'bf:ratelimit', from: _TAB_ID });
+    }
+
+    // Try Again on the connection error: retry straight away, here or in whichever tab is scanning.
+    function retryBackfillNow() {
+        runtime.bfFailCount = 0;
+        if (runtime.bfScanning) wakeBackfill();
+        else {
+            _syncChannel.postMessage({ type: 'bf:retry', from: _TAB_ID });
+            maybeStartBackfill();
+        }
+    }
+
+    function handleBackfillMessage(msg) {
+        switch (msg.type) {
+            case 'bf:stop':
+                runtime.bfStop = true;
+                wakeBackfill();
+                break;
+            case 'bf:state':
+                refreshBackfillUI();
+                maybeStartBackfill();
+                break;
+            case 'bf:ratelimit':
+                noteRateLimit(true);
+                break;
+            case 'bf:progress':
+                updateBackfillCount(msg.count);
+                break;
+            case 'bf:pause':
+                runtime.bfStop = true;
+                wakeBackfill();
+                refreshBackfillUI();
+                break;
+            case 'bf:retry':
+                runtime.bfFailCount = 0;
+                wakeBackfill();
+                break;
+            case 'bf:want':
+                // A tab the player is looking at wants to scan; a hidden one hands over after its
+                // current page is saved (hidden tabs are throttled hard by the browser).
+                if (runtime.bfScanning && hasWebLocks() && document.visibilityState === 'hidden') {
+                    runtime.bfYield = true;
+                    wakeBackfill();
                 }
-            });
-            stored.series.sort((a, b) => a.ts - b.ts);
-
-            const baseline = {
-                ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
-            };
-            STAT_KEYS.forEach(k => {
-                const first = stored.series.find(e => e.stat === k);
-                if (first) baseline[k] = r2(first.after - first.gain);
-            });
-            stored.meta.baselineBreakdown = baseline;
-
-            stored.meta.logStartDate = computeBackfillFloor(stored, ds.targets.frontiers);
+                break;
         }
-
-        stored.meta.backfill = ds;
-        await DBManager.setStorage(stored);
-        return stored;
     }
 
-    function _hydrateFromStored(stored) {
-        const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
-        _historyCache = {
-            meta: stored.meta,
-            history: rebuilt.history,
-            today: rebuilt.today
-        };
-        DataController.invalidate();
+    // ─── Fetching one page ────────────────────────────────────────────────────
+    const BF_DEV_FAILS = {
+        net: { ok: false, netErr: new Error('dev: forced network failure') },
+        http: { ok: false, http: 500 },
+        code5: { ok: false, apiError: { code: 5, error: 'dev: forced' } },
+        code8: { ok: false, apiError: { code: 8, error: 'dev: forced' } },
+        code14: { ok: false, apiError: { code: 14, error: 'dev: forced' } },
+        key2: { ok: false, apiError: { code: 2, error: 'dev: forced' } },
+        key16: { ok: false, apiError: { code: 16, error: 'dev: forced' } },
+        key18: { ok: false, apiError: { code: 18, error: 'dev: forced' } },
+        unknown: { ok: false, apiError: { code: 999, error: 'dev: forced' } }
+    };
+
+    // kind: 'temporary' (retry later), 'limit' (Torn's daily read limit), 'key' (the key itself).
+    function classifyScanError(r) {
+        if (r.netErr) return { kind: 'temporary', code: 'net' };
+        if (r.http) return { kind: 'temporary', code: `http${r.http}` };
+        const c = r.apiError && r.apiError.code;
+        if (c === 14) return { kind: 'limit', code: 14 };
+        if (BF_KEY_ERROR_CODES.includes(c)) return { kind: 'key', code: c };
+        return { kind: 'temporary', code: c };
     }
 
-    async function finalizeBackfill(ds, collected) {
-        _hydrateFromStored(await _persistBackfillSeries(ds, collected));
-    }
-
-    async function acknowledgeBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || ds.lastResult !== 'complete' || ds.acknowledged !== false) return;
-        ds.acknowledged = true;
-        await finalizeBackfill(ds, []);
-        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-        renderScanUI();
-    }
-
-    async function proceedPartialBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || ds.lastResult !== 'partial' || ds.acknowledged !== false) return;
-        ds.acknowledged = true;
-        try {
-            await persistBackfillState(ds);
-        } catch (e) {
-            Log.warn('Backfill proceed save failed', e);
-        }
-        renderScanUI();
-    }
-
-    // If you cancel a Deep Log Scan, this throws away the older history it had reconstructed —
-    // only what's been tracked live since you installed the script is kept.
-    async function discardBackfillData(ds) {
-        const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
-
-        let cutoff = (typeof stored.meta.rewardStartDate === 'number') ? stored.meta.rewardStartDate : null;
-        if (cutoff === null) {
-            const p = Date.parse(userConfig.privacyAgreed);
-            cutoff = isNaN(p) ? Math.floor(Date.now() / 1000) : Math.floor(p / 1000);
-        }
-
-        stored.series = stored.series.filter(e => e.ts >= cutoff);
-
-        let curStats = null;
-        try {
-            const r = await tornGet('user/', { selections: 'battlestats', timestamp: Date.now() });
-            if (r.ok) curStats = r.data;
-        } catch (e) {
-            Log.warn('Discard baseline battlestats fetch failed', e);
-        }
-        if (curStats) {
-            const liveGain = { str: 0, def: 0, spd: 0, dex: 0 };
-            stored.series.forEach(e => {
-                if (e.type !== 'item' && liveGain[e.stat] !== undefined) liveGain[e.stat] += (e.gain || 0);
-            });
-            stored.meta.baselineBreakdown = {
-                str: r2((curStats.strength || 0) - liveGain.str),
-                def: r2((curStats.defense || 0) - liveGain.def),
-                spd: r2((curStats.speed || 0) - liveGain.spd),
-                dex: r2((curStats.dexterity || 0) - liveGain.dex)
-            };
-        }
-
-        ds.targets = {};
-        ensureBackfillTargets(ds);
-
-        stored.meta.logStartDate = cutoff;
-
-        ds.lastResult = null;
-        ds.stopReason = null;
-        ds.completion = null;
-        ds.acknowledged = true;
-        ds.lock = 0;
-        ds.lockOwner = null;
-        stored.meta.backfill = ds;
-
-        await DBManager.setStorage(stored);
-        _hydrateFromStored(stored);
-    }
-
-    async function _scanPage(param, cursor) {
-        const r = await tornGet('user/', { selections: 'log', log: param, to: Math.floor(cursor), timestamp: Date.now() });
-        if (r.netErr || r.http) {
-            Log.warn('Deep scan page fetch failed', r.netErr || `HTTP ${r.http}`);
-            return { halt: true };
-        }
-        if (r.apiError) {
-            if (r.apiError.code === 14 || r.apiError.code === 5) return { halt: true };
-            throw new Error(r.apiError.error);
-        }
-        const log = r.data.log || {};
+    // Asks Torn for the newest 100 lines of one log group at or before `to`.
+    async function fetchScanPage(param, to) {
+        const forced = runtime.devMode && runtime._devTakeBackfillFail ? runtime._devTakeBackfillFail() : null;
+        const r = (forced && BF_DEV_FAILS[forced]) || await tornGet('user/', { selections: 'log', log: param, to: Math.floor(to), timestamp: Date.now() });
+        if (!r.ok) return { error: classifyScanError(r) };
+        const log = (r.data && r.data.log) || {};
         return { log, rowKeys: Object.keys(log) };
     }
 
-    // Deep Log Scan: uses your API key to page back through your full training history on Torn's
-    // servers. It only reads gym training logs and a short list of item logs (energy cans, Xanax,
-    // overdoses, etc.) — it never reads your messages, money, or any other personal information.
-    async function backfillLogs(btn) {
-        if (runtime.demoMode) return;
-        if (!userConfig.apiKey || userConfig.apiKey.length < 16) {
-            alert('API Key is missing or too short.');
-            return;
-        }
-
-        if (runtime.backfilling) return;
-
-        const s = getActiveHistory();
-        if (!s.meta.backfill) s.meta.backfill = defaultBackfill();
-        const ds = s.meta.backfill;
-        const now = Date.now();
-
-        if (ds.cooldownUntil) {
-            if (now < ds.cooldownUntil) {
-                renderScanUI();
-                return;
-            }
-            ds.cooldownUntil = 0;
-            ds.rowsUsed = 0;
-        }
-
-        const freshStored = await DBManager.getStorage();
-        const liveLock = freshStored && freshStored.meta && freshStored.meta.backfill && freshStored.meta.backfill.lock;
-        if (liveLock && (Date.now() - liveLock) < BACKFILL.LOCK_STALE_MS) {
-            renderScanUI();
-            return;
-        }
-
-        const budget = Math.max(0, BACKFILL.SOFT_CAP - (ds.rowsUsed || 0));
-        if (budget <= 0) {
-            ds.lastResult = 'partial';
-            ds.stopReason = 'cap';
-            ds.acknowledged = false;
-            ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-            await persistBackfillState(ds);
-            renderScanUI();
-            return;
-        }
-
-        const frontiers = ensureBackfillTargets(ds);
-
-        ds.lastResult = 'partial';
-        ds.stopReason = null;
-        ds.acknowledged = false;
-        ds.lock = Date.now();
-        ds.lockOwner = _TAB_ID;
-        runtime.backfillAbort = null;
-        await persistBackfillState(ds);
-        runtime.backfilling = true;
-        renderScanOverlay();
-
-        await fetchFactionHistory();
-        await fetchPastFactionWars();
-
-        if (btn) {
-            if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
-            btn.style.pointerEvents = 'none';
-            btn.style.opacity = '0.85';
-            btn.innerText = 'Scanning... 0';
-        }
-
-        let sessionRows = 0;
-        let stoppedEarly = false;
-        let capHit = false;
-        let aborted = null;
-        let drainDay = null;
-        let pending = [];
-        let lastHeartbeat = Date.now();
-
-        const flush = async () => {
-            ds.lock = Date.now();
-            ds.lockOwner = _TAB_ID;
-            await _persistBackfillSeries(ds, pending);
-            pending = [];
-            lastHeartbeat = Date.now();
-        };
-
-        try {
-            while (sessionRows < BACKFILL.HARD_CAP) {
-                if (runtime.backfillAbort) {
-                    aborted = runtime.backfillAbort;
-                    break;
-                }
-                let pick = null;
-                BACKFILL_GROUP_KEYS.forEach(g => {
-                    const fr = frontiers[g];
-                    if (!fr || fr.complete) return;
-                    if (drainDay !== null && fr.cursor < drainDay) return;
-                    if (pick === null || fr.cursor > frontiers[pick].cursor) pick = g;
-                });
-                if (pick === null) break;
-
-                const fr = frontiers[pick];
-                const param = BACKFILL_GROUPS[pick];
-
-                let page = await _scanPage(param, fr.cursor);
-                if (page.halt) {
-                    stoppedEarly = true;
-                    break;
-                }
-
-                if (page.rowKeys.length === 0) {
-                    await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
-                    const confirm = await _scanPage(param, fr.cursor);
-                    if (confirm.halt) {
-                        stoppedEarly = true;
-                        break;
-                    }
-                    if (confirm.rowKeys.length === 0) {
-                        fr.complete = true;
-                        continue;
-                    }
-                    page = confirm;
-                }
-
-                pending.push(...normalizeApiLogs(page.log));
-                sessionRows += page.rowKeys.length;
-                ds.rowsUsed = (ds.rowsUsed || 0) + page.rowKeys.length;
-
-                let oldestTs = fr.cursor;
-                for (const k of page.rowKeys) {
-                    const t = page.log[k].timestamp;
-                    if (t < oldestTs) oldestTs = t;
-                }
-                fr.cursor = oldestTs - 1;
-
-                if (btn) btn.innerText = `Scanning... ${ds.rowsUsed}`;
-                updateScanOverlayCount(ds.rowsUsed);
-
-                if (drainDay === null && ds.rowsUsed >= BACKFILL.SOFT_CAP) {
-                    capHit = true;
-                    let maxCursor = -Infinity;
-                    BACKFILL_GROUP_KEYS.forEach(g => {
-                        const f = frontiers[g];
-                        if (f && !f.complete && f.cursor > maxCursor) maxCursor = f.cursor;
-                    });
-                    if (maxCursor > -Infinity) drainDay = backfillDayStart(maxCursor);
-                }
-
-                if (pending.length >= BACKFILL.CHECKPOINT_ROWS || Date.now() - lastHeartbeat >= BACKFILL.HEARTBEAT_MS) {
-                    await flush();
-                }
-
-                if (sessionRows >= BACKFILL.HARD_CAP) {
-                    stoppedEarly = true;
-                    break;
-                }
-                await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
-            }
-        } catch (e) {
-            Log.error('Deep sync failed', e);
-            stoppedEarly = true;
-        }
-
-        ds.lock = 0;
-        ds.lockOwner = null;
-
-        if (aborted === 'cancel') {
-            pending = [];
-            runtime.backfilling = false;
-            runtime.backfillAbort = null;
-            try {
-                await discardBackfillData(ds);
-            } catch (e) {
-                Log.error('Backfill discard failed', e);
-            }
-            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-            renderScanUI();
-            return;
-        }
-
-        const allComplete = BACKFILL_GROUP_KEYS.every(g => frontiers[g] && frontiers[g].complete);
-        if (allComplete && !stoppedEarly && !aborted) {
-            ds.lastResult = 'complete';
-            ds.stopReason = null;
-            ds.acknowledged = false;
-            ds.cooldownUntil = 0;
-            ds.rowsUsed = 0;
-        } else {
-            ds.lastResult = 'partial';
-            ds.acknowledged = false;
-            if (aborted === 'pause') {
-                ds.stopReason = 'paused';
-            } else if (capHit || (ds.rowsUsed || 0) >= BACKFILL.SOFT_CAP) {
-                ds.stopReason = 'cap';
-                ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-            } else {
-                ds.stopReason = 'error';
-            }
-        }
-
-        try {
-            await finalizeBackfill(ds, pending);
-        } catch (e) {
-            Log.error('Deep scan save failed', e);
-        } finally {
-            runtime.backfilling = false;
-            runtime.backfillAbort = null;
-        }
-
-        if (ds.lastResult === 'complete') {
-            const baseline = (_historyCache && _historyCache.meta && _historyCache.meta.baselineBreakdown) || ZERO_BREAKDOWN;
-            const reachedOrigin = STAT_KEYS.every(k => (baseline[k] || 0) <= BACKFILL.ORIGIN_MAX_STAT);
-            ds.completion = reachedOrigin ? 'origin' : 'exhausted';
-            try {
-                await persistBackfillState(ds);
-            } catch (e) {
-                Log.error('Backfill completion flag save failed', e);
-            }
-        }
-
-        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-        renderScanUI();
+    // ─── Building the log from the inbox ─────────────────────────────────────
+    // At a cap, the oldest day the calendar can safely show: every unfinished roll has scanned past
+    // all of the day before it. A roll with no inbox lines this round hasn't moved past roundStart.
+    // Start-of-next-day is taken from dayStart + 26h so a DST day can't put it inside the partial day.
+    function computeScanFloor(lines, st) {
+        const oldest = {};
+        lines.forEach(l => {
+            if (oldest[l.group] === undefined || l.ts < oldest[l.group]) oldest[l.group] = l.ts;
+        });
+        let floor = null;
+        BACKFILL_GROUP_KEYS.forEach(g => {
+            if (st.done[g]) return;
+            const reach = oldest[g] !== undefined ? oldest[g] : st.roundStart;
+            const f = backfillDayStart(backfillDayStart(reach) + 26 * 3600);
+            if (floor === null || f > floor) floor = f;
+        });
+        return floor;
     }
 
-    async function recoverInterruptedBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || !ds.lock) return;
-        if ((Date.now() - ds.lock) <= BACKFILL.LOCK_STALE_MS) return;
-        ds.lock = 0;
-        ds.lockOwner = null;
-        if (ds.lastResult !== 'complete') {
-            ds.lastResult = 'partial';
-            if (ds.stopReason !== 'cap') ds.stopReason = 'interrupted';
-            ds.acknowledged = false;
-        }
+    // Adds the inbox to your saved log and rebuilds the calendar, in one save together with the
+    // scan's progress, so it either all happens or none of it does. 'final' adds everything. 'cap'
+    // (Torn's daily limit reached) adds only complete days, keeps finished log groups' older lines in
+    // the inbox for the final merge, and drops the rest to be downloaded again after the wait.
+    // If this is interrupted, pendingMerge is still set and the next page load redoes it; lines
+    // already added are skipped as duplicates.
+    async function mergeInbox(mode, st) {
+        const runId = st.runId;
+        let result = null;
         try {
-            await persistBackfillState(ds);
+            await DBManager.withHistoryWrite(async () => {
+                const fresh = await DBManager.getBackfillState();
+                if (!fresh || fresh.runId !== runId || fresh.pendingMerge !== mode) return;
+                const lines = await DBManager.inboxAll();
+                const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
+                const existing = typeof stored.meta.logStartDate === 'number' ? stored.meta.logStartDate : null;
+
+                let toMerge = lines;
+                let held = [];
+                let floor = null;
+                // 'cap' and 'stop' (End Backfill) both build only up to the last fully scanned day.
+                if (mode === 'cap' || mode === 'stop') {
+                    floor = computeScanFloor(lines, fresh);
+                    if (existing !== null) floor = Math.min(floor, existing);
+                    toMerge = lines.filter(l => l.ts >= floor);
+                    held = lines.filter(l => l.ts < floor && fresh.done[l.group]);
+                }
+                mergeLinesIntoSeries(stored, toMerge);
+                recomputeBaseline(stored);
+                if (mode === 'final' && stored.series.length) floor = backfillDayStart(stored.series[0].ts);
+                if (floor !== null) stored.meta.logStartDate = existing !== null ? Math.min(floor, existing) : floor;
+
+                const crash = runtime.devMode && runtime._devTakeMergeCrash ? runtime._devTakeMergeCrash() : null;
+                if (crash === 'beforeTx') throw new Error('dev: forced merge crash before save');
+
+                const patch = mode === 'final'
+                    ? { pendingMerge: null, firstMergeDone: true, status: 'complete', lastError: null }
+                    : mode === 'stop'
+                    ? { pendingMerge: null, firstMergeDone: true, status: 'stopped', paused: false }
+                    : { pendingMerge: null, firstMergeDone: true, status: 'cooldown', cooldownUntil: Date.now() + bfConst('COOLDOWN_MS'), capEpoch: (fresh.capEpoch || 0) + 1 };
+                const nextState = Object.assign({}, fresh, patch);
+                const heldIds = new Set(held.map(l => l.id));
+                // Read fresh inside the history-write lock, so this can't come back 'stale'.
+                await DBManager.setStorage(stored, {
+                    inLock: true,
+                    bumpGen: true,
+                    extraStores: [DBManager._BF_STORE, DBManager._INBOX_STORE],
+                    extraOps: tx => {
+                        const inbox = tx.objectStore(DBManager._INBOX_STORE);
+                        if (!heldIds.size) inbox.clear();
+                        else lines.forEach(l => { if (!heldIds.has(l.id)) inbox.delete(l.id); });
+                        tx.objectStore(DBManager._BF_STORE).put(nextState, 'state');
+                    }
+                });
+                Object.assign(st, patch);
+                if (crash === 'afterTx') throw new Error('dev: forced merge crash after save');
+                result = { merged: toMerge.length, held: held.length, logStartDate: stored.meta.logStartDate };
+                // During Demo the view shows demo data; leaving Demo reloads from the database.
+                if (!runtime.demoMode) DataController.hydrate(await DBManager.loadHistory());
+            });
         } catch (e) {
-            Log.warn('Backfill lock recovery save failed', e);
+            Log.error(`Backfill ${mode} merge failed`, e);
+            return false;
         }
+        if (!result) return false;
+        Log.info(`[backfill] ${mode} merge: ${result.merged} lines added, ${result.held} held, log starts ${new Date(result.logStartDate * 1000).toISOString()}`);
+        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
+        announceBackfillState();
+        return true;
+    }
+
+    // ─── The scan ────────────────────────────────────────────────────────────
+    function runBackfillMerge(mode, st) {
+        return mergeInbox(mode, st);
+    }
+
+    async function scanLoop(lock) {
+        let st = await DBManager.getBackfillState();
+        const meta = await readStoredMeta();
+        const blocked = backfillBlockReason(st, meta);
+        if (blocked) {
+            Log.debug(`[backfill] not scanning: ${blocked}`);
+            return;
+        }
+        const runId = st.runId;
+        // Every state change is committed through inboxCommitPage, so a Clear Log (runId gone)
+        // stops it from writing anything.
+        const commit = async (group, lines, patch) => {
+            const ok = await DBManager.inboxCommitPage(runId, group, lines, patch);
+            if (ok) Object.assign(st, patch);
+            return ok;
+        };
+
+        if (st.pendingMerge) {
+            await runBackfillMerge(st.pendingMerge, st);
+            return;
+        }
+        if (st.status === 'cooldown') {
+            if (!await commit(null, [], { status: 'scanning', rowsUsed: 0, cooldownUntil: 0, roundStart: meta.logStartDate })) return;
+        } else if (!st.roundStart) {
+            // Backfill covers everything up to logStartDate; live sync covers everything after.
+            if (!await commit(null, [], { roundStart: meta.logStartDate })) return;
+        }
+        if (!st.factionFetched && await fetchFactionHistory()) {
+            await fetchPastFactionWars();
+            if (!await commit(null, [], { factionFetched: true })) return;
+        }
+
+        const PAGE = BACKFILL.PAGE;
+        const stepBack = {};
+        let calls = 0;
+        Log.info(`[backfill] scanning (run ${runId}, ${st.rowsUsed} rows used this window)`);
+
+        const setError = async (kind, code) => {
+            if (st.lastError && st.lastError.kind === kind) return true;
+            const ok = await commit(null, [], { lastError: { kind, code, at: Date.now() }, errorEpoch: (st.errorEpoch || 0) + 1 });
+            if (ok) announceBackfillState();
+            return ok;
+        };
+
+        while (true) {
+            if (runtime.bfStop || runtime.bfYield || !lock.check()) break;
+            const rateWait = (runtime.bfRateUntil || 0) - Date.now();
+            if (rateWait > 0) {
+                await bfSleep(rateWait);
+                continue;
+            }
+            const open = BACKFILL_GROUP_KEYS.filter(g => !st.done[g]);
+            if (!open.length) {
+                if (await commit(null, [], { pendingMerge: 'final' })) await runBackfillMerge('final', st);
+                break;
+            }
+            if ((st.rowsUsed || 0) + PAGE > bfConst('CAP')) {
+                if (await commit(null, [], { pendingMerge: 'cap' })) await runBackfillMerge('cap', st);
+                break;
+            }
+
+            // The roll furthest behind goes next, so all three move back through time together.
+            const points = {};
+            for (const g of open) {
+                const oldest = await DBManager.inboxOldest(g);
+                points[g] = oldest ? oldest.ts : st.roundStart;
+            }
+            const pick = open.reduce((a, b) => (points[b] > points[a] ? b : a));
+            // `to` is inclusive: the boundary line comes back again and dedupes by id. Only if a whole
+            // page sits on one second does the next call step past it.
+            const to = stepBack[pick] === points[pick] ? points[pick] - 1 : points[pick];
+
+            const page = await fetchScanPage(BACKFILL_GROUPS[pick], to);
+            calls++;
+            if (page.error && page.error.kind === 'limit') {
+                // Torn's own daily read limit (other scripts can use up the same key): same as our cap.
+                Log.warn('[backfill] Torn daily read limit reached; building the log so far and waiting');
+                if (await commit(null, [], { pendingMerge: 'cap' })) await runBackfillMerge('cap', st);
+                break;
+            }
+            if (page.error && page.error.kind === 'key') {
+                // Waiting won't fix a rejected key. Tell the player once, then make one attempt per
+                // page load (or as soon as the key is changed) until it works again.
+                Log.warn(`[backfill] API key rejected (code ${page.error.code}); pausing until next page load`);
+                runtime.bfKeyBlockedFor = userConfig.apiKey;
+                await setError('key', page.error.code);
+                break;
+            }
+            const rows = page.error ? 0 : page.rowKeys.length;
+            const lines = page.error ? [] : normalizeApiLogs(page.log);
+            if (page.error || (rows > 0 && lines.length === 0)) {
+                // Temporary: retry with growing waits. After ERROR_NOTICE_MS of failing on this page
+                // load the player is told once; retries carry on either way.
+                const code = page.error ? page.error.code : 'unstorable';
+                const now = Date.now();
+                if (!runtime.bfFailSince) runtime.bfFailSince = now;
+                const noticeAt = runtime.bfFailSince + bfConst('ERROR_NOTICE_MS');
+                if (now >= noticeAt && !await setError('connection', code)) break;
+                const steps = BACKFILL.RETRY_STEPS_MS;
+                let delay = steps[Math.min(runtime.bfFailCount || 0, steps.length - 1)];
+                if (now < noticeAt) delay = Math.min(delay, noticeAt - now);
+                if (runtime.devMode && runtime._devBackfillErrorWindowMs) delay = Math.min(delay, Math.max(1000, runtime._devBackfillErrorWindowMs / 4));
+                runtime.bfFailCount = (runtime.bfFailCount || 0) + 1;
+                Log.warn(`[backfill] page failed (${code}); retrying in ${Math.round(delay / 1000)}s`);
+                await bfSleep(delay);
+                continue;
+            }
+            const known = await DBManager.inboxExistingIds(lines.map(l => l.id));
+            const fresh = lines.filter(l => !known.has(l.id)).length;
+            // Empty, or a short page with nothing new (the one confirmation call after a short page,
+            // which only returns the boundary line again): nothing older exists.
+            const finished = rows === 0 || (rows < PAGE && fresh === 0);
+            let oldestTs = Infinity;
+            page.rowKeys.forEach(k => { if (page.log[k].timestamp < oldestTs) oldestTs = page.log[k].timestamp; });
+            if (rows === PAGE && oldestTs >= to) stepBack[pick] = points[pick];
+
+            const patch = { done: { ...st.done, [pick]: finished }, rowsUsed: (st.rowsUsed || 0) + rows };
+            const recovered = !!st.lastError;
+            if (recovered) patch.lastError = null;
+            if (!await commit(pick, lines, patch)) break;
+            runtime.bfFailSince = 0;
+            runtime.bfFailCount = 0;
+            if (recovered) announceBackfillState();
+            if (!st.firstMergeDone) {
+                // The overlay's line counter, here and in other tabs.
+                const count = await DBManager.inboxCount();
+                updateBackfillCount(count);
+                _syncChannel.postMessage({ type: 'bf:progress', count, from: _TAB_ID });
+            }
+            Log.debug(`[backfill] ${pick} to=${to}: ${rows} rows, ${fresh} new${finished ? ', done' : ''}`);
+
+            await bfSleep(bfConst('THROTTLE_MS'));
+        }
+        Log.info(`[backfill] stopped after ${calls} calls`);
+    }
+
+    async function runBackfill() {
+        if (runtime.bfScanning || runtime.bfWaitingLock) return;
+        if (runtime.bfKeyBlockedFor && runtime.bfKeyBlockedFor === userConfig.apiKey) return;
+        const lock = await acquireBackfillLock();
+        if (!lock) return;
+        runtime.bfScanning = true;
+        runtime.bfStop = false;
+        runtime.bfYield = false;
+        let yielded = false;
+        try {
+            await scanLoop(lock);
+        } catch (e) {
+            Log.error('Backfill scan failed', e);
+        } finally {
+            yielded = runtime.bfYield;
+            runtime.bfScanning = false;
+            runtime.bfYield = false;
+            lock.release();
+        }
+        // Handed the scan to a visible tab: queue behind it, to take over again if it closes.
+        if (yielded) setTimeout(() => runBackfill(), 0);
+    }
+
+    async function maybeStartBackfill() {
+        if (runtime.bfScanning || runtime.bfWaitingLock || runtime.bfChecking) return;
+        if (runtime.bfKeyBlockedFor && runtime.bfKeyBlockedFor === userConfig.apiKey) return;
+        runtime.bfChecking = true;
+        try {
+            const st = await DBManager.getBackfillState();
+            if (!backfillBlockReason(st, await readStoredMeta())) runBackfill();
+        } catch (e) {
+            Log.warn('Backfill start check failed', e);
+        } finally {
+            runtime.bfChecking = false;
+        }
+    }
+
+    // Called once from init(). Without Web Locks there's no queue to wait in, so waiting tabs check
+    // again when the lease is released (storage event) and on a slow timer.
+    function startBackfillTriggers() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            // A notice that landed while this tab was hidden shows now.
+            refreshBackfillUI();
+            // Already queued (opened in the background): ask the scanning tab to hand over now that
+            // the player is looking at this one.
+            if (runtime.bfWaitingLock) _syncChannel.postMessage({ type: 'bf:want', from: _TAB_ID });
+            else maybeStartBackfill();
+        });
+        window.addEventListener('storage', e => {
+            if (e.key === BF_LEASE_KEY && !e.newValue) maybeStartBackfill();
+        });
+        setInterval(() => {
+            if (!hasWebLocks()) maybeStartBackfill();
+        }, BACKFILL.LEASE_STALE_MS);
+        refreshBackfillUI();
+        maybeStartBackfill();
     }
 

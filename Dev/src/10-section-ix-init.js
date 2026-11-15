@@ -484,6 +484,8 @@
                 }
                 togglePanel(false);
             } else {
+                // Left the Gym Log page with no floating panel to return to: the script is off screen.
+                exitDemo(null);
                 viewState.subView = 'ledger';
                 viewState.activeItemId = null;
                 viewState.activeViewLabel = null;
@@ -826,7 +828,7 @@
                             if (data.error) {
                                 bbglError(`Key Verification Failed: ${tornKeyErrorText(data)}`);
                                 isb.style.color = '';
-                                isb.innerText = 'START TRACKING';
+                                isb.innerText = 'INITIALIZE LOG';
                                 isb.disabled = false;
                                 return;
                             }
@@ -837,14 +839,13 @@
                             calendarState.selectedData = null;
                             calendarState.selectedLabel = Formatter.dateLogical();
                             viewState.activeViewLabel = null;
-                            syncWithFeedback('FULL_SYNC');
-                            // Stay on the welcome view until the user picks fresh or backfill.
-                            // The choice modal's buttons handle switchView('ledger') themselves.
-                            openBackfillChoiceModal();
+                            // Straight into the log with the backfill overlay; the first sync
+                            // stamps the reward start date.
+                            startLog({ newRewardDate: true });
                         } catch (e) {
                             bbglError(MSG_KEY_NETWORK_ERROR);
                             isb.style.color = '';
-                            isb.innerText = 'START TRACKING';
+                            isb.innerText = 'INITIALIZE LOG';
                             isb.disabled = false;
                         }
                     };
@@ -922,7 +923,7 @@
             if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
             // variant; other views get the full scan state machine).
-            Perf.wrap('switchView:scanOverlay', renderScanOverlay);
+            Perf.wrap('switchView:scanOverlay', renderBackfillOverlay);
         };
         if (inst) {
             app();
@@ -988,6 +989,52 @@
         }
     }
 
+    // Leaves Demo. target: the view to land on; 'auto' = the log while the backfill overlay is
+    // still pending, else Settings (welcome + privacy if not initialized); null = leave the view
+    // alone (the panel is closing or the script is off screen).
+    function exitDemo(target = 'auto') {
+        if (!runtime.demoMode) return;
+        localStorage.removeItem(KEYS.DEMO);
+        runtime.demoMode = false;
+        runtime.demoHistory = null;
+        runtime.stickerData = [];
+        _historyCache = null;
+        DataController.invalidate();
+        DBManager.loadHistory().then(loaded => {
+            DataController.hydrate(loaded);
+            if (userConfig.apiKey) {
+                startBackgroundSync();
+            }
+        }).catch(e => {
+            if (userConfig.apiKey) {
+                startBackgroundSync();
+            }
+        }).finally(() => {
+            snapLevelBar();
+            // Anything the backfill merged during Demo is in the reloaded history; the overlay
+            // and any pending notice come back here.
+            refreshBackfillUI();
+        });
+        calendarState.selectedData = null;
+        calendarState.selectedLabel = Formatter.dateLogical();
+        viewState.activeViewLabel = null;
+        document.querySelectorAll('#bbgl-demo-exit, #bbgl-demo-exit-btn, #bbgl-page-demo-exit').forEach(el => { el.style.display = 'none'; });
+        if (window.TooltipController) window.TooltipController.hide();
+        refreshInitLock();
+        refreshDemoMasks();
+        if (runtime.realReturnView) {
+            runtime.returnView = runtime.realReturnView;
+            runtime.realReturnView = null;
+        }
+        if (target === null || !dom.panel) return;
+        if (localStorage.getItem('bbgl_initialized')) {
+            switchView(target === 'auto' ? (backfillOverlayPending() ? 'ledger' : 'settings') : target);
+        } else {
+            switchView('welcome', true);
+            openPrivacyModal();
+        }
+    }
+
     function closePanel(e) {
         if (e) e.stopPropagation();
         if (runtime.isClosing) return;
@@ -997,6 +1044,8 @@
         if (!p) return;
         Perf.start('closePanel');
         runtime.isClosing = true;
+        // Demo ends once the script is off screen.
+        exitDemo(null);
         viewState.isOpen = false;
         viewState.subView = 'ledger';
         viewState.activeViewLabel = null;
@@ -1174,286 +1223,260 @@
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
-    let _backfillCountdownId = null;
+    /* ─── Backfill overlay, notices and Settings buttons ───────────────────────
+       All driven by the stored scan state (DBManager.getBackfillState), cached in runtime.bfState
+       so the overlay can redraw synchronously from render paths (switchView). refreshBackfillUI()
+       re-reads it; it runs on boot, on scan state changes here (announceBackfillState) and in other
+       tabs (bf:state), on cross-tab history updates, and when a tab becomes visible. */
+    let _bfRefreshing = null;
+    let _bfRefreshAgain = false;
+    let _bfOverlayKey = null;
 
-    function formatCountdown(ms) {
-        const total = Math.max(0, Math.ceil(ms / 1000));
-        const h = Math.floor(total / 3600),
-            m = Math.floor((total % 3600) / 60),
-            s = total % 60;
-        const pad = n => String(n).padStart(2, '0');
-        return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
-
-    /* ============================ Big Black Backfill scan overlay ============================
-       A full-panel mask (#bbgl-scan-overlay) driven entirely off the persisted backfill state
-       (ds) plus runtime.backfilling. renderScanOverlay() is the single source of truth — the
-       overlay analog of renderBackfillButton() — and is idempotent so it can be called freely
-       from render/lifecycle paths without tearing down the live counter or handlers. */
-    const SCAN_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
-    const SCAN_PLAY_SVG  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-    let _scanOverlayTimer = null;   // passenger-staleness poll
-    let _scanOverlayKey = null;     // last rendered visual key; guards idempotent rebuilds
-    let _scanCancelConfirm = false; // transient: Cancel clicked, awaiting yes/no
-
-    function updateScanOverlayCount(n) {
-        const el = document.querySelector('#bbgl-scan-count');
-        if (el) el.textContent = String(n);
-    }
-
-    // Resolve the current visual state from persisted ds + this tab's role. Returns {key, ds}.
-    function currentScanState() {
-        if (runtime.demoMode) return { key: null, ds: null };
-        const s = getActiveHistory();
-        const ds = s && s.meta && s.meta.backfill;
-        if (!ds) return { key: null, ds: null };
-        const lockFresh = ds.lock && (Date.now() - ds.lock) < BACKFILL.LOCK_STALE_MS;
-        let key = null;
-        if (runtime.backfilling) key = _scanCancelConfirm ? 'confirm' : 'scanning';
-        else if (lockFresh && ds.lockOwner !== _TAB_ID) key = 'passenger';   // another tab drives
-        else if (ds.acknowledged === false) {
-            if (ds.lastResult === 'complete') key = 'complete';
-            else if (ds.stopReason === 'cap') key = 'cap';
-            else if (ds.stopReason === 'paused') key = 'paused';
-            else if (ds.stopReason === 'interrupted') key = 'interrupted';
-            else key = 'error';
+    function refreshBackfillUI() {
+        if (_bfRefreshing) {
+            _bfRefreshAgain = true;
+            return _bfRefreshing;
         }
-        return { key, ds };
+        _bfRefreshing = (async () => {
+            try {
+                do {
+                    _bfRefreshAgain = false;
+                    runtime.bfState = await DBManager.getBackfillState();
+                    if (backfillOverlayPending()) runtime.bfInboxCount = await DBManager.inboxCount();
+                    renderBackfillOverlay();
+                    renderBackfillSettings();
+                    await checkBackfillNotices(runtime.bfState);
+                } while (_bfRefreshAgain);
+            } catch (e) {
+                Log.warn('Backfill UI refresh failed', e);
+            } finally {
+                _bfRefreshing = null;
+            }
+        })();
+        return _bfRefreshing;
     }
 
-    // Each state returns the overlay's inner HTML. Wording confirmed; see wireScanOverlay for handlers.
-    function buildScanOverlayInner(key, ds) {
-        const cancelX = `<div id="bbgl-scan-cancel">Cancel</div>`;
-        switch (key) {
-            case 'settings':
-                return `<div class="bbgl-scan-title">Scan in Progress</div><div class="bbgl-scan-sub">Settings are locked while Big Black Backfill runs. Head back to the log to pause or check progress.</div>`;
-            case 'scanning':
-                // Seed the count from ds.rowsUsed (survives pause/resume) rather than a hardcoded 0,
-                // so resuming a paused scan doesn't visually flash back to zero before the loop's
-                // first update lands.
-                return `${cancelX}<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Scanning&hellip;</div><div id="bbgl-scan-pause" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Pause">${SCAN_PAUSE_SVG}</div></div><div class="bbgl-scan-count-row"><span class="bbgl-scan-pulse"></span>Rows recovered so far: <span id="bbgl-scan-count" class="bbgl-scan-count">${(ds && ds.rowsUsed) || 0}</span></div><div class="bbgl-scan-sub">This only takes up to a few minutes. Please stay on this page until the scan completes.</div><div class="bbgl-scan-note">If you're on PC, you may continue playing in another tab, but do not close this one.</div>`;
-            case 'confirm':
-                return `<div class="bbgl-scan-title">Cancel this scan?</div><div class="bbgl-scan-sub">Canceling discards everything recovered during this scan. Your log since installation remains untouched.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-confirm-yes" class="bbgl-scan-iconbtn bbgl-scan-yes" title="Yes, cancel">${ICONS.CHECK}</div><div id="bbgl-scan-confirm-no" class="bbgl-scan-iconbtn bbgl-scan-no" title="No, keep scanning">${ICONS.CLOSE}</div></div>`;
-            case 'passenger':
-                return `<div class="bbgl-scan-title">Scan Running in Another Tab</div><div class="bbgl-scan-sub">Big Black Backfill is currently active in another tab. Use that tab to pause or cancel the scan.</div>`;
-            case 'paused':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Paused</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">You can resume now, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'error':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Scan Error</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">A network or API error occurred. No progress was lost. Resume to keep going, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'interrupted':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Interrupted</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">The tab or browser was closed before the scan finished. Your progress up to that point was saved. Resume to keep going, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'cap':
-                return `<div class="bbgl-scan-title">Daily Limit Reached</div><div class="bbgl-scan-sub">Torn's daily row cap has been reached. Resume from the Settings menu in 24h. Everything recovered so far is fully constructed, none of it is partial.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue to Logs</div></div>`;
-            case 'complete':
-                return `<div class="bbgl-scan-title">Fully Backfilled!</div><div class="bbgl-scan-sub">Your training history has been fully reconstructed.</div><div class="bbgl-scan-note">Rewards and stickers only start counting from the day you began tracking, not from backfilled history.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-ack" class="bbgl-scan-textbtn bbgl-scan-primary">Enter Logs</div></div>`;
-            default:
-                return '';
-        }
-    }
-
-    function wireScanOverlay(el, key, ds) {
-        const cancel = el.querySelector('#bbgl-scan-cancel');
-        if (cancel) cancel.onclick = () => { _scanCancelConfirm = true; _scanOverlayKey = null; renderScanOverlay(); };
-        const pause = el.querySelector('#bbgl-scan-pause');
-        if (pause) pause.onclick = () => {
-            runtime.backfillAbort = 'pause';
-            const t = el.querySelector('.bbgl-scan-title');
-            if (t) t.textContent = 'Pausing…';
-        };
-        const yes = el.querySelector('#bbgl-scan-confirm-yes');
-        if (yes) yes.onclick = () => {
-            runtime.backfillAbort = 'cancel';
-            _scanCancelConfirm = false;
-            const t = el.querySelector('.bbgl-scan-title');
-            if (t) t.textContent = 'Discarding…';
-        };
-        const no = el.querySelector('#bbgl-scan-confirm-no');
-        if (no) no.onclick = () => { _scanCancelConfirm = false; _scanOverlayKey = null; renderScanOverlay(); };
-        const resume = el.querySelector('#bbgl-scan-resume');
-        if (resume) resume.onclick = () => { backfillLogs(document.getElementById('backfill-btn')); };
-        const proceed = el.querySelector('#bbgl-scan-proceed');
-        if (proceed) proceed.onclick = () => { proceedPartialBackfill(); };
-        const ack = el.querySelector('#bbgl-scan-ack');
-        if (ack) ack.onclick = () => { acknowledgeBackfill(); };
-    }
-
-    function renderScanOverlay() {
+    // Shown from Initialize/Refill until the first merge puts data in the calendar, in every tab.
+    // Never in Demo, and not in Settings, where the API key may need fixing.
+    function renderBackfillOverlay() {
         const existing = document.getElementById('bbgl-scan-overlay');
-        const { key, ds } = currentScanState();
-
-        if (!key) {
-            _scanCancelConfirm = false;
-            _scanOverlayKey = null;
-            if (_scanOverlayTimer) { clearInterval(_scanOverlayTimer); _scanOverlayTimer = null; }
+        const st = runtime.bfState;
+        const inSettings = dom.settingsView && dom.settingsView.classList.contains('active-view');
+        const show = !runtime.demoMode && !inSettings && backfillOverlayPending();
+        if (!show) {
             if (existing) existing.remove();
+            _bfOverlayKey = null;
             return;
         }
-
-        // The cancel-confirm sub-state only exists during an active scan; clear it on any other
-        // state so it can never leak into the next scan's first render.
-        if (key !== 'scanning' && key !== 'confirm') _scanCancelConfirm = false;
-
         const host = document.querySelector('#bbgl-content-wrapper');
         if (!host) return;
-
-        // In the settings view, show a distinct "unavailable" mask with no scan controls.
-        const inSettings = dom.settingsView && dom.settingsView.classList.contains('active-view');
-        const renderKey = inSettings ? 'settings' : key;
-
-        // Idempotent: skip a rebuild when the visual state is unchanged so the live counter and
-        // handlers survive (renderScanOverlay is called from hot render paths).
-        if (existing && _scanOverlayKey === renderKey) return;
-        _scanOverlayKey = renderKey;
-        if (_scanOverlayTimer) { clearInterval(_scanOverlayTimer); _scanOverlayTimer = null; }
-
+        const key = st.paused ? 'user-paused' : (st.lastError ? `paused-${st.lastError.kind}` : 'working');
+        if (existing && _bfOverlayKey === key) return;
+        _bfOverlayKey = key;
         const el = existing || document.createElement('div');
         el.id = 'bbgl-scan-overlay';
-        el.innerHTML = buildScanOverlayInner(renderKey, ds);
+        el.classList.toggle('bbgl-scan-paused', key !== 'working');
+        el.innerHTML = buildBackfillOverlayHTML(st);
         if (!existing) host.appendChild(el);
-        wireScanOverlay(el, renderKey, ds);
-
-        if (renderKey === 'passenger') {
-            // No broadcast fires if the driver tab dies; poll so we can promote to the Error mask
-            // once its lock goes stale.
-            _scanOverlayTimer = setInterval(() => renderScanOverlay(), 3000);
-        }
-    }
-
-    // Route the Settings "BB Backfill" button into the masked scan: switch to the log (so the
-    // overlay's pause/cancel controls are visible, not the settings "unavailable" variant), then
-    // start or resume the scan. No modal — the disclosure now lives in the privacy doc.
-    function startBackfillFromSettings() {
-        if (runtime.demoMode) return;
-        switchView('ledger');
-        backfillLogs(document.getElementById('backfill-btn'));
-    }
-
-    const BACKFILL_IDLE_LABEL = 'Big Black Backfill';
-    const BACKFILL_RESUME_LABEL = '<span class="view-std">Resume BB Backfill</span><span class="view-exp">Resume Big Black Backfill</span>';
-    const BACKFILL_CONFIRM_LABEL = 'Tap Again to Confirm';
-    let _backfillConfirmTimeout = null;
-
-    // First click arms a "tap again to confirm" state instead of firing immediately; a second click
-    // within the window confirms, letting the timeout expire reverts to the button's normal state via
-    // a full re-render.
-    function armBackfillConfirm(btn, onConfirm) {
-        if (_backfillConfirmTimeout) clearTimeout(_backfillConfirmTimeout);
-        btn.innerHTML = BACKFILL_CONFIRM_LABEL;
-        btn.onclick = function() {
+        const demo = el.querySelector('#bbgl-scan-demo-btn');
+        if (demo) demo.onclick = function() {
             this.blur();
-            if (_backfillConfirmTimeout) {
-                clearTimeout(_backfillConfirmTimeout);
-                _backfillConfirmTimeout = null;
-            }
-            onConfirm();
+            enterDemo('overlay');
         };
-        _backfillConfirmTimeout = setTimeout(() => {
-            _backfillConfirmTimeout = null;
-            renderBackfillButton();
-        }, 4000);
+        const toggle = el.querySelector('.bbgl-scan-toggle');
+        if (toggle) toggle.onclick = e => {
+            e.preventDefault();
+            setBackfillPaused(toggle.dataset.act === 'pause');
+        };
+        const stop = el.querySelector('.bbgl-scan-stop');
+        if (stop) stop.onclick = async e => {
+            e.preventDefault();
+            // Pauses at once (in case it's urgent); closing the pop-up carries on as if nothing
+            // happened, unless the player had already paused it themselves.
+            const wasPaused = !!(runtime.bfState && runtime.bfState.paused);
+            if (!wasPaused) await setBackfillPaused(true);
+            const floor = await backfillStopFloor();
+            openBackfillNotice('stopConfirm', runtime.bfState, { date: floor ? formatNoticeDate(floor) : 'today' }, {
+                close: () => { if (!wasPaused) setBackfillPaused(false); },
+                end: () => endBackfill()
+            });
+        };
+        bindGymLogSettingsLinks(el);
+        positionBackfillOverlay(el);
     }
 
-    // The full scan state machine now lives in the masked overlay (renderScanOverlay). This just
-    // reflects backfill state onto the Settings button and wires its click:
-    //  - scanning / masked stop-state (unacknowledged): inert; the overlay owns the UI.
-    //  - cooling down after a cap (acknowledged): dimmed but still hoverable, so the cooldown tooltip
-    //    can surface (native `disabled`, same pattern as the Resync-cooldown button).
-    //  - partial + resumable, fresh, or fully backfilled: clickable via a tap-to-confirm gate.
-    function renderBackfillButton() {
-        const btn = document.getElementById('backfill-btn');
-        if (!btn) return;
-        if (_backfillCountdownId) {
-            clearInterval(_backfillCountdownId);
-            _backfillCountdownId = null;
-        }
-        if (_backfillConfirmTimeout) {
-            clearTimeout(_backfillConfirmTimeout);
-            _backfillConfirmTimeout = null;
-        }
-
-        // Reset to a clean baseline before applying the active state.
-        btn.disabled = false;
-        btn.style.pointerEvents = '';
-        btn.style.opacity = '';
-        btn.style.color = '';
-        btn.removeAttribute('data-tooltip');
-        delete btn.dataset.originalText;
-        btn.onclick = null;
-
-        if (runtime.demoMode) return;
-
-        // Scan running, or a masked stop-state awaiting acknowledgement: the overlay covers the panel
-        // (including this button, or the settings "unavailable" mask on this view), so keep it inert.
-        // The exact label is never actually seen behind that mask.
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (runtime.backfilling || (ds && ds.acknowledged === false)) {
-            btn.style.opacity = '0.6';
-            btn.style.pointerEvents = 'none';
-            btn.innerHTML = (ds && ds.lastResult === 'partial') ? BACKFILL_RESUME_LABEL : BACKFILL_IDLE_LABEL;
-            return;
-        }
-
-        // Acknowledged cap: still cooling down. No live timer on the button itself; hovering (or
-        // tapping, on touch) surfaces the remaining time via tooltip instead.
-        if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
-            btn.style.opacity = '0.6';
-            btn.disabled = true;
-            btn.innerHTML = BACKFILL_RESUME_LABEL;
-            const updateTooltip = () => {
-                const remaining = ds.cooldownUntil - Date.now();
-                btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(Math.max(0, remaining))));
+    // "Gym Log's Settings" links in the backfill copy open the script's own Settings in whichever
+    // mode it's showing (page or floating panel), opening the floating panel if it's closed.
+    function bindGymLogSettingsLinks(root, before) {
+        root.querySelectorAll('.bbgl-gl-settings-link').forEach(a => {
+            a.onclick = e => {
+                e.preventDefault();
+                if (before) before();
+                openGymLogSettings();
             };
-            updateTooltip();
-            _backfillCountdownId = setInterval(() => {
-                if (Date.now() >= ds.cooldownUntil) {
-                    clearInterval(_backfillCountdownId);
-                    _backfillCountdownId = null;
-                    renderBackfillButton();
+        });
+    }
+
+    // Also points them at Create API Key: in the floating panel Settings opens scrolled to the
+    // bottom so it's on screen, and the button flashes for ~2s. The delay lets the view switch
+    // (or the panel build) finish first.
+    function openGymLogSettings() {
+        const shown = dom.panel && dom.panel.style.display !== 'none';
+        if (shown) switchView('settings');
+        else {
+            viewState.subView = 'settings';
+            togglePanel();
+        }
+        setTimeout(() => {
+            const sv = dom.settingsView;
+            if (!sv) return;
+            if (dom.panel && !dom.panel.classList.contains('bbgl-mode-page')) {
+                const area = sv.querySelector('.bbgl-settings-scroll-area');
+                if (area) area.scrollTop = area.scrollHeight;
+            }
+            const btn = sv.querySelector('#create-api-btn');
+            if (!btn) return;
+            clearInterval(runtime._createKeyFlash);
+            let ticks = 0;
+            btn.classList.add('bbgl-btn-flash-on');
+            runtime._createKeyFlash = setInterval(() => {
+                if (++ticks >= 8) {
+                    clearInterval(runtime._createKeyFlash);
+                    btn.classList.remove('bbgl-btn-flash-on');
                     return;
                 }
-                updateTooltip();
-            }, 1000);
-            return;
-        }
-
-        // Partial and resumable now (acknowledged pause/error/interrupted, or cap cooldown elapsed).
-        if (ds && ds.lastResult === 'partial') {
-            btn.innerHTML = BACKFILL_RESUME_LABEL;
-            btn.onclick = function() {
-                this.blur();
-                armBackfillConfirm(btn, () => startBackfillFromSettings());
-            };
-            return;
-        }
-
-        // Fully backfilled and acknowledged: a permanent state until the log is cleared. Still
-        // clickable to run the scan again; it will simply re-land on the Complete state.
-        if (ds && ds.lastResult === 'complete') {
-            btn.style.color = '#69f0ae';
-            btn.innerHTML = 'Fully Backfilled!';
-            btn.setAttribute('data-tooltip', ds.completion === 'exhausted' ? TOOLTIPS.BACKFILL_COMPLETE_EXHAUSTED : TOOLTIPS.BACKFILL_COMPLETE_ORIGIN);
-            btn.onclick = function() {
-                this.blur();
-                armBackfillConfirm(btn, () => startBackfillFromSettings());
-            };
-            return;
-        }
-
-        // Never run: start a new scan.
-        btn.innerHTML = BACKFILL_IDLE_LABEL;
-        btn.onclick = function() {
-            this.blur();
-            armBackfillConfirm(btn, () => startBackfillFromSettings());
-        };
+                btn.classList.toggle('bbgl-btn-flash-on');
+            }, 250);
+        }, 450);
     }
 
-    // The two surfaces that reflect backfill state (Settings button + masked overlay) are never
-    // meaningfully refreshed apart — every call site wants both. Both are idempotent, so this is
-    // safe to call from any exit path, cross-tab handler, or render pass.
-    function renderScanUI() {
-        renderBackfillButton();
-        renderScanOverlay();
+    // The Gym Log page is taller than the screen, so centering in the whole overlay would put the
+    // copy below the fold. Center it in the part of the overlay on screen when drawn; it then stays
+    // put while the page scrolls. The other panel modes fit on screen and center with CSS.
+    function positionBackfillOverlay(el) {
+        const inner = el.querySelector('.bbgl-scan-inner');
+        if (!inner) return;
+        inner.style.marginTop = '';
+        if (!dom.panel || !dom.panel.classList.contains('bbgl-mode-page')) return;
+        const box = el.getBoundingClientRect();
+        const top = Math.max(box.top, 0),
+            bottom = Math.min(box.bottom, window.innerHeight);
+        const h = inner.offsetHeight;
+        const want = (top + bottom) / 2 - h / 2 - box.top;
+        inner.style.marginTop = `${Math.max(24, Math.min(want, box.height - h - 24))}px`;
+    }
+
+    // Live count under the spinner: the scanning tab calls this after each page and sends it to
+    // the other tabs (bf:progress).
+    function updateBackfillCount(n) {
+        runtime.bfInboxCount = n;
+        const el = document.getElementById('bbgl-scan-count');
+        if (el) el.textContent = backfillCountText(n);
+    }
+
+    // Leaving Demo lands back on the log while the overlay still has to show there.
+    function backfillOverlayPending() {
+        const st = runtime.bfState;
+        return !!st && !st.firstMergeDone && st.status === 'scanning';
+    }
+
+    // Settings while a log is being built. Actively scanning (including paused on an error): the
+    // Data Management, API Access and Log Format sections are masked and Resync is hidden; on a
+    // key error API Access opens so the key can be fixed. During a cap cooldown nothing is masked
+    // but Clear Log stays hidden until the log is complete (clearing then would throw away the
+    // partial log and restart against Torn's still-spent daily limit). With no log started (after
+    // a clear) the button reads REFILL LOG. The demo masks share these hosts, so both apply here.
+    function renderBackfillSettings() {
+        const sv = dom.settingsView;
+        if (!sv) return;
+        const st = runtime.bfState;
+        const scanning = !!st && st.status === 'scanning';
+        const keyPaused = scanning && !!st.lastError && st.lastError.kind === 'key';
+        sv.querySelectorAll('.bbgl-demo-maskable, [data-bf-mask]').forEach(host => {
+            const demoOn = !!runtime.demoMode && host.classList.contains('bbgl-demo-maskable');
+            const key = host.dataset.bfMask;
+            const bfOn = !!key && scanning && !(key === 'api' && keyPaused);
+            host.classList.toggle('bbgl-mask-active', demoOn || bfOn);
+            if (demoOn) host.setAttribute('data-mask-text', DEMO_MASK_TEXT);
+            else if (bfOn) host.setAttribute('data-mask-text', BACKFILL_MASK_TEXT);
+        });
+        const rsb = sv.querySelector('#resync-btn');
+        if (rsb) rsb.style.display = scanning ? 'none' : '';
+        const clb = sv.querySelector('#clear-btn');
+        if (clb) {
+            const refill = !st;
+            // Shown again once complete, or after End Backfill (with Resume Backfill under it).
+            const hide = !!st && st.status !== 'complete' && st.status !== 'stopped';
+            clb.textContent = refill ? 'REFILL LOG' : 'CLEAR LOG';
+            clb.classList.toggle('bbgl-btn-red', !refill);
+            clb.classList.toggle('bbgl-btn-purple', refill);
+            clb.style.display = hide ? 'none' : 'block';
+            // Export/Import sit on top of Clear Log as one stack; without it they need their own
+            // bottom corners and edge.
+            [['#export-btn', '5px 0 0 0', '5px 0 0 5px'], ['#import-btn', '0 5px 0 0', '0 5px 5px 0']].forEach(([sel, joined, alone]) => {
+                const b = sv.querySelector(sel);
+                if (!b) return;
+                b.style.borderRadius = hide ? alone : joined;
+                b.style.borderBottom = hide ? '' : 'none';
+            });
+            const grid = clb.previousElementSibling;
+            if (grid && grid.classList.contains('bbgl-btn-grid')) grid.style.marginBottom = hide ? '8px' : '';
+            // Resume Backfill only exists after the player ended the backfill; clearing the log
+            // removes the state, so it goes away and Refill Log takes over.
+            const rbb = sv.querySelector('#resume-bf-btn');
+            const resumable = !!st && st.status === 'stopped';
+            if (rbb) rbb.style.display = resumable ? 'block' : 'none';
+            clb.style.marginBottom = resumable ? '0' : '';
+            clb.style.borderBottomLeftRadius = resumable ? '0' : '';
+            clb.style.borderBottomRightRadius = resumable ? '0' : '';
+        }
+    }
+
+    function formatNoticeDate(ts) {
+        const [y, m, d] = Formatter.dateLogical(ts * 1000).split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    function noticeDayWord(ms) {
+        const day = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+        const diff = Math.round((day(ms) - day(Date.now())) / 86400000);
+        if (diff <= 0) return 'today';
+        if (diff === 1) return 'tomorrow';
+        return 'on ' + new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+
+    // Each notice shows once (notices record what was seen, per epoch), in whichever tab is visible,
+    // and on the next visit if it was missed. One modal at a time; a blocked one is picked up on the
+    // next refresh.
+    async function checkBackfillNotices(st) {
+        if (!st || document.visibilityState !== 'visible') return;
+        if (document.querySelector('.bbgl-modal-overlay')) return;
+        const seen = await DBManager.getNotices();
+        if (st.status === 'complete') {
+            if (seen.completionSeen) return;
+            // A cap notice still pending is superseded by completion.
+            await DBManager.setNotices({ completionSeen: true, seenCapEpoch: st.capEpoch || 0, seenErrorEpoch: st.errorEpoch || 0 });
+            openBackfillNotice('complete', st);
+            return;
+        }
+        if ((st.capEpoch || 0) > seen.seenCapEpoch) {
+            await DBManager.setNotices({ seenCapEpoch: st.capEpoch });
+            // Only worth showing while the wait is still on; a resumed scan makes it stale.
+            if (st.status === 'cooldown' && Date.now() < st.cooldownUntil) {
+                const meta = await readStoredMeta();
+                openBackfillNotice('cap', st, {
+                    date: meta && meta.logStartDate ? formatNoticeDate(meta.logStartDate) : 'an earlier date',
+                    time: new Date(st.cooldownUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+                    dayWord: noticeDayWord(st.cooldownUntil)
+                });
+                return;
+            }
+        }
+        if (st.lastError && (st.errorEpoch || 0) > seen.seenErrorEpoch) {
+            await DBManager.setNotices({ seenErrorEpoch: st.errorEpoch });
+            if (st.lastError.kind === 'key') openBackfillNotice('errorKey', st);
+            else openBackfillNotice('errorConnection', st, { reason: backfillErrorReason(st.lastError.code) });
+        }
     }
 
     // Idle/syncing/done are separate spans inside the button (see buildResyncBtn) rather than a
@@ -1491,43 +1514,7 @@
             deb = get('bbgl-demo-exit');
         if (deb) deb.onclick = (e) => {
             e.stopPropagation();
-            localStorage.removeItem(KEYS.DEMO);
-            runtime.demoMode = false;
-            runtime.demoHistory = null;
-            runtime.stickerData = [];
-            _historyCache = null;
-            DataController.invalidate();
-            DBManager.loadHistory().then(loaded => {
-                DataController.hydrate(loaded);
-                if (userConfig.apiKey) {
-                    startBackgroundSync();
-                }
-            }).catch(e => {
-                if (userConfig.apiKey) {
-                    startBackgroundSync();
-                }
-            }).finally(() => snapLevelBar());
-            calendarState.selectedData = null;
-            calendarState.selectedLabel = Formatter.dateLogical();
-            viewState.activeViewLabel = null;
-            deb.style.display = 'none';
-            if (debBtn) debBtn.style.display = 'none';
-            const pdeb = document.getElementById('bbgl-page-demo-exit');
-            if (pdeb) pdeb.style.display = 'none';
-            if (window.TooltipController) window.TooltipController.hide();
-            refreshInitLock();
-            refreshDemoMasks();
-            if (runtime.realReturnView) {
-                runtime.returnView = runtime.realReturnView;
-                runtime.realReturnView = null;
-            }
-            const isInit = !!localStorage.getItem('bbgl_initialized');
-            if (isInit) {
-                switchView('settings');
-            } else {
-                switchView('welcome', true);
-                openPrivacyModal();
-            }
+            exitDemo();
         };
         if (debBtn) debBtn.onclick = deb ? deb.onclick : null;
         const pb = get('bbgl-pop-btn');
@@ -1771,6 +1758,10 @@
                 }
                 userConfig.apiKey = v;
                 saveConfig();
+                // A backfill paused on a rejected key tries again now (even if it's the same key,
+                // re-enabled on Torn's side).
+                runtime.bfKeyBlockedFor = null;
+                maybeStartBackfill();
                 ub.style.transition = "all 0.2s";
                 ub.style.color = "#69f0ae";
                 ub.style.borderColor = "#69f0ae";
@@ -1833,13 +1824,20 @@
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
-        // The backfill button's click behavior is state-dependent (start / resume / re-run after
-        // complete), so renderBackfillButton owns wiring its onclick for the current state.
-        renderScanUI();
-        const clb = get('clear-btn');
-        if (clb) clb.onclick = function() {
+        // Sets the Clear/Refill label and the Export/Import lock for the current scan state.
+        refreshBackfillUI();
+        const rbb = get('resume-bf-btn');
+        if (rbb) rbb.onclick = function() {
             this.blur();
-            clearData();
+            resumeStoppedBackfill();
+        };
+        const clb = get('clear-btn');
+        if (clb) clb.onclick = async function() {
+            this.blur();
+            // No started log (right after Clear Log) means this is Refill Log: same scan as
+            // Initialize, keeping the reward start date, stickers and notes.
+            if (await DBManager.getBackfillState()) clearData();
+            else startLog({ newRewardDate: false });
         };
         const pdb = get('settings-privacy-btn');
         if (pdb) pdb.onclick = function() {
@@ -2166,6 +2164,12 @@
                 localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
             }
         }
+        // Demo only carries over a page load while the script is on screen (the floating panel
+        // reopening, or the Gym Log page); otherwise it ends here.
+        if (runtime.demoMode && !viewState.isOpen && !window.location.hash.includes('gymlog')) {
+            localStorage.removeItem(KEYS.DEMO);
+            runtime.demoMode = false;
+        }
         if (!runtime.demoMode) {
             // Testing-phase reset lever (see WIPE_BELOW_VERSION in 02-section-i-constants.js).
             // Fresh installs (_seenVer null) are never wiped — there's nothing to wipe yet.
@@ -2191,15 +2195,15 @@
                 const loaded = await DBManager.loadHistory();
                 Perf.end('init:loadHistory');
                 Perf.wrap('init:hydrate', () => DataController.hydrate(loaded));
-                // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
-                // stale; release it so the Resume button works again without a 24h lockout.
-                await recoverInterruptedBackfill();
-                renderScanUI();
+                refreshBackfillUI();
                 if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized'))localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
             }
         }
+        // Outside the Demo check: the backfill keeps running during Demo (it only uses tornGet and
+        // the inbox, and its merge doesn't load into the demo view).
+        startBackfillTriggers();
         window.addEventListener('storage', handleStorageEvent);
         window.addEventListener('hashchange', checkViewRouting);
         window.addEventListener('popstate', checkViewRouting);
@@ -2218,7 +2222,7 @@
             // screen (e.g. the conditional background heartbeat firing while collapsed/closed).
             // Mirrors the same guard the cross-tab sync handler already uses.
             if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
-            renderScanUI();
+            refreshBackfillUI();
         });
         Perf.wrap('init:levelBar', () => updateLevelBar()); // initialize _lastLevelExp before first interaction
         let _domRaf = null;

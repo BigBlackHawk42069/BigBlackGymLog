@@ -279,7 +279,7 @@
     // Per-group code lists for the live request architecture. battlestats is always fetched on its
     // own call (it can't share a request with `log`), and any one `log=` call may carry at most 10
     // log types — so items are split across the train-click call (energy) and the heartbeat /
-    // reconciliation calls (stat + happy + od). Backfill ignores these and paginates one type at a time.
+    // reconciliation calls (stat + happy + od). The backfill scans with the same groups (BACKFILL_GROUPS).
     const ENERGY_LOGS = itemLogsByGroup('energy');   // 6
     const STAT_LOGS = itemLogsByGroup('stat');        // 4
     const HAPPY_LOGS = itemLogsByGroup('happy');      // 4
@@ -322,33 +322,34 @@
     // Comfortably exceeds the 2h heartbeat so a single missed beat still re-covers the gap; dedup
     // makes the overlap harmless.
     const SYNC_FROM_BUFFER = 3 * 3600;
-    // Backfill Logs: a resumable backward scan that walks the activity log to the beginning of
-    // time, moving the origin floor back as it verifies complete days. Torn caps cloud-data reads
-    // at 50,000 rows/day per category (shared across every log type and script the user runs).
-    // SOFT_CAP leaves headroom for that; once crossed, the scan keeps paging only to finish the
-    // current day across every frontier, bounded by HARD_CAP as an absolute failsafe.
-    //
-    // rowsUsed is a single cumulative counter across resumes/cancels; the per-run budget is
-    // SOFT_CAP minus what's already spent. When exhausted, the cooldown arms to now + COOLDOWN_MS
-    // (24h6m), anchored at the cap-hit itself so every counted row has aged out of Torn's rolling
-    // 24h before the next scan may begin. rowsUsed resets only on a full completion or once an
-    // armed cooldown has elapsed — any other stop (interrupt/crash/network/pause) leaves it clear
-    // so Resume works immediately.
-    //
-    // Progress checkpoints every CHECKPOINT_ROWS rows and every HEARTBEAT_MS; the heartbeat lock
-    // (dead after LOCK_STALE_MS) guards against two tabs scanning at once. ORIGIN_MAX_STAT
-    // classifies completion: every baseline stat at/under it means the scan reached the account's
-    // true origin, otherwise it merely exhausted Torn's retained logs.
+    // Automatic backfill (runBackfill, 05): pages backwards through the log, one call per tick.
+    // Torn caps log reads at 50,000 rows/day per category, shared with live sync and any other
+    // script, so CAP (never exceeded: a call returns at most PAGE rows) leaves ~6k for them; the
+    // cooldown is anchored at the cap-hit so every counted row has aged out of Torn's rolling 24h.
+    // THROTTLE_MS (~50 calls/min) leaves half of Torn's 100/min for everything else.
     const BACKFILL = {
-        SOFT_CAP: 38000,   // stop *starting* new days once crossed
-        HARD_CAP: 40000,   // absolute failsafe, normally never reached, keeps us < 50k
+        CAP: 44000,
+        PAGE: 100,
         COOLDOWN_MS: Math.round(24.1 * 3600 * 1000),  // 24h6m; armed at cap-hit, covers Torn's rolling 24h
-        THROTTLE_MS: 700,
-        CHECKPOINT_ROWS: 2000,
-        HEARTBEAT_MS: 15000,
-        LOCK_STALE_MS: 45000,
-        ORIGIN_MAX_STAT: 50
+        THROTTLE_MS: 1200,
+        RATE_BACKOFF_MS: 60000,
+        RETRY_STEPS_MS: [60000, 120000, 240000, 600000],
+        ERROR_NOTICE_MS: 600000,
+        LEASE_RENEW_MS: 5000,
+        LEASE_STALE_MS: 15000
     };
+    // Dev overrides (11-section-x-devtools.js) only apply behind runtime.devMode.
+    const BACKFILL_DEV_OVERRIDES = {
+        CAP: '_devBackfillCap',
+        COOLDOWN_MS: '_devBackfillCooldownMs',
+        THROTTLE_MS: '_devBackfillThrottleMs',
+        ERROR_NOTICE_MS: '_devBackfillErrorWindowMs'
+    };
+    function bfConst(name) {
+        const o = BACKFILL_DEV_OVERRIDES[name];
+        if (o && runtime.devMode && Number.isFinite(runtime[o]) && runtime[o] > 0) return runtime[o];
+        return BACKFILL[name];
+    }
     // Gyms ranked by effectiveness per stat (ascending). A nested array marks a group of gyms
     // with identical gym points for that stat — switching between them gives no benefit, so
     // BestGym treats a whole group as one rank and only moves to a strictly higher group.
@@ -479,8 +480,19 @@
         isClosing: false,
         isViewAnimating: false,
         isSyncing: false,
-        backfilling: false,
-        backfillAbort: null,   // null | 'pause' | 'cancel' — checked each scan-loop iteration
+        // Automatic scan (05 runBackfill): this tab holds the scan lock / is queued for it / is
+        // checking whether to start / was told to stop (bf:stop after Clear Log).
+        bfScanning: false,
+        bfWaitingLock: false,
+        bfChecking: false,
+        bfStop: false,
+        bfYield: false,          // hand the scan to a visible tab (bf:want)
+        bfWake: null,            // ends the scan's current wait early
+        bfRateUntil: 0,          // no scan calls before this (Torn code 5, any tab)
+        bfFailSince: 0,          // first failed page in the current failure streak, this page load
+        bfFailCount: 0,
+        bfKeyBlockedFor: null,   // API key rejected on this page load; no more tries until it changes
+        bfInboxCount: 0,         // lines collected so far, for the overlay's counter
         apiCallTotal: 0,
         resizeObserver: null,
         // Titles page (07-section-vi-ui.js, layoutTitleBlockFrames/observeTitleBlockFrames) —
@@ -1180,25 +1192,18 @@
         const states = (_historyCache && _historyCache.meta && _historyCache.meta.stickers) ? _historyCache.meta.stickers : {};
         return states[String(id)] || '--';
     }
-    async function persistStickerCleared(id) {
-        try {
-            const stored = await DBManager.getStorage();
-            if (!stored) return;
-            if (!stored.meta) stored.meta = {};
-            if (!stored.meta.stickers) stored.meta.stickers = {};
-            const key = String(id);
-            const cachedState = (_historyCache && _historyCache.meta && _historyCache.meta.stickers && _historyCache.meta.stickers[key]) || '--';
-            const newState = cachedState[0] + '+';
-            stored.meta.stickers[key] = newState;
-            await DBManager.setStorage(stored);
-            if (_historyCache) {
-                if (!_historyCache.meta) _historyCache.meta = {};
-                if (!_historyCache.meta.stickers) _historyCache.meta.stickers = {};
-                _historyCache.meta.stickers[key] = newState;
-            }
-        } catch (e) {
-            Log.warn('Failed to persist sticker cleared state', e);
-        }
+    // Only meta changes, so this saves meta alone instead of rebuilding and rewriting every day.
+    function persistStickerCleared(id) {
+        if (!_historyCache) return;
+        const key = String(id);
+        const apply = () => {
+            if (!_historyCache.meta) _historyCache.meta = {};
+            if (!_historyCache.meta.stickers) _historyCache.meta.stickers = {};
+            const cur = _historyCache.meta.stickers[key] || '--';
+            _historyCache.meta.stickers[key] = cur[0] + '+';
+        };
+        apply();
+        return DataController._persistMetaChange(apply, 'sticker cleared state');
     }
 
     function getISOWeek(s) {
@@ -1744,7 +1749,7 @@
     // Week-key of the install date (rewardStartDate). Stickers are eligible for weeks with key >=
     // this — week-precision, so a backfilled day earlier in the install week still counts toward
     // that week's sticker goal. Respects the user's day-start and week-start modes. Returns null if
-    // unknown (no gating) — but init() self-heals privacyAgreed so this is rare.
+    // unknown (no gating): only before the first sync after Initialize Log stamps it.
     function getInstallWeekKey() {
         const rewardStartDate = getActiveHistory().meta.rewardStartDate;
         if (!rewardStartDate) return null;
@@ -1754,8 +1759,8 @@
     // Logical date-string of the install moment (rewardStartDate), day-precision. Gates EXP
     // specifically: unlike getInstallWeekKey()'s week-level sticker gate, a backfilled day earlier
     // in the install week earns 0 EXP — only days on/after the exact install moment count. This is
-    // what keeps a Clear Log + Backfill from retroactively granting career EXP for reconstructed
-    // pre-install history while still letting that same week's sticker goal be met.
+    // what keeps backfilled pre-install history from granting career EXP while still letting that
+    // same week's sticker goal be met.
     function getInstallDateKey() {
         const rewardStartDate = getActiveHistory().meta.rewardStartDate;
         if (!rewardStartDate) return null;
@@ -9995,9 +10000,9 @@
                         display: none !important;
                     }
 
-                    /* Full-panel Big Black Backfill scan mask. Anchored to #bbgl-content-wrapper
-                       (position:relative), so it covers the top + bottom panels and the settings/
-                       welcome views while leaving the header (settings/close) reachable. */
+                    /* Backfill overlay. Anchored to #bbgl-content-wrapper (position:relative), so it covers
+                       the top and bottom panels while the header (settings/close) stays reachable. Hidden in
+                       the settings view so the API key can still be fixed. */
                     #bbgl-scan-overlay {
                         position: absolute;
                         inset: 0;
@@ -10022,103 +10027,192 @@
                         color: #fff;
                         letter-spacing: .4px;
                     }
-                    #bbgl-scan-overlay .bbgl-scan-title-row {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 10px;
-                    }
-                    #bbgl-scan-overlay .bbgl-scan-title-icon {
-                        width: 26px;
-                        height: 26px;
-                    }
-                    #bbgl-scan-overlay .bbgl-scan-title-icon svg { width: 13px; height: 13px; }
                     #bbgl-scan-overlay .bbgl-scan-sub {
                         font-size: 12px;
                         line-height: 1.6;
                         color: #b6b6b6;
-                        max-width: 300px;
+                        max-width: 320px;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-reason {
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffb74d;
+                        max-width: 320px;
+                        line-height: 1.5;
                     }
                     #bbgl-scan-overlay .bbgl-scan-note {
                         font-size: 11px;
                         font-style: italic;
                         color: #888;
-                        max-width: 300px;
+                        max-width: 320px;
                         line-height: 1.5;
                     }
-                    #bbgl-scan-overlay .bbgl-scan-count-row {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 8px;
-                        font-size: 12px;
-                        color: #ccc;
+                    #bbgl-scan-overlay .bbgl-scan-sub b { color: #ddd; }
+                    /* Overlay copy: lead text, an italic note, then the Demo prompt. --scan-scale
+                       grows the type with the panel mode (compact < expanded < Gym Log page). */
+                    #bbgl-scan-overlay { --scan-scale: 1; }
+                    .bbgl-expanded #bbgl-scan-overlay { --scan-scale: 1.12; }
+                    .bbgl-mode-page #bbgl-scan-overlay { --scan-scale: 1.2; }
+                    #bbgl-scan-overlay .bbgl-scan-title { font-size: calc(19px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-count { font-size: calc(12px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-reason { font-size: calc(12px * var(--scan-scale)); max-width: calc(330px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-spinner {
+                        width: calc(30px * var(--scan-scale));
+                        height: calc(30px * var(--scan-scale));
                     }
-                    #bbgl-scan-overlay .bbgl-scan-count { color: #b388ff; font-variant-numeric: tabular-nums; }
-                    .bbgl-scan-pulse {
-                        width: 8px;
-                        height: 8px;
-                        border-radius: 50%;
-                        background: #b388ff;
-                        flex: 0 0 auto;
-                        animation: bbgl-scan-pulse-anim 1.4s ease-in-out infinite;
+                    #bbgl-scan-overlay .bbgl-scan-lead {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(13px * var(--scan-scale));
+                        line-height: 1.65;
+                        letter-spacing: .15px;
+                        color: #d9d9de;
+                        max-width: calc(330px * var(--scan-scale));
+                        margin-top: -4px;
                     }
-                    @keyframes bbgl-scan-pulse-anim {
-                        0%, 100% { opacity: .35; transform: scale(.8); }
-                        50% { opacity: 1; transform: scale(1.15); }
+                    #bbgl-scan-overlay .bbgl-scan-lead b { color: #fff; font-weight: 600; }
+                    #bbgl-scan-overlay .bbgl-scan-note {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(12px * var(--scan-scale));
+                        font-style: italic;
+                        line-height: 1.6;
+                        color: #a2a2ab;
+                        max-width: calc(320px * var(--scan-scale));
+                        padding-top: 8px;
+                        border-top: 1px solid rgba(255, 255, 255, .07);
                     }
-                    #bbgl-panel.bbgl-no-animations .bbgl-scan-pulse {
-                        animation: none;
-                        opacity: 1;
-                    }
-                    #bbgl-scan-cancel {
-                        position: absolute;
-                        top: 22px;
-                        right: 16px;
-                        font-size: 11px;
-                        font-weight: 700;
-                        color: #ff5252;
-                        cursor: pointer;
-                        padding: 4px 9px;
-                        border-radius: 4px;
-                        text-transform: uppercase;
-                        letter-spacing: .5px;
-                    }
-                    #bbgl-scan-cancel:hover { background: rgba(255, 82, 82, .16); }
-                    #bbgl-scan-overlay .bbgl-scan-actions {
-                        display: flex;
-                        gap: 18px;
-                        align-items: center;
-                        justify-content: center;
+                    #bbgl-scan-overlay .bbgl-scan-cta {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(13px * var(--scan-scale));
+                        font-weight: 600;
+                        letter-spacing: .15px;
+                        color: #cdb4ff;
+                        max-width: calc(330px * var(--scan-scale));
                         margin-top: 2px;
                     }
-                    .bbgl-scan-textbtn {
+                    .bbgl-gl-settings-link {
+                        color: #cdb4ff;
+                        font-weight: 600;
+                        text-decoration: underline;
+                        text-underline-offset: 2px;
                         cursor: pointer;
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: #dcdcdc;
-                        padding: 7px 12px;
-                        border-radius: 4px;
                     }
-                    .bbgl-scan-textbtn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
-                    .bbgl-scan-textbtn.bbgl-scan-primary { color: #b388ff; }
-                    .bbgl-scan-textbtn.bbgl-scan-primary:hover { background: rgba(179, 136, 255, .16); }
-                    .bbgl-scan-iconbtn {
-                        display: inline-flex;
+                    .bbgl-gl-settings-link:hover { color: #fff; }
+                    /* Create API Key blinking between its gray and the purple button style after a
+                       "Gym Log's Settings" link or button (~2s, toggled by openGymLogSettings). */
+                    .bbgl-btn.bbgl-btn-flash-on {
+                        background-image: linear-gradient(#1a0529 0%, #6a1b9a 25%, #4a1070 60%, #4a1070 78%, #1a0529 100%) !important;
+                        border-color: #b388ff !important;
+                        box-shadow: 0 0 12px 2px rgba(179, 136, 255, .75);
+                        color: #fff;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-inner {
+                        display: flex;
+                        flex-direction: column;
                         align-items: center;
-                        justify-content: center;
-                        width: 36px;
-                        height: 36px;
+                        gap: 14px;
+                    }
+                    /* The Gym Log page is taller than the screen: positionBackfillOverlay (10) sets
+                       the copy's top margin so it's centered in the visible part, and it stays put. */
+                    .bbgl-mode-page #bbgl-scan-overlay {
+                        justify-content: flex-start;
+                        padding-top: 0;
+                        padding-bottom: 0;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-count {
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #b388ff;
+                        font-variant-numeric: tabular-nums;
+                        margin-top: -6px;
+                    }
+                    #bbgl-scan-overlay #bbgl-scan-demo-btn {
+                        display: inline-block;
+                        width: auto;
+                        min-width: 140px;
+                        padding-left: 28px;
+                        padding-right: 28px;
+                        margin: 0;
+                    }
+                    .bbgl-scan-spinner {
+                        width: 30px;
+                        height: 30px;
                         border-radius: 50%;
+                        border: 3px solid rgba(179, 136, 255, .2);
+                        border-top-color: #b388ff;
+                        box-sizing: border-box;
+                        flex: 0 0 auto;
+                        animation: bbgl-scan-spin .9s linear infinite;
+                    }
+                    @keyframes bbgl-scan-spin {
+                        to { transform: rotate(360deg); }
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-pause-icon {
+                        display: block;
+                        width: calc(30px * var(--scan-scale, 1));
+                        height: calc(30px * var(--scan-scale, 1));
+                        color: #b388ff;
+                        flex: 0 0 auto;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-pause-icon svg,
+                    #bbgl-scan-overlay .bbgl-scan-toggle svg,
+                    #bbgl-scan-overlay .bbgl-scan-stop svg {
+                        display: block;
+                        width: 100%;
+                        height: 100%;
+                    }
+                    /* Status icon with the clickable pause/play symbol beside it. */
+                    #bbgl-scan-overlay .bbgl-scan-iconrow {
+                        display: flex;
+                        align-items: center;
+                        gap: calc(10px * var(--scan-scale, 1));
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-toggle {
+                        width: calc(20px * var(--scan-scale, 1));
+                        height: calc(20px * var(--scan-scale, 1));
+                        color: #b388ff;
+                        opacity: .8;
                         cursor: pointer;
                     }
-                    .bbgl-scan-iconbtn svg { width: 18px; height: 18px; }
-                    .bbgl-scan-iconbtn.bbgl-scan-yes { color: #69f0ae; }
-                    .bbgl-scan-iconbtn.bbgl-scan-yes:hover { background: rgba(105, 240, 174, .16); }
-                    .bbgl-scan-iconbtn.bbgl-scan-no { color: #ff5252; }
-                    .bbgl-scan-iconbtn.bbgl-scan-no:hover { background: rgba(255, 82, 82, .16); }
-                    .bbgl-scan-iconbtn.bbgl-scan-play { color: #b388ff; }
-                    .bbgl-scan-iconbtn.bbgl-scan-play:hover { background: rgba(179, 136, 255, .16); }
+                    #bbgl-scan-overlay .bbgl-scan-toggle:hover { opacity: 1; color: #d1b8ff; }
+                    /* End Backfill: a plain × in the overlay's corner. */
+                    #bbgl-scan-overlay .bbgl-scan-stop {
+                        position: absolute;
+                        top: 12px;
+                        right: 12px;
+                        width: calc(16px * var(--scan-scale, 1));
+                        height: calc(16px * var(--scan-scale, 1));
+                        color: #8e8e96;
+                        cursor: pointer;
+                        z-index: 1;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-stop:hover { color: #ff5252; }
+                    #bbgl-panel.bbgl-no-animations .bbgl-scan-spinner { animation: none; }
+
+                    /* Backfill notice modals (complete / cap / errors), on the standard modal window. */
+                    .bbgl-notice-body {
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        line-height: 1.7;
+                        color: #ccc;
+                        padding: 10px 6px 14px;
+                        text-align: center;
+                    }
+                    .bbgl-notice-body p { margin: 0 0 8px; }
+                    .bbgl-notice-body p:last-child { margin-bottom: 0; }
+                    .bbgl-notice-body b { color: #fff; }
+                    .bbgl-notice-body .bbgl-notice-aside {
+                        font-style: italic;
+                        color: #999;
+                        font-size: 11px;
+                    }
+                    .bbgl-notice-actions {
+                        display: flex;
+                        margin: 0 6px 2px;
+                    }
+                    .bbgl-notice-actions .bbgl-btn {
+                        flex: 1;
+                        margin: 0;
+                    }
 
                     .bbgl-ack-check {
                         display: inline-flex;
@@ -10285,6 +10379,9 @@
                         box-shadow: 0 10px 30px rgba(0, 0, 0, .6), 0 0 30px -10px var(--bbgl-modal-accent), inset 0 1px 0 rgba(255, 255, 255, .05);
                         box-sizing: border-box;
                     }
+                    /* Short messages (the backfill notices): a narrower window so the text isn't lost
+                       in it. Phones already fit the 92vw cap. */
+                    .bbgl-modal-window.bbgl-modal-narrow { width: min(400px, 92vw); }
                     .bbgl-modal-window::before {
                         content: '';
                         position: absolute;
@@ -15937,8 +16034,12 @@ ${TITLE_PLAQUE_CSS}
         _META_STORE: 'meta',
         _DAYS_STORE: 'days',
         _META_KEY: 'meta',
+        _BF_STORE: 'backfill',
+        _INBOX_STORE: 'inbox',
 
         // This function sets up a private database on your browser to save your history.
+        // 'backfill' holds the history scan's progress, and 'inbox' holds the log lines it has
+        // downloaded but not yet added to your log. Both stay in your browser like everything else.
         initDB() {
             return new Promise((resolve, reject) => {
                 if (this._db) {
@@ -15946,15 +16047,28 @@ ${TITLE_PLAQUE_CSS}
                     return;
                 }
                 Perf.start('initDB');
-                const req = indexedDB.open(this._DB_NAME, 2);
+                const req = indexedDB.open(this._DB_NAME, 3);
                 req.onupgradeneeded = (e) => {
                     const db = e.target.result;
                     if (db.objectStoreNames.contains('history')) db.deleteObjectStore('history');
                     if (!db.objectStoreNames.contains(this._META_STORE)) db.createObjectStore(this._META_STORE);
                     if (!db.objectStoreNames.contains(this._DAYS_STORE)) db.createObjectStore(this._DAYS_STORE);
+                    if (!db.objectStoreNames.contains(this._BF_STORE)) db.createObjectStore(this._BF_STORE);
+                    if (!db.objectStoreNames.contains(this._INBOX_STORE)) {
+                        db.createObjectStore(this._INBOX_STORE, { keyPath: 'id' }).createIndex('group_ts', ['group', 'ts']);
+                    }
                 };
+                // A tab still running an older version holds the database open and delays this
+                // upgrade until it's closed.
+                req.onblocked = () => Log.warn('IndexedDB upgrade waiting for another Torn tab to close');
                 req.onsuccess = (e) => {
                     this._db = e.target.result;
+                    // Let a newer version in another tab upgrade instead of blocking it; the next
+                    // call here reopens.
+                    this._db.onversionchange = () => {
+                        this._db.close();
+                        this._db = null;
+                    };
                     Perf.end('initDB');
                     resolve(this._db);
                 };
@@ -15991,13 +16105,16 @@ ${TITLE_PLAQUE_CSS}
         async resetRewardStartDate() {
             const db = await this._ensureDb();
             if (!db) return false;
-            const meta = (await this._readMeta()) || {};
-            meta.rewardStartDate = Math.floor(Date.now() / 1000);
-            await new Promise((resolve, reject) => {
-                const tx = db.transaction(this._META_STORE, 'readwrite');
-                tx.objectStore(this._META_STORE).put(meta, this._META_KEY);
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
+            await this.withHistoryWrite(async () => {
+                const meta = (await this._readMeta()) || {};
+                meta.rewardStartDate = Math.floor(Date.now() / 1000);
+                meta.historyGen = (meta.historyGen || 0) + 1;
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(this._META_STORE, 'readwrite');
+                    tx.objectStore(this._META_STORE).put(meta, this._META_KEY);
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error);
+                });
             });
             _syncChannel.postMessage({ type: 'update', from: _TAB_ID });
             return true;
@@ -16022,27 +16139,60 @@ ${TITLE_PLAQUE_CSS}
             });
         },
 
+        // Every change to your saved history goes through here, one at a time across all your open
+        // Torn tabs, so two tabs can never overwrite each other's changes.
+        withHistoryWrite(fn) {
+            const locks = getWebLocks();
+            return locks ? locks.request('bbgl-history-write', () => fn()) : Promise.resolve().then(fn);
+        },
+
         // Saves your gym data to your browser's private storage.
-        _persist(meta, dayObjs, replaceAll) {
+        // opts.inLock: the caller already holds withHistoryWrite. opts.bumpGen: this write replaces
+        // history other tabs may have cached, so they must reload. opts.force: a deliberate full
+        // replace (import) that skips the staleness check and bumps. opts.extraStores + opts.extraOps(tx):
+        // more writes that must commit in the same transaction (the backfill merge's state and inbox).
+        _persist(meta, dayObjs, replaceAll, opts = {}) {
+            const run = () => this._persistUnlocked(meta, dayObjs, replaceAll, opts);
+            return opts.inLock ? run() : this.withHistoryWrite(run);
+        },
+
+        // historyGen guard: a tab whose cached meta is older than the stored one (another tab merged,
+        // cleared or imported since it loaded) must not write, since its whole-meta put would undo
+        // that change. It reloads instead and resolves 'stale'; callers re-apply their change if needed.
+        _persistUnlocked(meta, dayObjs, replaceAll, opts) {
             return new Promise((resolve, reject) => {
                 if (!this._db) {
                     reject(new Error("Database not initialized"));
                     return;
                 }
                 try {
-                    const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                    let stale = false;
+                    const m = meta || {};
+                    const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE, ...(opts.extraStores || [])], 'readwrite');
                     const dayStore = tx.objectStore(this._DAYS_STORE);
-                    if (replaceAll) dayStore.clear();
-                    tx.objectStore(this._META_STORE).put(meta || {}, this._META_KEY);
-                    (dayObjs || []).forEach(d => {
-                        if (d && d.date) dayStore.put(d, d.date);
-                    });
+                    const metaStore = tx.objectStore(this._META_STORE);
+                    const read = metaStore.get(this._META_KEY);
+                    read.onsuccess = () => {
+                        const storedGen = (read.result && read.result.historyGen) || 0;
+                        if (!opts.force && storedGen > (m.historyGen || 0)) {
+                            stale = true;
+                            tx.abort();
+                            return;
+                        }
+                        if (opts.force || opts.bumpGen) m.historyGen = storedGen + 1;
+                        if (replaceAll) dayStore.clear();
+                        metaStore.put(m, this._META_KEY);
+                        (dayObjs || []).forEach(d => {
+                            if (d && d.date) dayStore.put(d, d.date);
+                        });
+                        if (opts.extraOps) opts.extraOps(tx);
+                    };
                     tx.oncomplete = () => {
                         _syncChannel.postMessage({
                             type: 'update',
                             from: _TAB_ID
                         });
-                        resolve();
+                        resolve('ok');
                     };
                     tx.onerror = (e) => {
                         const err = e.target.error;
@@ -16052,10 +16202,21 @@ ${TITLE_PLAQUE_CSS}
                         }
                         reject(err);
                     };
+                    tx.onabort = () => {
+                        if (!stale) return reject(tx.error);
+                        this._reloadAfterStale().catch(e => Log.warn('Reload after stale write failed', e)).then(() => resolve('stale'));
+                    };
                 } catch (e) {
                     reject(e);
                 }
             });
+        },
+
+        async _reloadAfterStale() {
+            Log.warn('Saved history changed in another tab; reloaded it instead of saving over it');
+            if (runtime.demoMode) return;
+            DataController.hydrate(await this.loadHistory());
+            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
         },
 
         // Loads your complete gym history from your browser's private storage.
@@ -16082,9 +16243,9 @@ ${TITLE_PLAQUE_CSS}
         },
 
         // Saves your latest gym session to your browser.
-        async saveDays(meta, dayObjs) {
+        async saveDays(meta, dayObjs, opts) {
             await this._ensureDb();
-            return this._persist(meta, dayObjs, false);
+            return this._persist(meta, dayObjs, false, opts);
         },
 
         // Packages your gym history for export.
@@ -16121,28 +16282,44 @@ ${TITLE_PLAQUE_CSS}
         },
 
         // Restores your gym history from an imported backup file.
-        async setStorage(data) {
+        async setStorage(data, opts) {
             await this._ensureDb();
             if (!this._db) throw new Error("Database not initialized");
             const meta = (data && data.meta) || {};
             const series = (data && Array.isArray(data.series)) ? data.series : [];
             const rebuilt = DataController._rebuildFromSeries(series, meta.baselineBreakdown || ZERO_BREAKDOWN);
-            return this._persist(meta, [...rebuilt.history, rebuilt.today], true);
+            return this._persist(meta, [...rebuilt.history, rebuilt.today], true, opts);
         },
 
-        // This function permanently deletes your gym history from your browser when you click 'Clear Data'.
-        async clearStorage() {
+        // This function permanently deletes your gym history from your browser, along with any
+        // history scan in progress. With keepRewards (the Clear Log button) it keeps only your reward
+        // start date, sticker progress and custom notes, so a later Refill Log restores your log
+        // exactly as it was. A factory reset deletes everything.
+        async clearStorage(opts = {}) {
             await this._ensureDb();
-            return new Promise((resolve, reject) => {
+            return this.withHistoryWrite(() => new Promise((resolve, reject) => {
                 if (!this._db) {
                     resolve();
                     return;
                 }
-                const tx = this._db.transaction([this._META_STORE, this._DAYS_STORE], 'readwrite');
+                const stores = [this._META_STORE, this._DAYS_STORE, this._BF_STORE, this._INBOX_STORE];
+                const tx = this._db.transaction(stores, 'readwrite');
                 const metaStore = tx.objectStore(this._META_STORE);
-                metaStore.clear();
-                metaStore.put({ rewardStartDate: Math.floor(Date.now() / 1000) }, this._META_KEY);
-                tx.objectStore(this._DAYS_STORE).clear();
+                const read = metaStore.get(this._META_KEY);
+                read.onsuccess = () => {
+                    const old = read.result || {};
+                    const kept = { historyGen: (old.historyGen || 0) + 1 };
+                    if (opts.keepRewards) {
+                        if (typeof old.rewardStartDate === 'number') kept.rewardStartDate = old.rewardStartDate;
+                        if (old.stickers) kept.stickers = old.stickers;
+                        if (old.notes) kept.notes = old.notes;
+                    }
+                    metaStore.clear();
+                    metaStore.put(kept, this._META_KEY);
+                    tx.objectStore(this._DAYS_STORE).clear();
+                    tx.objectStore(this._BF_STORE).clear();
+                    tx.objectStore(this._INBOX_STORE).clear();
+                };
                 tx.oncomplete = () => {
                     _syncChannel.postMessage({
                         type: 'update',
@@ -16154,14 +16331,171 @@ ${TITLE_PLAQUE_CSS}
                     Log.error('IndexedDB clear failed', e);
                     reject(e);
                 };
+            }));
+        },
+
+        // ─── History scan storage ───────────────────────────────────────────
+        // Reads one record of the scan's saved progress ('state' or 'notices'), or null if there is none.
+        async getBackfillRecord(key) {
+            const db = await this._ensureDb();
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._BF_STORE, 'readonly').objectStore(this._BF_STORE).get(key);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        // No saved state means no log has been started yet (a new install, or right after Clear Log).
+        getBackfillState() {
+            return this.getBackfillRecord('state');
+        },
+
+        async getNotices() {
+            return Object.assign({ seenErrorEpoch: 0, seenCapEpoch: 0, completionSeen: false }, await this.getBackfillRecord('notices'));
+        },
+
+        // Remembers which scan messages you've already seen, so each one shows only once.
+        async setNotices(patch) {
+            const db = await this._ensureDb();
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this._BF_STORE, 'readwrite');
+                const store = tx.objectStore(this._BF_STORE);
+                const read = store.get('notices');
+                read.onsuccess = () => store.put(Object.assign({}, read.result || {}, patch), 'notices');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        // Starts over: empties the inbox and replaces the scan's state and notices in one step.
+        // A null state removes it (no log started).
+        async resetBackfill(state, notices) {
+            const db = await this._ensureDb();
+            if (!db) return;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction([this._BF_STORE, this._INBOX_STORE], 'readwrite');
+                const store = tx.objectStore(this._BF_STORE);
+                tx.objectStore(this._INBOX_STORE).clear();
+                if (state) store.put(state, 'state');
+                else store.delete('state');
+                store.put(notices || {}, 'notices');
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        // Saves one page of downloaded log lines together with the scan's progress, in a single
+        // step, so the two can never disagree. Lines are stored under Torn's own log ID, so a page
+        // downloaded twice just overwrites itself. If the scan was stopped (Clear Log) since it
+        // started, nothing is saved and this returns false.
+        async inboxCommitPage(runId, group, lines, statePatch) {
+            const db = await this._ensureDb();
+            if (!db) return false;
+            return new Promise((resolve, reject) => {
+                let stale = false;
+                const tx = db.transaction([this._BF_STORE, this._INBOX_STORE], 'readwrite');
+                const bf = tx.objectStore(this._BF_STORE);
+                const inbox = tx.objectStore(this._INBOX_STORE);
+                const read = bf.get('state');
+                read.onsuccess = () => {
+                    const state = read.result;
+                    if (!state || state.runId !== runId) {
+                        stale = true;
+                        tx.abort();
+                        return;
+                    }
+                    (lines || []).forEach(l => {
+                        if (l && l.id) inbox.put(Object.assign({}, l, { group }));
+                    });
+                    bf.put(Object.assign(state, statePatch || {}), 'state');
+                };
+                tx.oncomplete = () => resolve(true);
+                tx.onabort = () => (stale ? resolve(false) : reject(tx.error));
+            });
+        },
+
+        // The oldest downloaded line for one log group, or null if it has none yet.
+        async inboxOldest(group) {
+            const db = await this._ensureDb();
+            if (!db) return null;
+            return new Promise((resolve, reject) => {
+                const range = IDBKeyRange.bound([group, -Infinity], [group, Infinity]);
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).index('group_ts').openCursor(range, 'next');
+                req.onsuccess = () => resolve(req.result ? req.result.value : null);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        // Which of these log IDs are already in the inbox, to tell a fresh page from a repeat.
+        async inboxExistingIds(ids) {
+            const found = new Set();
+            const db = await this._ensureDb();
+            if (!db || !ids.length) return found;
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(this._INBOX_STORE, 'readonly');
+                const store = tx.objectStore(this._INBOX_STORE);
+                ids.forEach(id => {
+                    const req = store.getKey(id);
+                    req.onsuccess = () => {
+                        if (req.result !== undefined) found.add(id);
+                    };
+                });
+                tx.oncomplete = () => resolve(found);
+                tx.onerror = () => reject(tx.error);
+            });
+        },
+
+        async inboxAll() {
+            const db = await this._ensureDb();
+            if (!db) return [];
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error);
+            });
+        },
+
+        async inboxCount() {
+            const db = await this._ensureDb();
+            if (!db) return 0;
+            return new Promise((resolve, reject) => {
+                const req = db.transaction(this._INBOX_STORE, 'readonly').objectStore(this._INBOX_STORE).count();
+                req.onsuccess = () => resolve(req.result || 0);
+                req.onerror = () => reject(req.error);
             });
         }
     };
+
+    // Web Locks let your open Torn tabs take turns: only one tab scans your history at a time, and
+    // saves to your history happen one after another. Very old browsers don't have them; the script
+    // then falls back to simpler tab coordination. Nothing here leaves your browser.
+    let _webLocks;
+    function getWebLocks() {
+        if (runtime.devMode && runtime._devForceNoWebLocks) return null;
+        if (_webLocks === undefined) {
+            _webLocks = null;
+            try {
+                _webLocks = navigator.locks || (typeof unsafeWindow !== 'undefined' && unsafeWindow.navigator && unsafeWindow.navigator.locks) || null;
+            } catch (e) { /* stays null */ }
+        }
+        return _webLocks;
+    }
+
+    function hasWebLocks() {
+        return !!getWebLocks();
+    }
 
     const _syncChannel = new BroadcastChannel('bbgl_sync');
     let _xtabSyncTimer = null;
     _syncChannel.onmessage = (event) => {
         if (event.data && event.data.from === _TAB_ID) return;
+        // Scan coordination messages, handled before the Demo check: the scan runs during Demo too.
+        if (event.data && typeof event.data.type === 'string' && event.data.type.startsWith('bf:')) {
+            handleBackfillMessage(event.data);
+            return;
+        }
         if (runtime.demoMode) return;
         if (_xtabSyncTimer) clearTimeout(_xtabSyncTimer);
         _xtabSyncTimer = setTimeout(async () => {
@@ -16170,50 +16504,19 @@ ${TITLE_PLAQUE_CSS}
                 const loaded = await DBManager.loadHistory();
                 DataController.hydrate(loaded);
                 if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
-                renderScanUI();
+                refreshBackfillUI();
+                maybeStartBackfill();
             } catch (e) {
                 Log.warn('Cross-tab sync failed', e);
             }
         }, 200);
     };
 
-    function defaultBackfill() {
-        return {
-            targets: {},
-            rowsUsed: 0,
-            cooldownUntil: 0,
-            lastResult: null,
-            stopReason: null,
-            completion: null,
-            acknowledged: true,
-            lock: 0,
-            lockOwner: null
-        };
-    }
-
-    function normalizeBackfill(ds) {
-        const d = defaultBackfill();
-        if (ds && typeof ds === 'object') {
-            if (ds.targets && typeof ds.targets === 'object') d.targets = ds.targets;
-            if (typeof ds.rowsUsed === 'number') d.rowsUsed = ds.rowsUsed;
-            else if (typeof ds.rowsThisWindow === 'number') d.rowsUsed = ds.rowsThisWindow;
-            if (typeof ds.cooldownUntil === 'number') d.cooldownUntil = ds.cooldownUntil;
-            if (ds.lastResult === 'complete' || ds.lastResult === 'partial') d.lastResult = ds.lastResult;
-            if (ds.stopReason === 'paused' || ds.stopReason === 'error' || ds.stopReason === 'interrupted' || ds.stopReason === 'cap') d.stopReason = ds.stopReason;
-            if (ds.completion === 'origin' || ds.completion === 'exhausted') d.completion = ds.completion;
-            if (typeof ds.acknowledged === 'boolean') d.acknowledged = ds.acknowledged;
-            if (typeof ds.lock === 'number') d.lock = ds.lock;
-            if (typeof ds.lockOwner === 'string') d.lockOwner = ds.lockOwner;
-        }
-        return d;
-    }
-
     function sanitizeMeta(metaRaw) {
         const m = (metaRaw && typeof metaRaw === 'object') ? metaRaw : {};
         if (!m.baselineBreakdown) m.baselineBreakdown = {
             ...ZERO_BREAKDOWN
         };
-        m.backfill = normalizeBackfill(m.backfill);
         const k = ['str', 'def', 'spd', 'dex'];
         k.forEach(key => {
             if (m.baselineBreakdown[key] !== undefined) m.baselineBreakdown[key] = parseFloat(m.baselineBreakdown[key]) || 0;
@@ -16265,7 +16568,7 @@ ${TITLE_PLAQUE_CSS}
             const importedVer = (j.meta && j.meta.version) ? String(j.meta.version) : '';
             if (!importedVer || compareVersions(importedVer, WIPE_BELOW_VERSION) < 0) return {
                 ok: false,
-                msg: "This export is from before a required data reset and can no longer be imported. Please start tracking fresh."
+                msg: "This export is from before a required data reset and can no longer be imported. Please initialize a fresh log."
             };
         }
         if (!j.storage || typeof j.storage !== 'object') return {
@@ -16302,6 +16605,9 @@ ${TITLE_PLAQUE_CSS}
             const res = await fetch(`https://api.torn.com/${path}?${qs}`);
             if (!res.ok) return { ok: false, http: res.status };
             const data = await res.json();
+            // Code 5 is Torn saying "too many requests": the history scan slows down so your normal
+            // syncing keeps working.
+            if (data.error && data.error.code === 5) noteRateLimit(false);
             if (data.error) return { ok: false, apiError: data.error, data };
             return { ok: true, data };
         } catch (netErr) {
@@ -16342,7 +16648,7 @@ ${TITLE_PLAQUE_CSS}
     async function fetchFactionHistory() {
         try {
             const r = await tornGet('user/', { selections: 'log', log: 6253 });
-            if (!r.ok) return;
+            if (!r.ok) return false;
             const joinEvents = Object.values(r.data.log || {})
                 .filter(e => e && e.data && e.data.faction && e.timestamp)
                 .sort((a, b) => a.timestamp - b.timestamp);
@@ -16352,8 +16658,10 @@ ${TITLE_PLAQUE_CSS}
                 leftAt: joinEvents[i + 1] ? joinEvents[i + 1].timestamp : null
             }));
             localStorage.setItem(KEYS.FACTION_HISTORY, JSON.stringify(factionHistory));
+            return true;
         } catch (e) {
             Log.warn('Faction history fetch failed', e);
+            return false;
         }
     }
 
@@ -16400,10 +16708,6 @@ ${TITLE_PLAQUE_CSS}
         if (runtime.demoMode) return {
             success: false,
             demo: true
-        };
-        if (runtime.backfilling) return {
-            ok: false,
-            suppressed: true
         };
         const {
             manualWars = false,
@@ -16477,7 +16781,11 @@ ${TITLE_PLAQUE_CSS}
                 localStorage.removeItem(KEYS.PENDING_SYNC);
             }
 
-            await DataController.processDataPayload(logs, bs, { silent });
+            if (await DataController.processDataPayload(logs, bs, { silent }) === 'STALE' && !options._staleRetry) {
+                // Another tab replaced the saved history mid-sync. This tab has reloaded it (with the
+                // older sync floor), so fetch once more against it rather than wait for the next heartbeat.
+                return universalFetch(mission, { ...options, _staleRetry: true });
+            }
 
             const _s = getActiveHistory();
             const needsEnhancers = mission === 'FULL_SYNC' && bs &&
@@ -16493,6 +16801,9 @@ ${TITLE_PLAQUE_CSS}
                 } catch (e) { Log.warn('Stat enhancer fetch failed', e); }
             }
 
+            // A backfill waiting on this sync (it needs logStartDate) can start now rather than on
+            // the next page load.
+            maybeStartBackfill();
             return {
                 ok: true
             };
@@ -16531,8 +16842,6 @@ ${TITLE_PLAQUE_CSS}
                     resetRefreshBtn(btn);
                 }, 2000);
             }
-        } else if (result.suppressed) {
-            resetRefreshBtn(btn);
         } else {
             bbglError("Sync Error: " + result.error);
             resetRefreshBtn(btn);
@@ -16587,483 +16896,664 @@ ${TITLE_PLAQUE_CSS}
         heartbeatTick();
     }
 
-    const GYM_STAT_LOGS = {
-        str: '5300',
-        def: '5301',
-        spd: '5302',
-        dex: '5303'
-    };
-
     function backfillDayStart(ts) {
         return Math.floor(Formatter.parse(Formatter.dateLogical(ts * 1000)).getTime() / 1000);
     }
 
-    function ensureBackfillTargets(ds) {
-        if (!ds.targets || typeof ds.targets !== 'object') ds.targets = {};
-        const fr = ds.targets.frontiers;
-        const validShape = fr && typeof fr === 'object' &&
-            BACKFILL_GROUP_KEYS.every(g => fr[g] && typeof fr[g].cursor === 'number') &&
-            Object.keys(fr).every(k => BACKFILL_GROUP_KEYS.includes(k));
-        if (!validShape) {
-            ds.targets.frontiers = {};
-            const seed = Math.floor(Date.now() / 1000);
-            BACKFILL_GROUP_KEYS.forEach(g => {
-                ds.targets.frontiers[g] = { cursor: seed, complete: false };
-            });
-        }
-        return ds.targets.frontiers;
-    }
-
-    function seriesEntryCode(e) {
-        return e.type === 'item' ? String(e.logId) : GYM_STAT_LOGS[e.stat];
-    }
-
-    function computeBackfillFloor(stored, frontiers) {
-        const existing = (typeof stored.meta.logStartDate === 'number') ? stored.meta.logStartDate : null;
-        if (!stored.series.length) return existing;
-
-        const perGroupOldest = {};
-        stored.series.forEach(e => {
-            const code = seriesEntryCode(e);
-            const g = code && BACKFILL_GROUP_OF[code];
-            if (g && (perGroupOldest[g] === undefined || e.ts < perGroupOldest[g])) perGroupOldest[g] = e.ts;
-        });
-
-        let shallowPartialDayStart = null;
-        Object.keys(frontiers || {}).forEach(g => {
-            const fr = frontiers[g];
-            if (fr && !fr.complete && perGroupOldest[g] !== undefined) {
-                const dayStart = backfillDayStart(perGroupOldest[g]);
-                if (shallowPartialDayStart === null || dayStart > shallowPartialDayStart) shallowPartialDayStart = dayStart;
+    // Adds downloaded log lines into a stored series, skipping any already there (gym lines by
+    // time + stat + stat-after, item lines by time + log type), and keeps it in time order.
+    function mergeLinesIntoSeries(stored, lines) {
+        const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
+        const itemKey = e => `${e.ts}_${e.logId}`;
+        const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
+        let added = 0;
+        (lines || []).forEach(l => {
+            if (l.type === 'item') {
+                const key = itemKey(l);
+                if (!seenItem.has(key)) {
+                    seenItem.add(key);
+                    const entry = {
+                        ts: l.ts,
+                        type: 'item',
+                        id: l.id,
+                        logId: l.logId
+                    };
+                    if (l.energy) entry.energy = l.energy;
+                    if (l.energyLost != null) entry.energyLost = l.energyLost;
+                    if (l.happyLost != null) entry.happyLost = l.happyLost;
+                    if (l.happy) entry.happy = l.happy;
+                    if (l.bookId) entry.bookId = l.bookId;
+                    if (l.statKey) {
+                        entry.statKey = l.statKey;
+                        entry.statGain = l.statGain;
+                    }
+                    stored.series.push(entry);
+                    added++;
+                }
+                return;
+            }
+            const after = r2(l.after);
+            const key = `${l.ts}_${l.stat}_${after}`;
+            if (!seenGym.has(key)) {
+                seenGym.add(key);
+                stored.series.push({
+                    ts: l.ts,
+                    stat: l.stat,
+                    gain: r2(l.gain),
+                    cost: l.cost,
+                    after,
+                    rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
+                });
+                added++;
             }
         });
-
-        let newFloor;
-        if (shallowPartialDayStart !== null) {
-            newFloor = shallowPartialDayStart + 86400;
-        } else {
-            newFloor = backfillDayStart(stored.series[0].ts);
-        }
-        if (existing !== null) newFloor = Math.min(newFloor, existing);
-        return newFloor;
+        stored.series.sort((a, b) => a.ts - b.ts);
+        return added;
     }
 
-    async function persistBackfillState(ds) {
-        let meta;
-        if (_historyCache && _historyCache.meta) {
-            meta = _historyCache.meta;
-        } else {
-            meta = (await DBManager.getStorage() || sanitizeStorageRecord(null)).meta;
-        }
-        meta.backfill = ds;
-        await DBManager.saveDays(meta, []);
+    // Starting stats = each stat's value just before its oldest stored train.
+    function recomputeBaseline(stored) {
+        const baseline = {
+            ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
+        };
+        STAT_KEYS.forEach(k => {
+            const first = stored.series.find(e => e.stat === k);
+            if (first) baseline[k] = r2(first.after - first.gain);
+        });
+        stored.meta.baselineBreakdown = baseline;
     }
 
-    async function _persistBackfillSeries(ds, collected) {
-        const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
+    /* ==========================================================================
+     *  Automatic history scan (Big Black Backfill)
+     *  After you click Initialize Log or Refill Log, this pages backwards through your Torn logs,
+     *  100 lines per request, using only tornGet() above. It reads the same gym and item logs the
+     *  live sync reads, nothing else. Each page goes into the inbox in your browser; your calendar
+     *  is built from it once at the end. Closing the tab or changing pages just pauses it: the next
+     *  page you open carries on from the oldest line already saved.
+     * ========================================================================== */
 
-        if (collected && collected.length > 0) {
-            const seenGym = new Set(stored.series.filter(e => e.type !== 'item').map(e => `${e.ts}_${e.stat}_${e.after}`));
-            const itemKey = e => `${e.ts}_${e.logId}`;
-            const seenItem = new Set(stored.series.filter(e => e.type === 'item').map(itemKey));
-            collected.forEach(l => {
-                if (l.type === 'item') {
-                    const key = itemKey(l);
-                    if (!seenItem.has(key)) {
-                        seenItem.add(key);
-                        const entry = {
-                            ts: l.ts,
-                            type: 'item',
-                            id: l.id,
-                            logId: l.logId
-                        };
-                        if (l.energy) entry.energy = l.energy;
-                        if (l.energyLost != null) entry.energyLost = l.energyLost;
-                        if (l.happyLost != null) entry.happyLost = l.happyLost;
-                        if (l.happy) entry.happy = l.happy;
-                        if (l.bookId) entry.bookId = l.bookId;
-                        if (l.statKey) {
-                            entry.statKey = l.statKey;
-                            entry.statGain = l.statGain;
-                        }
-                        stored.series.push(entry);
-                    }
+    const BF_LEASE_KEY = 'bbgl_bf_lease';
+    const BF_KEY_ERROR_CODES = [2, 10, 13, 16, 18];
+
+    function newBackfillState(mode) {
+        const done = {};
+        BACKFILL_GROUP_KEYS.forEach(g => { done[g] = false; });
+        return {
+            v: 1,
+            runId: Math.random().toString(36).slice(2) + Date.now().toString(36),
+            mode,
+            status: 'scanning',
+            done,
+            roundStart: 0,
+            rowsUsed: 0,
+            cooldownUntil: 0,
+            factionFetched: false,
+            pendingMerge: null,
+            firstMergeDone: false,
+            lastError: null,
+            errorEpoch: 0,
+            capEpoch: 0
+        };
+    }
+
+    // What an imported log is marked as: already built, nothing left to scan.
+    function completedBackfillState() {
+        const st = newBackfillState('initialize');
+        BACKFILL_GROUP_KEYS.forEach(g => { st.done[g] = true; });
+        return Object.assign(st, { status: 'complete', firstMergeDone: true });
+    }
+
+    // True while the backfill is actively scanning (not during a cap cooldown, when import and
+    // export are allowed: an import then replaces the partial log and ends the backfill).
+    async function backfillScanning() {
+        const st = await DBManager.getBackfillState();
+        return !!st && st.status === 'scanning';
+    }
+
+    // The scan state changed: refresh this tab's overlay/notices/buttons and tell the other tabs.
+    function announceBackfillState() {
+        _syncChannel.postMessage({ type: 'bf:state', from: _TAB_ID });
+        refreshBackfillUI();
+    }
+
+    // Initialize Log (welcome screen; the first sync stamps a new reward start date) and Refill Log
+    // (after Clear Log; the kept reward start date stays) both start here. The sync makes sure the
+    // log exists before the scan starts, since the scan works back from its start date.
+    async function startLog({ newRewardDate }) {
+        await DBManager.resetBackfill(newBackfillState(newRewardDate ? 'initialize' : 'refill'), {});
+        announceBackfillState();
+        switchView('ledger');
+        await syncWithFeedback('FULL_SYNC');
+        maybeStartBackfill();
+    }
+
+    // Pause/Resume from the overlay. Saved in the scan state, so it holds in every tab and across
+    // page loads until resumed; the scanning tab stops before its next call.
+    async function setBackfillPaused(paused) {
+        const st = await DBManager.getBackfillState();
+        if (!st || !await DBManager.inboxCommitPage(st.runId, null, [], { paused })) return;
+        if (paused) {
+            handleBackfillMessage({ type: 'bf:pause' });
+            _syncChannel.postMessage({ type: 'bf:pause', from: _TAB_ID });
+        } else {
+            announceBackfillState();
+            maybeStartBackfill();
+        }
+    }
+
+    // End Backfill: build what's been scanned (up to the last fully scanned day) and stop for good
+    // until the player resumes it from Settings. Waits for the scan lock so a tab mid-page finishes
+    // saving first.
+    async function endBackfill() {
+        let lock = null;
+        for (let i = 0; i < 10 && !lock; i++) {
+            lock = await acquireBackfillLock();
+            if (!lock) await new Promise(r => setTimeout(r, 500));
+        }
+        if (!lock) return;
+        try {
+            const st = await DBManager.getBackfillState();
+            if (!st || st.status !== 'scanning') return;
+            if (!await DBManager.inboxCommitPage(st.runId, null, [], { pendingMerge: 'stop', paused: false })) return;
+            Object.assign(st, { pendingMerge: 'stop', paused: false });
+            await mergeInbox('stop', st);
+        } finally {
+            lock.release();
+        }
+    }
+
+    // Resume Backfill (Settings, only after End Backfill): carries on from the oldest built day,
+    // keeping finished groups, with the overlay back until the next build.
+    async function resumeStoppedBackfill() {
+        const st = await DBManager.getBackfillState();
+        if (!st || st.status !== 'stopped') return;
+        if (!await DBManager.inboxCommitPage(st.runId, null, [], { status: 'scanning', firstMergeDone: false, roundStart: 0, paused: false, lastError: null })) return;
+        announceBackfillState();
+        switchView('ledger');
+        maybeStartBackfill();
+    }
+
+    // The date End Backfill would build back to, for the confirmation pop-up.
+    async function backfillStopFloor() {
+        const st = await DBManager.getBackfillState();
+        const meta = await readStoredMeta();
+        const existing = meta && typeof meta.logStartDate === 'number' ? meta.logStartDate : null;
+        if (!st) return existing;
+        const floor = computeScanFloor(await DBManager.inboxAll(), st);
+        return existing !== null ? Math.min(floor, existing) : floor;
+    }
+
+    async function readStoredMeta() {
+        const db = await DBManager._ensureDb();
+        return db ? DBManager._readMeta() : null;
+    }
+
+    // Why the scan can't run right now, or null if it can. The first sync after Initialize or Clear
+    // stamps logStartDate/rewardStartDate; the scan waits for it, since it scans back from logStartDate.
+    function backfillBlockReason(st, meta) {
+        if (!userConfig.apiKey || userConfig.apiKey.length < 16) return 'no API key';
+        if (!localStorage.getItem('bbgl_initialized')) return 'not initialized';
+        if (!st) return 'no log started';
+        if (st.status === 'complete') return 'complete';
+        if (st.status === 'stopped') return 'ended by the player';
+        if (st.paused) return 'paused';
+        if (st.status === 'cooldown' && Date.now() < st.cooldownUntil) return 'cooling down';
+        if (!meta || typeof meta.logStartDate !== 'number' || typeof meta.rewardStartDate !== 'number') return 'waiting for first sync';
+        return null;
+    }
+
+    // ─── Tab coordination ────────────────────────────────────────────────────
+    function readLease() {
+        try { return JSON.parse(localStorage.getItem(BF_LEASE_KEY)); } catch (e) { return null; }
+    }
+
+    function leaseIsMine() {
+        const l = readLease();
+        return !!l && l.tabId === _TAB_ID;
+    }
+
+    function writeLease() {
+        localStorage.setItem(BF_LEASE_KEY, JSON.stringify({ tabId: _TAB_ID, at: Date.now() }));
+    }
+
+    // No-Web-Locks fallback: a lease in localStorage, renewed while scanning, deleted on pagehide so
+    // the next page takes over at once, and treated as dead after LEASE_STALE_MS if a tab crashed.
+    // Two tabs racing for it is unlikely after the write-then-read-back, and harmless if it happens:
+    // inbox writes overwrite by id.
+    async function acquireLease() {
+        const cur = readLease();
+        if (cur && cur.tabId !== _TAB_ID && Date.now() - cur.at < BACKFILL.LEASE_STALE_MS) return null;
+        writeLease();
+        await new Promise(r => setTimeout(r, 250));
+        if (!leaseIsMine()) return null;
+        const timer = setInterval(() => { if (leaseIsMine()) writeLease(); }, BACKFILL.LEASE_RENEW_MS);
+        const release = () => {
+            clearInterval(timer);
+            window.removeEventListener('pagehide', release);
+            if (leaseIsMine()) localStorage.removeItem(BF_LEASE_KEY);
+        };
+        window.addEventListener('pagehide', release);
+        return { release, check: leaseIsMine };
+    }
+
+    // Resolves { release, check } once this tab may scan, or null. With Web Locks, a tab that finds
+    // the lock taken queues for it, so it takes over the moment the scanning tab closes or navigates.
+    function acquireBackfillLock() {
+        const locks = getWebLocks();
+        if (!locks) return acquireLease();
+        const request = (opts) => new Promise(resolve => {
+            let release;
+            const held = new Promise(r => { release = r; });
+            locks.request('bbgl-backfill', opts, lock => {
+                if (!lock) {
+                    resolve(null);
                     return;
                 }
-                const after = r2(l.after);
-                const key = `${l.ts}_${l.stat}_${after}`;
-                if (!seenGym.has(key)) {
-                    seenGym.add(key);
-                    stored.series.push({
-                        ts: l.ts,
-                        stat: l.stat,
-                        gain: r2(l.gain),
-                        cost: l.cost,
-                        after,
-                        rate: l.cost > 0 ? r2((l.gain / l.cost) * 150) : 0
-                    });
+                resolve({ release, check: () => true });
+                return held;
+            }).catch(e => {
+                Log.warn('Backfill lock request failed', e);
+                resolve(null);
+            });
+        });
+        return request({ ifAvailable: true }).then(lock => {
+            if (lock) return lock;
+            if (document.visibilityState === 'visible') _syncChannel.postMessage({ type: 'bf:want', from: _TAB_ID });
+            runtime.bfWaitingLock = true;
+            return request({}).finally(() => { runtime.bfWaitingLock = false; });
+        });
+    }
+
+    // A wait the scan can be woken from early (stop, hand-off, Try Again).
+    function bfSleep(ms) {
+        return new Promise(resolve => {
+            const done = () => {
+                clearTimeout(timer);
+                if (runtime.bfWake === done) runtime.bfWake = null;
+                resolve();
+            };
+            const timer = setTimeout(done, ms);
+            runtime.bfWake = done;
+        });
+    }
+
+    function wakeBackfill() {
+        if (runtime.bfWake) runtime.bfWake();
+    }
+
+    // Torn's "too many requests" (code 5) from any call in any tab: the scan backs off for a minute.
+    // Live sync never waits on this.
+    function noteRateLimit(fromOtherTab) {
+        runtime.bfRateUntil = Date.now() + BACKFILL.RATE_BACKOFF_MS;
+        if (!fromOtherTab) _syncChannel.postMessage({ type: 'bf:ratelimit', from: _TAB_ID });
+    }
+
+    // Try Again on the connection error: retry straight away, here or in whichever tab is scanning.
+    function retryBackfillNow() {
+        runtime.bfFailCount = 0;
+        if (runtime.bfScanning) wakeBackfill();
+        else {
+            _syncChannel.postMessage({ type: 'bf:retry', from: _TAB_ID });
+            maybeStartBackfill();
+        }
+    }
+
+    function handleBackfillMessage(msg) {
+        switch (msg.type) {
+            case 'bf:stop':
+                runtime.bfStop = true;
+                wakeBackfill();
+                break;
+            case 'bf:state':
+                refreshBackfillUI();
+                maybeStartBackfill();
+                break;
+            case 'bf:ratelimit':
+                noteRateLimit(true);
+                break;
+            case 'bf:progress':
+                updateBackfillCount(msg.count);
+                break;
+            case 'bf:pause':
+                runtime.bfStop = true;
+                wakeBackfill();
+                refreshBackfillUI();
+                break;
+            case 'bf:retry':
+                runtime.bfFailCount = 0;
+                wakeBackfill();
+                break;
+            case 'bf:want':
+                // A tab the player is looking at wants to scan; a hidden one hands over after its
+                // current page is saved (hidden tabs are throttled hard by the browser).
+                if (runtime.bfScanning && hasWebLocks() && document.visibilityState === 'hidden') {
+                    runtime.bfYield = true;
+                    wakeBackfill();
                 }
-            });
-            stored.series.sort((a, b) => a.ts - b.ts);
-
-            const baseline = {
-                ...((stored.meta && stored.meta.baselineBreakdown) || ZERO_BREAKDOWN)
-            };
-            STAT_KEYS.forEach(k => {
-                const first = stored.series.find(e => e.stat === k);
-                if (first) baseline[k] = r2(first.after - first.gain);
-            });
-            stored.meta.baselineBreakdown = baseline;
-
-            stored.meta.logStartDate = computeBackfillFloor(stored, ds.targets.frontiers);
+                break;
         }
-
-        stored.meta.backfill = ds;
-        await DBManager.setStorage(stored);
-        return stored;
     }
 
-    function _hydrateFromStored(stored) {
-        const rebuilt = DataController._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN);
-        _historyCache = {
-            meta: stored.meta,
-            history: rebuilt.history,
-            today: rebuilt.today
-        };
-        DataController.invalidate();
+    // ─── Fetching one page ────────────────────────────────────────────────────
+    const BF_DEV_FAILS = {
+        net: { ok: false, netErr: new Error('dev: forced network failure') },
+        http: { ok: false, http: 500 },
+        code5: { ok: false, apiError: { code: 5, error: 'dev: forced' } },
+        code8: { ok: false, apiError: { code: 8, error: 'dev: forced' } },
+        code14: { ok: false, apiError: { code: 14, error: 'dev: forced' } },
+        key2: { ok: false, apiError: { code: 2, error: 'dev: forced' } },
+        key16: { ok: false, apiError: { code: 16, error: 'dev: forced' } },
+        key18: { ok: false, apiError: { code: 18, error: 'dev: forced' } },
+        unknown: { ok: false, apiError: { code: 999, error: 'dev: forced' } }
+    };
+
+    // kind: 'temporary' (retry later), 'limit' (Torn's daily read limit), 'key' (the key itself).
+    function classifyScanError(r) {
+        if (r.netErr) return { kind: 'temporary', code: 'net' };
+        if (r.http) return { kind: 'temporary', code: `http${r.http}` };
+        const c = r.apiError && r.apiError.code;
+        if (c === 14) return { kind: 'limit', code: 14 };
+        if (BF_KEY_ERROR_CODES.includes(c)) return { kind: 'key', code: c };
+        return { kind: 'temporary', code: c };
     }
 
-    async function finalizeBackfill(ds, collected) {
-        _hydrateFromStored(await _persistBackfillSeries(ds, collected));
-    }
-
-    async function acknowledgeBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || ds.lastResult !== 'complete' || ds.acknowledged !== false) return;
-        ds.acknowledged = true;
-        await finalizeBackfill(ds, []);
-        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-        renderScanUI();
-    }
-
-    async function proceedPartialBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || ds.lastResult !== 'partial' || ds.acknowledged !== false) return;
-        ds.acknowledged = true;
-        try {
-            await persistBackfillState(ds);
-        } catch (e) {
-            Log.warn('Backfill proceed save failed', e);
-        }
-        renderScanUI();
-    }
-
-    // If you cancel a Deep Log Scan, this throws away the older history it had reconstructed —
-    // only what's been tracked live since you installed the script is kept.
-    async function discardBackfillData(ds) {
-        const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
-
-        let cutoff = (typeof stored.meta.rewardStartDate === 'number') ? stored.meta.rewardStartDate : null;
-        if (cutoff === null) {
-            const p = Date.parse(userConfig.privacyAgreed);
-            cutoff = isNaN(p) ? Math.floor(Date.now() / 1000) : Math.floor(p / 1000);
-        }
-
-        stored.series = stored.series.filter(e => e.ts >= cutoff);
-
-        let curStats = null;
-        try {
-            const r = await tornGet('user/', { selections: 'battlestats', timestamp: Date.now() });
-            if (r.ok) curStats = r.data;
-        } catch (e) {
-            Log.warn('Discard baseline battlestats fetch failed', e);
-        }
-        if (curStats) {
-            const liveGain = { str: 0, def: 0, spd: 0, dex: 0 };
-            stored.series.forEach(e => {
-                if (e.type !== 'item' && liveGain[e.stat] !== undefined) liveGain[e.stat] += (e.gain || 0);
-            });
-            stored.meta.baselineBreakdown = {
-                str: r2((curStats.strength || 0) - liveGain.str),
-                def: r2((curStats.defense || 0) - liveGain.def),
-                spd: r2((curStats.speed || 0) - liveGain.spd),
-                dex: r2((curStats.dexterity || 0) - liveGain.dex)
-            };
-        }
-
-        ds.targets = {};
-        ensureBackfillTargets(ds);
-
-        stored.meta.logStartDate = cutoff;
-
-        ds.lastResult = null;
-        ds.stopReason = null;
-        ds.completion = null;
-        ds.acknowledged = true;
-        ds.lock = 0;
-        ds.lockOwner = null;
-        stored.meta.backfill = ds;
-
-        await DBManager.setStorage(stored);
-        _hydrateFromStored(stored);
-    }
-
-    async function _scanPage(param, cursor) {
-        const r = await tornGet('user/', { selections: 'log', log: param, to: Math.floor(cursor), timestamp: Date.now() });
-        if (r.netErr || r.http) {
-            Log.warn('Deep scan page fetch failed', r.netErr || `HTTP ${r.http}`);
-            return { halt: true };
-        }
-        if (r.apiError) {
-            if (r.apiError.code === 14 || r.apiError.code === 5) return { halt: true };
-            throw new Error(r.apiError.error);
-        }
-        const log = r.data.log || {};
+    // Asks Torn for the newest 100 lines of one log group at or before `to`.
+    async function fetchScanPage(param, to) {
+        const forced = runtime.devMode && runtime._devTakeBackfillFail ? runtime._devTakeBackfillFail() : null;
+        const r = (forced && BF_DEV_FAILS[forced]) || await tornGet('user/', { selections: 'log', log: param, to: Math.floor(to), timestamp: Date.now() });
+        if (!r.ok) return { error: classifyScanError(r) };
+        const log = (r.data && r.data.log) || {};
         return { log, rowKeys: Object.keys(log) };
     }
 
-    // Deep Log Scan: uses your API key to page back through your full training history on Torn's
-    // servers. It only reads gym training logs and a short list of item logs (energy cans, Xanax,
-    // overdoses, etc.) — it never reads your messages, money, or any other personal information.
-    async function backfillLogs(btn) {
-        if (runtime.demoMode) return;
-        if (!userConfig.apiKey || userConfig.apiKey.length < 16) {
-            alert('API Key is missing or too short.');
-            return;
-        }
-
-        if (runtime.backfilling) return;
-
-        const s = getActiveHistory();
-        if (!s.meta.backfill) s.meta.backfill = defaultBackfill();
-        const ds = s.meta.backfill;
-        const now = Date.now();
-
-        if (ds.cooldownUntil) {
-            if (now < ds.cooldownUntil) {
-                renderScanUI();
-                return;
-            }
-            ds.cooldownUntil = 0;
-            ds.rowsUsed = 0;
-        }
-
-        const freshStored = await DBManager.getStorage();
-        const liveLock = freshStored && freshStored.meta && freshStored.meta.backfill && freshStored.meta.backfill.lock;
-        if (liveLock && (Date.now() - liveLock) < BACKFILL.LOCK_STALE_MS) {
-            renderScanUI();
-            return;
-        }
-
-        const budget = Math.max(0, BACKFILL.SOFT_CAP - (ds.rowsUsed || 0));
-        if (budget <= 0) {
-            ds.lastResult = 'partial';
-            ds.stopReason = 'cap';
-            ds.acknowledged = false;
-            ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-            await persistBackfillState(ds);
-            renderScanUI();
-            return;
-        }
-
-        const frontiers = ensureBackfillTargets(ds);
-
-        ds.lastResult = 'partial';
-        ds.stopReason = null;
-        ds.acknowledged = false;
-        ds.lock = Date.now();
-        ds.lockOwner = _TAB_ID;
-        runtime.backfillAbort = null;
-        await persistBackfillState(ds);
-        runtime.backfilling = true;
-        renderScanOverlay();
-
-        await fetchFactionHistory();
-        await fetchPastFactionWars();
-
-        if (btn) {
-            if (!btn.dataset.originalText) btn.dataset.originalText = btn.innerText;
-            btn.style.pointerEvents = 'none';
-            btn.style.opacity = '0.85';
-            btn.innerText = 'Scanning... 0';
-        }
-
-        let sessionRows = 0;
-        let stoppedEarly = false;
-        let capHit = false;
-        let aborted = null;
-        let drainDay = null;
-        let pending = [];
-        let lastHeartbeat = Date.now();
-
-        const flush = async () => {
-            ds.lock = Date.now();
-            ds.lockOwner = _TAB_ID;
-            await _persistBackfillSeries(ds, pending);
-            pending = [];
-            lastHeartbeat = Date.now();
-        };
-
-        try {
-            while (sessionRows < BACKFILL.HARD_CAP) {
-                if (runtime.backfillAbort) {
-                    aborted = runtime.backfillAbort;
-                    break;
-                }
-                let pick = null;
-                BACKFILL_GROUP_KEYS.forEach(g => {
-                    const fr = frontiers[g];
-                    if (!fr || fr.complete) return;
-                    if (drainDay !== null && fr.cursor < drainDay) return;
-                    if (pick === null || fr.cursor > frontiers[pick].cursor) pick = g;
-                });
-                if (pick === null) break;
-
-                const fr = frontiers[pick];
-                const param = BACKFILL_GROUPS[pick];
-
-                let page = await _scanPage(param, fr.cursor);
-                if (page.halt) {
-                    stoppedEarly = true;
-                    break;
-                }
-
-                if (page.rowKeys.length === 0) {
-                    await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
-                    const confirm = await _scanPage(param, fr.cursor);
-                    if (confirm.halt) {
-                        stoppedEarly = true;
-                        break;
-                    }
-                    if (confirm.rowKeys.length === 0) {
-                        fr.complete = true;
-                        continue;
-                    }
-                    page = confirm;
-                }
-
-                pending.push(...normalizeApiLogs(page.log));
-                sessionRows += page.rowKeys.length;
-                ds.rowsUsed = (ds.rowsUsed || 0) + page.rowKeys.length;
-
-                let oldestTs = fr.cursor;
-                for (const k of page.rowKeys) {
-                    const t = page.log[k].timestamp;
-                    if (t < oldestTs) oldestTs = t;
-                }
-                fr.cursor = oldestTs - 1;
-
-                if (btn) btn.innerText = `Scanning... ${ds.rowsUsed}`;
-                updateScanOverlayCount(ds.rowsUsed);
-
-                if (drainDay === null && ds.rowsUsed >= BACKFILL.SOFT_CAP) {
-                    capHit = true;
-                    let maxCursor = -Infinity;
-                    BACKFILL_GROUP_KEYS.forEach(g => {
-                        const f = frontiers[g];
-                        if (f && !f.complete && f.cursor > maxCursor) maxCursor = f.cursor;
-                    });
-                    if (maxCursor > -Infinity) drainDay = backfillDayStart(maxCursor);
-                }
-
-                if (pending.length >= BACKFILL.CHECKPOINT_ROWS || Date.now() - lastHeartbeat >= BACKFILL.HEARTBEAT_MS) {
-                    await flush();
-                }
-
-                if (sessionRows >= BACKFILL.HARD_CAP) {
-                    stoppedEarly = true;
-                    break;
-                }
-                await new Promise(r => setTimeout(r, BACKFILL.THROTTLE_MS));
-            }
-        } catch (e) {
-            Log.error('Deep sync failed', e);
-            stoppedEarly = true;
-        }
-
-        ds.lock = 0;
-        ds.lockOwner = null;
-
-        if (aborted === 'cancel') {
-            pending = [];
-            runtime.backfilling = false;
-            runtime.backfillAbort = null;
-            try {
-                await discardBackfillData(ds);
-            } catch (e) {
-                Log.error('Backfill discard failed', e);
-            }
-            window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-            renderScanUI();
-            return;
-        }
-
-        const allComplete = BACKFILL_GROUP_KEYS.every(g => frontiers[g] && frontiers[g].complete);
-        if (allComplete && !stoppedEarly && !aborted) {
-            ds.lastResult = 'complete';
-            ds.stopReason = null;
-            ds.acknowledged = false;
-            ds.cooldownUntil = 0;
-            ds.rowsUsed = 0;
-        } else {
-            ds.lastResult = 'partial';
-            ds.acknowledged = false;
-            if (aborted === 'pause') {
-                ds.stopReason = 'paused';
-            } else if (capHit || (ds.rowsUsed || 0) >= BACKFILL.SOFT_CAP) {
-                ds.stopReason = 'cap';
-                ds.cooldownUntil = Date.now() + BACKFILL.COOLDOWN_MS;
-            } else {
-                ds.stopReason = 'error';
-            }
-        }
-
-        try {
-            await finalizeBackfill(ds, pending);
-        } catch (e) {
-            Log.error('Deep scan save failed', e);
-        } finally {
-            runtime.backfilling = false;
-            runtime.backfillAbort = null;
-        }
-
-        if (ds.lastResult === 'complete') {
-            const baseline = (_historyCache && _historyCache.meta && _historyCache.meta.baselineBreakdown) || ZERO_BREAKDOWN;
-            const reachedOrigin = STAT_KEYS.every(k => (baseline[k] || 0) <= BACKFILL.ORIGIN_MAX_STAT);
-            ds.completion = reachedOrigin ? 'origin' : 'exhausted';
-            try {
-                await persistBackfillState(ds);
-            } catch (e) {
-                Log.error('Backfill completion flag save failed', e);
-            }
-        }
-
-        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
-        renderScanUI();
+    // ─── Building the log from the inbox ─────────────────────────────────────
+    // At a cap, the oldest day the calendar can safely show: every unfinished roll has scanned past
+    // all of the day before it. A roll with no inbox lines this round hasn't moved past roundStart.
+    // Start-of-next-day is taken from dayStart + 26h so a DST day can't put it inside the partial day.
+    function computeScanFloor(lines, st) {
+        const oldest = {};
+        lines.forEach(l => {
+            if (oldest[l.group] === undefined || l.ts < oldest[l.group]) oldest[l.group] = l.ts;
+        });
+        let floor = null;
+        BACKFILL_GROUP_KEYS.forEach(g => {
+            if (st.done[g]) return;
+            const reach = oldest[g] !== undefined ? oldest[g] : st.roundStart;
+            const f = backfillDayStart(backfillDayStart(reach) + 26 * 3600);
+            if (floor === null || f > floor) floor = f;
+        });
+        return floor;
     }
 
-    async function recoverInterruptedBackfill() {
-        if (runtime.demoMode || runtime.backfilling) return;
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (!ds || !ds.lock) return;
-        if ((Date.now() - ds.lock) <= BACKFILL.LOCK_STALE_MS) return;
-        ds.lock = 0;
-        ds.lockOwner = null;
-        if (ds.lastResult !== 'complete') {
-            ds.lastResult = 'partial';
-            if (ds.stopReason !== 'cap') ds.stopReason = 'interrupted';
-            ds.acknowledged = false;
-        }
+    // Adds the inbox to your saved log and rebuilds the calendar, in one save together with the
+    // scan's progress, so it either all happens or none of it does. 'final' adds everything. 'cap'
+    // (Torn's daily limit reached) adds only complete days, keeps finished log groups' older lines in
+    // the inbox for the final merge, and drops the rest to be downloaded again after the wait.
+    // If this is interrupted, pendingMerge is still set and the next page load redoes it; lines
+    // already added are skipped as duplicates.
+    async function mergeInbox(mode, st) {
+        const runId = st.runId;
+        let result = null;
         try {
-            await persistBackfillState(ds);
+            await DBManager.withHistoryWrite(async () => {
+                const fresh = await DBManager.getBackfillState();
+                if (!fresh || fresh.runId !== runId || fresh.pendingMerge !== mode) return;
+                const lines = await DBManager.inboxAll();
+                const stored = await DBManager.getStorage() || sanitizeStorageRecord(null);
+                const existing = typeof stored.meta.logStartDate === 'number' ? stored.meta.logStartDate : null;
+
+                let toMerge = lines;
+                let held = [];
+                let floor = null;
+                // 'cap' and 'stop' (End Backfill) both build only up to the last fully scanned day.
+                if (mode === 'cap' || mode === 'stop') {
+                    floor = computeScanFloor(lines, fresh);
+                    if (existing !== null) floor = Math.min(floor, existing);
+                    toMerge = lines.filter(l => l.ts >= floor);
+                    held = lines.filter(l => l.ts < floor && fresh.done[l.group]);
+                }
+                mergeLinesIntoSeries(stored, toMerge);
+                recomputeBaseline(stored);
+                if (mode === 'final' && stored.series.length) floor = backfillDayStart(stored.series[0].ts);
+                if (floor !== null) stored.meta.logStartDate = existing !== null ? Math.min(floor, existing) : floor;
+
+                const crash = runtime.devMode && runtime._devTakeMergeCrash ? runtime._devTakeMergeCrash() : null;
+                if (crash === 'beforeTx') throw new Error('dev: forced merge crash before save');
+
+                const patch = mode === 'final'
+                    ? { pendingMerge: null, firstMergeDone: true, status: 'complete', lastError: null }
+                    : mode === 'stop'
+                    ? { pendingMerge: null, firstMergeDone: true, status: 'stopped', paused: false }
+                    : { pendingMerge: null, firstMergeDone: true, status: 'cooldown', cooldownUntil: Date.now() + bfConst('COOLDOWN_MS'), capEpoch: (fresh.capEpoch || 0) + 1 };
+                const nextState = Object.assign({}, fresh, patch);
+                const heldIds = new Set(held.map(l => l.id));
+                // Read fresh inside the history-write lock, so this can't come back 'stale'.
+                await DBManager.setStorage(stored, {
+                    inLock: true,
+                    bumpGen: true,
+                    extraStores: [DBManager._BF_STORE, DBManager._INBOX_STORE],
+                    extraOps: tx => {
+                        const inbox = tx.objectStore(DBManager._INBOX_STORE);
+                        if (!heldIds.size) inbox.clear();
+                        else lines.forEach(l => { if (!heldIds.has(l.id)) inbox.delete(l.id); });
+                        tx.objectStore(DBManager._BF_STORE).put(nextState, 'state');
+                    }
+                });
+                Object.assign(st, patch);
+                if (crash === 'afterTx') throw new Error('dev: forced merge crash after save');
+                result = { merged: toMerge.length, held: held.length, logStartDate: stored.meta.logStartDate };
+                // During Demo the view shows demo data; leaving Demo reloads from the database.
+                if (!runtime.demoMode) DataController.hydrate(await DBManager.loadHistory());
+            });
         } catch (e) {
-            Log.warn('Backfill lock recovery save failed', e);
+            Log.error(`Backfill ${mode} merge failed`, e);
+            return false;
         }
+        if (!result) return false;
+        Log.info(`[backfill] ${mode} merge: ${result.merged} lines added, ${result.held} held, log starts ${new Date(result.logStartDate * 1000).toISOString()}`);
+        window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
+        announceBackfillState();
+        return true;
+    }
+
+    // ─── The scan ────────────────────────────────────────────────────────────
+    function runBackfillMerge(mode, st) {
+        return mergeInbox(mode, st);
+    }
+
+    async function scanLoop(lock) {
+        let st = await DBManager.getBackfillState();
+        const meta = await readStoredMeta();
+        const blocked = backfillBlockReason(st, meta);
+        if (blocked) {
+            Log.debug(`[backfill] not scanning: ${blocked}`);
+            return;
+        }
+        const runId = st.runId;
+        // Every state change is committed through inboxCommitPage, so a Clear Log (runId gone)
+        // stops it from writing anything.
+        const commit = async (group, lines, patch) => {
+            const ok = await DBManager.inboxCommitPage(runId, group, lines, patch);
+            if (ok) Object.assign(st, patch);
+            return ok;
+        };
+
+        if (st.pendingMerge) {
+            await runBackfillMerge(st.pendingMerge, st);
+            return;
+        }
+        if (st.status === 'cooldown') {
+            if (!await commit(null, [], { status: 'scanning', rowsUsed: 0, cooldownUntil: 0, roundStart: meta.logStartDate })) return;
+        } else if (!st.roundStart) {
+            // Backfill covers everything up to logStartDate; live sync covers everything after.
+            if (!await commit(null, [], { roundStart: meta.logStartDate })) return;
+        }
+        if (!st.factionFetched && await fetchFactionHistory()) {
+            await fetchPastFactionWars();
+            if (!await commit(null, [], { factionFetched: true })) return;
+        }
+
+        const PAGE = BACKFILL.PAGE;
+        const stepBack = {};
+        let calls = 0;
+        Log.info(`[backfill] scanning (run ${runId}, ${st.rowsUsed} rows used this window)`);
+
+        const setError = async (kind, code) => {
+            if (st.lastError && st.lastError.kind === kind) return true;
+            const ok = await commit(null, [], { lastError: { kind, code, at: Date.now() }, errorEpoch: (st.errorEpoch || 0) + 1 });
+            if (ok) announceBackfillState();
+            return ok;
+        };
+
+        while (true) {
+            if (runtime.bfStop || runtime.bfYield || !lock.check()) break;
+            const rateWait = (runtime.bfRateUntil || 0) - Date.now();
+            if (rateWait > 0) {
+                await bfSleep(rateWait);
+                continue;
+            }
+            const open = BACKFILL_GROUP_KEYS.filter(g => !st.done[g]);
+            if (!open.length) {
+                if (await commit(null, [], { pendingMerge: 'final' })) await runBackfillMerge('final', st);
+                break;
+            }
+            if ((st.rowsUsed || 0) + PAGE > bfConst('CAP')) {
+                if (await commit(null, [], { pendingMerge: 'cap' })) await runBackfillMerge('cap', st);
+                break;
+            }
+
+            // The roll furthest behind goes next, so all three move back through time together.
+            const points = {};
+            for (const g of open) {
+                const oldest = await DBManager.inboxOldest(g);
+                points[g] = oldest ? oldest.ts : st.roundStart;
+            }
+            const pick = open.reduce((a, b) => (points[b] > points[a] ? b : a));
+            // `to` is inclusive: the boundary line comes back again and dedupes by id. Only if a whole
+            // page sits on one second does the next call step past it.
+            const to = stepBack[pick] === points[pick] ? points[pick] - 1 : points[pick];
+
+            const page = await fetchScanPage(BACKFILL_GROUPS[pick], to);
+            calls++;
+            if (page.error && page.error.kind === 'limit') {
+                // Torn's own daily read limit (other scripts can use up the same key): same as our cap.
+                Log.warn('[backfill] Torn daily read limit reached; building the log so far and waiting');
+                if (await commit(null, [], { pendingMerge: 'cap' })) await runBackfillMerge('cap', st);
+                break;
+            }
+            if (page.error && page.error.kind === 'key') {
+                // Waiting won't fix a rejected key. Tell the player once, then make one attempt per
+                // page load (or as soon as the key is changed) until it works again.
+                Log.warn(`[backfill] API key rejected (code ${page.error.code}); pausing until next page load`);
+                runtime.bfKeyBlockedFor = userConfig.apiKey;
+                await setError('key', page.error.code);
+                break;
+            }
+            const rows = page.error ? 0 : page.rowKeys.length;
+            const lines = page.error ? [] : normalizeApiLogs(page.log);
+            if (page.error || (rows > 0 && lines.length === 0)) {
+                // Temporary: retry with growing waits. After ERROR_NOTICE_MS of failing on this page
+                // load the player is told once; retries carry on either way.
+                const code = page.error ? page.error.code : 'unstorable';
+                const now = Date.now();
+                if (!runtime.bfFailSince) runtime.bfFailSince = now;
+                const noticeAt = runtime.bfFailSince + bfConst('ERROR_NOTICE_MS');
+                if (now >= noticeAt && !await setError('connection', code)) break;
+                const steps = BACKFILL.RETRY_STEPS_MS;
+                let delay = steps[Math.min(runtime.bfFailCount || 0, steps.length - 1)];
+                if (now < noticeAt) delay = Math.min(delay, noticeAt - now);
+                if (runtime.devMode && runtime._devBackfillErrorWindowMs) delay = Math.min(delay, Math.max(1000, runtime._devBackfillErrorWindowMs / 4));
+                runtime.bfFailCount = (runtime.bfFailCount || 0) + 1;
+                Log.warn(`[backfill] page failed (${code}); retrying in ${Math.round(delay / 1000)}s`);
+                await bfSleep(delay);
+                continue;
+            }
+            const known = await DBManager.inboxExistingIds(lines.map(l => l.id));
+            const fresh = lines.filter(l => !known.has(l.id)).length;
+            // Empty, or a short page with nothing new (the one confirmation call after a short page,
+            // which only returns the boundary line again): nothing older exists.
+            const finished = rows === 0 || (rows < PAGE && fresh === 0);
+            let oldestTs = Infinity;
+            page.rowKeys.forEach(k => { if (page.log[k].timestamp < oldestTs) oldestTs = page.log[k].timestamp; });
+            if (rows === PAGE && oldestTs >= to) stepBack[pick] = points[pick];
+
+            const patch = { done: { ...st.done, [pick]: finished }, rowsUsed: (st.rowsUsed || 0) + rows };
+            const recovered = !!st.lastError;
+            if (recovered) patch.lastError = null;
+            if (!await commit(pick, lines, patch)) break;
+            runtime.bfFailSince = 0;
+            runtime.bfFailCount = 0;
+            if (recovered) announceBackfillState();
+            if (!st.firstMergeDone) {
+                // The overlay's line counter, here and in other tabs.
+                const count = await DBManager.inboxCount();
+                updateBackfillCount(count);
+                _syncChannel.postMessage({ type: 'bf:progress', count, from: _TAB_ID });
+            }
+            Log.debug(`[backfill] ${pick} to=${to}: ${rows} rows, ${fresh} new${finished ? ', done' : ''}`);
+
+            await bfSleep(bfConst('THROTTLE_MS'));
+        }
+        Log.info(`[backfill] stopped after ${calls} calls`);
+    }
+
+    async function runBackfill() {
+        if (runtime.bfScanning || runtime.bfWaitingLock) return;
+        if (runtime.bfKeyBlockedFor && runtime.bfKeyBlockedFor === userConfig.apiKey) return;
+        const lock = await acquireBackfillLock();
+        if (!lock) return;
+        runtime.bfScanning = true;
+        runtime.bfStop = false;
+        runtime.bfYield = false;
+        let yielded = false;
+        try {
+            await scanLoop(lock);
+        } catch (e) {
+            Log.error('Backfill scan failed', e);
+        } finally {
+            yielded = runtime.bfYield;
+            runtime.bfScanning = false;
+            runtime.bfYield = false;
+            lock.release();
+        }
+        // Handed the scan to a visible tab: queue behind it, to take over again if it closes.
+        if (yielded) setTimeout(() => runBackfill(), 0);
+    }
+
+    async function maybeStartBackfill() {
+        if (runtime.bfScanning || runtime.bfWaitingLock || runtime.bfChecking) return;
+        if (runtime.bfKeyBlockedFor && runtime.bfKeyBlockedFor === userConfig.apiKey) return;
+        runtime.bfChecking = true;
+        try {
+            const st = await DBManager.getBackfillState();
+            if (!backfillBlockReason(st, await readStoredMeta())) runBackfill();
+        } catch (e) {
+            Log.warn('Backfill start check failed', e);
+        } finally {
+            runtime.bfChecking = false;
+        }
+    }
+
+    // Called once from init(). Without Web Locks there's no queue to wait in, so waiting tabs check
+    // again when the lease is released (storage event) and on a slow timer.
+    function startBackfillTriggers() {
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState !== 'visible') return;
+            // A notice that landed while this tab was hidden shows now.
+            refreshBackfillUI();
+            // Already queued (opened in the background): ask the scanning tab to hand over now that
+            // the player is looking at this one.
+            if (runtime.bfWaitingLock) _syncChannel.postMessage({ type: 'bf:want', from: _TAB_ID });
+            else maybeStartBackfill();
+        });
+        window.addEventListener('storage', e => {
+            if (e.key === BF_LEASE_KEY && !e.newValue) maybeStartBackfill();
+        });
+        setInterval(() => {
+            if (!hasWebLocks()) maybeStartBackfill();
+        }, BACKFILL.LEASE_STALE_MS);
+        refreshBackfillUI();
+        maybeStartBackfill();
     }
 
 /**
@@ -17111,7 +17601,7 @@ function findHappyJumps(seriesArr) {
 // from fields that survive an export/import round trip: Torn's own log `id` does not (dropped on
 // export, see _applyLogToState's item branch) — an id-keyed item entry would never match its
 // re-synced counterpart post-import, leaving both in the series as duplicates. (ts, logId) is the
-// same natural key _applyLogToState and _persistBackfillSeries already dedup items on.
+// same natural key _applyLogToState and mergeLinesIntoSeries already dedup items on.
 function seriesDedupKey(e) {
     return e.type === 'item' ? `item_${e.ts}_${e.logId}` : `${e.ts}_${e.stat}_${e.after}`;
 }
@@ -17191,7 +17681,7 @@ const DataController = {
         persistStickerCleared(id);
     },
     // Custom calendar notes, { 'YYYY-MM-DD': text } in history meta, so export, import and Clear
-    // Data carry them with the log. Demo mode keeps them on the demo history, never saved. With no
+    // Log (which keeps them for Refill Log) carry them with the log. Demo mode keeps them on the demo history, never saved. With no
     // history yet there is nowhere to keep one, so placing is refused.
     _noteStore(create) {
         const meta = runtime.demoMode ? getActiveHistory().meta : (_historyCache && _historyCache.meta);
@@ -17199,26 +17689,43 @@ const DataController = {
         if (!meta.notes && create) meta.notes = {};
         return meta.notes || null;
     },
-    _persistNotes() {
+    // `apply` makes the change on the current cache. It runs again if the save comes back 'stale'
+    // (another tab replaced the history and this one reloaded), so the edit isn't lost.
+    async _persistMetaChange(apply, what) {
         if (runtime.demoMode || !_historyCache) return;
-        DBManager.saveDays(_historyCache.meta, []).catch(e => Log.warn('Failed to save custom notes', e));
+        try {
+            if (await DBManager.saveDays(_historyCache.meta, []) === 'stale' && _historyCache) {
+                apply();
+                await DBManager.saveDays(_historyCache.meta, []);
+                window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
+            }
+        } catch (e) {
+            Log.warn(`Failed to save ${what}`, e);
+        }
     },
     getCustomNote(ds) {
         const notes = this._noteStore(false);
         return notes && Object.prototype.hasOwnProperty.call(notes, ds) ? notes[ds] : null;
     },
     setCustomNote(ds, text) {
-        const notes = this._noteStore(true);
-        if (!notes) return false;
-        notes[ds] = String(text || '');
-        this._persistNotes();
+        const apply = () => {
+            const notes = this._noteStore(true);
+            if (notes) notes[ds] = String(text || '');
+            return !!notes;
+        };
+        if (!apply()) return false;
+        this._persistMetaChange(apply, 'custom notes');
         return true;
     },
     removeCustomNote(ds) {
         const notes = this._noteStore(false);
         if (!notes || !Object.prototype.hasOwnProperty.call(notes, ds)) return;
-        delete notes[ds];
-        this._persistNotes();
+        const apply = () => {
+            const n = this._noteStore(false);
+            if (n) delete n[ds];
+        };
+        apply();
+        this._persistMetaChange(apply, 'custom notes');
     },
     getHappyJumpData() {
         if (this._cache.hjData) return this._cache.hjData;
@@ -17271,8 +17778,8 @@ const DataController = {
         // week onward. Pre-install weeks still render their bar/day counts elsewhere, but earn
         // no stickers here. EXP uses a stricter gate: full days before the install day contribute
         // 0 EXP, and on the exact install day itself, only training at/after the precise
-        // rewardStartDate timestamp counts (sub-day precision) — so a Clear Log + Backfill can
-        // still earn that week's sticker, but reconstructed pre-install training earlier the same
+        // rewardStartDate timestamp counts (sub-day precision) — so a backfill can still earn
+        // that week's sticker, but reconstructed pre-install training earlier the same
         // day (before the user actually clicked train post-install) contributes 0 EXP. Demo mode
         // is exempt (keeps its 1-sticker showcase behavior).
         const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
@@ -17623,7 +18130,7 @@ const DataController = {
         }
         // Gain is the authoritative delta between the absolute start/end snapshots, NOT the
         // sum of per-entry log gains. Summing logs under-reports whenever a training row is
-        // missing from the API data (e.g. dense bursts the deep scan couldn't fully capture),
+        // missing from the API data (e.g. dense bursts the backfill couldn't fully capture),
         // which breaks the "gain = total - starting" identity in the summaries. The `after`
         // snapshots are ground truth and telescope exactly, so derive gain from them here.
         // (Rates above intentionally still use the summed gains; the graph plots from raw
@@ -17683,6 +18190,10 @@ const DataController = {
         Perf.start('processDataPayload');
         const silent = !!opts.silent;
         let s = getActiveHistory();
+        // 'stale' from DBManager: another tab replaced the history first, nothing was saved and this
+        // tab reloaded. Returned as 'STALE' so universalFetch can fetch again against the reloaded log.
+        let saved = null;
+        const result = () => saved === 'stale' ? 'STALE' : 'SUCCESS';
         const fullApiLogs = normalizeApiLogs(apiLogs);
         let cleanLogs = fullApiLogs;
         if (s.meta.logStartDate) {
@@ -17709,15 +18220,15 @@ const DataController = {
                     changedDays.push(s.today);
                     _historyCache = s;
                     this.invalidate();
-                    await DBManager.saveDays(s.meta, changedDays);
+                    saved = await DBManager.saveDays(s.meta, changedDays);
                 } else if (changedToday) {
                     _historyCache = s;
                     this.invalidateToday();
-                    await DBManager.saveDays(s.meta, [s.today]);
+                    saved = await DBManager.saveDays(s.meta, [s.today]);
                 }
                 window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
                 Perf.end('processDataPayload');
-                return 'SUCCESS';
+                return result();
             }
 
             // New gym logs to reconcile. Only entries inside the API window [minApiTs, maxApiTs]
@@ -17752,14 +18263,14 @@ const DataController = {
                     // A rollover changes the day set; persist everything to stay consistent.
                     const all = [...(s.history || [])];
                     if (s.today) all.push(s.today);
-                    await DBManager.saveDays(s.meta, all);
+                    saved = await DBManager.saveDays(s.meta, all);
                 } else {
                     if (!changedDays.includes(s.today)) changedDays.push(s.today);
-                    await DBManager.saveDays(s.meta, changedDays);
+                    saved = await DBManager.saveDays(s.meta, changedDays);
                 }
                 window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
                 Perf.end('processDataPayload');
-                return 'SUCCESS';
+                return result();
             }
 
             // Fallback: the original full rebuild from the entire stored series. Persisted by
@@ -17773,9 +18284,7 @@ const DataController = {
         }
         if (!s.meta.logStartDate) {
             // Forward-only init: baseline = current battlestats, origin = NOW (this sync).
-            // No historical reconstruction — history only comes from explicit Backfill or
-            // import. Anchoring to "now" (not privacyAgreed, which survives Clear Log) makes
-            // a cleared log behave like a fresh install: nothing before this moment counts.
+            // Older history only arrives through the backfill or an import.
             if (apiBattlestats) {
                 s.meta.baselineBreakdown = {
                     str: apiBattlestats.strength || 0,
@@ -17786,9 +18295,10 @@ const DataController = {
             }
             const nowTs = Math.floor(Date.now() / 1000);
             s.meta.logStartDate = nowTs;
-            // rewardStartDate is the fixed rewards gate — set once at install/clear, never
-            // moved by backfill. logStartDate can be pushed back; rewardStartDate stays here.
-            s.meta.rewardStartDate = nowTs;
+            // rewardStartDate is the fixed rewards gate: stamped by the first sync after Initialize
+            // Log, kept through Clear Log and Refill Log, replaced only by an import. Only set it when
+            // missing, or the first sync after a Clear Log would move it.
+            if (typeof s.meta.rewardStartDate !== 'number') s.meta.rewardStartDate = nowTs;
             // Drop anything older than the cutoff so the API's default window (last ~week)
             // is never ingested by the daily grind below.
             cleanLogs = cleanLogs.filter(l => l.ts >= s.meta.logStartDate);
@@ -17800,10 +18310,10 @@ const DataController = {
             if ((s.today.series && s.today.series.length > 0) || (s.today.gains && s.today.gains.total > 0)) s.history.push(s.today);
             s.today = initializeDayObject(logicalToday, s.today.endBreakdown);
         }
-        this.saveSmartHistory(s);
+        saved = await this.saveSmartHistory(s);
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
         Perf.end('processDataPayload');
-        return 'SUCCESS';
+        return result();
     },
     saveSmartHistory(d) {
         const allDays = [...(d.history || [])];
@@ -17811,10 +18321,15 @@ const DataController = {
         // Persist the in-memory day objects directly — no flatten-to-series + rebuild
         // round-trip. saveDays puts each day record without clearing the store; normal
         // syncs never remove days (only import/clear do, via setStorage/clearStorage), so
-        // untouched days remain intact.
-        DBManager.saveDays(d.meta, allDays);
+        // untouched days remain intact. On 'stale' the reload inside DBManager replaces the
+        // cache set below.
+        const saved = DBManager.saveDays(d.meta, allDays).catch(e => {
+            Log.warn('History save failed', e);
+            return 'error';
+        });
         _historyCache = d;
         this.invalidate();
+        return saved;
     },
     flattenAllSeries() {
         const s = getActiveHistory();
@@ -18277,8 +18792,7 @@ function getActiveHistory() {
         meta: {
             baselineBreakdown: {
                 ...ZERO_BREAKDOWN
-            },
-            backfill: defaultBackfill()
+            }
         },
         history: [],
         today: initializeDayObject(Formatter.dateLogical(), {
@@ -20995,6 +21509,9 @@ function flashCopied(flashEl) {
     }), 1000);
 }
 async function exportData() {
+    // Refused while the backfill is scanning (Data Management is masked then; this covers a click
+    // that lands mid state change).
+    if (await backfillScanning()) return;
     let s;
     try {
         s = await DBManager.getStorage();
@@ -21240,6 +21757,10 @@ function importData(f, onDone, opts = {}) {
     const r = new FileReader();
     r.onload = async (e) => {
         let ok = false;
+        if (await backfillScanning()) {
+            if (onDone) onDone(false);
+            return;
+        }
         try {
             const j = JSON.parse(e.target.result);
             const importedVer = (j && j.meta && j.meta.version) ? String(j.meta.version) : '';
@@ -21312,7 +21833,13 @@ function importData(f, onDone, opts = {}) {
                     j.storage.meta.syncFloor = {};
                     Object.keys(BACKFILL_GROUP_OF).forEach(c => { j.storage.meta.syncFloor[c] = lastTs; });
                 }
-                await DBManager.setStorage(j.storage);
+                // force: the file's meta carries some other device's historyGen; this is a deliberate
+                // replace, and the bump makes every other tab reload.
+                await DBManager.setStorage(j.storage, { force: true });
+                // An imported log counts as already built: no backfill, overlay or completion notice,
+                // and the Settings button goes back to Clear Log.
+                await DBManager.resetBackfill(completedBackfillState(), { completionSeen: true });
+                announceBackfillState();
                 const rebuilt = DataController._rebuildFromSeries(j.storage.series || [], (j.storage.meta && j.storage.meta.baselineBreakdown) || ZERO_BREAKDOWN);
                 _historyCache = {
                     meta: {
@@ -21409,7 +21936,11 @@ function importDataFromWelcome(f) {
 }
 async function clearData() {
     if (confirm("⚠️ CLEAR LOG HISTORY? ⚠️\n\nThis will permanently delete your training data.\n\nUse 'Export Log' before proceeding to preserve it.")) {
-        await DBManager.clearStorage();
+        // Keeps rewardStartDate, sticker states and notes so Refill Log restores the log exactly.
+        await DBManager.clearStorage({ keepRewards: true });
+        // Stop a scan running here or in another tab before its next call.
+        _syncChannel.postMessage({ type: 'bf:stop', from: _TAB_ID });
+        handleBackfillMessage({ type: 'bf:stop' });
         // Clear Log behaves like a fresh install but must NOT re-prompt onboarding: keep the
         // API key (KEYS.CONFIG) and the 'bbgl_initialized' flag so the welcome screen stays
         // skipped. (privacyAgreed lives in CONFIG and is auto-stamped on boot regardless.)
@@ -21419,8 +21950,16 @@ async function clearData() {
             if (k && k.startsWith('bbgl_') && k !== KEYS.STORAGE && !keep.includes(k)) localStorage.removeItem(k);
         }
         sessionStorage.removeItem(KEYS.SESSION_CACHE);
-        DataController.invalidate();
-        _historyCache = null;
+        refreshBackfillUI();
+        // Hydrate from what clearStorage kept rather than nulling the cache: a null cache hands the
+        // next sync a meta with no rewardStartDate, and that sync would stamp a new one over the kept date.
+        try {
+            DataController.hydrate(await DBManager.loadHistory());
+        } catch (e) {
+            Log.warn('Reload after Clear Log failed', e);
+            _historyCache = null;
+            DataController.invalidate();
+        }
         calendarState.selectedData = null;
         calendarState.selectedLabel = null;
         viewState.activeViewLabel = null;
@@ -25356,9 +25895,6 @@ const BestGymController = {
         DEMO_EXIT: "Exit Demo Mode",
         DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>",
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
-        BACKFILL_RESUME_COOLDOWN: (t) => `Torn's daily row cap has been reached. Resume available in ${t}.`,
-        BACKFILL_COMPLETE_ORIGIN: "Your full training history was reconstructed back to the very beginning.",
-        BACKFILL_COMPLETE_EXHAUSTED: "Scan reached the end of the logs Torn still retains. Any older history is no longer available from Torn's servers.",
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 
@@ -25518,41 +26054,152 @@ const BestGymController = {
         };
     }
 
-    // Shown right after START TRACKING (post key-verification): the user chooses whether to begin
-    // with an empty log or reconstruct their history via Big Black Backfill. The panel is already
-    // initialized and sitting on the (empty) ledger behind this modal, so dismissing == start fresh.
-    function buildBackfillChoiceModalHTML() {
-        const intro = `<div style="padding:6px 4px 14px; color:#ccc; font-size:12px; line-height:1.6; text-align:center;">Start tracking now with no log history, or use Big Black Backfill to reconstruct your training history from Torn's logs. You can always get Big Black Backfilled later from the Settings.</div>`;
-        const buttons = `<div style="display:flex; gap:0; margin:0 6px 2px;">${buildButton('bbgl-choice-fresh-btn', 'START EMPTY LOG', '', 'flex:1; border-radius:4px 0 0 4px; margin:0;')}${buildButton('bbgl-choice-backfill-btn', 'BIG BLACK BACKFILL', 'purple', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</div>`;
-        return `<div class="bbgl-modal-overlay" id="bbgl-choice-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-choice-close" title="Close">${ICONS.CLOSE}</div>${buildSection('Start Tracking', intro + buttons, 'margin-bottom:8px;')}</div></div>`;
+    // ─── Backfill overlay and notices ────────────────────────────────────────
+    // Overlay copy for the working state and the two paused states (lastError.kind). Controlled by
+    // renderBackfillOverlay (10).
+    // The × (End Backfill) sits in the overlay's corner, outside the centered copy.
+    function buildBackfillOverlayHTML(st) {
+        return `<a href="#" class="bbgl-scan-stop" title="End backfill">${ICONS.CLOSE}</a><div class="bbgl-scan-inner">${buildBackfillOverlayInner(st)}</div>`;
     }
 
-    function closeBackfillChoiceModal() {
-        const m = document.getElementById('bbgl-choice-modal');
-        if (m && m.parentNode) m.parentNode.removeChild(m);
+    const SCAN_PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    const SCAN_PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.87l10.5-6.5a1 1 0 0 0 0-1.74L9.5 4.63A1 1 0 0 0 8 5.5z"/></svg>';
+
+    // Settings mask text. Settings sections masked in Demo and/or during the backfill carry
+    // data-bf-mask; renderBackfillSettings (10) picks the text for whichever applies.
+    const DEMO_MASK_TEXT = 'Not available in demo mode';
+    const BACKFILL_MASK_TEXT = 'Unavailable while your log is backfilling';
+
+    function backfillCountText(n) {
+        return `${(n || 0).toLocaleString('en-US')} log entries collected`;
     }
 
-    function openBackfillChoiceModal() {
-        if (runtime.demoMode) return;
-        closeBackfillChoiceModal();
-        document.body.insertAdjacentHTML('beforeend', buildBackfillChoiceModalHTML());
-        const modal = document.getElementById('bbgl-choice-modal');
+    // A link to the Gym Log's own Settings (not Torn's API page), opened in whichever mode the
+    // script is showing. Wired by bindGymLogSettingsLinks (10).
+    const GYM_LOG_SETTINGS_LINK = `<a href="#" class="bbgl-gl-settings-link">Gym Log's Settings</a>`;
+
+    // Every overlay state reads the same way: lead copy, an italic note, then the Demo prompt.
+    function buildBackfillOverlayInner(st) {
+        const userPaused = !!(st && st.paused);
+        const err = !userPaused && st && st.lastError;
+        // Big status icon (spinner, or the pause symbol when paused for any reason), with the
+        // clickable pause/play symbol beside it. Error pauses resume on their own, so no toggle.
+        const icon = (userPaused || err) ? `<span class="bbgl-scan-pause-icon">${SCAN_PAUSE_SVG}</span>` : '<div class="bbgl-scan-spinner"></div>';
+        const toggle = userPaused
+            ? `<a href="#" class="bbgl-scan-toggle" data-act="resume" title="Resume">${SCAN_PLAY_SVG}</a>`
+            : (err ? '' : `<a href="#" class="bbgl-scan-toggle" data-act="pause" title="Pause">${SCAN_PAUSE_SVG}</a>`);
+        const head = `<div class="bbgl-scan-iconrow">${icon}${toggle}</div><div class="bbgl-scan-count" id="bbgl-scan-count">${backfillCountText(runtime.bfInboxCount)}</div><div class="bbgl-scan-title">BIG BLACK BACKFILL</div>`;
+        const tail = `<div class="bbgl-scan-cta">Want to explore the script's features while you wait? Try Demo mode.</div>${buildButton('bbgl-scan-demo-btn', 'DEMO', 'purple')}`;
+        const lead = html => `<div class="bbgl-scan-lead">${html}</div>`;
+        const note = html => `<div class="bbgl-scan-note">${html}</div>`;
+        if (userPaused) {
+            return head + `<div class="bbgl-scan-reason">Paused: click the play button to continue backfilling your log.</div>` +
+                note('The backfill stays paused in every tab, even after changing pages, until you resume it.') + tail;
+        }
+        if (err && err.kind === 'key') {
+            return head + `<div class="bbgl-scan-reason">Paused: there's a problem with your API key.</div>` +
+                lead(`Make sure your key is enabled and has the correct permissions, or create a new custom key from the ${GYM_LOG_SETTINGS_LINK} with <b>Create API Key</b>.`) +
+                note('The backfill resumes automatically once the key works.') + tail;
+        }
+        if (err) {
+            return head + `<div class="bbgl-scan-reason">Paused: couldn't reach Torn's servers.</div>` +
+                lead('It will try again automatically on your next page load.') +
+                note('Everything collected so far is saved.') + tail;
+        }
+        return head +
+            lead("Your training history is being pulled from Torn's servers. This usually takes a few minutes.") +
+            lead('You may keep playing as usual.') +
+            note('The backfill runs in the background as long as Torn is open in your browser. If you close the browser during the process, it will simply resume when you return to Torn.') + tail;
+    }
+
+    // Plain-language reason for a connection error code from the scan (classifyScanError, 05).
+    function backfillErrorReason(code) {
+        if (code === 'net') return 'Check your connection.';
+        if (typeof code === 'string' && code.startsWith('http')) return `Torn returned an unexpected error (HTTP ${code.slice(4)}).`;
+        if (code === 'unstorable') return "Torn sent log data the script couldn't read.";
+        return TORN_KEY_ERROR_MAP[code] || `Torn returned error code ${code}.`;
+    }
+
+    const BACKFILL_NOTICE_BUTTONS = {
+        close: ['CLOSE', ''],
+        view: ['VIEW LOG', 'purple'],
+        retry: ['TRY AGAIN', ''],
+        settings: ['SETTINGS', 'purple'],
+        end: ['END BACKFILL', 'red']
+    };
+
+    // ctx: { date, time, dayWord } for the cap notice, { reason } for the connection error.
+    const BACKFILL_NOTICES = {
+        complete: {
+            title: 'YOUR LOG IS COMPLETE',
+            body: () => `<p>Your Gym Log now contains your full training history.</p><p>Start training and earning rewards now!</p>`,
+            buttons: ['close', 'view']
+        },
+        cap: {
+            title: 'YOUR LOG IS PARTLY BUILT',
+            body: (st, ctx) => `<p>You have a very large log! Torn limits how much data can be read from their server each day, so your log has been built to <b>${ctx.date}</b> for now.</p><p>The rest will continue automatically after <b>${ctx.time}</b> ${ctx.dayWord}.</p><p>Start training and earning rewards now!</p><p class="bbgl-notice-aside">(You will be notified when your log is completed.)</p>`,
+            buttons: ['close', 'view']
+        },
+        errorConnection: {
+            title: 'BACKFILL PAUSED',
+            body: (st, ctx) => `<p>Big Black Gym Log couldn't reach Torn. ${ctx.reason} It will try again automatically on your next page load.</p>`,
+            buttons: ['retry', 'close']
+        },
+        errorKey: {
+            title: 'BACKFILL PAUSED',
+            body: () => `<p>There's a problem with the API key being used. Make sure it's enabled and has the correct permissions, or create a new custom key from the ${GYM_LOG_SETTINGS_LINK} with <b>Create API Key</b>.</p>`,
+            buttons: ['close', 'settings']
+        },
+        stopConfirm: {
+            title: 'END BACKFILL?',
+            body: (st, ctx) => `<p>This stops building your log where it is, so it will only go back to <b>${ctx.date}</b>.</p><p>You can continue the backfill later from the Gym Log's Settings.</p>`,
+            buttons: ['close', 'end']
+        }
+    };
+
+    function closeBackfillNotice() {
+        const el = document.getElementById('bbgl-notice-modal');
+        if (el) el.remove();
+    }
+
+    // handlers: { close, end } run on top of closing the modal; close also covers the × and the
+    // backdrop (the Stop pop-up resumes the scan however it's dismissed).
+    function openBackfillNotice(kind, st, ctx = {}, handlers = {}) {
+        const n = BACKFILL_NOTICES[kind];
+        if (!n || document.getElementById('bbgl-notice-modal')) return;
+        const btns = n.buttons.map((b, i, all) => {
+            const [label, mod] = BACKFILL_NOTICE_BUTTONS[b];
+            const radius = all.length === 1 ? '' : (i === 0 ? 'border-radius:4px 0 0 4px;' : 'border-radius:0 4px 4px 0;');
+            return buildButton(`bbgl-notice-${b}`, label, mod, radius);
+        }).join('');
+        const body = `<div class="bbgl-notice-body">${n.body(st, ctx)}</div><div class="bbgl-notice-actions">${btns}</div>`;
+        document.body.insertAdjacentHTML('beforeend', `<div class="bbgl-modal-overlay" id="bbgl-notice-modal"><div class="bbgl-modal-window bbgl-modal-narrow"><div class="close-settings-btn bbgl-close-x" id="bbgl-notice-x" title="Close">${ICONS.CLOSE}</div>${buildSection(n.title, body, 'margin-bottom:8px;')}</div></div>`);
+        const modal = document.getElementById('bbgl-notice-modal');
         if (!modal) return;
-        const close = () => {
-            closeBackfillChoiceModal();
-            switchView('ledger');
+        const dismiss = () => {
+            closeBackfillNotice();
+            if (handlers.close) handlers.close();
         };
-        modal.querySelector('#bbgl-choice-close').onclick = close;
-        modal.onclick = (e) => { if (e.target === modal) close(); };
-        const fresh = modal.querySelector('#bbgl-choice-fresh-btn');
-        if (fresh) fresh.onclick = function() { this.blur(); close(); };
-        const bf = modal.querySelector('#bbgl-choice-backfill-btn');
-        if (bf) bf.onclick = function() {
-            this.blur();
-            close();
-            // Kick off the scan; the masked overlay takes over the panel from here.
-            backfillLogs(document.getElementById('backfill-btn'));
+        modal.querySelector('#bbgl-notice-x').onclick = dismiss;
+        modal.onclick = e => { if (e.target === modal) dismiss(); };
+        const on = (b, fn) => {
+            const el = modal.querySelector(`#bbgl-notice-${b}`);
+            if (el) el.onclick = function() {
+                this.blur();
+                closeBackfillNotice();
+                if (fn) fn();
+            };
         };
+        on('close', handlers.close);
+        on('end', handlers.end);
+        on('view', () => {
+            // The real log, not the demo one; already on the Gym Log page, leaving Demo is enough.
+            if (runtime.demoMode) exitDemo('ledger');
+            if (!window.location.hash.includes('gymlog')) window.location.href = '/calendar.php#gymlog';
+        });
+        on('retry', () => retryBackfillNow());
+        on('settings', () => openGymLogSettings());
+        bindGymLogSettingsLinks(modal, closeBackfillNotice);
     }
 
     async function openPrivacyModal() {
@@ -25654,13 +26301,12 @@ const BestGymController = {
         if (pc) pc.classList.toggle('bbgl-init-locked', lock);
     }
 
+    // The demo and backfill masks share hosts, so renderBackfillSettings (10) applies both.
     function refreshDemoMasks() {
         if (!dom.settingsView) return;
-        dom.settingsView.querySelectorAll('.bbgl-demo-maskable').forEach(el => {
-            el.classList.toggle('bbgl-mask-active', !!runtime.demoMode);
-        });
+        renderBackfillSettings();
         const sdemo = dom.settingsView.querySelector('#settings-demo-btn');
-        if (sdemo) sdemo.innerText = runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE';
+        if (sdemo) sdemo.innerText = runtime.demoMode ? 'EXIT DEMO' : 'DEMO';
     }
 
     function enterDemo(source) {
@@ -25686,6 +26332,9 @@ const BestGymController = {
         refreshDemoMasks();
         snapLevelBar();
         switchView('ledger');
+        // switchView does nothing when already on the log (the overlay's DEMO button), so the
+        // overlay is hidden here directly.
+        renderBackfillOverlay();
     }
 
     function enterDemoFromSettings() {
@@ -25701,7 +26350,7 @@ const BestGymController = {
         const inputHTML = buildApiEntryField('init', 'margin:8px 10px;');
         const createBtn = buildButton('init-create-api-btn', 'CREATE API KEY', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;');
         const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
-        const startBtn = buildButton('init-start-btn', 'START TRACKING', 'green', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
+        const startBtn = buildButton('init-start-btn', 'INITIALIZE LOG', 'purple', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
         const body = `<div id="init-section-masked-body" class="bbgl-mask-host" data-mask-text="Please agree to the privacy disclosure first.">${inputHTML}${createBtn}${rows}${startBtn}</div>`;
         return buildSection('Initialization Settings', body, 'margin-bottom:5px;');
     }
@@ -25734,8 +26383,8 @@ const BestGymController = {
     }
 
     // Small duplicate of the Refresh Log button, embedded in the "Big Black Features" title bar.
-    // Idle label follows the panel mode (view-std/view-exp, same CSS-driven swap "BB Backfill" uses
-    // above); the syncing/done states are identical text in every mode, so they skip that split.
+    // Idle label follows the panel mode (view-std/view-exp CSS swap); the syncing/done states are
+    // identical text in every mode, so they skip that split.
     function buildResyncBtn() {
         const idle = `<span class="bbgl-rs-idle"><span class="view-std">RESYNC</span><span class="view-exp">RESYNC LOG</span></span>`,
             syncing = `<span class="bbgl-rs-sync" style="display:none;"><span class="view-std">...</span><span class="view-exp">Syncing...</span></span>`,
@@ -25745,12 +26394,12 @@ const BestGymController = {
 
     function buildSettingsFeaturesSection() {
         const bestGymGroup = buildToggle('set-bestgym-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM}">BB Best Gym</span>`, 'bbgl-bestgym-lead') + buildToggle('set-bestgym-spec-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_SPEC}">Specialty Gyms</span>`, 'bbgl-subgroup-row') + buildToggle('set-bestgym-unpurch-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_UNPURCHASED}">Unpurchased Gyms</span>`, 'bbgl-subgroup-row bbgl-subgroup-row-last');
-        const backfillBtn = buildButton('backfill-btn', 'Big Black Backfill', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
-        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`) + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${backfillBtn}</div>`, '', buildResyncBtn());
+        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`), '', buildResyncBtn());
     }
 
     function buildSettingsLogFormatSection() {
-        return buildSection('Log Format', buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="set-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('set-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="set-week-start" class="bbgl-native-select"><option value="sun">Sun – Sat</option><option value="mon">Mon – Sun</option></select>`));
+        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="set-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('set-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="set-week-start" class="bbgl-native-select"><option value="sun">Sun – Sat</option><option value="mon">Mon – Sun</option></select>`);
+        return buildSection('Log Format', `<div class="bbgl-mask-host" data-bf-mask="format">${rows}</div>`);
     }
 
     function buildSettingsApiSection() {
@@ -25764,7 +26413,7 @@ const BestGymController = {
             buildButton('clear-api-btn', 'CLEAR API KEY', 'red', 'border-radius: 0 0 0 5px;') +
             buildButton('updt-settings-btn', 'REGISTER API KEY', 'green', 'border-radius: 0 0 5px 0;') +
             `</div>`;
-        return buildSection('API Access', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inputHTML}${topBtn}${stack}</div>`, 'margin-bottom: 5px;');
+        return buildSection('API Access', `<div class="bbgl-mask-host bbgl-demo-maskable" data-bf-mask="api" data-mask-text="${DEMO_MASK_TEXT}">${inputHTML}${topBtn}${stack}</div>`, 'margin-bottom: 5px;');
     }
 
     function buildSettingsDataSection() {
@@ -25774,8 +26423,8 @@ const BestGymController = {
         // Refresh Log used to own.
         const refreshBtn = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'display: none;');
         const grid = `<div class="bbgl-btn-grid" style="margin: 8px 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-radius: 5px 0 0 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-radius: 0 5px 0 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>`;
-        const inner = refreshBtn + grid + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
-        return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inner}</div>`);
+        const inner = refreshBtn + grid + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;') + buildButton('resume-bf-btn', 'RESUME BACKFILL', 'purple', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: none; border-top-left-radius: 0; border-top-right-radius: 0;');
+        return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-bf-mask="data" data-mask-text="${DEMO_MASK_TEXT}">${inner}</div>`);
     }
 
     function buildSettingsInfoSection() {
@@ -25785,8 +26434,8 @@ const BestGymController = {
             buildButton('settings-changelog-btn', 'CHANGELOG', '', `width: 100%; ${stackBtnStyle('mid')}`) +
             buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', `width: 100%; ${stackBtnStyle('mid')}`) +
             `</div>`;
-        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', `margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; ${stackBtnStyle('bottom')}`);
-        return buildSection('Information', authorCredit + guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>${demoBtn}`);
+        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO', 'purple', `margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; ${stackBtnStyle('bottom')}`);
+        return buildSection('Information', authorCredit + guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="${DEMO_MASK_TEXT}">${stack}</div>${demoBtn}`);
     }
 
     function getSettingsHTML() {
@@ -28735,6 +29384,8 @@ const BestGymController = {
                 }
                 togglePanel(false);
             } else {
+                // Left the Gym Log page with no floating panel to return to: the script is off screen.
+                exitDemo(null);
                 viewState.subView = 'ledger';
                 viewState.activeItemId = null;
                 viewState.activeViewLabel = null;
@@ -29077,7 +29728,7 @@ const BestGymController = {
                             if (data.error) {
                                 bbglError(`Key Verification Failed: ${tornKeyErrorText(data)}`);
                                 isb.style.color = '';
-                                isb.innerText = 'START TRACKING';
+                                isb.innerText = 'INITIALIZE LOG';
                                 isb.disabled = false;
                                 return;
                             }
@@ -29088,14 +29739,13 @@ const BestGymController = {
                             calendarState.selectedData = null;
                             calendarState.selectedLabel = Formatter.dateLogical();
                             viewState.activeViewLabel = null;
-                            syncWithFeedback('FULL_SYNC');
-                            // Stay on the welcome view until the user picks fresh or backfill.
-                            // The choice modal's buttons handle switchView('ledger') themselves.
-                            openBackfillChoiceModal();
+                            // Straight into the log with the backfill overlay; the first sync
+                            // stamps the reward start date.
+                            startLog({ newRewardDate: true });
                         } catch (e) {
                             bbglError(MSG_KEY_NETWORK_ERROR);
                             isb.style.color = '';
-                            isb.innerText = 'START TRACKING';
+                            isb.innerText = 'INITIALIZE LOG';
                             isb.disabled = false;
                         }
                     };
@@ -29173,7 +29823,7 @@ const BestGymController = {
             if (runtime._calendarStale && tgt !== 'library') renderPanelContent();
             // Re-apply the scan mask for the newly active view (settings gets the "unavailable"
             // variant; other views get the full scan state machine).
-            Perf.wrap('switchView:scanOverlay', renderScanOverlay);
+            Perf.wrap('switchView:scanOverlay', renderBackfillOverlay);
         };
         if (inst) {
             app();
@@ -29239,6 +29889,52 @@ const BestGymController = {
         }
     }
 
+    // Leaves Demo. target: the view to land on; 'auto' = the log while the backfill overlay is
+    // still pending, else Settings (welcome + privacy if not initialized); null = leave the view
+    // alone (the panel is closing or the script is off screen).
+    function exitDemo(target = 'auto') {
+        if (!runtime.demoMode) return;
+        localStorage.removeItem(KEYS.DEMO);
+        runtime.demoMode = false;
+        runtime.demoHistory = null;
+        runtime.stickerData = [];
+        _historyCache = null;
+        DataController.invalidate();
+        DBManager.loadHistory().then(loaded => {
+            DataController.hydrate(loaded);
+            if (userConfig.apiKey) {
+                startBackgroundSync();
+            }
+        }).catch(e => {
+            if (userConfig.apiKey) {
+                startBackgroundSync();
+            }
+        }).finally(() => {
+            snapLevelBar();
+            // Anything the backfill merged during Demo is in the reloaded history; the overlay
+            // and any pending notice come back here.
+            refreshBackfillUI();
+        });
+        calendarState.selectedData = null;
+        calendarState.selectedLabel = Formatter.dateLogical();
+        viewState.activeViewLabel = null;
+        document.querySelectorAll('#bbgl-demo-exit, #bbgl-demo-exit-btn, #bbgl-page-demo-exit').forEach(el => { el.style.display = 'none'; });
+        if (window.TooltipController) window.TooltipController.hide();
+        refreshInitLock();
+        refreshDemoMasks();
+        if (runtime.realReturnView) {
+            runtime.returnView = runtime.realReturnView;
+            runtime.realReturnView = null;
+        }
+        if (target === null || !dom.panel) return;
+        if (localStorage.getItem('bbgl_initialized')) {
+            switchView(target === 'auto' ? (backfillOverlayPending() ? 'ledger' : 'settings') : target);
+        } else {
+            switchView('welcome', true);
+            openPrivacyModal();
+        }
+    }
+
     function closePanel(e) {
         if (e) e.stopPropagation();
         if (runtime.isClosing) return;
@@ -29248,6 +29944,8 @@ const BestGymController = {
         if (!p) return;
         Perf.start('closePanel');
         runtime.isClosing = true;
+        // Demo ends once the script is off screen.
+        exitDemo(null);
         viewState.isOpen = false;
         viewState.subView = 'ledger';
         viewState.activeViewLabel = null;
@@ -29425,286 +30123,260 @@ const BestGymController = {
         p.style.transformOrigin = `${cx - pr.left}px ${cy - pr.top}px`;
     }
 
-    let _backfillCountdownId = null;
+    /* ─── Backfill overlay, notices and Settings buttons ───────────────────────
+       All driven by the stored scan state (DBManager.getBackfillState), cached in runtime.bfState
+       so the overlay can redraw synchronously from render paths (switchView). refreshBackfillUI()
+       re-reads it; it runs on boot, on scan state changes here (announceBackfillState) and in other
+       tabs (bf:state), on cross-tab history updates, and when a tab becomes visible. */
+    let _bfRefreshing = null;
+    let _bfRefreshAgain = false;
+    let _bfOverlayKey = null;
 
-    function formatCountdown(ms) {
-        const total = Math.max(0, Math.ceil(ms / 1000));
-        const h = Math.floor(total / 3600),
-            m = Math.floor((total % 3600) / 60),
-            s = total % 60;
-        const pad = n => String(n).padStart(2, '0');
-        return `${pad(h)}:${pad(m)}:${pad(s)}`;
-    }
-
-    /* ============================ Big Black Backfill scan overlay ============================
-       A full-panel mask (#bbgl-scan-overlay) driven entirely off the persisted backfill state
-       (ds) plus runtime.backfilling. renderScanOverlay() is the single source of truth — the
-       overlay analog of renderBackfillButton() — and is idempotent so it can be called freely
-       from render/lifecycle paths without tearing down the live counter or handlers. */
-    const SCAN_PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>`;
-    const SCAN_PLAY_SVG  = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-    let _scanOverlayTimer = null;   // passenger-staleness poll
-    let _scanOverlayKey = null;     // last rendered visual key; guards idempotent rebuilds
-    let _scanCancelConfirm = false; // transient: Cancel clicked, awaiting yes/no
-
-    function updateScanOverlayCount(n) {
-        const el = document.querySelector('#bbgl-scan-count');
-        if (el) el.textContent = String(n);
-    }
-
-    // Resolve the current visual state from persisted ds + this tab's role. Returns {key, ds}.
-    function currentScanState() {
-        if (runtime.demoMode) return { key: null, ds: null };
-        const s = getActiveHistory();
-        const ds = s && s.meta && s.meta.backfill;
-        if (!ds) return { key: null, ds: null };
-        const lockFresh = ds.lock && (Date.now() - ds.lock) < BACKFILL.LOCK_STALE_MS;
-        let key = null;
-        if (runtime.backfilling) key = _scanCancelConfirm ? 'confirm' : 'scanning';
-        else if (lockFresh && ds.lockOwner !== _TAB_ID) key = 'passenger';   // another tab drives
-        else if (ds.acknowledged === false) {
-            if (ds.lastResult === 'complete') key = 'complete';
-            else if (ds.stopReason === 'cap') key = 'cap';
-            else if (ds.stopReason === 'paused') key = 'paused';
-            else if (ds.stopReason === 'interrupted') key = 'interrupted';
-            else key = 'error';
+    function refreshBackfillUI() {
+        if (_bfRefreshing) {
+            _bfRefreshAgain = true;
+            return _bfRefreshing;
         }
-        return { key, ds };
+        _bfRefreshing = (async () => {
+            try {
+                do {
+                    _bfRefreshAgain = false;
+                    runtime.bfState = await DBManager.getBackfillState();
+                    if (backfillOverlayPending()) runtime.bfInboxCount = await DBManager.inboxCount();
+                    renderBackfillOverlay();
+                    renderBackfillSettings();
+                    await checkBackfillNotices(runtime.bfState);
+                } while (_bfRefreshAgain);
+            } catch (e) {
+                Log.warn('Backfill UI refresh failed', e);
+            } finally {
+                _bfRefreshing = null;
+            }
+        })();
+        return _bfRefreshing;
     }
 
-    // Each state returns the overlay's inner HTML. Wording confirmed; see wireScanOverlay for handlers.
-    function buildScanOverlayInner(key, ds) {
-        const cancelX = `<div id="bbgl-scan-cancel">Cancel</div>`;
-        switch (key) {
-            case 'settings':
-                return `<div class="bbgl-scan-title">Scan in Progress</div><div class="bbgl-scan-sub">Settings are locked while Big Black Backfill runs. Head back to the log to pause or check progress.</div>`;
-            case 'scanning':
-                // Seed the count from ds.rowsUsed (survives pause/resume) rather than a hardcoded 0,
-                // so resuming a paused scan doesn't visually flash back to zero before the loop's
-                // first update lands.
-                return `${cancelX}<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Scanning&hellip;</div><div id="bbgl-scan-pause" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Pause">${SCAN_PAUSE_SVG}</div></div><div class="bbgl-scan-count-row"><span class="bbgl-scan-pulse"></span>Rows recovered so far: <span id="bbgl-scan-count" class="bbgl-scan-count">${(ds && ds.rowsUsed) || 0}</span></div><div class="bbgl-scan-sub">This only takes up to a few minutes. Please stay on this page until the scan completes.</div><div class="bbgl-scan-note">If you're on PC, you may continue playing in another tab, but do not close this one.</div>`;
-            case 'confirm':
-                return `<div class="bbgl-scan-title">Cancel this scan?</div><div class="bbgl-scan-sub">Canceling discards everything recovered during this scan. Your log since installation remains untouched.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-confirm-yes" class="bbgl-scan-iconbtn bbgl-scan-yes" title="Yes, cancel">${ICONS.CHECK}</div><div id="bbgl-scan-confirm-no" class="bbgl-scan-iconbtn bbgl-scan-no" title="No, keep scanning">${ICONS.CLOSE}</div></div>`;
-            case 'passenger':
-                return `<div class="bbgl-scan-title">Scan Running in Another Tab</div><div class="bbgl-scan-sub">Big Black Backfill is currently active in another tab. Use that tab to pause or cancel the scan.</div>`;
-            case 'paused':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Paused</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">You can resume now, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'error':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Scan Error</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">A network or API error occurred. No progress was lost. Resume to keep going, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'interrupted':
-                return `<div class="bbgl-scan-title-row"><div class="bbgl-scan-title">Interrupted</div><div id="bbgl-scan-resume" class="bbgl-scan-iconbtn bbgl-scan-play bbgl-scan-title-icon" title="Resume">${SCAN_PLAY_SVG}</div></div><div class="bbgl-scan-sub">The tab or browser was closed before the scan finished. Your progress up to that point was saved. Resume to keep going, or continue with what's been recovered so far.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue with what's been recovered</div></div>`;
-            case 'cap':
-                return `<div class="bbgl-scan-title">Daily Limit Reached</div><div class="bbgl-scan-sub">Torn's daily row cap has been reached. Resume from the Settings menu in 24h. Everything recovered so far is fully constructed, none of it is partial.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-proceed" class="bbgl-scan-textbtn bbgl-scan-primary">Continue to Logs</div></div>`;
-            case 'complete':
-                return `<div class="bbgl-scan-title">Fully Backfilled!</div><div class="bbgl-scan-sub">Your training history has been fully reconstructed.</div><div class="bbgl-scan-note">Rewards and stickers only start counting from the day you began tracking, not from backfilled history.</div><div class="bbgl-scan-actions"><div id="bbgl-scan-ack" class="bbgl-scan-textbtn bbgl-scan-primary">Enter Logs</div></div>`;
-            default:
-                return '';
-        }
-    }
-
-    function wireScanOverlay(el, key, ds) {
-        const cancel = el.querySelector('#bbgl-scan-cancel');
-        if (cancel) cancel.onclick = () => { _scanCancelConfirm = true; _scanOverlayKey = null; renderScanOverlay(); };
-        const pause = el.querySelector('#bbgl-scan-pause');
-        if (pause) pause.onclick = () => {
-            runtime.backfillAbort = 'pause';
-            const t = el.querySelector('.bbgl-scan-title');
-            if (t) t.textContent = 'Pausing…';
-        };
-        const yes = el.querySelector('#bbgl-scan-confirm-yes');
-        if (yes) yes.onclick = () => {
-            runtime.backfillAbort = 'cancel';
-            _scanCancelConfirm = false;
-            const t = el.querySelector('.bbgl-scan-title');
-            if (t) t.textContent = 'Discarding…';
-        };
-        const no = el.querySelector('#bbgl-scan-confirm-no');
-        if (no) no.onclick = () => { _scanCancelConfirm = false; _scanOverlayKey = null; renderScanOverlay(); };
-        const resume = el.querySelector('#bbgl-scan-resume');
-        if (resume) resume.onclick = () => { backfillLogs(document.getElementById('backfill-btn')); };
-        const proceed = el.querySelector('#bbgl-scan-proceed');
-        if (proceed) proceed.onclick = () => { proceedPartialBackfill(); };
-        const ack = el.querySelector('#bbgl-scan-ack');
-        if (ack) ack.onclick = () => { acknowledgeBackfill(); };
-    }
-
-    function renderScanOverlay() {
+    // Shown from Initialize/Refill until the first merge puts data in the calendar, in every tab.
+    // Never in Demo, and not in Settings, where the API key may need fixing.
+    function renderBackfillOverlay() {
         const existing = document.getElementById('bbgl-scan-overlay');
-        const { key, ds } = currentScanState();
-
-        if (!key) {
-            _scanCancelConfirm = false;
-            _scanOverlayKey = null;
-            if (_scanOverlayTimer) { clearInterval(_scanOverlayTimer); _scanOverlayTimer = null; }
+        const st = runtime.bfState;
+        const inSettings = dom.settingsView && dom.settingsView.classList.contains('active-view');
+        const show = !runtime.demoMode && !inSettings && backfillOverlayPending();
+        if (!show) {
             if (existing) existing.remove();
+            _bfOverlayKey = null;
             return;
         }
-
-        // The cancel-confirm sub-state only exists during an active scan; clear it on any other
-        // state so it can never leak into the next scan's first render.
-        if (key !== 'scanning' && key !== 'confirm') _scanCancelConfirm = false;
-
         const host = document.querySelector('#bbgl-content-wrapper');
         if (!host) return;
-
-        // In the settings view, show a distinct "unavailable" mask with no scan controls.
-        const inSettings = dom.settingsView && dom.settingsView.classList.contains('active-view');
-        const renderKey = inSettings ? 'settings' : key;
-
-        // Idempotent: skip a rebuild when the visual state is unchanged so the live counter and
-        // handlers survive (renderScanOverlay is called from hot render paths).
-        if (existing && _scanOverlayKey === renderKey) return;
-        _scanOverlayKey = renderKey;
-        if (_scanOverlayTimer) { clearInterval(_scanOverlayTimer); _scanOverlayTimer = null; }
-
+        const key = st.paused ? 'user-paused' : (st.lastError ? `paused-${st.lastError.kind}` : 'working');
+        if (existing && _bfOverlayKey === key) return;
+        _bfOverlayKey = key;
         const el = existing || document.createElement('div');
         el.id = 'bbgl-scan-overlay';
-        el.innerHTML = buildScanOverlayInner(renderKey, ds);
+        el.classList.toggle('bbgl-scan-paused', key !== 'working');
+        el.innerHTML = buildBackfillOverlayHTML(st);
         if (!existing) host.appendChild(el);
-        wireScanOverlay(el, renderKey, ds);
-
-        if (renderKey === 'passenger') {
-            // No broadcast fires if the driver tab dies; poll so we can promote to the Error mask
-            // once its lock goes stale.
-            _scanOverlayTimer = setInterval(() => renderScanOverlay(), 3000);
-        }
-    }
-
-    // Route the Settings "BB Backfill" button into the masked scan: switch to the log (so the
-    // overlay's pause/cancel controls are visible, not the settings "unavailable" variant), then
-    // start or resume the scan. No modal — the disclosure now lives in the privacy doc.
-    function startBackfillFromSettings() {
-        if (runtime.demoMode) return;
-        switchView('ledger');
-        backfillLogs(document.getElementById('backfill-btn'));
-    }
-
-    const BACKFILL_IDLE_LABEL = 'Big Black Backfill';
-    const BACKFILL_RESUME_LABEL = '<span class="view-std">Resume BB Backfill</span><span class="view-exp">Resume Big Black Backfill</span>';
-    const BACKFILL_CONFIRM_LABEL = 'Tap Again to Confirm';
-    let _backfillConfirmTimeout = null;
-
-    // First click arms a "tap again to confirm" state instead of firing immediately; a second click
-    // within the window confirms, letting the timeout expire reverts to the button's normal state via
-    // a full re-render.
-    function armBackfillConfirm(btn, onConfirm) {
-        if (_backfillConfirmTimeout) clearTimeout(_backfillConfirmTimeout);
-        btn.innerHTML = BACKFILL_CONFIRM_LABEL;
-        btn.onclick = function() {
+        const demo = el.querySelector('#bbgl-scan-demo-btn');
+        if (demo) demo.onclick = function() {
             this.blur();
-            if (_backfillConfirmTimeout) {
-                clearTimeout(_backfillConfirmTimeout);
-                _backfillConfirmTimeout = null;
-            }
-            onConfirm();
+            enterDemo('overlay');
         };
-        _backfillConfirmTimeout = setTimeout(() => {
-            _backfillConfirmTimeout = null;
-            renderBackfillButton();
-        }, 4000);
+        const toggle = el.querySelector('.bbgl-scan-toggle');
+        if (toggle) toggle.onclick = e => {
+            e.preventDefault();
+            setBackfillPaused(toggle.dataset.act === 'pause');
+        };
+        const stop = el.querySelector('.bbgl-scan-stop');
+        if (stop) stop.onclick = async e => {
+            e.preventDefault();
+            // Pauses at once (in case it's urgent); closing the pop-up carries on as if nothing
+            // happened, unless the player had already paused it themselves.
+            const wasPaused = !!(runtime.bfState && runtime.bfState.paused);
+            if (!wasPaused) await setBackfillPaused(true);
+            const floor = await backfillStopFloor();
+            openBackfillNotice('stopConfirm', runtime.bfState, { date: floor ? formatNoticeDate(floor) : 'today' }, {
+                close: () => { if (!wasPaused) setBackfillPaused(false); },
+                end: () => endBackfill()
+            });
+        };
+        bindGymLogSettingsLinks(el);
+        positionBackfillOverlay(el);
     }
 
-    // The full scan state machine now lives in the masked overlay (renderScanOverlay). This just
-    // reflects backfill state onto the Settings button and wires its click:
-    //  - scanning / masked stop-state (unacknowledged): inert; the overlay owns the UI.
-    //  - cooling down after a cap (acknowledged): dimmed but still hoverable, so the cooldown tooltip
-    //    can surface (native `disabled`, same pattern as the Resync-cooldown button).
-    //  - partial + resumable, fresh, or fully backfilled: clickable via a tap-to-confirm gate.
-    function renderBackfillButton() {
-        const btn = document.getElementById('backfill-btn');
-        if (!btn) return;
-        if (_backfillCountdownId) {
-            clearInterval(_backfillCountdownId);
-            _backfillCountdownId = null;
-        }
-        if (_backfillConfirmTimeout) {
-            clearTimeout(_backfillConfirmTimeout);
-            _backfillConfirmTimeout = null;
-        }
-
-        // Reset to a clean baseline before applying the active state.
-        btn.disabled = false;
-        btn.style.pointerEvents = '';
-        btn.style.opacity = '';
-        btn.style.color = '';
-        btn.removeAttribute('data-tooltip');
-        delete btn.dataset.originalText;
-        btn.onclick = null;
-
-        if (runtime.demoMode) return;
-
-        // Scan running, or a masked stop-state awaiting acknowledgement: the overlay covers the panel
-        // (including this button, or the settings "unavailable" mask on this view), so keep it inert.
-        // The exact label is never actually seen behind that mask.
-        const s = getActiveHistory();
-        const ds = s.meta && s.meta.backfill;
-        if (runtime.backfilling || (ds && ds.acknowledged === false)) {
-            btn.style.opacity = '0.6';
-            btn.style.pointerEvents = 'none';
-            btn.innerHTML = (ds && ds.lastResult === 'partial') ? BACKFILL_RESUME_LABEL : BACKFILL_IDLE_LABEL;
-            return;
-        }
-
-        // Acknowledged cap: still cooling down. No live timer on the button itself; hovering (or
-        // tapping, on touch) surfaces the remaining time via tooltip instead.
-        if (ds && ds.lastResult === 'partial' && ds.cooldownUntil && Date.now() < ds.cooldownUntil) {
-            btn.style.opacity = '0.6';
-            btn.disabled = true;
-            btn.innerHTML = BACKFILL_RESUME_LABEL;
-            const updateTooltip = () => {
-                const remaining = ds.cooldownUntil - Date.now();
-                btn.setAttribute('data-tooltip', TOOLTIPS.BACKFILL_RESUME_COOLDOWN(formatCountdown(Math.max(0, remaining))));
+    // "Gym Log's Settings" links in the backfill copy open the script's own Settings in whichever
+    // mode it's showing (page or floating panel), opening the floating panel if it's closed.
+    function bindGymLogSettingsLinks(root, before) {
+        root.querySelectorAll('.bbgl-gl-settings-link').forEach(a => {
+            a.onclick = e => {
+                e.preventDefault();
+                if (before) before();
+                openGymLogSettings();
             };
-            updateTooltip();
-            _backfillCountdownId = setInterval(() => {
-                if (Date.now() >= ds.cooldownUntil) {
-                    clearInterval(_backfillCountdownId);
-                    _backfillCountdownId = null;
-                    renderBackfillButton();
+        });
+    }
+
+    // Also points them at Create API Key: in the floating panel Settings opens scrolled to the
+    // bottom so it's on screen, and the button flashes for ~2s. The delay lets the view switch
+    // (or the panel build) finish first.
+    function openGymLogSettings() {
+        const shown = dom.panel && dom.panel.style.display !== 'none';
+        if (shown) switchView('settings');
+        else {
+            viewState.subView = 'settings';
+            togglePanel();
+        }
+        setTimeout(() => {
+            const sv = dom.settingsView;
+            if (!sv) return;
+            if (dom.panel && !dom.panel.classList.contains('bbgl-mode-page')) {
+                const area = sv.querySelector('.bbgl-settings-scroll-area');
+                if (area) area.scrollTop = area.scrollHeight;
+            }
+            const btn = sv.querySelector('#create-api-btn');
+            if (!btn) return;
+            clearInterval(runtime._createKeyFlash);
+            let ticks = 0;
+            btn.classList.add('bbgl-btn-flash-on');
+            runtime._createKeyFlash = setInterval(() => {
+                if (++ticks >= 8) {
+                    clearInterval(runtime._createKeyFlash);
+                    btn.classList.remove('bbgl-btn-flash-on');
                     return;
                 }
-                updateTooltip();
-            }, 1000);
-            return;
-        }
-
-        // Partial and resumable now (acknowledged pause/error/interrupted, or cap cooldown elapsed).
-        if (ds && ds.lastResult === 'partial') {
-            btn.innerHTML = BACKFILL_RESUME_LABEL;
-            btn.onclick = function() {
-                this.blur();
-                armBackfillConfirm(btn, () => startBackfillFromSettings());
-            };
-            return;
-        }
-
-        // Fully backfilled and acknowledged: a permanent state until the log is cleared. Still
-        // clickable to run the scan again; it will simply re-land on the Complete state.
-        if (ds && ds.lastResult === 'complete') {
-            btn.style.color = '#69f0ae';
-            btn.innerHTML = 'Fully Backfilled!';
-            btn.setAttribute('data-tooltip', ds.completion === 'exhausted' ? TOOLTIPS.BACKFILL_COMPLETE_EXHAUSTED : TOOLTIPS.BACKFILL_COMPLETE_ORIGIN);
-            btn.onclick = function() {
-                this.blur();
-                armBackfillConfirm(btn, () => startBackfillFromSettings());
-            };
-            return;
-        }
-
-        // Never run: start a new scan.
-        btn.innerHTML = BACKFILL_IDLE_LABEL;
-        btn.onclick = function() {
-            this.blur();
-            armBackfillConfirm(btn, () => startBackfillFromSettings());
-        };
+                btn.classList.toggle('bbgl-btn-flash-on');
+            }, 250);
+        }, 450);
     }
 
-    // The two surfaces that reflect backfill state (Settings button + masked overlay) are never
-    // meaningfully refreshed apart — every call site wants both. Both are idempotent, so this is
-    // safe to call from any exit path, cross-tab handler, or render pass.
-    function renderScanUI() {
-        renderBackfillButton();
-        renderScanOverlay();
+    // The Gym Log page is taller than the screen, so centering in the whole overlay would put the
+    // copy below the fold. Center it in the part of the overlay on screen when drawn; it then stays
+    // put while the page scrolls. The other panel modes fit on screen and center with CSS.
+    function positionBackfillOverlay(el) {
+        const inner = el.querySelector('.bbgl-scan-inner');
+        if (!inner) return;
+        inner.style.marginTop = '';
+        if (!dom.panel || !dom.panel.classList.contains('bbgl-mode-page')) return;
+        const box = el.getBoundingClientRect();
+        const top = Math.max(box.top, 0),
+            bottom = Math.min(box.bottom, window.innerHeight);
+        const h = inner.offsetHeight;
+        const want = (top + bottom) / 2 - h / 2 - box.top;
+        inner.style.marginTop = `${Math.max(24, Math.min(want, box.height - h - 24))}px`;
+    }
+
+    // Live count under the spinner: the scanning tab calls this after each page and sends it to
+    // the other tabs (bf:progress).
+    function updateBackfillCount(n) {
+        runtime.bfInboxCount = n;
+        const el = document.getElementById('bbgl-scan-count');
+        if (el) el.textContent = backfillCountText(n);
+    }
+
+    // Leaving Demo lands back on the log while the overlay still has to show there.
+    function backfillOverlayPending() {
+        const st = runtime.bfState;
+        return !!st && !st.firstMergeDone && st.status === 'scanning';
+    }
+
+    // Settings while a log is being built. Actively scanning (including paused on an error): the
+    // Data Management, API Access and Log Format sections are masked and Resync is hidden; on a
+    // key error API Access opens so the key can be fixed. During a cap cooldown nothing is masked
+    // but Clear Log stays hidden until the log is complete (clearing then would throw away the
+    // partial log and restart against Torn's still-spent daily limit). With no log started (after
+    // a clear) the button reads REFILL LOG. The demo masks share these hosts, so both apply here.
+    function renderBackfillSettings() {
+        const sv = dom.settingsView;
+        if (!sv) return;
+        const st = runtime.bfState;
+        const scanning = !!st && st.status === 'scanning';
+        const keyPaused = scanning && !!st.lastError && st.lastError.kind === 'key';
+        sv.querySelectorAll('.bbgl-demo-maskable, [data-bf-mask]').forEach(host => {
+            const demoOn = !!runtime.demoMode && host.classList.contains('bbgl-demo-maskable');
+            const key = host.dataset.bfMask;
+            const bfOn = !!key && scanning && !(key === 'api' && keyPaused);
+            host.classList.toggle('bbgl-mask-active', demoOn || bfOn);
+            if (demoOn) host.setAttribute('data-mask-text', DEMO_MASK_TEXT);
+            else if (bfOn) host.setAttribute('data-mask-text', BACKFILL_MASK_TEXT);
+        });
+        const rsb = sv.querySelector('#resync-btn');
+        if (rsb) rsb.style.display = scanning ? 'none' : '';
+        const clb = sv.querySelector('#clear-btn');
+        if (clb) {
+            const refill = !st;
+            // Shown again once complete, or after End Backfill (with Resume Backfill under it).
+            const hide = !!st && st.status !== 'complete' && st.status !== 'stopped';
+            clb.textContent = refill ? 'REFILL LOG' : 'CLEAR LOG';
+            clb.classList.toggle('bbgl-btn-red', !refill);
+            clb.classList.toggle('bbgl-btn-purple', refill);
+            clb.style.display = hide ? 'none' : 'block';
+            // Export/Import sit on top of Clear Log as one stack; without it they need their own
+            // bottom corners and edge.
+            [['#export-btn', '5px 0 0 0', '5px 0 0 5px'], ['#import-btn', '0 5px 0 0', '0 5px 5px 0']].forEach(([sel, joined, alone]) => {
+                const b = sv.querySelector(sel);
+                if (!b) return;
+                b.style.borderRadius = hide ? alone : joined;
+                b.style.borderBottom = hide ? '' : 'none';
+            });
+            const grid = clb.previousElementSibling;
+            if (grid && grid.classList.contains('bbgl-btn-grid')) grid.style.marginBottom = hide ? '8px' : '';
+            // Resume Backfill only exists after the player ended the backfill; clearing the log
+            // removes the state, so it goes away and Refill Log takes over.
+            const rbb = sv.querySelector('#resume-bf-btn');
+            const resumable = !!st && st.status === 'stopped';
+            if (rbb) rbb.style.display = resumable ? 'block' : 'none';
+            clb.style.marginBottom = resumable ? '0' : '';
+            clb.style.borderBottomLeftRadius = resumable ? '0' : '';
+            clb.style.borderBottomRightRadius = resumable ? '0' : '';
+        }
+    }
+
+    function formatNoticeDate(ts) {
+        const [y, m, d] = Formatter.dateLogical(ts * 1000).split('-').map(Number);
+        return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    }
+
+    function noticeDayWord(ms) {
+        const day = t => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
+        const diff = Math.round((day(ms) - day(Date.now())) / 86400000);
+        if (diff <= 0) return 'today';
+        if (diff === 1) return 'tomorrow';
+        return 'on ' + new Date(ms).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+    }
+
+    // Each notice shows once (notices record what was seen, per epoch), in whichever tab is visible,
+    // and on the next visit if it was missed. One modal at a time; a blocked one is picked up on the
+    // next refresh.
+    async function checkBackfillNotices(st) {
+        if (!st || document.visibilityState !== 'visible') return;
+        if (document.querySelector('.bbgl-modal-overlay')) return;
+        const seen = await DBManager.getNotices();
+        if (st.status === 'complete') {
+            if (seen.completionSeen) return;
+            // A cap notice still pending is superseded by completion.
+            await DBManager.setNotices({ completionSeen: true, seenCapEpoch: st.capEpoch || 0, seenErrorEpoch: st.errorEpoch || 0 });
+            openBackfillNotice('complete', st);
+            return;
+        }
+        if ((st.capEpoch || 0) > seen.seenCapEpoch) {
+            await DBManager.setNotices({ seenCapEpoch: st.capEpoch });
+            // Only worth showing while the wait is still on; a resumed scan makes it stale.
+            if (st.status === 'cooldown' && Date.now() < st.cooldownUntil) {
+                const meta = await readStoredMeta();
+                openBackfillNotice('cap', st, {
+                    date: meta && meta.logStartDate ? formatNoticeDate(meta.logStartDate) : 'an earlier date',
+                    time: new Date(st.cooldownUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+                    dayWord: noticeDayWord(st.cooldownUntil)
+                });
+                return;
+            }
+        }
+        if (st.lastError && (st.errorEpoch || 0) > seen.seenErrorEpoch) {
+            await DBManager.setNotices({ seenErrorEpoch: st.errorEpoch });
+            if (st.lastError.kind === 'key') openBackfillNotice('errorKey', st);
+            else openBackfillNotice('errorConnection', st, { reason: backfillErrorReason(st.lastError.code) });
+        }
     }
 
     // Idle/syncing/done are separate spans inside the button (see buildResyncBtn) rather than a
@@ -29742,43 +30414,7 @@ const BestGymController = {
             deb = get('bbgl-demo-exit');
         if (deb) deb.onclick = (e) => {
             e.stopPropagation();
-            localStorage.removeItem(KEYS.DEMO);
-            runtime.demoMode = false;
-            runtime.demoHistory = null;
-            runtime.stickerData = [];
-            _historyCache = null;
-            DataController.invalidate();
-            DBManager.loadHistory().then(loaded => {
-                DataController.hydrate(loaded);
-                if (userConfig.apiKey) {
-                    startBackgroundSync();
-                }
-            }).catch(e => {
-                if (userConfig.apiKey) {
-                    startBackgroundSync();
-                }
-            }).finally(() => snapLevelBar());
-            calendarState.selectedData = null;
-            calendarState.selectedLabel = Formatter.dateLogical();
-            viewState.activeViewLabel = null;
-            deb.style.display = 'none';
-            if (debBtn) debBtn.style.display = 'none';
-            const pdeb = document.getElementById('bbgl-page-demo-exit');
-            if (pdeb) pdeb.style.display = 'none';
-            if (window.TooltipController) window.TooltipController.hide();
-            refreshInitLock();
-            refreshDemoMasks();
-            if (runtime.realReturnView) {
-                runtime.returnView = runtime.realReturnView;
-                runtime.realReturnView = null;
-            }
-            const isInit = !!localStorage.getItem('bbgl_initialized');
-            if (isInit) {
-                switchView('settings');
-            } else {
-                switchView('welcome', true);
-                openPrivacyModal();
-            }
+            exitDemo();
         };
         if (debBtn) debBtn.onclick = deb ? deb.onclick : null;
         const pb = get('bbgl-pop-btn');
@@ -30022,6 +30658,10 @@ const BestGymController = {
                 }
                 userConfig.apiKey = v;
                 saveConfig();
+                // A backfill paused on a rejected key tries again now (even if it's the same key,
+                // re-enabled on Torn's side).
+                runtime.bfKeyBlockedFor = null;
+                maybeStartBackfill();
                 ub.style.transition = "all 0.2s";
                 ub.style.color = "#69f0ae";
                 ub.style.borderColor = "#69f0ae";
@@ -30084,13 +30724,20 @@ const BestGymController = {
         };
         const iF = get('import-file');
         if (iF) iF.onchange = (e) => importData(e.target.files[0]);
-        // The backfill button's click behavior is state-dependent (start / resume / re-run after
-        // complete), so renderBackfillButton owns wiring its onclick for the current state.
-        renderScanUI();
-        const clb = get('clear-btn');
-        if (clb) clb.onclick = function() {
+        // Sets the Clear/Refill label and the Export/Import lock for the current scan state.
+        refreshBackfillUI();
+        const rbb = get('resume-bf-btn');
+        if (rbb) rbb.onclick = function() {
             this.blur();
-            clearData();
+            resumeStoppedBackfill();
+        };
+        const clb = get('clear-btn');
+        if (clb) clb.onclick = async function() {
+            this.blur();
+            // No started log (right after Clear Log) means this is Refill Log: same scan as
+            // Initialize, keeping the reward start date, stickers and notes.
+            if (await DBManager.getBackfillState()) clearData();
+            else startLog({ newRewardDate: false });
         };
         const pdb = get('settings-privacy-btn');
         if (pdb) pdb.onclick = function() {
@@ -30417,6 +31064,12 @@ const BestGymController = {
                 localStorage.setItem(KEYS.CHANGELOG_NOTIF, '1');
             }
         }
+        // Demo only carries over a page load while the script is on screen (the floating panel
+        // reopening, or the Gym Log page); otherwise it ends here.
+        if (runtime.demoMode && !viewState.isOpen && !window.location.hash.includes('gymlog')) {
+            localStorage.removeItem(KEYS.DEMO);
+            runtime.demoMode = false;
+        }
         if (!runtime.demoMode) {
             // Testing-phase reset lever (see WIPE_BELOW_VERSION in 02-section-i-constants.js).
             // Fresh installs (_seenVer null) are never wiped — there's nothing to wipe yet.
@@ -30442,15 +31095,15 @@ const BestGymController = {
                 const loaded = await DBManager.loadHistory();
                 Perf.end('init:loadHistory');
                 Perf.wrap('init:hydrate', () => DataController.hydrate(loaded));
-                // If a previous scan was interrupted (crash/refresh/close), its heartbeat lock is now
-                // stale; release it so the Resume button works again without a 24h lockout.
-                await recoverInterruptedBackfill();
-                renderScanUI();
+                refreshBackfillUI();
                 if (loaded && ((_historyCache.history.length > 0) || (_historyCache.meta && _historyCache.meta.logStartDate)) && !localStorage.getItem('bbgl_initialized'))localStorage.setItem('bbgl_initialized', '1');
             } catch (e) {
                 Log.warn('IndexedDB boot failed, continuing with empty state', e);
             }
         }
+        // Outside the Demo check: the backfill keeps running during Demo (it only uses tornGet and
+        // the inbox, and its merge doesn't load into the demo view).
+        startBackfillTriggers();
         window.addEventListener('storage', handleStorageEvent);
         window.addEventListener('hashchange', checkViewRouting);
         window.addEventListener('popstate', checkViewRouting);
@@ -30469,7 +31122,7 @@ const BestGymController = {
             // screen (e.g. the conditional background heartbeat firing while collapsed/closed).
             // Mirrors the same guard the cross-tab sync handler already uses.
             if (dom.panel && dom.panel.style.display !== 'none') renderPanelContent();
-            renderScanUI();
+            refreshBackfillUI();
         });
         Perf.wrap('init:levelBar', () => updateLevelBar()); // initialize _lastLevelExp before first interaction
         let _domRaf = null;
@@ -31412,6 +32065,284 @@ const BestGymController = {
         return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)], 230);
     }
 
+    // ─── Backfill section (automatic backfill testing) ─────────────────────
+    // Overrides live in localStorage under a key outside the bbgl_ namespace, so they survive page
+    // loads (the scan resumes on every one), reach every tab, and outlive Clear Log and harness
+    // resets. Production reads them only behind runtime.devMode: _devBackfillCap,
+    // _devBackfillCooldownMs, _devBackfillThrottleMs, _devBackfillErrorWindowMs, _devMergeCrash,
+    // _devForceNoWebLocks, and _devTakeBackfillFail() for the next forced failure.
+    const BF_DEV_KEY = 'bbgldev_backfill';
+    const BF_LEASE_KEY = 'bbgl_bf_lease';
+    const BF_FAIL_KINDS = ['net', 'http', 'code5', 'code8', 'code14', 'key2', 'key16', 'key18', 'unknown'];
+
+    function loadBfDev() {
+        try { return JSON.parse(localStorage.getItem(BF_DEV_KEY)) || {}; } catch (e) { return {}; }
+    }
+
+    function applyBfDev(o) {
+        const num = v => (Number.isFinite(v) && v > 0) ? v : null;
+        runtime._devBackfillCap = num(o.cap);
+        runtime._devBackfillCooldownMs = num(o.cooldownMs);
+        runtime._devBackfillThrottleMs = num(o.throttleMs);
+        runtime._devBackfillErrorWindowMs = num(o.errorWindowMs);
+        runtime._devMergeCrash = (o.mergeCrash === 'beforeTx' || o.mergeCrash === 'afterTx') ? o.mergeCrash : null;
+        runtime._devForceNoWebLocks = !!o.noWebLocks;
+    }
+
+    function saveBfDev(o) {
+        if (Object.keys(o).length) localStorage.setItem(BF_DEV_KEY, JSON.stringify(o));
+        else localStorage.removeItem(BF_DEV_KEY);
+        applyBfDev(o);
+    }
+
+    // The count is persisted, so a forced failure stays armed across the page loads it spans.
+    runtime._devTakeBackfillFail = () => {
+        const o = loadBfDev();
+        if (!o.fail || !(o.fail.count > 0)) return null;
+        const kind = o.fail.kind;
+        o.fail.count--;
+        if (o.fail.count <= 0) delete o.fail;
+        saveBfDev(o);
+        return kind;
+    };
+
+    // One-shot, so the merge that crashed can be redone on the next page load.
+    runtime._devTakeMergeCrash = () => {
+        const o = loadBfDev();
+        const mode = o.mergeCrash;
+        if (mode !== 'beforeTx' && mode !== 'afterTx') return null;
+        delete o.mergeCrash;
+        saveBfDev(o);
+        return mode;
+    };
+
+    applyBfDev(loadBfDev());
+    window.addEventListener('storage', e => {
+        if (e.key === BF_DEV_KEY) applyBfDev(loadBfDev());
+    });
+
+    // Reads the backfill stores straight from IndexedDB; they don't exist until Phase 2's DB upgrade.
+    async function bfReadStore(store, key) {
+        const db = await DBManager._ensureDb();
+        if (!db || !db.objectStoreNames.contains(store)) return undefined;
+        return new Promise((resolve, reject) => {
+            const os = db.transaction(store, 'readonly').objectStore(store);
+            const req = key === undefined ? os.getAll() : os.get(key);
+            // A missing record reads as undefined too; keep undefined to mean "no such store".
+            req.onsuccess = () => resolve(req.result === undefined ? null : req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function bfState() {
+        const s = await bfReadStore('backfill', 'state');
+        return s === undefined ? 'backfill store not created yet' : (s || null);
+    }
+
+    async function bfNotices() {
+        const n = await bfReadStore('backfill', 'notices');
+        return n === undefined ? 'backfill store not created yet' : (n || null);
+    }
+
+    async function bfInbox() {
+        const rows = await bfReadStore('inbox');
+        if (rows === undefined) return 'inbox store not created yet';
+        const iso = ts => ts === null ? null : new Date(ts * 1000).toISOString();
+        const byGroup = {};
+        rows.forEach(r => {
+            const g = byGroup[r.group || '?'] || (byGroup[r.group || '?'] = { count: 0, oldest: null, newest: null });
+            g.count++;
+            if (g.oldest === null || r.ts < g.oldest) g.oldest = r.ts;
+            if (g.newest === null || r.ts > g.newest) g.newest = r.ts;
+        });
+        Object.values(byGroup).forEach(g => {
+            g.oldestDate = iso(g.oldest);
+            g.newestDate = iso(g.newest);
+        });
+        return { total: rows.length, byGroup };
+    }
+
+    // Creates a test state if no log has been started (what startLog() will do), then starts the scan.
+    async function bfStart() {
+        let st = await DBManager.getBackfillState();
+        if (!st) {
+            st = newBackfillState('initialize');
+            await DBManager.resetBackfill(st, {});
+            announceBackfillState();
+        }
+        const blocked = backfillBlockReason(st, await readStoredMeta());
+        if (blocked) return `not started: ${blocked}`;
+        if (runtime.bfScanning || runtime.bfWaitingLock) return 'already running or queued';
+        runBackfill();
+        return 'started';
+    }
+
+    async function bfReset() {
+        const db = await DBManager._ensureDb();
+        if (!db) return 'no database';
+        const stores = ['backfill', 'inbox'].filter(s => db.objectStoreNames.contains(s));
+        localStorage.removeItem(BF_LEASE_KEY);
+        if (!stores.length) return 'backfill stores not created yet';
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(stores, 'readwrite');
+            stores.forEach(s => tx.objectStore(s).clear());
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        return `cleared ${stores.join(' + ')}`;
+    }
+
+    function bfOverrides() {
+        return { ...loadBfDev(), webLocks: !!navigator.locks };
+    }
+
+    function buildBackfillSection() {
+        const label = text => {
+            const l = document.createElement('span');
+            l.textContent = text;
+            l.style.cssText = 'color:#aaa;font-family:sans-serif;font-size:10px;flex:0 0 auto;';
+            return l;
+        };
+        // Empty or 0 turns an override off. `scale` converts the shown unit to the stored ms/count.
+        const numInput = (key, scale, title) => {
+            const inp = document.createElement('input');
+            inp.type = 'number';
+            inp.min = '0';
+            inp.placeholder = 'off';
+            inp.title = title;
+            inp.style.cssText = inputStyle + 'flex:1;min-width:0;';
+            inp.addEventListener('change', () => {
+                const o = loadBfDev();
+                const v = parseFloat(inp.value);
+                if (Number.isFinite(v) && v > 0) o[key] = v * scale;
+                else delete o[key];
+                saveBfDev(o);
+                inp.blur();
+            });
+            refreshers.push(() => {
+                if (document.activeElement === inp) return;
+                const v = loadBfDev()[key];
+                const shown = v ? String(v / scale) : '';
+                if (inp.value !== shown) inp.value = shown;
+            });
+            return inp;
+        };
+
+        const capRow = buildRow([
+            label('Cap'), numInput('cap', 1, 'Line cap per 24h window (real: 44,000)'),
+            label('Cool s'), numInput('cooldownMs', 1000, 'Cooldown in seconds (real: 24h 6m)')
+        ]);
+        const pacingRow = buildRow([
+            label('Thr ms'), numInput('throttleMs', 1, 'Wait between backfill calls in ms (real: 1200)'),
+            label('Err s'), numInput('errorWindowMs', 1000, 'Seconds of failed retries before the connection error shows (real: 600)')
+        ]);
+
+        const failSelect = buildSelect(BF_FAIL_KINDS.map(k => [k, k]));
+        const failCount = document.createElement('input');
+        failCount.type = 'number';
+        failCount.min = '1';
+        failCount.value = '1';
+        failCount.title = 'How many backfill calls fail';
+        failCount.style.cssText = inputStyle + 'flex:0 0 40px;';
+        const armBtn = buildDevButton('Arm', () => {
+            const o = loadBfDev();
+            const n = parseInt(failCount.value, 10);
+            if (Number.isFinite(n) && n > 0) o.fail = { kind: failSelect.value, count: n };
+            else delete o.fail;
+            saveBfDev(o);
+        }, smallBtn + 'flex:0 0 40px;');
+        const failRow = buildRow([failSelect, failCount, armBtn]);
+
+        const crashSelect = buildSelect([['', 'Merge crash: off'], ['beforeTx', 'Crash before tx'], ['afterTx', 'Crash after tx']]);
+        crashSelect.addEventListener('change', () => {
+            const o = loadBfDev();
+            if (crashSelect.value) o.mergeCrash = crashSelect.value;
+            else delete o.mergeCrash;
+            saveBfDev(o);
+        });
+        const noLocksBtn = buildDevButton('No Locks', () => {
+            const o = loadBfDev();
+            if (o.noWebLocks) delete o.noWebLocks;
+            else o.noWebLocks = true;
+            saveBfDev(o);
+        }, smallBtn + 'flex:0 0 64px;');
+        noLocksBtn.title = 'Force the localStorage lease instead of Web Locks';
+        const crashRow = buildRow([crashSelect, noLocksBtn]);
+
+        const show = (name, p) => Promise.resolve(p).then(r => console.log(`[dev] backfill ${name}`, r));
+        const actionRow = buildRow([
+            buildDevButton('State', () => show('state', bfState()), smallBtn),
+            buildDevButton('Inbox', () => show('inbox', bfInbox()), smallBtn),
+            buildDevButton('Start', () => show('start', bfStart()), smallBtn),
+            buildDevButton('Reset', () => show('reset', bfReset()), smallBtn + 'background:#5a1a1a;border-color:#833;')
+        ]);
+
+        const status = document.createElement('div');
+        status.style.cssText = 'font-family:sans-serif;font-size:10px;color:#ce93d8;text-align:center;min-height:13px;';
+        refreshers.push(() => {
+            const o = loadBfDev();
+            setActive(noLocksBtn, !!o.noWebLocks);
+            if (document.activeElement !== crashSelect && crashSelect.value !== (o.mergeCrash || '')) crashSelect.value = o.mergeCrash || '';
+            setTextIfChanged(status, o.fail ? `Armed: ${o.fail.kind} ×${o.fail.count}` : 'No failure armed');
+        });
+
+        return buildDevSection('Backfill', [capRow, pacingRow, failRow, crashRow, actionRow, status], 230);
+    }
+
+    // ─── Backfill UI section (preview the overlay states and notices) ──────
+    // Overlay previews swap in a fake runtime.bfState and redraw; "Real" re-reads the stored state.
+    // Any real scan update (refreshBackfillUI) also ends a preview. Notices open directly and mark
+    // nothing as seen.
+    function buildBackfillUISection() {
+        const previewOverlay = (lastError, paused) => {
+            if (dom.settingsView && dom.settingsView.classList.contains('active-view')) switchView('ledger');
+            runtime.bfState = Object.assign(newBackfillState('initialize'), { lastError, paused: !!paused });
+            if (!runtime.bfInboxCount) runtime.bfInboxCount = 4200;
+            const old = document.getElementById('bbgl-scan-overlay');
+            if (old) old.remove();
+            renderBackfillOverlay();
+        };
+        const overlayRow = buildRow([
+            buildDevButton('Working', () => previewOverlay(null), smallBtn),
+            buildDevButton('Net', () => previewOverlay({ kind: 'connection', code: 'net', at: Date.now() }), smallBtn),
+            buildDevButton('Key', () => previewOverlay({ kind: 'key', code: 18, at: Date.now() }), smallBtn),
+            buildDevButton('Pause', () => previewOverlay(null, true), smallBtn),
+            buildDevButton('Real', () => {
+                const old = document.getElementById('bbgl-scan-overlay');
+                if (old) old.remove();
+                refreshBackfillUI();
+            }, smallBtn + 'background:#5a1a1a;border-color:#833;')
+        ]);
+        const st = () => newBackfillState('initialize');
+        const notice = (kind, ctx) => () => {
+            closeBackfillNotice();
+            openBackfillNotice(kind, st(), ctx);
+        };
+        const later = Date.now() + 86400000;
+        const noticeRows = [
+            buildRow([
+                buildDevButton('Complete', notice('complete'), smallBtn),
+                buildDevButton('Cap', notice('cap', {
+                    date: 'March 3, 2024',
+                    time: new Date(later).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+                    dayWord: 'tomorrow'
+                }), smallBtn)
+            ]),
+            buildRow([
+                buildDevButton('Err: Net', notice('errorConnection', { reason: backfillErrorReason('net') }), smallBtn),
+                buildDevButton('Err: Key', notice('errorKey'), smallBtn)
+            ]),
+            buildRow([buildDevButton('Stop', notice('stopConfirm', { date: 'March 3, 2024' }), smallBtn)])
+        ];
+        const label = text => {
+            const l = document.createElement('div');
+            l.textContent = text;
+            l.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;';
+            return l;
+        };
+        return buildDevSection('Backfill UI', [label('Overlay'), overlayRow, label('Notices'), ...noticeRows], 200);
+    }
+
     // ─── Config section (sidebar notif, factory reset) ─────────────────────
     function buildConfigSection() {
         const notifBtn = buildDevButton('Toggle Sidebar Notif', () => {
@@ -31496,6 +32427,7 @@ const BestGymController = {
         { label: 'Config', command: 'BBGL.config()', description: 'User config (API key redacted)', run: getBBGLConfig },
         { label: 'History', command: 'BBGL.history()', description: 'Active history meta + count + date range', run: getBBGLHistory },
         { label: 'Cache Peek', command: 'BBGL.cache.peek()', description: 'Which derived caches are populated', run: getBBGLCachePeek },
+        { label: 'BF Overrides', command: 'BBGL.backfill.overrides()', description: 'Active backfill dev overrides (also .state() .inbox() .notices() .start() .reset(), async)', run: bfOverrides },
         { label: 'Help', command: 'BBGL.help()', description: 'This table', run: () => BBGL_COMMANDS.map(({ command, description }) => ({ command, description })) }
     ];
 
@@ -31505,6 +32437,7 @@ const BestGymController = {
         config: getBBGLConfig,
         history: getBBGLHistory,
         cache: Object.freeze({ peek: getBBGLCachePeek }),
+        backfill: Object.freeze({ state: bfState, inbox: bfInbox, notices: bfNotices, start: bfStart, reset: bfReset, overrides: bfOverrides }),
         help: () => {
             console.table(BBGL_COMMANDS.map(({ command, description }) => ({ command, description }))
                 .concat([{ command: 'devmode("on"|"off")', description: 'Toggle dev mode (enables Perf marks + dev UI)' }]));
@@ -31621,6 +32554,8 @@ const BestGymController = {
             buildTitlePreviewSection(),
             buildPlaquePreviewSection(),
             buildBooksSection(),
+            buildBackfillSection(),
+            buildBackfillUISection(),
             buildConfigSection()
         ], 'align-items:stretch;gap:0;');
         strip.firstChild.style.borderLeft = 'none';

@@ -3778,9 +3778,6 @@
         DEMO_EXIT: "Exit Demo Mode",
         DEMO_EXIT_HTML: "Exit Demo Mode<i>Stats shown here are for previewing the functions of the script only — they do not reflect realistic Torn growth.</i>",
         REFRESH_COOLDOWN: (remaining) => `Please wait ${remaining}s before refreshing the log again`,
-        BACKFILL_RESUME_COOLDOWN: (t) => `Torn's daily row cap has been reached. Resume available in ${t}.`,
-        BACKFILL_COMPLETE_ORIGIN: "Your full training history was reconstructed back to the very beginning.",
-        BACKFILL_COMPLETE_EXHAUSTED: "Scan reached the end of the logs Torn still retains. Any older history is no longer available from Torn's servers.",
         CELL_DATE: (ds) => `Date: ${ds}`
     };
 
@@ -3940,41 +3937,152 @@
         };
     }
 
-    // Shown right after START TRACKING (post key-verification): the user chooses whether to begin
-    // with an empty log or reconstruct their history via Big Black Backfill. The panel is already
-    // initialized and sitting on the (empty) ledger behind this modal, so dismissing == start fresh.
-    function buildBackfillChoiceModalHTML() {
-        const intro = `<div style="padding:6px 4px 14px; color:#ccc; font-size:12px; line-height:1.6; text-align:center;">Start tracking now with no log history, or use Big Black Backfill to reconstruct your training history from Torn's logs. You can always get Big Black Backfilled later from the Settings.</div>`;
-        const buttons = `<div style="display:flex; gap:0; margin:0 6px 2px;">${buildButton('bbgl-choice-fresh-btn', 'START EMPTY LOG', '', 'flex:1; border-radius:4px 0 0 4px; margin:0;')}${buildButton('bbgl-choice-backfill-btn', 'BIG BLACK BACKFILL', 'purple', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</div>`;
-        return `<div class="bbgl-modal-overlay" id="bbgl-choice-modal"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-choice-close" title="Close">${ICONS.CLOSE}</div>${buildSection('Start Tracking', intro + buttons, 'margin-bottom:8px;')}</div></div>`;
+    // ─── Backfill overlay and notices ────────────────────────────────────────
+    // Overlay copy for the working state and the two paused states (lastError.kind). Controlled by
+    // renderBackfillOverlay (10).
+    // The × (End Backfill) sits in the overlay's corner, outside the centered copy.
+    function buildBackfillOverlayHTML(st) {
+        return `<a href="#" class="bbgl-scan-stop" title="End backfill">${ICONS.CLOSE}</a><div class="bbgl-scan-inner">${buildBackfillOverlayInner(st)}</div>`;
     }
 
-    function closeBackfillChoiceModal() {
-        const m = document.getElementById('bbgl-choice-modal');
-        if (m && m.parentNode) m.parentNode.removeChild(m);
+    const SCAN_PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+    const SCAN_PLAY_SVG = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.87l10.5-6.5a1 1 0 0 0 0-1.74L9.5 4.63A1 1 0 0 0 8 5.5z"/></svg>';
+
+    // Settings mask text. Settings sections masked in Demo and/or during the backfill carry
+    // data-bf-mask; renderBackfillSettings (10) picks the text for whichever applies.
+    const DEMO_MASK_TEXT = 'Not available in demo mode';
+    const BACKFILL_MASK_TEXT = 'Unavailable while your log is backfilling';
+
+    function backfillCountText(n) {
+        return `${(n || 0).toLocaleString('en-US')} log entries collected`;
     }
 
-    function openBackfillChoiceModal() {
-        if (runtime.demoMode) return;
-        closeBackfillChoiceModal();
-        document.body.insertAdjacentHTML('beforeend', buildBackfillChoiceModalHTML());
-        const modal = document.getElementById('bbgl-choice-modal');
+    // A link to the Gym Log's own Settings (not Torn's API page), opened in whichever mode the
+    // script is showing. Wired by bindGymLogSettingsLinks (10).
+    const GYM_LOG_SETTINGS_LINK = `<a href="#" class="bbgl-gl-settings-link">Gym Log's Settings</a>`;
+
+    // Every overlay state reads the same way: lead copy, an italic note, then the Demo prompt.
+    function buildBackfillOverlayInner(st) {
+        const userPaused = !!(st && st.paused);
+        const err = !userPaused && st && st.lastError;
+        // Big status icon (spinner, or the pause symbol when paused for any reason), with the
+        // clickable pause/play symbol beside it. Error pauses resume on their own, so no toggle.
+        const icon = (userPaused || err) ? `<span class="bbgl-scan-pause-icon">${SCAN_PAUSE_SVG}</span>` : '<div class="bbgl-scan-spinner"></div>';
+        const toggle = userPaused
+            ? `<a href="#" class="bbgl-scan-toggle" data-act="resume" title="Resume">${SCAN_PLAY_SVG}</a>`
+            : (err ? '' : `<a href="#" class="bbgl-scan-toggle" data-act="pause" title="Pause">${SCAN_PAUSE_SVG}</a>`);
+        const head = `<div class="bbgl-scan-iconrow">${icon}${toggle}</div><div class="bbgl-scan-count" id="bbgl-scan-count">${backfillCountText(runtime.bfInboxCount)}</div><div class="bbgl-scan-title">BIG BLACK BACKFILL</div>`;
+        const tail = `<div class="bbgl-scan-cta">Want to explore the script's features while you wait? Try Demo mode.</div>${buildButton('bbgl-scan-demo-btn', 'DEMO', 'purple')}`;
+        const lead = html => `<div class="bbgl-scan-lead">${html}</div>`;
+        const note = html => `<div class="bbgl-scan-note">${html}</div>`;
+        if (userPaused) {
+            return head + `<div class="bbgl-scan-reason">Paused: click the play button to continue backfilling your log.</div>` +
+                note('The backfill stays paused in every tab, even after changing pages, until you resume it.') + tail;
+        }
+        if (err && err.kind === 'key') {
+            return head + `<div class="bbgl-scan-reason">Paused: there's a problem with your API key.</div>` +
+                lead(`Make sure your key is enabled and has the correct permissions, or create a new custom key from the ${GYM_LOG_SETTINGS_LINK} with <b>Create API Key</b>.`) +
+                note('The backfill resumes automatically once the key works.') + tail;
+        }
+        if (err) {
+            return head + `<div class="bbgl-scan-reason">Paused: couldn't reach Torn's servers.</div>` +
+                lead('It will try again automatically on your next page load.') +
+                note('Everything collected so far is saved.') + tail;
+        }
+        return head +
+            lead("Your training history is being pulled from Torn's servers. This usually takes a few minutes.") +
+            lead('You may keep playing as usual.') +
+            note('The backfill runs in the background as long as Torn is open in your browser. If you close the browser during the process, it will simply resume when you return to Torn.') + tail;
+    }
+
+    // Plain-language reason for a connection error code from the scan (classifyScanError, 05).
+    function backfillErrorReason(code) {
+        if (code === 'net') return 'Check your connection.';
+        if (typeof code === 'string' && code.startsWith('http')) return `Torn returned an unexpected error (HTTP ${code.slice(4)}).`;
+        if (code === 'unstorable') return "Torn sent log data the script couldn't read.";
+        return TORN_KEY_ERROR_MAP[code] || `Torn returned error code ${code}.`;
+    }
+
+    const BACKFILL_NOTICE_BUTTONS = {
+        close: ['CLOSE', ''],
+        view: ['VIEW LOG', 'purple'],
+        retry: ['TRY AGAIN', ''],
+        settings: ['SETTINGS', 'purple'],
+        end: ['END BACKFILL', 'red']
+    };
+
+    // ctx: { date, time, dayWord } for the cap notice, { reason } for the connection error.
+    const BACKFILL_NOTICES = {
+        complete: {
+            title: 'YOUR LOG IS COMPLETE',
+            body: () => `<p>Your Gym Log now contains your full training history.</p><p>Start training and earning rewards now!</p>`,
+            buttons: ['close', 'view']
+        },
+        cap: {
+            title: 'YOUR LOG IS PARTLY BUILT',
+            body: (st, ctx) => `<p>You have a very large log! Torn limits how much data can be read from their server each day, so your log has been built to <b>${ctx.date}</b> for now.</p><p>The rest will continue automatically after <b>${ctx.time}</b> ${ctx.dayWord}.</p><p>Start training and earning rewards now!</p><p class="bbgl-notice-aside">(You will be notified when your log is completed.)</p>`,
+            buttons: ['close', 'view']
+        },
+        errorConnection: {
+            title: 'BACKFILL PAUSED',
+            body: (st, ctx) => `<p>Big Black Gym Log couldn't reach Torn. ${ctx.reason} It will try again automatically on your next page load.</p>`,
+            buttons: ['retry', 'close']
+        },
+        errorKey: {
+            title: 'BACKFILL PAUSED',
+            body: () => `<p>There's a problem with the API key being used. Make sure it's enabled and has the correct permissions, or create a new custom key from the ${GYM_LOG_SETTINGS_LINK} with <b>Create API Key</b>.</p>`,
+            buttons: ['close', 'settings']
+        },
+        stopConfirm: {
+            title: 'END BACKFILL?',
+            body: (st, ctx) => `<p>This stops building your log where it is, so it will only go back to <b>${ctx.date}</b>.</p><p>You can continue the backfill later from the Gym Log's Settings.</p>`,
+            buttons: ['close', 'end']
+        }
+    };
+
+    function closeBackfillNotice() {
+        const el = document.getElementById('bbgl-notice-modal');
+        if (el) el.remove();
+    }
+
+    // handlers: { close, end } run on top of closing the modal; close also covers the × and the
+    // backdrop (the Stop pop-up resumes the scan however it's dismissed).
+    function openBackfillNotice(kind, st, ctx = {}, handlers = {}) {
+        const n = BACKFILL_NOTICES[kind];
+        if (!n || document.getElementById('bbgl-notice-modal')) return;
+        const btns = n.buttons.map((b, i, all) => {
+            const [label, mod] = BACKFILL_NOTICE_BUTTONS[b];
+            const radius = all.length === 1 ? '' : (i === 0 ? 'border-radius:4px 0 0 4px;' : 'border-radius:0 4px 4px 0;');
+            return buildButton(`bbgl-notice-${b}`, label, mod, radius);
+        }).join('');
+        const body = `<div class="bbgl-notice-body">${n.body(st, ctx)}</div><div class="bbgl-notice-actions">${btns}</div>`;
+        document.body.insertAdjacentHTML('beforeend', `<div class="bbgl-modal-overlay" id="bbgl-notice-modal"><div class="bbgl-modal-window bbgl-modal-narrow"><div class="close-settings-btn bbgl-close-x" id="bbgl-notice-x" title="Close">${ICONS.CLOSE}</div>${buildSection(n.title, body, 'margin-bottom:8px;')}</div></div>`);
+        const modal = document.getElementById('bbgl-notice-modal');
         if (!modal) return;
-        const close = () => {
-            closeBackfillChoiceModal();
-            switchView('ledger');
+        const dismiss = () => {
+            closeBackfillNotice();
+            if (handlers.close) handlers.close();
         };
-        modal.querySelector('#bbgl-choice-close').onclick = close;
-        modal.onclick = (e) => { if (e.target === modal) close(); };
-        const fresh = modal.querySelector('#bbgl-choice-fresh-btn');
-        if (fresh) fresh.onclick = function() { this.blur(); close(); };
-        const bf = modal.querySelector('#bbgl-choice-backfill-btn');
-        if (bf) bf.onclick = function() {
-            this.blur();
-            close();
-            // Kick off the scan; the masked overlay takes over the panel from here.
-            backfillLogs(document.getElementById('backfill-btn'));
+        modal.querySelector('#bbgl-notice-x').onclick = dismiss;
+        modal.onclick = e => { if (e.target === modal) dismiss(); };
+        const on = (b, fn) => {
+            const el = modal.querySelector(`#bbgl-notice-${b}`);
+            if (el) el.onclick = function() {
+                this.blur();
+                closeBackfillNotice();
+                if (fn) fn();
+            };
         };
+        on('close', handlers.close);
+        on('end', handlers.end);
+        on('view', () => {
+            // The real log, not the demo one; already on the Gym Log page, leaving Demo is enough.
+            if (runtime.demoMode) exitDemo('ledger');
+            if (!window.location.hash.includes('gymlog')) window.location.href = '/calendar.php#gymlog';
+        });
+        on('retry', () => retryBackfillNow());
+        on('settings', () => openGymLogSettings());
+        bindGymLogSettingsLinks(modal, closeBackfillNotice);
     }
 
     async function openPrivacyModal() {
@@ -4076,13 +4184,12 @@
         if (pc) pc.classList.toggle('bbgl-init-locked', lock);
     }
 
+    // The demo and backfill masks share hosts, so renderBackfillSettings (10) applies both.
     function refreshDemoMasks() {
         if (!dom.settingsView) return;
-        dom.settingsView.querySelectorAll('.bbgl-demo-maskable').forEach(el => {
-            el.classList.toggle('bbgl-mask-active', !!runtime.demoMode);
-        });
+        renderBackfillSettings();
         const sdemo = dom.settingsView.querySelector('#settings-demo-btn');
-        if (sdemo) sdemo.innerText = runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE';
+        if (sdemo) sdemo.innerText = runtime.demoMode ? 'EXIT DEMO' : 'DEMO';
     }
 
     function enterDemo(source) {
@@ -4108,6 +4215,9 @@
         refreshDemoMasks();
         snapLevelBar();
         switchView('ledger');
+        // switchView does nothing when already on the log (the overlay's DEMO button), so the
+        // overlay is hidden here directly.
+        renderBackfillOverlay();
     }
 
     function enterDemoFromSettings() {
@@ -4123,7 +4233,7 @@
         const inputHTML = buildApiEntryField('init', 'margin:8px 10px;');
         const createBtn = buildButton('init-create-api-btn', 'CREATE API KEY', '', 'margin:0 10px 8px 10px; width: calc(100% - 20px); display:block;');
         const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('init-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="init-week-start" class="bbgl-native-select"><option value="sun">Sun &ndash; Sat</option><option value="mon">Mon &ndash; Sun</option></select>`);
-        const startBtn = buildButton('init-start-btn', 'START TRACKING', 'green', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
+        const startBtn = buildButton('init-start-btn', 'INITIALIZE LOG', 'purple', 'margin:8px 10px; width: calc(100% - 20px); display:block;');
         const body = `<div id="init-section-masked-body" class="bbgl-mask-host" data-mask-text="Please agree to the privacy disclosure first.">${inputHTML}${createBtn}${rows}${startBtn}</div>`;
         return buildSection('Initialization Settings', body, 'margin-bottom:5px;');
     }
@@ -4156,8 +4266,8 @@
     }
 
     // Small duplicate of the Refresh Log button, embedded in the "Big Black Features" title bar.
-    // Idle label follows the panel mode (view-std/view-exp, same CSS-driven swap "BB Backfill" uses
-    // above); the syncing/done states are identical text in every mode, so they skip that split.
+    // Idle label follows the panel mode (view-std/view-exp CSS swap); the syncing/done states are
+    // identical text in every mode, so they skip that split.
     function buildResyncBtn() {
         const idle = `<span class="bbgl-rs-idle"><span class="view-std">RESYNC</span><span class="view-exp">RESYNC LOG</span></span>`,
             syncing = `<span class="bbgl-rs-sync" style="display:none;"><span class="view-std">...</span><span class="view-exp">Syncing...</span></span>`,
@@ -4167,12 +4277,12 @@
 
     function buildSettingsFeaturesSection() {
         const bestGymGroup = buildToggle('set-bestgym-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM}">BB Best Gym</span>`, 'bbgl-bestgym-lead') + buildToggle('set-bestgym-spec-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_SPEC}">Specialty Gyms</span>`, 'bbgl-subgroup-row') + buildToggle('set-bestgym-unpurch-toggle', `<span data-tooltip-html="${TOOLTIPS.BEST_GYM_UNPURCHASED}">Unpurchased Gyms</span>`, 'bbgl-subgroup-row bbgl-subgroup-row-last');
-        const backfillBtn = buildButton('backfill-btn', 'Big Black Backfill', 'purple', 'margin: 8px 10px 8px 10px; width: calc(100% - 20px); display: block;');
-        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`) + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${backfillBtn}</div>`, '', buildResyncBtn());
+        return buildSection('Big Black Features', bestGymGroup + buildToggle('set-rate-toggle', `<span data-tooltip-html="${TOOLTIPS.RATES}">Rate Displays</span>`) + buildToggle('set-anim-toggle', `<span data-tooltip-html="${TOOLTIPS.ANIM}">Animations</span>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DRUG_TRACKER}">Drug Use Tracker</span>`, `<select id="set-drug-tracker" class="bbgl-native-select"><option value="xanax">Xanax</option><option value="lsd">LSD</option></select>`), '', buildResyncBtn());
     }
 
     function buildSettingsLogFormatSection() {
-        return buildSection('Log Format', buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="set-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('set-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="set-week-start" class="bbgl-native-select"><option value="sun">Sun – Sat</option><option value="mon">Mon – Sun</option></select>`));
+        const rows = buildRow(`<span data-tooltip-html="${TOOLTIPS.LOC}">Log Access</span>`, `<select id="set-loc-select" class="bbgl-native-select"><option value="notes">Footer Tab</option><option value="sidebar">Sidebar</option><option value="both">Both</option></select>`) + buildRow(`<span data-tooltip-html="${TOOLTIPS.DAY_START}">Log Timezone</span>`, generateDayStartSelect('set-day-start', userConfig.dayStartMode)) + buildRow(`<span data-tooltip-html="${TOOLTIPS.WEEK_START}">Week Start</span>`, `<select id="set-week-start" class="bbgl-native-select"><option value="sun">Sun – Sat</option><option value="mon">Mon – Sun</option></select>`);
+        return buildSection('Log Format', `<div class="bbgl-mask-host" data-bf-mask="format">${rows}</div>`);
     }
 
     function buildSettingsApiSection() {
@@ -4186,7 +4296,7 @@
             buildButton('clear-api-btn', 'CLEAR API KEY', 'red', 'border-radius: 0 0 0 5px;') +
             buildButton('updt-settings-btn', 'REGISTER API KEY', 'green', 'border-radius: 0 0 5px 0;') +
             `</div>`;
-        return buildSection('API Access', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inputHTML}${topBtn}${stack}</div>`, 'margin-bottom: 5px;');
+        return buildSection('API Access', `<div class="bbgl-mask-host bbgl-demo-maskable" data-bf-mask="api" data-mask-text="${DEMO_MASK_TEXT}">${inputHTML}${topBtn}${stack}</div>`, 'margin-bottom: 5px;');
     }
 
     function buildSettingsDataSection() {
@@ -4196,8 +4306,8 @@
         // Refresh Log used to own.
         const refreshBtn = buildButton('refresh-log-btn', 'REFRESH LOG', '', 'display: none;');
         const grid = `<div class="bbgl-btn-grid" style="margin: 8px 10px 0 10px;">${buildButton('export-btn', 'EXPORT LOG', '', 'border-radius: 5px 0 0 0; border-bottom: none;')}${buildButton('import-btn', 'IMPORT LOG', '', 'border-radius: 0 5px 0 0; border-bottom: none;')}<input type="file" id="import-file" accept=".json,application/json" style="display:none"></div>`;
-        const inner = refreshBtn + grid + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;');
-        return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${inner}</div>`);
+        const inner = refreshBtn + grid + buildButton('clear-btn', 'CLEAR LOG', 'red', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; border-top-left-radius: 0; border-top-right-radius: 0;') + buildButton('resume-bf-btn', 'RESUME BACKFILL', 'purple', 'margin: 0 10px 8px 10px; width: calc(100% - 20px); display: none; border-top-left-radius: 0; border-top-right-radius: 0;');
+        return buildSection('Data Management', `<div class="bbgl-mask-host bbgl-demo-maskable" data-bf-mask="data" data-mask-text="${DEMO_MASK_TEXT}">${inner}</div>`);
     }
 
     function buildSettingsInfoSection() {
@@ -4207,8 +4317,8 @@
             buildButton('settings-changelog-btn', 'CHANGELOG', '', `width: 100%; ${stackBtnStyle('mid')}`) +
             buildButton('settings-privacy-btn', 'PRIVACY DISCLOSURE', '', `width: 100%; ${stackBtnStyle('mid')}`) +
             `</div>`;
-        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO MODE', 'purple', `margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; ${stackBtnStyle('bottom')}`);
-        return buildSection('Information', authorCredit + guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="Not available in demo mode">${stack}</div>${demoBtn}`);
+        const demoBtn = buildButton('settings-demo-btn', runtime.demoMode ? 'EXIT DEMO' : 'DEMO', 'purple', `margin: 0 10px 8px 10px; width: calc(100% - 20px); display: block; ${stackBtnStyle('bottom')}`);
+        return buildSection('Information', authorCredit + guideBtn + `<div class="bbgl-mask-host bbgl-demo-maskable" data-mask-text="${DEMO_MASK_TEXT}">${stack}</div>${demoBtn}`);
     }
 
     function getSettingsHTML() {

@@ -43,7 +43,7 @@ function findHappyJumps(seriesArr) {
 // from fields that survive an export/import round trip: Torn's own log `id` does not (dropped on
 // export, see _applyLogToState's item branch) — an id-keyed item entry would never match its
 // re-synced counterpart post-import, leaving both in the series as duplicates. (ts, logId) is the
-// same natural key _applyLogToState and _persistBackfillSeries already dedup items on.
+// same natural key _applyLogToState and mergeLinesIntoSeries already dedup items on.
 function seriesDedupKey(e) {
     return e.type === 'item' ? `item_${e.ts}_${e.logId}` : `${e.ts}_${e.stat}_${e.after}`;
 }
@@ -123,7 +123,7 @@ const DataController = {
         persistStickerCleared(id);
     },
     // Custom calendar notes, { 'YYYY-MM-DD': text } in history meta, so export, import and Clear
-    // Data carry them with the log. Demo mode keeps them on the demo history, never saved. With no
+    // Log (which keeps them for Refill Log) carry them with the log. Demo mode keeps them on the demo history, never saved. With no
     // history yet there is nowhere to keep one, so placing is refused.
     _noteStore(create) {
         const meta = runtime.demoMode ? getActiveHistory().meta : (_historyCache && _historyCache.meta);
@@ -131,26 +131,43 @@ const DataController = {
         if (!meta.notes && create) meta.notes = {};
         return meta.notes || null;
     },
-    _persistNotes() {
+    // `apply` makes the change on the current cache. It runs again if the save comes back 'stale'
+    // (another tab replaced the history and this one reloaded), so the edit isn't lost.
+    async _persistMetaChange(apply, what) {
         if (runtime.demoMode || !_historyCache) return;
-        DBManager.saveDays(_historyCache.meta, []).catch(e => Log.warn('Failed to save custom notes', e));
+        try {
+            if (await DBManager.saveDays(_historyCache.meta, []) === 'stale' && _historyCache) {
+                apply();
+                await DBManager.saveDays(_historyCache.meta, []);
+                window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent: true } }));
+            }
+        } catch (e) {
+            Log.warn(`Failed to save ${what}`, e);
+        }
     },
     getCustomNote(ds) {
         const notes = this._noteStore(false);
         return notes && Object.prototype.hasOwnProperty.call(notes, ds) ? notes[ds] : null;
     },
     setCustomNote(ds, text) {
-        const notes = this._noteStore(true);
-        if (!notes) return false;
-        notes[ds] = String(text || '');
-        this._persistNotes();
+        const apply = () => {
+            const notes = this._noteStore(true);
+            if (notes) notes[ds] = String(text || '');
+            return !!notes;
+        };
+        if (!apply()) return false;
+        this._persistMetaChange(apply, 'custom notes');
         return true;
     },
     removeCustomNote(ds) {
         const notes = this._noteStore(false);
         if (!notes || !Object.prototype.hasOwnProperty.call(notes, ds)) return;
-        delete notes[ds];
-        this._persistNotes();
+        const apply = () => {
+            const n = this._noteStore(false);
+            if (n) delete n[ds];
+        };
+        apply();
+        this._persistMetaChange(apply, 'custom notes');
     },
     getHappyJumpData() {
         if (this._cache.hjData) return this._cache.hjData;
@@ -203,8 +220,8 @@ const DataController = {
         // week onward. Pre-install weeks still render their bar/day counts elsewhere, but earn
         // no stickers here. EXP uses a stricter gate: full days before the install day contribute
         // 0 EXP, and on the exact install day itself, only training at/after the precise
-        // rewardStartDate timestamp counts (sub-day precision) — so a Clear Log + Backfill can
-        // still earn that week's sticker, but reconstructed pre-install training earlier the same
+        // rewardStartDate timestamp counts (sub-day precision) — so a backfill can still earn
+        // that week's sticker, but reconstructed pre-install training earlier the same
         // day (before the user actually clicked train post-install) contributes 0 EXP. Demo mode
         // is exempt (keeps its 1-sticker showcase behavior).
         const installWeekKey = runtime.demoMode ? null : getInstallWeekKey();
@@ -555,7 +572,7 @@ const DataController = {
         }
         // Gain is the authoritative delta between the absolute start/end snapshots, NOT the
         // sum of per-entry log gains. Summing logs under-reports whenever a training row is
-        // missing from the API data (e.g. dense bursts the deep scan couldn't fully capture),
+        // missing from the API data (e.g. dense bursts the backfill couldn't fully capture),
         // which breaks the "gain = total - starting" identity in the summaries. The `after`
         // snapshots are ground truth and telescope exactly, so derive gain from them here.
         // (Rates above intentionally still use the summed gains; the graph plots from raw
@@ -615,6 +632,10 @@ const DataController = {
         Perf.start('processDataPayload');
         const silent = !!opts.silent;
         let s = getActiveHistory();
+        // 'stale' from DBManager: another tab replaced the history first, nothing was saved and this
+        // tab reloaded. Returned as 'STALE' so universalFetch can fetch again against the reloaded log.
+        let saved = null;
+        const result = () => saved === 'stale' ? 'STALE' : 'SUCCESS';
         const fullApiLogs = normalizeApiLogs(apiLogs);
         let cleanLogs = fullApiLogs;
         if (s.meta.logStartDate) {
@@ -641,15 +662,15 @@ const DataController = {
                     changedDays.push(s.today);
                     _historyCache = s;
                     this.invalidate();
-                    await DBManager.saveDays(s.meta, changedDays);
+                    saved = await DBManager.saveDays(s.meta, changedDays);
                 } else if (changedToday) {
                     _historyCache = s;
                     this.invalidateToday();
-                    await DBManager.saveDays(s.meta, [s.today]);
+                    saved = await DBManager.saveDays(s.meta, [s.today]);
                 }
                 window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
                 Perf.end('processDataPayload');
-                return 'SUCCESS';
+                return result();
             }
 
             // New gym logs to reconcile. Only entries inside the API window [minApiTs, maxApiTs]
@@ -684,14 +705,14 @@ const DataController = {
                     // A rollover changes the day set; persist everything to stay consistent.
                     const all = [...(s.history || [])];
                     if (s.today) all.push(s.today);
-                    await DBManager.saveDays(s.meta, all);
+                    saved = await DBManager.saveDays(s.meta, all);
                 } else {
                     if (!changedDays.includes(s.today)) changedDays.push(s.today);
-                    await DBManager.saveDays(s.meta, changedDays);
+                    saved = await DBManager.saveDays(s.meta, changedDays);
                 }
                 window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
                 Perf.end('processDataPayload');
-                return 'SUCCESS';
+                return result();
             }
 
             // Fallback: the original full rebuild from the entire stored series. Persisted by
@@ -705,9 +726,7 @@ const DataController = {
         }
         if (!s.meta.logStartDate) {
             // Forward-only init: baseline = current battlestats, origin = NOW (this sync).
-            // No historical reconstruction — history only comes from explicit Backfill or
-            // import. Anchoring to "now" (not privacyAgreed, which survives Clear Log) makes
-            // a cleared log behave like a fresh install: nothing before this moment counts.
+            // Older history only arrives through the backfill or an import.
             if (apiBattlestats) {
                 s.meta.baselineBreakdown = {
                     str: apiBattlestats.strength || 0,
@@ -718,9 +737,10 @@ const DataController = {
             }
             const nowTs = Math.floor(Date.now() / 1000);
             s.meta.logStartDate = nowTs;
-            // rewardStartDate is the fixed rewards gate — set once at install/clear, never
-            // moved by backfill. logStartDate can be pushed back; rewardStartDate stays here.
-            s.meta.rewardStartDate = nowTs;
+            // rewardStartDate is the fixed rewards gate: stamped by the first sync after Initialize
+            // Log, kept through Clear Log and Refill Log, replaced only by an import. Only set it when
+            // missing, or the first sync after a Clear Log would move it.
+            if (typeof s.meta.rewardStartDate !== 'number') s.meta.rewardStartDate = nowTs;
             // Drop anything older than the cutoff so the API's default window (last ~week)
             // is never ingested by the daily grind below.
             cleanLogs = cleanLogs.filter(l => l.ts >= s.meta.logStartDate);
@@ -732,10 +752,10 @@ const DataController = {
             if ((s.today.series && s.today.series.length > 0) || (s.today.gains && s.today.gains.total > 0)) s.history.push(s.today);
             s.today = initializeDayObject(logicalToday, s.today.endBreakdown);
         }
-        this.saveSmartHistory(s);
+        saved = await this.saveSmartHistory(s);
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated', { detail: { silent } }));
         Perf.end('processDataPayload');
-        return 'SUCCESS';
+        return result();
     },
     saveSmartHistory(d) {
         const allDays = [...(d.history || [])];
@@ -743,10 +763,15 @@ const DataController = {
         // Persist the in-memory day objects directly — no flatten-to-series + rebuild
         // round-trip. saveDays puts each day record without clearing the store; normal
         // syncs never remove days (only import/clear do, via setStorage/clearStorage), so
-        // untouched days remain intact.
-        DBManager.saveDays(d.meta, allDays);
+        // untouched days remain intact. On 'stale' the reload inside DBManager replaces the
+        // cache set below.
+        const saved = DBManager.saveDays(d.meta, allDays).catch(e => {
+            Log.warn('History save failed', e);
+            return 'error';
+        });
         _historyCache = d;
         this.invalidate();
+        return saved;
     },
     flattenAllSeries() {
         const s = getActiveHistory();
@@ -1209,8 +1234,7 @@ function getActiveHistory() {
         meta: {
             baselineBreakdown: {
                 ...ZERO_BREAKDOWN
-            },
-            backfill: defaultBackfill()
+            }
         },
         history: [],
         today: initializeDayObject(Formatter.dateLogical(), {
@@ -3927,6 +3951,9 @@ function flashCopied(flashEl) {
     }), 1000);
 }
 async function exportData() {
+    // Refused while the backfill is scanning (Data Management is masked then; this covers a click
+    // that lands mid state change).
+    if (await backfillScanning()) return;
     let s;
     try {
         s = await DBManager.getStorage();
@@ -4172,6 +4199,10 @@ function importData(f, onDone, opts = {}) {
     const r = new FileReader();
     r.onload = async (e) => {
         let ok = false;
+        if (await backfillScanning()) {
+            if (onDone) onDone(false);
+            return;
+        }
         try {
             const j = JSON.parse(e.target.result);
             const importedVer = (j && j.meta && j.meta.version) ? String(j.meta.version) : '';
@@ -4244,7 +4275,13 @@ function importData(f, onDone, opts = {}) {
                     j.storage.meta.syncFloor = {};
                     Object.keys(BACKFILL_GROUP_OF).forEach(c => { j.storage.meta.syncFloor[c] = lastTs; });
                 }
-                await DBManager.setStorage(j.storage);
+                // force: the file's meta carries some other device's historyGen; this is a deliberate
+                // replace, and the bump makes every other tab reload.
+                await DBManager.setStorage(j.storage, { force: true });
+                // An imported log counts as already built: no backfill, overlay or completion notice,
+                // and the Settings button goes back to Clear Log.
+                await DBManager.resetBackfill(completedBackfillState(), { completionSeen: true });
+                announceBackfillState();
                 const rebuilt = DataController._rebuildFromSeries(j.storage.series || [], (j.storage.meta && j.storage.meta.baselineBreakdown) || ZERO_BREAKDOWN);
                 _historyCache = {
                     meta: {
@@ -4341,7 +4378,11 @@ function importDataFromWelcome(f) {
 }
 async function clearData() {
     if (confirm("⚠️ CLEAR LOG HISTORY? ⚠️\n\nThis will permanently delete your training data.\n\nUse 'Export Log' before proceeding to preserve it.")) {
-        await DBManager.clearStorage();
+        // Keeps rewardStartDate, sticker states and notes so Refill Log restores the log exactly.
+        await DBManager.clearStorage({ keepRewards: true });
+        // Stop a scan running here or in another tab before its next call.
+        _syncChannel.postMessage({ type: 'bf:stop', from: _TAB_ID });
+        handleBackfillMessage({ type: 'bf:stop' });
         // Clear Log behaves like a fresh install but must NOT re-prompt onboarding: keep the
         // API key (KEYS.CONFIG) and the 'bbgl_initialized' flag so the welcome screen stays
         // skipped. (privacyAgreed lives in CONFIG and is auto-stamped on boot regardless.)
@@ -4351,8 +4392,16 @@ async function clearData() {
             if (k && k.startsWith('bbgl_') && k !== KEYS.STORAGE && !keep.includes(k)) localStorage.removeItem(k);
         }
         sessionStorage.removeItem(KEYS.SESSION_CACHE);
-        DataController.invalidate();
-        _historyCache = null;
+        refreshBackfillUI();
+        // Hydrate from what clearStorage kept rather than nulling the cache: a null cache hands the
+        // next sync a meta with no rewardStartDate, and that sync would stamp a new one over the kept date.
+        try {
+            DataController.hydrate(await DBManager.loadHistory());
+        } catch (e) {
+            Log.warn('Reload after Clear Log failed', e);
+            _historyCache = null;
+            DataController.invalidate();
+        }
         calendarState.selectedData = null;
         calendarState.selectedLabel = null;
         viewState.activeViewLabel = null;

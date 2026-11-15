@@ -569,6 +569,284 @@
         return buildDevSection('Books', [buildRow(modeBtns), buildRow(pageBtns), buildRow(memBtns)], 230);
     }
 
+    // ─── Backfill section (automatic backfill testing) ─────────────────────
+    // Overrides live in localStorage under a key outside the bbgl_ namespace, so they survive page
+    // loads (the scan resumes on every one), reach every tab, and outlive Clear Log and harness
+    // resets. Production reads them only behind runtime.devMode: _devBackfillCap,
+    // _devBackfillCooldownMs, _devBackfillThrottleMs, _devBackfillErrorWindowMs, _devMergeCrash,
+    // _devForceNoWebLocks, and _devTakeBackfillFail() for the next forced failure.
+    const BF_DEV_KEY = 'bbgldev_backfill';
+    const BF_LEASE_KEY = 'bbgl_bf_lease';
+    const BF_FAIL_KINDS = ['net', 'http', 'code5', 'code8', 'code14', 'key2', 'key16', 'key18', 'unknown'];
+
+    function loadBfDev() {
+        try { return JSON.parse(localStorage.getItem(BF_DEV_KEY)) || {}; } catch (e) { return {}; }
+    }
+
+    function applyBfDev(o) {
+        const num = v => (Number.isFinite(v) && v > 0) ? v : null;
+        runtime._devBackfillCap = num(o.cap);
+        runtime._devBackfillCooldownMs = num(o.cooldownMs);
+        runtime._devBackfillThrottleMs = num(o.throttleMs);
+        runtime._devBackfillErrorWindowMs = num(o.errorWindowMs);
+        runtime._devMergeCrash = (o.mergeCrash === 'beforeTx' || o.mergeCrash === 'afterTx') ? o.mergeCrash : null;
+        runtime._devForceNoWebLocks = !!o.noWebLocks;
+    }
+
+    function saveBfDev(o) {
+        if (Object.keys(o).length) localStorage.setItem(BF_DEV_KEY, JSON.stringify(o));
+        else localStorage.removeItem(BF_DEV_KEY);
+        applyBfDev(o);
+    }
+
+    // The count is persisted, so a forced failure stays armed across the page loads it spans.
+    runtime._devTakeBackfillFail = () => {
+        const o = loadBfDev();
+        if (!o.fail || !(o.fail.count > 0)) return null;
+        const kind = o.fail.kind;
+        o.fail.count--;
+        if (o.fail.count <= 0) delete o.fail;
+        saveBfDev(o);
+        return kind;
+    };
+
+    // One-shot, so the merge that crashed can be redone on the next page load.
+    runtime._devTakeMergeCrash = () => {
+        const o = loadBfDev();
+        const mode = o.mergeCrash;
+        if (mode !== 'beforeTx' && mode !== 'afterTx') return null;
+        delete o.mergeCrash;
+        saveBfDev(o);
+        return mode;
+    };
+
+    applyBfDev(loadBfDev());
+    window.addEventListener('storage', e => {
+        if (e.key === BF_DEV_KEY) applyBfDev(loadBfDev());
+    });
+
+    // Reads the backfill stores straight from IndexedDB; they don't exist until Phase 2's DB upgrade.
+    async function bfReadStore(store, key) {
+        const db = await DBManager._ensureDb();
+        if (!db || !db.objectStoreNames.contains(store)) return undefined;
+        return new Promise((resolve, reject) => {
+            const os = db.transaction(store, 'readonly').objectStore(store);
+            const req = key === undefined ? os.getAll() : os.get(key);
+            // A missing record reads as undefined too; keep undefined to mean "no such store".
+            req.onsuccess = () => resolve(req.result === undefined ? null : req.result);
+            req.onerror = () => reject(req.error);
+        });
+    }
+
+    async function bfState() {
+        const s = await bfReadStore('backfill', 'state');
+        return s === undefined ? 'backfill store not created yet' : (s || null);
+    }
+
+    async function bfNotices() {
+        const n = await bfReadStore('backfill', 'notices');
+        return n === undefined ? 'backfill store not created yet' : (n || null);
+    }
+
+    async function bfInbox() {
+        const rows = await bfReadStore('inbox');
+        if (rows === undefined) return 'inbox store not created yet';
+        const iso = ts => ts === null ? null : new Date(ts * 1000).toISOString();
+        const byGroup = {};
+        rows.forEach(r => {
+            const g = byGroup[r.group || '?'] || (byGroup[r.group || '?'] = { count: 0, oldest: null, newest: null });
+            g.count++;
+            if (g.oldest === null || r.ts < g.oldest) g.oldest = r.ts;
+            if (g.newest === null || r.ts > g.newest) g.newest = r.ts;
+        });
+        Object.values(byGroup).forEach(g => {
+            g.oldestDate = iso(g.oldest);
+            g.newestDate = iso(g.newest);
+        });
+        return { total: rows.length, byGroup };
+    }
+
+    // Creates a test state if no log has been started (what startLog() will do), then starts the scan.
+    async function bfStart() {
+        let st = await DBManager.getBackfillState();
+        if (!st) {
+            st = newBackfillState('initialize');
+            await DBManager.resetBackfill(st, {});
+            announceBackfillState();
+        }
+        const blocked = backfillBlockReason(st, await readStoredMeta());
+        if (blocked) return `not started: ${blocked}`;
+        if (runtime.bfScanning || runtime.bfWaitingLock) return 'already running or queued';
+        runBackfill();
+        return 'started';
+    }
+
+    async function bfReset() {
+        const db = await DBManager._ensureDb();
+        if (!db) return 'no database';
+        const stores = ['backfill', 'inbox'].filter(s => db.objectStoreNames.contains(s));
+        localStorage.removeItem(BF_LEASE_KEY);
+        if (!stores.length) return 'backfill stores not created yet';
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(stores, 'readwrite');
+            stores.forEach(s => tx.objectStore(s).clear());
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+        return `cleared ${stores.join(' + ')}`;
+    }
+
+    function bfOverrides() {
+        return { ...loadBfDev(), webLocks: !!navigator.locks };
+    }
+
+    function buildBackfillSection() {
+        const label = text => {
+            const l = document.createElement('span');
+            l.textContent = text;
+            l.style.cssText = 'color:#aaa;font-family:sans-serif;font-size:10px;flex:0 0 auto;';
+            return l;
+        };
+        // Empty or 0 turns an override off. `scale` converts the shown unit to the stored ms/count.
+        const numInput = (key, scale, title) => {
+            const inp = document.createElement('input');
+            inp.type = 'number';
+            inp.min = '0';
+            inp.placeholder = 'off';
+            inp.title = title;
+            inp.style.cssText = inputStyle + 'flex:1;min-width:0;';
+            inp.addEventListener('change', () => {
+                const o = loadBfDev();
+                const v = parseFloat(inp.value);
+                if (Number.isFinite(v) && v > 0) o[key] = v * scale;
+                else delete o[key];
+                saveBfDev(o);
+                inp.blur();
+            });
+            refreshers.push(() => {
+                if (document.activeElement === inp) return;
+                const v = loadBfDev()[key];
+                const shown = v ? String(v / scale) : '';
+                if (inp.value !== shown) inp.value = shown;
+            });
+            return inp;
+        };
+
+        const capRow = buildRow([
+            label('Cap'), numInput('cap', 1, 'Line cap per 24h window (real: 44,000)'),
+            label('Cool s'), numInput('cooldownMs', 1000, 'Cooldown in seconds (real: 24h 6m)')
+        ]);
+        const pacingRow = buildRow([
+            label('Thr ms'), numInput('throttleMs', 1, 'Wait between backfill calls in ms (real: 1200)'),
+            label('Err s'), numInput('errorWindowMs', 1000, 'Seconds of failed retries before the connection error shows (real: 600)')
+        ]);
+
+        const failSelect = buildSelect(BF_FAIL_KINDS.map(k => [k, k]));
+        const failCount = document.createElement('input');
+        failCount.type = 'number';
+        failCount.min = '1';
+        failCount.value = '1';
+        failCount.title = 'How many backfill calls fail';
+        failCount.style.cssText = inputStyle + 'flex:0 0 40px;';
+        const armBtn = buildDevButton('Arm', () => {
+            const o = loadBfDev();
+            const n = parseInt(failCount.value, 10);
+            if (Number.isFinite(n) && n > 0) o.fail = { kind: failSelect.value, count: n };
+            else delete o.fail;
+            saveBfDev(o);
+        }, smallBtn + 'flex:0 0 40px;');
+        const failRow = buildRow([failSelect, failCount, armBtn]);
+
+        const crashSelect = buildSelect([['', 'Merge crash: off'], ['beforeTx', 'Crash before tx'], ['afterTx', 'Crash after tx']]);
+        crashSelect.addEventListener('change', () => {
+            const o = loadBfDev();
+            if (crashSelect.value) o.mergeCrash = crashSelect.value;
+            else delete o.mergeCrash;
+            saveBfDev(o);
+        });
+        const noLocksBtn = buildDevButton('No Locks', () => {
+            const o = loadBfDev();
+            if (o.noWebLocks) delete o.noWebLocks;
+            else o.noWebLocks = true;
+            saveBfDev(o);
+        }, smallBtn + 'flex:0 0 64px;');
+        noLocksBtn.title = 'Force the localStorage lease instead of Web Locks';
+        const crashRow = buildRow([crashSelect, noLocksBtn]);
+
+        const show = (name, p) => Promise.resolve(p).then(r => console.log(`[dev] backfill ${name}`, r));
+        const actionRow = buildRow([
+            buildDevButton('State', () => show('state', bfState()), smallBtn),
+            buildDevButton('Inbox', () => show('inbox', bfInbox()), smallBtn),
+            buildDevButton('Start', () => show('start', bfStart()), smallBtn),
+            buildDevButton('Reset', () => show('reset', bfReset()), smallBtn + 'background:#5a1a1a;border-color:#833;')
+        ]);
+
+        const status = document.createElement('div');
+        status.style.cssText = 'font-family:sans-serif;font-size:10px;color:#ce93d8;text-align:center;min-height:13px;';
+        refreshers.push(() => {
+            const o = loadBfDev();
+            setActive(noLocksBtn, !!o.noWebLocks);
+            if (document.activeElement !== crashSelect && crashSelect.value !== (o.mergeCrash || '')) crashSelect.value = o.mergeCrash || '';
+            setTextIfChanged(status, o.fail ? `Armed: ${o.fail.kind} ×${o.fail.count}` : 'No failure armed');
+        });
+
+        return buildDevSection('Backfill', [capRow, pacingRow, failRow, crashRow, actionRow, status], 230);
+    }
+
+    // ─── Backfill UI section (preview the overlay states and notices) ──────
+    // Overlay previews swap in a fake runtime.bfState and redraw; "Real" re-reads the stored state.
+    // Any real scan update (refreshBackfillUI) also ends a preview. Notices open directly and mark
+    // nothing as seen.
+    function buildBackfillUISection() {
+        const previewOverlay = (lastError, paused) => {
+            if (dom.settingsView && dom.settingsView.classList.contains('active-view')) switchView('ledger');
+            runtime.bfState = Object.assign(newBackfillState('initialize'), { lastError, paused: !!paused });
+            if (!runtime.bfInboxCount) runtime.bfInboxCount = 4200;
+            const old = document.getElementById('bbgl-scan-overlay');
+            if (old) old.remove();
+            renderBackfillOverlay();
+        };
+        const overlayRow = buildRow([
+            buildDevButton('Working', () => previewOverlay(null), smallBtn),
+            buildDevButton('Net', () => previewOverlay({ kind: 'connection', code: 'net', at: Date.now() }), smallBtn),
+            buildDevButton('Key', () => previewOverlay({ kind: 'key', code: 18, at: Date.now() }), smallBtn),
+            buildDevButton('Pause', () => previewOverlay(null, true), smallBtn),
+            buildDevButton('Real', () => {
+                const old = document.getElementById('bbgl-scan-overlay');
+                if (old) old.remove();
+                refreshBackfillUI();
+            }, smallBtn + 'background:#5a1a1a;border-color:#833;')
+        ]);
+        const st = () => newBackfillState('initialize');
+        const notice = (kind, ctx) => () => {
+            closeBackfillNotice();
+            openBackfillNotice(kind, st(), ctx);
+        };
+        const later = Date.now() + 86400000;
+        const noticeRows = [
+            buildRow([
+                buildDevButton('Complete', notice('complete'), smallBtn),
+                buildDevButton('Cap', notice('cap', {
+                    date: 'March 3, 2024',
+                    time: new Date(later).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+                    dayWord: 'tomorrow'
+                }), smallBtn)
+            ]),
+            buildRow([
+                buildDevButton('Err: Net', notice('errorConnection', { reason: backfillErrorReason('net') }), smallBtn),
+                buildDevButton('Err: Key', notice('errorKey'), smallBtn)
+            ]),
+            buildRow([buildDevButton('Stop', notice('stopConfirm', { date: 'March 3, 2024' }), smallBtn)])
+        ];
+        const label = text => {
+            const l = document.createElement('div');
+            l.textContent = text;
+            l.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;';
+            return l;
+        };
+        return buildDevSection('Backfill UI', [label('Overlay'), overlayRow, label('Notices'), ...noticeRows], 200);
+    }
+
     // ─── Config section (sidebar notif, factory reset) ─────────────────────
     function buildConfigSection() {
         const notifBtn = buildDevButton('Toggle Sidebar Notif', () => {
@@ -653,6 +931,7 @@
         { label: 'Config', command: 'BBGL.config()', description: 'User config (API key redacted)', run: getBBGLConfig },
         { label: 'History', command: 'BBGL.history()', description: 'Active history meta + count + date range', run: getBBGLHistory },
         { label: 'Cache Peek', command: 'BBGL.cache.peek()', description: 'Which derived caches are populated', run: getBBGLCachePeek },
+        { label: 'BF Overrides', command: 'BBGL.backfill.overrides()', description: 'Active backfill dev overrides (also .state() .inbox() .notices() .start() .reset(), async)', run: bfOverrides },
         { label: 'Help', command: 'BBGL.help()', description: 'This table', run: () => BBGL_COMMANDS.map(({ command, description }) => ({ command, description })) }
     ];
 
@@ -662,6 +941,7 @@
         config: getBBGLConfig,
         history: getBBGLHistory,
         cache: Object.freeze({ peek: getBBGLCachePeek }),
+        backfill: Object.freeze({ state: bfState, inbox: bfInbox, notices: bfNotices, start: bfStart, reset: bfReset, overrides: bfOverrides }),
         help: () => {
             console.table(BBGL_COMMANDS.map(({ command, description }) => ({ command, description }))
                 .concat([{ command: 'devmode("on"|"off")', description: 'Toggle dev mode (enables Perf marks + dev UI)' }]));
@@ -778,6 +1058,8 @@
             buildTitlePreviewSection(),
             buildPlaquePreviewSection(),
             buildBooksSection(),
+            buildBackfillSection(),
+            buildBackfillUISection(),
             buildConfigSection()
         ], 'align-items:stretch;gap:0;');
         strip.firstChild.style.borderLeft = 'none';

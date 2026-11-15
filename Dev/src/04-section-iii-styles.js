@@ -7691,9 +7691,9 @@
                         display: none !important;
                     }
 
-                    /* Full-panel Big Black Backfill scan mask. Anchored to #bbgl-content-wrapper
-                       (position:relative), so it covers the top + bottom panels and the settings/
-                       welcome views while leaving the header (settings/close) reachable. */
+                    /* Backfill overlay. Anchored to #bbgl-content-wrapper (position:relative), so it covers
+                       the top and bottom panels while the header (settings/close) stays reachable. Hidden in
+                       the settings view so the API key can still be fixed. */
                     #bbgl-scan-overlay {
                         position: absolute;
                         inset: 0;
@@ -7718,103 +7718,192 @@
                         color: #fff;
                         letter-spacing: .4px;
                     }
-                    #bbgl-scan-overlay .bbgl-scan-title-row {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 10px;
-                    }
-                    #bbgl-scan-overlay .bbgl-scan-title-icon {
-                        width: 26px;
-                        height: 26px;
-                    }
-                    #bbgl-scan-overlay .bbgl-scan-title-icon svg { width: 13px; height: 13px; }
                     #bbgl-scan-overlay .bbgl-scan-sub {
                         font-size: 12px;
                         line-height: 1.6;
                         color: #b6b6b6;
-                        max-width: 300px;
+                        max-width: 320px;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-reason {
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #ffb74d;
+                        max-width: 320px;
+                        line-height: 1.5;
                     }
                     #bbgl-scan-overlay .bbgl-scan-note {
                         font-size: 11px;
                         font-style: italic;
                         color: #888;
-                        max-width: 300px;
+                        max-width: 320px;
                         line-height: 1.5;
                     }
-                    #bbgl-scan-overlay .bbgl-scan-count-row {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        gap: 8px;
-                        font-size: 12px;
-                        color: #ccc;
+                    #bbgl-scan-overlay .bbgl-scan-sub b { color: #ddd; }
+                    /* Overlay copy: lead text, an italic note, then the Demo prompt. --scan-scale
+                       grows the type with the panel mode (compact < expanded < Gym Log page). */
+                    #bbgl-scan-overlay { --scan-scale: 1; }
+                    .bbgl-expanded #bbgl-scan-overlay { --scan-scale: 1.12; }
+                    .bbgl-mode-page #bbgl-scan-overlay { --scan-scale: 1.2; }
+                    #bbgl-scan-overlay .bbgl-scan-title { font-size: calc(19px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-count { font-size: calc(12px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-reason { font-size: calc(12px * var(--scan-scale)); max-width: calc(330px * var(--scan-scale)); }
+                    #bbgl-scan-overlay .bbgl-scan-spinner {
+                        width: calc(30px * var(--scan-scale));
+                        height: calc(30px * var(--scan-scale));
                     }
-                    #bbgl-scan-overlay .bbgl-scan-count { color: #b388ff; font-variant-numeric: tabular-nums; }
-                    .bbgl-scan-pulse {
-                        width: 8px;
-                        height: 8px;
-                        border-radius: 50%;
-                        background: #b388ff;
-                        flex: 0 0 auto;
-                        animation: bbgl-scan-pulse-anim 1.4s ease-in-out infinite;
+                    #bbgl-scan-overlay .bbgl-scan-lead {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(13px * var(--scan-scale));
+                        line-height: 1.65;
+                        letter-spacing: .15px;
+                        color: #d9d9de;
+                        max-width: calc(330px * var(--scan-scale));
+                        margin-top: -4px;
                     }
-                    @keyframes bbgl-scan-pulse-anim {
-                        0%, 100% { opacity: .35; transform: scale(.8); }
-                        50% { opacity: 1; transform: scale(1.15); }
+                    #bbgl-scan-overlay .bbgl-scan-lead b { color: #fff; font-weight: 600; }
+                    #bbgl-scan-overlay .bbgl-scan-note {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(12px * var(--scan-scale));
+                        font-style: italic;
+                        line-height: 1.6;
+                        color: #a2a2ab;
+                        max-width: calc(320px * var(--scan-scale));
+                        padding-top: 8px;
+                        border-top: 1px solid rgba(255, 255, 255, .07);
                     }
-                    #bbgl-panel.bbgl-no-animations .bbgl-scan-pulse {
-                        animation: none;
-                        opacity: 1;
-                    }
-                    #bbgl-scan-cancel {
-                        position: absolute;
-                        top: 22px;
-                        right: 16px;
-                        font-size: 11px;
-                        font-weight: 700;
-                        color: #ff5252;
-                        cursor: pointer;
-                        padding: 4px 9px;
-                        border-radius: 4px;
-                        text-transform: uppercase;
-                        letter-spacing: .5px;
-                    }
-                    #bbgl-scan-cancel:hover { background: rgba(255, 82, 82, .16); }
-                    #bbgl-scan-overlay .bbgl-scan-actions {
-                        display: flex;
-                        gap: 18px;
-                        align-items: center;
-                        justify-content: center;
+                    #bbgl-scan-overlay .bbgl-scan-cta {
+                        font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+                        font-size: calc(13px * var(--scan-scale));
+                        font-weight: 600;
+                        letter-spacing: .15px;
+                        color: #cdb4ff;
+                        max-width: calc(330px * var(--scan-scale));
                         margin-top: 2px;
                     }
-                    .bbgl-scan-textbtn {
+                    .bbgl-gl-settings-link {
+                        color: #cdb4ff;
+                        font-weight: 600;
+                        text-decoration: underline;
+                        text-underline-offset: 2px;
                         cursor: pointer;
-                        font-size: 13px;
-                        font-weight: 700;
-                        color: #dcdcdc;
-                        padding: 7px 12px;
-                        border-radius: 4px;
                     }
-                    .bbgl-scan-textbtn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
-                    .bbgl-scan-textbtn.bbgl-scan-primary { color: #b388ff; }
-                    .bbgl-scan-textbtn.bbgl-scan-primary:hover { background: rgba(179, 136, 255, .16); }
-                    .bbgl-scan-iconbtn {
-                        display: inline-flex;
+                    .bbgl-gl-settings-link:hover { color: #fff; }
+                    /* Create API Key blinking between its gray and the purple button style after a
+                       "Gym Log's Settings" link or button (~2s, toggled by openGymLogSettings). */
+                    .bbgl-btn.bbgl-btn-flash-on {
+                        background-image: linear-gradient(#1a0529 0%, #6a1b9a 25%, #4a1070 60%, #4a1070 78%, #1a0529 100%) !important;
+                        border-color: #b388ff !important;
+                        box-shadow: 0 0 12px 2px rgba(179, 136, 255, .75);
+                        color: #fff;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-inner {
+                        display: flex;
+                        flex-direction: column;
                         align-items: center;
-                        justify-content: center;
-                        width: 36px;
-                        height: 36px;
+                        gap: 14px;
+                    }
+                    /* The Gym Log page is taller than the screen: positionBackfillOverlay (10) sets
+                       the copy's top margin so it's centered in the visible part, and it stays put. */
+                    .bbgl-mode-page #bbgl-scan-overlay {
+                        justify-content: flex-start;
+                        padding-top: 0;
+                        padding-bottom: 0;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-count {
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #b388ff;
+                        font-variant-numeric: tabular-nums;
+                        margin-top: -6px;
+                    }
+                    #bbgl-scan-overlay #bbgl-scan-demo-btn {
+                        display: inline-block;
+                        width: auto;
+                        min-width: 140px;
+                        padding-left: 28px;
+                        padding-right: 28px;
+                        margin: 0;
+                    }
+                    .bbgl-scan-spinner {
+                        width: 30px;
+                        height: 30px;
                         border-radius: 50%;
+                        border: 3px solid rgba(179, 136, 255, .2);
+                        border-top-color: #b388ff;
+                        box-sizing: border-box;
+                        flex: 0 0 auto;
+                        animation: bbgl-scan-spin .9s linear infinite;
+                    }
+                    @keyframes bbgl-scan-spin {
+                        to { transform: rotate(360deg); }
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-pause-icon {
+                        display: block;
+                        width: calc(30px * var(--scan-scale, 1));
+                        height: calc(30px * var(--scan-scale, 1));
+                        color: #b388ff;
+                        flex: 0 0 auto;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-pause-icon svg,
+                    #bbgl-scan-overlay .bbgl-scan-toggle svg,
+                    #bbgl-scan-overlay .bbgl-scan-stop svg {
+                        display: block;
+                        width: 100%;
+                        height: 100%;
+                    }
+                    /* Status icon with the clickable pause/play symbol beside it. */
+                    #bbgl-scan-overlay .bbgl-scan-iconrow {
+                        display: flex;
+                        align-items: center;
+                        gap: calc(10px * var(--scan-scale, 1));
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-toggle {
+                        width: calc(20px * var(--scan-scale, 1));
+                        height: calc(20px * var(--scan-scale, 1));
+                        color: #b388ff;
+                        opacity: .8;
                         cursor: pointer;
                     }
-                    .bbgl-scan-iconbtn svg { width: 18px; height: 18px; }
-                    .bbgl-scan-iconbtn.bbgl-scan-yes { color: #69f0ae; }
-                    .bbgl-scan-iconbtn.bbgl-scan-yes:hover { background: rgba(105, 240, 174, .16); }
-                    .bbgl-scan-iconbtn.bbgl-scan-no { color: #ff5252; }
-                    .bbgl-scan-iconbtn.bbgl-scan-no:hover { background: rgba(255, 82, 82, .16); }
-                    .bbgl-scan-iconbtn.bbgl-scan-play { color: #b388ff; }
-                    .bbgl-scan-iconbtn.bbgl-scan-play:hover { background: rgba(179, 136, 255, .16); }
+                    #bbgl-scan-overlay .bbgl-scan-toggle:hover { opacity: 1; color: #d1b8ff; }
+                    /* End Backfill: a plain × in the overlay's corner. */
+                    #bbgl-scan-overlay .bbgl-scan-stop {
+                        position: absolute;
+                        top: 12px;
+                        right: 12px;
+                        width: calc(16px * var(--scan-scale, 1));
+                        height: calc(16px * var(--scan-scale, 1));
+                        color: #8e8e96;
+                        cursor: pointer;
+                        z-index: 1;
+                    }
+                    #bbgl-scan-overlay .bbgl-scan-stop:hover { color: #ff5252; }
+                    #bbgl-panel.bbgl-no-animations .bbgl-scan-spinner { animation: none; }
+
+                    /* Backfill notice modals (complete / cap / errors), on the standard modal window. */
+                    .bbgl-notice-body {
+                        font-family: Arial, sans-serif;
+                        font-size: 12px;
+                        line-height: 1.7;
+                        color: #ccc;
+                        padding: 10px 6px 14px;
+                        text-align: center;
+                    }
+                    .bbgl-notice-body p { margin: 0 0 8px; }
+                    .bbgl-notice-body p:last-child { margin-bottom: 0; }
+                    .bbgl-notice-body b { color: #fff; }
+                    .bbgl-notice-body .bbgl-notice-aside {
+                        font-style: italic;
+                        color: #999;
+                        font-size: 11px;
+                    }
+                    .bbgl-notice-actions {
+                        display: flex;
+                        margin: 0 6px 2px;
+                    }
+                    .bbgl-notice-actions .bbgl-btn {
+                        flex: 1;
+                        margin: 0;
+                    }
 
                     .bbgl-ack-check {
                         display: inline-flex;
@@ -7981,6 +8070,9 @@
                         box-shadow: 0 10px 30px rgba(0, 0, 0, .6), 0 0 30px -10px var(--bbgl-modal-accent), inset 0 1px 0 rgba(255, 255, 255, .05);
                         box-sizing: border-box;
                     }
+                    /* Short messages (the backfill notices): a narrower window so the text isn't lost
+                       in it. Phones already fit the 92vw cap. */
+                    .bbgl-modal-window.bbgl-modal-narrow { width: min(400px, 92vw); }
                     .bbgl-modal-window::before {
                         content: '';
                         position: absolute;

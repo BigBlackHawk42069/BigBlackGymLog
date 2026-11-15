@@ -494,25 +494,18 @@
         const states = (_historyCache && _historyCache.meta && _historyCache.meta.stickers) ? _historyCache.meta.stickers : {};
         return states[String(id)] || '--';
     }
-    async function persistStickerCleared(id) {
-        try {
-            const stored = await DBManager.getStorage();
-            if (!stored) return;
-            if (!stored.meta) stored.meta = {};
-            if (!stored.meta.stickers) stored.meta.stickers = {};
-            const key = String(id);
-            const cachedState = (_historyCache && _historyCache.meta && _historyCache.meta.stickers && _historyCache.meta.stickers[key]) || '--';
-            const newState = cachedState[0] + '+';
-            stored.meta.stickers[key] = newState;
-            await DBManager.setStorage(stored);
-            if (_historyCache) {
-                if (!_historyCache.meta) _historyCache.meta = {};
-                if (!_historyCache.meta.stickers) _historyCache.meta.stickers = {};
-                _historyCache.meta.stickers[key] = newState;
-            }
-        } catch (e) {
-            Log.warn('Failed to persist sticker cleared state', e);
-        }
+    // Only meta changes, so this saves meta alone instead of rebuilding and rewriting every day.
+    function persistStickerCleared(id) {
+        if (!_historyCache) return;
+        const key = String(id);
+        const apply = () => {
+            if (!_historyCache.meta) _historyCache.meta = {};
+            if (!_historyCache.meta.stickers) _historyCache.meta.stickers = {};
+            const cur = _historyCache.meta.stickers[key] || '--';
+            _historyCache.meta.stickers[key] = cur[0] + '+';
+        };
+        apply();
+        return DataController._persistMetaChange(apply, 'sticker cleared state');
     }
 
     function getISOWeek(s) {
@@ -1058,7 +1051,7 @@
     // Week-key of the install date (rewardStartDate). Stickers are eligible for weeks with key >=
     // this — week-precision, so a backfilled day earlier in the install week still counts toward
     // that week's sticker goal. Respects the user's day-start and week-start modes. Returns null if
-    // unknown (no gating) — but init() self-heals privacyAgreed so this is rare.
+    // unknown (no gating): only before the first sync after Initialize Log stamps it.
     function getInstallWeekKey() {
         const rewardStartDate = getActiveHistory().meta.rewardStartDate;
         if (!rewardStartDate) return null;
@@ -1068,8 +1061,8 @@
     // Logical date-string of the install moment (rewardStartDate), day-precision. Gates EXP
     // specifically: unlike getInstallWeekKey()'s week-level sticker gate, a backfilled day earlier
     // in the install week earns 0 EXP — only days on/after the exact install moment count. This is
-    // what keeps a Clear Log + Backfill from retroactively granting career EXP for reconstructed
-    // pre-install history while still letting that same week's sticker goal be met.
+    // what keeps backfilled pre-install history from granting career EXP while still letting that
+    // same week's sticker goal be met.
     function getInstallDateKey() {
         const rewardStartDate = getActiveHistory().meta.rewardStartDate;
         if (!rewardStartDate) return null;
