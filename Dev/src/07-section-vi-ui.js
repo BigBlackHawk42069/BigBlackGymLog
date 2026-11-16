@@ -2366,12 +2366,33 @@
         });
     }
 
+    // EXP gained since this bar was built lights up (sheenFill's gain layers in 04). The baseline is
+    // the bar's first render, so it lasts until the bar is rebuilt: a page load, or the panel or gym
+    // bar being recreated. A level-up lights the new level from 0; a tier change starts over.
+    // Fully Bricked never grows, so it never lights.
+    function levelGainFrom(fill, atrophy, level, pct) {
+        const base = fill._gainBase;
+        if (!base || base.atrophy !== atrophy) {
+            fill._gainBase = { atrophy, level, pct };
+            return null;
+        }
+        if (atrophy === 2 && level >= 100) return null;
+        const from = base.level === level ? base.pct : 0;
+        return from < pct - 0.05 ? from : null;
+    }
+
+    function setLevelGainFrom(fill, from) {
+        if (from === null) fill.style.removeProperty('--bbgl-gain-from');
+        else fill.style.setProperty('--bbgl-gain-from', from.toFixed(2));
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
         bar.fill.style.width = ((pct / 100) * 90).toFixed(2) + '%';
         bar.fill.classList.toggle('level-full', pct >= 99.9);
+        setLevelGainFrom(bar.fill, levelGainFrom(bar.fill, atrophy, level, pct));
         if (dom.panel) {
             dom.panel.dataset.atrophy = atrophy;
             dom.panel.dataset.level = level;
@@ -2467,6 +2488,7 @@
                         b.fill.style.transitionDuration = durationMs + 'ms';
                         b.fill.style.width = '90%';
                         b.fill.classList.add('level-full');
+                        setLevelGainFrom(b.fill, levelGainFrom(b.fill, currentProg.atrophy, currentProg.level, 100));
                     });
 
                     await new Promise(r => setTimeout(r, durationMs + 50));
@@ -2509,6 +2531,7 @@
                         b.fill.style.transition = 'none';
                         b.fill.style.width = '0%';
                         b.fill.classList.remove('level-full');
+                        setLevelGainFrom(b.fill, 0);
                         void b.fill.offsetWidth; // force reflow
                         b.fill.style.transition = '';
                     });
@@ -2783,6 +2806,8 @@
                 b.fill.style.transition = 'none';
                 b.fill.style.width = '0%';
                 b.fill.classList.remove('level-full');
+                b.fill._gainBase = null;
+                setLevelGainFrom(b.fill, null);
                 void b.fill.offsetWidth;
                 b.fill.style.transition = '';
             });

@@ -2358,14 +2358,21 @@
     // length. ramp is [edge, shadow, low, mid, peak] and hi the highlight as 'r, g, b'. Static, so the
     // charge and flash animations are unchanged. Applied to the fill and its ::before chamber copy
     // alike: background: inherit on the copy doesn't carry the blend modes.
-    const sheenFill = ([edge, shadow, low, mid, peak], hi) => `background:
+    // The top two layers mark EXP gained since the bar was built (--bbgl-gain-from, set by
+    // levelGainFrom in 07, in percent of the level): the settled part is dimmed, the gained part
+    // glows in the tier's peak colour lifted toward its highlight, and the two cross-fade over 24px so the glow bleeds a little
+    // into the old EXP. --bbgl-gain-shift moves the stops into the ::before chamber's own box.
+    // dim is false for Fully Bricked, which never grows: no dimming, and the gain stops are parked.
+    const sheenFill = ([edge, shadow, low, mid, peak], hi, dim = true) => `background:
+                            linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - 24px), color-mix(in srgb, color-mix(in srgb, ${peak} 60%, rgb(${hi})) 50%, transparent) calc(var(--bbgl-gain-x) - 8px), color-mix(in srgb, color-mix(in srgb, ${peak} 60%, rgb(${hi})) 75%, transparent) var(--bbgl-gain-x)),
+                            linear-gradient(90deg, rgba(0, 0, 0, ${dim ? .16 : 0}) calc(var(--bbgl-gain-x) - 24px), transparent var(--bbgl-gain-x)),
                             linear-gradient(100deg, transparent 0%, rgba(${hi}, .22) 8%, transparent 16%, transparent 38%, rgba(${hi}, .16) 46%, transparent 54%, transparent 72%, rgba(${hi}, .2) 80%, transparent 88%),
                             linear-gradient(180deg, transparent 30%, rgba(${hi}, .55) 42%, rgba(${hi}, .15) 47%, transparent 54%),
                             ${GAS_SMOKE},
                             linear-gradient(180deg, ${edge} 0%, ${shadow} 18%, ${low} 32%, ${mid} 42%, ${peak} 48%, ${mid} 56%, ${low} 70%, ${shadow} 84%, ${edge} 100%),
                             ${shadow};
-                        background-blend-mode: screen, screen, soft-light, normal, normal;
-                        box-shadow: none;`;
+                        background-blend-mode: screen, normal, screen, screen, soft-light, normal, normal;
+                        box-shadow: none;${dim ? '' : ' --bbgl-gain-x: 9999px;'}`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     // Paint-bound loops (background-position sheens, SVG glints) repaint on every display refresh,
     // and Chrome re-rasterizes whatever shares their tile each time; even a transform-only loop makes
@@ -6816,7 +6823,7 @@
                        dropdown is actually open, so the menu paints over the exp bar — the rest
                        of the time it stays at its normal stacking position. Elevating it
                        unconditionally (the old approach) made its whole box win any overlap with
-                       the level bar's crown/diamond badge beneath it, across the entire header
+                       the level bar's crown badge beneath it, across the entire header
                        row width, which is more than this ever actually needs. */
                     .title-group:has(.bbgl-dropdown-menu.show) {
                         z-index: 30;
@@ -8457,7 +8464,7 @@
                         right: 0;
                         height: 21px;
                         /* Track height for this mode, shared by the flag-clip cut line and the
-                           A2 diamond's bottom anchor so they stay in sync. Overridden per mode. */
+                           A2 crown's bottom anchor so they stay in sync. Overridden per mode. */
                         --bbgl-pedestal-rise: 6px;
                         display: flex;
                         flex-direction: column;
@@ -8481,13 +8488,13 @@
                     }
 
                     /* Wraps the tucking badge — both the text flag (#bbgl-level-num) and, for
-                       A2, the diamond crown (::before). A normal, non-transformed flex item
+                       A2, the gold crown (::before). A normal, non-transformed flex item
                        whose bottom edge sits at the top of the bar (track height above the
                        container bottom). The NEGATIVE clip bottom-inset pushes the cut line
                        DOWN from there to about halfway into the bar, so the badge rests fully
                        visible on top of the bar and only gets sliced once it has tucked down
                        past the midpoint. Left/right insets are opened up (-9999px) so the wide
-                       diamond isn't clipped on its sides — only the bottom cut matters. Because
+                       crown isn't clipped on its sides — only the bottom cut matters. Because
                        this wrapper never transforms, that cut line is screen-fixed: the badge
                        translateY()s through it during the crown-hop/rise animation, instead of
                        the clip boundary sliding along with the badge (which is what happens if
@@ -8692,14 +8699,17 @@
                         width: 0%;
                         z-index: 2;
                         border-radius: 1px / 35%;
-                        /* Leading edge dissolves over 20px on an eased curve, so the gas thins out rather
-                           than ending in a wall. The fade lives in 20px of right padding past the width JS
-                           sets, so the solid gas ends exactly at the EXP position (a full bar reaches the
-                           end) and the tail trails beyond it, under the coupling when full. */
+                        /* Leading edge drops off over 9px, soft enough to read as gas but short enough
+                           that the end point is clear. The fade lives in 9px of right padding past the
+                           width JS sets, so the solid gas ends exactly at the EXP position (a full bar
+                           reaches the end) and the tail trails beyond it, under the coupling when full. */
                         box-sizing: content-box;
-                        padding-right: 20px;
-                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
-                        mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
+                        padding-right: 9px;
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 9px), rgba(0, 0, 0, .55) calc(100% - 4px), transparent);
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 9px), rgba(0, 0, 0, .55) calc(100% - 4px), transparent);
+                        /* Fill origin is 5cqi into the track and the level spans 90cqi. No gain parks the
+                           stops far past the end. */
+                        --bbgl-gain-x: calc(var(--bbgl-gain-from, 200) * .9cqi - var(--bbgl-gain-shift, 0px));
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                     }
 
@@ -8983,7 +8993,7 @@
                     }
 
                     /* ─── Level Bar — A0: Crown badge (script logo) ─────────
-                       Same icon-badge treatment as A2's diamond: the crown sits behind the
+                       Same icon-badge treatment as A2's crown: the crown sits behind the
                        bar via a ::before background-image, "Lv X" floats above it as plain
                        text (no flag box). */
                     #bbgl-panel[data-atrophy] #bbgl-level-container {
@@ -9022,7 +9032,7 @@
                         margin-bottom: clamp(1px, calc(1px + 1px * var(--bbgl-page-t)), 2px);
                     }
 
-                    /* ─── Level Bar — A1: Green palette ──────── */
+                    /* ─── Level Bar — A1: Emerald palette ────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-num {
                         color: #b3ffb3;
@@ -9053,7 +9063,7 @@
                         animation: bbgl-lvl-flash-text-white 0.8s ease-out;
                     }
 
-                    /* ─── Level Bar — A1: Green ──────────────────────────── */
+                    /* ─── Level Bar — A1: Emerald ────────────────────────── */
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill,
                     #bbgl-gym-level-container[data-atrophy="1"] #bbgl-gym-level-fill,
                     #bbgl-panel[data-atrophy="1"] #bbgl-level-fill::before,
@@ -9061,7 +9071,7 @@
                         ${sheenFill(['#04120a', '#123d1d', '#1f7a32', '#3ccf55', '#7dff8f'], '220, 255, 226')}
                     }
 
-                    /* ─── Level Bar — A2: Diamond ───────────────────────── */
+                    /* ─── Level Bar — A2: Gold ──────────────────────────── */
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-num,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-num {
                         color: #b3ffb3;
@@ -9086,11 +9096,12 @@
                     }
 
 
+                    /* Fully Bricked: Diamond. */
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full,
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full::before,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full::before {
-                        ${sheenFill(['#140c24', '#2c1f46', '#5e3f8e', '#a472e0', '#d49bff'], '236, 246, 255')}
+                        ${sheenFill(['#140c24', '#2c1f46', '#5e3f8e', '#a472e0', '#d49bff'], '236, 246, 255', false)}
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -9260,6 +9271,8 @@
                         top: var(--bbgl-notch-top);
                         width: max(0px, min(var(--bbgl-valve-w) * .54, 100% - (45cqi - var(--bbgl-valve-w) * .27)));
                         height: calc(var(--bbgl-notch-bot) - var(--bbgl-notch-top));
+                        --bbgl-gain-shift: calc(45cqi - var(--bbgl-valve-w) * .27); /* redeclared below: var() resolves where it is declared */
+                        --bbgl-gain-x: calc(var(--bbgl-gain-from, 200) * .9cqi - var(--bbgl-gain-shift));
                         background: inherit;
                         pointer-events: none;
                     }
@@ -24475,12 +24488,33 @@ const BestGymController = {
         });
     }
 
+    // EXP gained since this bar was built lights up (sheenFill's gain layers in 04). The baseline is
+    // the bar's first render, so it lasts until the bar is rebuilt: a page load, or the panel or gym
+    // bar being recreated. A level-up lights the new level from 0; a tier change starts over.
+    // Fully Bricked never grows, so it never lights.
+    function levelGainFrom(fill, atrophy, level, pct) {
+        const base = fill._gainBase;
+        if (!base || base.atrophy !== atrophy) {
+            fill._gainBase = { atrophy, level, pct };
+            return null;
+        }
+        if (atrophy === 2 && level >= 100) return null;
+        const from = base.level === level ? base.pct : 0;
+        return from < pct - 0.05 ? from : null;
+    }
+
+    function setLevelGainFrom(fill, from) {
+        if (from === null) fill.style.removeProperty('--bbgl-gain-from');
+        else fill.style.setProperty('--bbgl-gain-from', from.toFixed(2));
+    }
+
     function renderLevelBar(bar, expVal) {
         const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal);
         const pct = expToNext > 0 ? Math.min(100, (expInLevel / expToNext) * 100) : (level >= 100 ? 100 : 0);
         setLevelBarNumber(bar, level);
         bar.fill.style.width = ((pct / 100) * 90).toFixed(2) + '%';
         bar.fill.classList.toggle('level-full', pct >= 99.9);
+        setLevelGainFrom(bar.fill, levelGainFrom(bar.fill, atrophy, level, pct));
         if (dom.panel) {
             dom.panel.dataset.atrophy = atrophy;
             dom.panel.dataset.level = level;
@@ -24576,6 +24610,7 @@ const BestGymController = {
                         b.fill.style.transitionDuration = durationMs + 'ms';
                         b.fill.style.width = '90%';
                         b.fill.classList.add('level-full');
+                        setLevelGainFrom(b.fill, levelGainFrom(b.fill, currentProg.atrophy, currentProg.level, 100));
                     });
 
                     await new Promise(r => setTimeout(r, durationMs + 50));
@@ -24618,6 +24653,7 @@ const BestGymController = {
                         b.fill.style.transition = 'none';
                         b.fill.style.width = '0%';
                         b.fill.classList.remove('level-full');
+                        setLevelGainFrom(b.fill, 0);
                         void b.fill.offsetWidth; // force reflow
                         b.fill.style.transition = '';
                     });
@@ -24892,6 +24928,8 @@ const BestGymController = {
                 b.fill.style.transition = 'none';
                 b.fill.style.width = '0%';
                 b.fill.classList.remove('level-full');
+                b.fill._gainBase = null;
+                setLevelGainFrom(b.fill, null);
                 void b.fill.offsetWidth;
                 b.fill.style.transition = '';
             });
