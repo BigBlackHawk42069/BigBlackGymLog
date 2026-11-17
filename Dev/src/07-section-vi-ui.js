@@ -1595,7 +1595,9 @@
         }
         const { capsules, isCompleted } = computeWeekCompletion(sl._dailyList, hjDaySet);
         if (isCompleted) tr.classList.add('track-polished');
-        tr.innerHTML = buildCapsuleBar(capsules, isCompleted, isCompleted && userConfig.animations);
+        // A finished week's unearned slots show as archived silver; completion is decided above.
+        const shown = _wk < getWeekKey(Formatter.dateLogical()) ? capsules.map(c => c || 'silver') : capsules;
+        tr.innerHTML = buildCapsuleBar(shown, isCompleted,isCompleted && userConfig.animations);
         anchor.appendChild(tr);
         addCenterTab(sl);
         cont.appendChild(anchor);
