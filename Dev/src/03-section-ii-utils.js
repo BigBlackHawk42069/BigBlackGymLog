@@ -836,10 +836,6 @@
     // step 3, two step 6, three step 8 (the finished trophy), all four step 10.
     const TITLE_PLAQUE_STEPS = [2, 4, 8, 12, 16, 20, 25, 30, 35, 40];
 
-    // Off restores the original walnut-and-charcoal card: the stage styles only apply under the
-    // card's .is-progressive class, and the original rules underneath them were left as they were.
-    const TITLE_PLAQUE_PROGRESSIVE = true;
-
     // 0 (nothing reached yet) through 10.
     function titlePlaqueStage(phases) {
         const total = statTitleUnlockedCount(phases);

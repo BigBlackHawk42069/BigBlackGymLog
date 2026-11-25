@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': 'f543fa2394d1398f2bfb43eb36314c4cc4a958cf'
+        'BigBlackHawk42069/BigBlackGymLog': '39f442dffb93289fb679e933b36921864f6d5461'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -1441,10 +1441,6 @@
     // step 3, two step 6, three step 8 (the finished trophy), all four step 10.
     const TITLE_PLAQUE_STEPS = [2, 4, 8, 12, 16, 20, 25, 30, 35, 40];
 
-    // Off restores the original walnut-and-charcoal card: the stage styles only apply under the
-    // card's .is-progressive class, and the original rules underneath them were left as they were.
-    const TITLE_PLAQUE_PROGRESSIVE = true;
-
     // 0 (nothing reached yet) through 10.
     function titlePlaqueStage(phases) {
         const total = statTitleUnlockedCount(phases);
@@ -1682,8 +1678,7 @@
     // ─── Progressive title plaque ───────────────────────────────────────────
     // The identity card's 11 looks, step 0-10 (titlePlaqueStage(), 03-section-ii-utils.js). Split out of
     // 04-section-iii-styles.js, which it loads just ahead of; both ship verbatim. Everything here is
-    // scoped to .bbgl-title-card.is-progressive, so the original card rules stay as they were and come
-    // back as-is with TITLE_PLAQUE_PROGRESSIVE off.
+    // scoped to .bbgl-title-card.is-progressive, which the card always carries.
     //
     // PLAQUE_STEPS is the whole ladder: each step lists only what changes from the one before. The board
     // (raw pine → pine → oak → walnut) and the cloth (canvas → felt → velvet) are images; the lettering
@@ -1809,7 +1804,7 @@
         mill: ['plate-1-aluminum'],
         machined: ['plate-2-lightbox'],
         polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver'],
+        silver: ['plate-4-silver', '100% 100%'],
         gold: ['plate-5-gold', '100% 100%'],
         pearl: ['plate-6-platinum', '100% 100%']
     };
@@ -1891,7 +1886,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.605;
+    aspect-ratio: 1.704;
 }
 
 /* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
@@ -1929,15 +1924,6 @@
 
 #bbgl-panel .bbgl-title-card-rank-plaque {
     filter: none !important;
-}
-
-#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-face::before,
-#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-fx {
-    display: none !important;
-}
-
-#bbgl-panel .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face {
-    animation: none !important;
 }
 
 /* The name tag's grid kept a row for its heading; with no heading the lettering centres on the plate. */
@@ -2012,7 +1998,7 @@
     // Adds a step's cloth art to its own style element the first time a card at that step renders.
     const plaqueArtBuilt = new Set();
     function ensurePlaqueArt(stage) {
-        if (!TITLE_PLAQUE_PROGRESSIVE || plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
+        if (plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
         plaqueArtBuilt.add(stage);
         let style = document.getElementById('bbgl-plaque-art');
         if (!style) {
@@ -11903,50 +11889,11 @@
                         min-width: 0;
                         min-height: 0;
                         padding: 0 0 4px;
-                        border: 1px solid #140b07;
-                        border-radius: 3px;
+                        border: 1px solid transparent;
                         box-sizing: border-box;
-                        /* Dark walnut: deep cool chocolate base, darker grain streaks, faint light figure. */
-                        background:
-                            repeating-linear-gradient(92deg, transparent 0 5px, rgba(8, 4, 2, .28) 6px, transparent 7px 13px),
-                            repeating-linear-gradient(88deg, rgba(176, 128, 92, .04) 0 1px, transparent 1px 3px),
-                            radial-gradient(ellipse 28% 120% at 24% 35%, #3a241800 45%, #140a0666 70%, transparent 78%),
-                            linear-gradient(100deg, #24160f, #3d281d 38%, #2f1e15 72%, #20140d);
-                        box-shadow:
-                            inset 1px 1px 0 rgba(186, 138, 100, .22),
-                            inset -1px -1px 0 rgba(0, 0, 0, .7),
-                            inset 0 0 0 3px rgba(16, 8, 4, .28);
                     }
 
-                    .bbgl-title-card::before {
-                        content: none;
-                        position: absolute;
-                        inset: 0;
-                        z-index: -2;
-                        border: 1px solid color-mix(in srgb, var(--bbgl-t-win-color) 38%, rgba(255, 255, 255, .96));
-                        border-radius: inherit;
-                        pointer-events: none;
-                        filter:
-                            drop-shadow(0 0 1px color-mix(in srgb, var(--bbgl-t-win-color) 55%, #fff))
-                            drop-shadow(0 0 calc(4px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 55%, transparent))
-                            drop-shadow(0 0 calc(11px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 26%, transparent));
-                        animation: bbgl-neon-hum var(--bbgl-t-win-hum, 8s) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
 
-                    .bbgl-title-card::after {
-                        content: none;
-                        position: absolute;
-                        inset: 1px;
-                        z-index: -1;
-                        border-radius: inherit;
-                        pointer-events: none;
-                        background:
-                            radial-gradient(ellipse 118% 118% at 50% 50%, transparent 34%, color-mix(in srgb, var(--bbgl-t-win-color) 13%, transparent) 100%),
-                            repeating-linear-gradient(0deg, transparent 0 2px, color-mix(in srgb, var(--bbgl-t-win-color) 9%, transparent) 2px 4px);
-                        -webkit-mask-image: radial-gradient(ellipse 130% 130% at 50% 50%, rgba(0, 0, 0, .25) 20%, #000 100%);
-                        mask-image: radial-gradient(ellipse 130% 130% at 50% 50%, rgba(0, 0, 0, .25) 20%, #000 100%);
-                    }
 
                     .bbgl-title-card-rank {
                         position: relative;
@@ -11995,22 +11942,6 @@
                         pointer-events: none;
                     }
 
-                    .bbgl-title-card-connector::before,
-                    .bbgl-title-card-connector::after {
-                        content: none;
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        width: 2px;
-                        border-radius: 1px;
-                        background: linear-gradient(90deg, #090a0b, #73797a 43%, #292d2e 66%, #08090a);
-                        box-shadow:
-                            inset 0 0 1px rgba(255, 255, 255, .18),
-                            0 1px 1px rgba(0, 0, 0, .8);
-                    }
-
-                    .bbgl-title-card-connector::before { left: 0; }
-                    .bbgl-title-card-connector::after { right: 0; }
 
                     .bbgl-title-card-title-label {
                         position: static;
@@ -12063,7 +11994,6 @@
                         content: '';
                         position: absolute;
                         inset: 0;
-                        background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%204%20240%2096%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22face%22%20x2%3D%22.2%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23363735%22%2F%3E%3Cstop%20offset%3D%22.45%22%20stop-color%3D%22%23262826%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23171917%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22side%22%3E%3Cstop%20stop-color%3D%22%23101210%22%2F%3E%3Cstop%20offset%3D%22.35%22%20stop-color%3D%22%2330332f%22%2F%3E%3Cstop%20offset%3D%22.7%22%20stop-color%3D%22%23242623%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0c0a%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22purple%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%22.3%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%2317101d%22%2F%3E%3Cstop%20offset%3D%22.28%22%20stop-color%3D%22%23684672%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%2370497c%22%2F%3E%3Cstop%20offset%3D%22.8%22%20stop-color%3D%22%2351335e%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23271b2d%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22crease%22%3E%3Cstop%20stop-color%3D%22%23000%22%20stop-opacity%3D%22.8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3Cpattern%20id%3D%22weave%22%20width%3D%223%22%20height%3D%223%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M0%200L3%203M-1%202L1%204%22%20stroke%3D%22%23c7c4b6%22%20stroke-opacity%3D%22.055%22%20stroke-width%3D%22.5%22%2F%3E%3Cpath%20d%3D%22M0%203L3%200%22%20stroke%3D%22%23000%22%20stroke-opacity%3D%22.16%22%20stroke-width%3D%22.5%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M17%205H223L210%2078Q166%2096%20120%2098Q74%2096%2030%2078Z%22%20fill%3D%22url%28%23face%29%22%20stroke%3D%22%23111310%22%20stroke-width%3D%221%22%2F%3E%3Cpath%20d%3D%22M17%205H223L210%2078Q166%2096%20120%2098Q74%2096%2030%2078Z%22%20fill%3D%22url%28%23weave%29%22%2F%3E%3Cpath%20d%3D%22M18%207C22%2036%2038%2056%2046%2076L35%2080C33%2056%2020%2033%2018%207Z%22%20fill%3D%22url%28%23crease%29%22%2F%3E%3Cpath%20d%3D%22M222%207C218%2036%20202%2056%20194%2076L205%2080C207%2056%20220%2033%20222%207Z%22%20fill%3D%22url%28%23crease%29%22%2F%3E%3Cpath%20d%3D%22M30%2077Q74%2092%20120%2094Q166%2092%20210%2077%22%20fill%3D%22none%22%20stroke%3D%22%23806578%22%20stroke-opacity%3D%22.65%22%20stroke-width%3D%22.65%22%20stroke-dasharray%3D%223%202%22%2F%3E%3Cpath%20d%3D%22M17%205C17%2029%2029%2048%2039%2070C29%2063%2015%2065%206%2074C10%2057%2014%2031%2017%205Z%22%20fill%3D%22url%28%23side%29%22%20stroke%3D%22%23141612%22%20stroke-width%3D%22.6%22%2F%3E%3Cpath%20d%3D%22M223%205C223%2029%20211%2048%20201%2070C211%2063%20225%2065%20234%2074C230%2057%20226%2031%20223%205Z%22%20fill%3D%22url%28%23side%29%22%20stroke%3D%22%23141612%22%20stroke-width%3D%22.6%22%2F%3E%3Cpath%20d%3D%22M17%205C17%2029%2029%2048%2039%2070C29%2063%2015%2065%206%2074C10%2057%2014%2031%2017%205ZM223%205C223%2029%20211%2048%20201%2070C211%2063%20225%2065%20234%2074C230%2057%20226%2031%20223%205Z%22%20fill%3D%22url%28%23weave%29%22%2F%3E%3Cpath%20d%3D%22M6%2074C15%2066%2029%2064%2039%2070C43%2076%2031%2082%2018%2085L17%2078C12%2078%208%2076%206%2074Z%22%20fill%3D%22url%28%23purple%29%22%20stroke%3D%22%23151015%22%20stroke-width%3D%22.7%22%2F%3E%3Cpath%20d%3D%22M234%2074C225%2066%20211%2064%20201%2070C197%2076%20209%2082%20222%2085L223%2078C228%2078%20232%2076%20234%2074Z%22%20fill%3D%22url%28%23purple%29%22%20stroke%3D%22%23151015%22%20stroke-width%3D%22.7%22%2F%3E%3Cpath%20d%3D%22M6%2074C15%2066%2029%2064%2039%2070M234%2074C225%2066%20211%2064%20201%2070%22%20fill%3D%22none%22%20stroke%3D%22%230b0d0a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M7%2070C17%2062%2028%2061%2037%2066M233%2070C223%2062%20212%2061%20203%2066%22%20fill%3D%22none%22%20stroke%3D%22%23806578%22%20stroke-width%3D%22.65%22%20stroke-dasharray%3D%223%202%22%20stroke-opacity%3D%22.65%22%2F%3E%3Cpath%20d%3D%22M18%207Q120%208%20222%207%22%20fill%3D%22none%22%20stroke%3D%22%23777669%22%20stroke-opacity%3D%22.25%22%20stroke-width%3D%221%22%2F%3E%3Cpath%20d%3D%22M17%2078C23%2080%2034%2076%2039%2071M223%2078C217%2080%20206%2076%20201%2071%22%20fill%3D%22none%22%20stroke%3D%22%23201524%22%20stroke-width%3D%221.3%22%2F%3E%3Cpath%20d%3D%22M18%2079L19%2083M222%2079L221%2083%22%20fill%3D%22none%22%20stroke%3D%22%239976a1%22%20stroke-opacity%3D%22.3%22%20stroke-width%3D%22.7%22%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat;
                         pointer-events: none;
                         z-index: -1;
                     }
@@ -12436,6 +12366,12 @@
 
                     .bbgl-rank-title.is-capstone .bbgl-rank-title-text {
                         left: 0;
+                    }
+
+                    /* Fully Bricked's card plate has its name painted in; the bar's capstone matches its face. */
+                    .bbgl-rank-title.is-capstone .bbgl-rank-notch-line {
+                        font-family: 'Berkshire Swash', Georgia, serif;
+                        font-weight: 400;
                     }
 
                     .bbgl-rank-title.is-milestone .bbgl-rank-title-text {
@@ -12844,15 +12780,6 @@
                        level bands are even 20-point spans (LEVEL_TITLE_BANDS), capstone at 100. */
                     .bbgl-rank-notch {
                         --rank-frame-w: 0px;
-                        --rank-sil: linear-gradient(#000, #000);
-                        --rank-face: linear-gradient(180deg, #444849, #181b1c);
-                        --rank-bevel: inset 0 0 0 1px rgba(92, 98, 99, .45);
-                        --rank-frame: none;
-                        --rank-rivets: none;
-                        --rank-field: none;
-                        --rank-field-shadow: none;
-                        --rank-grain: none;
-                        --rank-grain-a: .5;
                         /* Breathing room between the lettering and the frame band, on top of the
                            per-mode tag padding. Without it ascenders and descenders sit hard
                            against the inner field's edge on the framed tiers. */
@@ -12870,6 +12797,7 @@
                         white-space: nowrap;
                         text-align: center;
                         z-index: 1;
+                    ;
                     }
 
                     /* ── Silhouette primitives. Every mask layer is FULL-BOX and opaque except at
@@ -12877,37 +12805,14 @@
                        fighting. mask (not clip-path) because clip-path cannot cut the concave
                        corners tiers 3+ use — and both would clip an outer box-shadow, which is
                        why the drop-shadow moved to a filter on the unmasked wrapper. */
-                    .bbgl-rank-notch.finish-machined {
-                        --rank-sil:
-                            linear-gradient(135deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(225deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(45deg,  transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(315deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat;
-                    }
 
-                    .bbgl-rank-notch:is(.finish-polished, .finish-silver, .finish-gold, .finish-pearl) {
-                        --rank-corner: calc(var(--bbgl-t-rank-tag-cut) * 1.15);
-                        --rank-sil:
-                            radial-gradient(circle at 0 0,       transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 100% 0,    transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 0 100%,    transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 100% 100%, transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat;
-                    }
+                    
 
                     /* ── T1 mill-finish aluminium. Deliberately crude — coarse bidirectional
                        grain, dead matte, no frame, blunt rectangle. This is the baseline the rest
                        of the ladder has to visibly escape, so it is the one tier that is allowed
                        to look cheap. */
                     .bbgl-rank-notch.finish-mill {
-                        --rank-face: linear-gradient(179deg, #6c7274 0%, #5a6062 26%, #4b5152 52%, #565c5e 74%, #43494a 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #2b3031,
-                            inset 0 1px 0 rgba(255, 255, 255, .10),
-                            inset 0 -1px 0 rgba(0, 0, 0, .45);
-                        --rank-grain:
-                            repeating-linear-gradient(0deg, rgba(255, 255, 255, .05) 0 1px, transparent 1px 2px),
-                            repeating-linear-gradient(90deg, rgba(0, 0, 0, .10) 0 1px, transparent 1px 4px);
-                        --rank-grain-a: .7;
                         --rank-ink: #a8adaa;
                     }
 
@@ -12917,35 +12822,12 @@
                        fade never will, which is what the old tags all did. */
                     .bbgl-rank-notch.finish-machined {
                         --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .78);
-                        --rank-face: linear-gradient(178deg,
-                            #8f9698 0%, #c1c9ca 9%, #6e7679 24%, #3d4447 38%,
-                            #566063 50%, #9ba4a6 57%, #c6cecf 63%, #5c6467 78%, #333a3d 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #767d7f,
-                            inset 0 1px 0 rgba(255, 255, 255, .38),
-                            inset 0 -1px 0 rgba(0, 0, 0, .55);
-                        --rank-frame: linear-gradient(178deg, #b4bcbe, #6d7578 55%, #464e51);
-                        --rank-field-shadow: inset 0 1px 1px rgba(0, 0, 0, .5), inset 0 -1px 0 rgba(255, 255, 255, .16);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .055) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .5;
                         --rank-ink: #dfe3e1;
                     }
 
                     /* ── T3 polished steel. Concave corners, first recessed field, first sweep. */
                     .bbgl-rank-notch.finish-polished {
                         --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .92);
-                        --rank-face: linear-gradient(177deg,
-                            #b6bfc1 0%, #e6eeef 7%, #7d8689 20%, #414a4d 33%,
-                            #6c767a 45%, #b3bcbe 52%, #e2eaeb 58%, #6b7477 74%, #3a4245 89%, #8d9698 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #9aa2a4,
-                            inset 0 1px 0 rgba(255, 255, 255, .55),
-                            inset 0 -1px 0 rgba(0, 0, 0, .5);
-                        --rank-frame: linear-gradient(178deg, #eaf1f2, #8b9497 45%, #4c5457 70%, #b9c1c3);
-                        --rank-field: linear-gradient(178deg, #5c6568, #8f989b 40%, #414a4d);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .22);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .06) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .4;
                         --rank-ink: #f2f5f4;
                         --rank-sweep-a: .5;
                         --rank-sweep-dur: 6s;
@@ -12954,23 +12836,6 @@
                     /* ── T4 silver. Bright cool metal plus the first corner rivets. */
                     .bbgl-rank-notch.finish-silver {
                         --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.1);
-                        --rank-face: linear-gradient(177deg,
-                            #d8dedf 0%, #ffffff 7%, #98a1a4 19%, #4d5659 32%,
-                            #7f898c 44%, #ccd4d5 51%, #ffffff 57%, #7d8689 74%, #454e51 90%, #aeb6b8 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #dfe6e7,
-                            inset 0 1px 0 rgba(255, 255, 255, .75),
-                            inset 0 -1px 0 rgba(0, 0, 0, .45);
-                        --rank-frame: linear-gradient(178deg, #ffffff, #a9b2b5 42%, #565f62 72%, #e2e9ea);
-                        --rank-field: linear-gradient(178deg, #6f797c, #a8b1b4 40%, #4e5558);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .4);
-                        --rank-rivets:
-                            radial-gradient(circle at var(--rank-rivet-o) var(--rank-rivet-o), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at calc(100% - var(--rank-rivet-o)) var(--rank-rivet-o), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at var(--rank-rivet-o) calc(100% - var(--rank-rivet-o)), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at calc(100% - var(--rank-rivet-o)) calc(100% - var(--rank-rivet-o)), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .07) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .35;
                         --rank-ink: #ffffff;
                         --rank-sweep-a: .72;
                         --rank-sweep-dur: 5s;
@@ -12981,26 +12846,9 @@
                        tooling on the metal and turns the frame into a barcode. */
                     .bbgl-rank-notch.finish-gold {
                         --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-face: linear-gradient(177deg,
-                            #e8bd5c 0%, #fff3bd 7%, #b8862c 19%, #6a4610 32%,
-                            #a97c25 44%, #e6bd5b 51%, #fff0b0 57%, #a2761f 74%, #5d3f0d 90%, #cfa243 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #f4d581,
-                            inset 0 1px 0 rgba(255, 248, 208, .6),
-                            inset 0 -1px 0 rgba(0, 0, 0, .5);
-                        --rank-frame: linear-gradient(178deg, #fff3bd, #d3a63f 40%, #7d5a13 70%, #f0cd6e);
-                        --rank-field: linear-gradient(178deg, #8d6819, #c2963a 40%, #6b4d0f);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .66), inset 0 -1px 0 rgba(255, 240, 180, .35);
-                        --rank-rivets: repeating-linear-gradient(90deg,
-                            rgba(255, 246, 205, .10) 0 .5px,
-                            rgba(110, 78, 16, .08) .5px 1.5px,
-                            transparent 1.5px 3px);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .06) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .35;
                         --rank-ink: #fff6d2;
                         --rank-sweep-a: .8;
                         --rank-sweep-dur: 4.5s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .75)) drop-shadow(0 0 4px rgba(240, 190, 70, .35));
                     }
 
                     /* ── T6 iridescent nacre. Bright shell FRAME over a DEEP field — pastel frame
@@ -13009,24 +12857,9 @@
                        the diamond jewels so the capstone reads as the same family. */
                     .bbgl-rank-notch.finish-pearl {
                         --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-face: linear-gradient(112deg, #ffffff, #a8e6f0, #f0b6d8, #fff0b8, #b9e2f2, #ffffff);
-                        --rank-bevel:
-                            inset 0 0 0 1px rgba(255, 255, 255, .9),
-                            inset 0 1px 0 rgba(255, 255, 255, .85),
-                            inset 0 -1px 0 rgba(90, 80, 110, .35);
-                        --rank-frame: linear-gradient(112deg, #ffffff, #7fe4fb, #ff9fdc, #ffe98f, #8fdcf7, #ffffff);
-                        --rank-field: linear-gradient(112deg, #1d2440, #2b4a63, #4a2c52, #4a4130, #253f5c, #1d2440);
-                        --rank-field-shadow: inset 0 1px 3px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(255, 255, 255, .35);
-                        --rank-rivets: repeating-linear-gradient(90deg,
-                            rgba(255, 255, 255, .14) 0 .5px,
-                            rgba(120, 190, 225, .10) .5px 1.5px,
-                            transparent 1.5px 3px);
-                        --rank-grain: radial-gradient(ellipse 140% 60% at 30% 20%, rgba(255, 255, 255, .5), transparent 60%);
-                        --rank-grain-a: .5;
                         --rank-ink: #ffffff;
                         --rank-sweep-a: .85;
                         --rank-sweep-dur: 4s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .7)) drop-shadow(0 0 5px rgba(200, 235, 245, .45));
                     }
 
                     /* Positioned wrapper only. Its single job is the drop-shadow, which MUST be a
@@ -13043,7 +12876,6 @@
                         left: 50%;
                         transform: translateX(-50%);
                         width: max-content;
-                        filter: var(--rank-drop);
                     }
 
                     /* The plate. Frame width is ADDED to the configured inner padding so the text
@@ -13055,12 +12887,6 @@
                         box-sizing: border-box;
                         padding-block: calc(var(--bbgl-t-rank-tag-pad-y) + var(--rank-frame-w) + var(--rank-pad-block));
                         padding-inline: calc(var(--bbgl-t-rank-tag-pad-x) + var(--rank-frame-w) + var(--rank-pad-inline));
-                        background: var(--rank-face);
-                        box-shadow: var(--rank-bevel);
-                        -webkit-mask: var(--rank-sil);
-                        mask: var(--rank-sil);
-                        -webkit-mask-composite: source-in;
-                        mask-composite: intersect;
                         font-family: 'Fjalla One', 'Barlow Condensed', 'Arial Narrow', sans-serif;
                         font-size: var(--bbgl-t-fs-notch);
                         line-height: 1;
@@ -13072,7 +12898,7 @@
                         text-shadow: 0 -1px 0 rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .1);
                     }
 
-                    /* z-index is load-bearing: .bbgl-rank-notch-fx is positioned and would
+                    /* z-index is load-bearing: the face's positioned layers (sweep, sheen) would
                        otherwise paint OVER the lettering. Every label is span-wrapped in
                        achRankPlaqueLabelHTML() precisely so this can apply. */
                     .bbgl-rank-notch-line {
@@ -13082,17 +12908,6 @@
                         z-index: 2;
                     }
 
-                    /* Grain / patina. Sits before the lettering, distressing the metal without
-                       making the letterforms themselves harder to read. */
-                    .bbgl-rank-notch-face::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        z-index: 2;
-                        background: var(--rank-grain);
-                        opacity: var(--rank-grain-a);
-                        pointer-events: none;
-                    }
 
                     /* Travelling specular highlight. Deliberately a transform animation, NOT
                        background-position: this runs on up to five plaques at once on a page that
@@ -13127,96 +12942,29 @@
                         55%, 100% { transform: translateX(105%); }
                     }
 
-                    .bbgl-rank-notch-fx {
-                        position: absolute;
-                        inset: 0;
-                        z-index: 1;
-                        pointer-events: none;
-                    }
 
-                    /* Frame band. The ring is carved with the padding-box/border-box mask-exclude
-                       trick so it hugs whatever silhouette the tier uses. Corner rivets and edge
-                       milling ride in this band as extra background layers.
-
-                       background-repeat: no-repeat is load-bearing — without it each corner-rivet
-                       radial-gradient TILES across the whole band and reads as a row of studs
-                       running down every edge. */
-                    .bbgl-rank-notch-fx::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        border: var(--rank-frame-w) solid transparent;
-                        background: var(--rank-rivets), var(--rank-frame);
-                        background-repeat: no-repeat;
-                        background-origin: border-box;
-                        background-clip: border-box;
-                        -webkit-mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000);
-                        mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000);
-                        -webkit-mask-composite: destination-out;
-                        mask-composite: exclude;
-                    }
-
-                    /* Recessed inner field the lettering sits on. The top-inner shadow paired with
-                       the bottom-inner highlight is what sells "sunk into the plate" — this plus
-                       the frame band is the whole difference between a coloured rectangle and
-                       something that reads as a trophy plaque. */
-                    .bbgl-rank-notch-fx::after {
-                        content: '';
-                        position: absolute;
-                        inset: var(--rank-frame-w);
-                        background: var(--rank-field);
-                        box-shadow: var(--rank-field-shadow);
-                    }
-
-                    .bbgl-rank-notch.finish-silver {
-                        --rank-rivet-o: calc(var(--rank-frame-w) * .92);
-                    }
+                    
 
 
-                    /* Before unlock there is no plaque at all: only a question mark pressed into the
-                       panel surface, matching the divot cut into the groove below it. The plate,
-                       its frame, field and grain all arrive together with the title when
-                       .is-revealed is added. */
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-label {
-                        filter: none;
-                    }
+                    
+
 
                     .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face {
                         padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        -webkit-mask: none;
-                        mask: none;
                         color: rgba(6, 8, 8, .85);
                         text-shadow: 0 1px 0 rgba(190, 196, 190, .13), 0 -1px 1px rgba(0, 0, 0, .7);
                     }
 
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face::before,
+                    
                     .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face::after {
                         content: none;
                     }
 
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-fx {
-                        display: none;
-                    }
 
-                    /* At the cap the pearl plaque wakes into a slow nacre drift across the plate,
-                       its frame and its field together — the one place a background-position
-                       animation is worth the paint cost, since it is a single element at the very
-                       end of the run and the hue travel is the entire point of the effect. */
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after {
-                        background-size: 320% 100%;
-                        animation: bbgl-rank-pearl 5.5s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
+                    
 
-                    ${steppedKeyframes('bbgl-rank-pearl', 5.5, [[0, [0]], [1, [100]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after,
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.is-revealed .bbgl-rank-notch-face::after {
                         animation: none;
                     }
@@ -13292,7 +13040,6 @@
 
                     .bbgl-title-card-rank-plaque.finish-mill {
                         container-type: size;
-                        --rank-drop: none;
                         width: 88.32%;
                         height: 86.4%;
                     }
@@ -13301,36 +13048,13 @@
                         display: grid;
                         grid-template-rows: 36% minmax(0, 1fr);
                         padding: clamp(2px, 3cqh, 4px);
-                        border: 1px solid;
-                        border-color: #fffefa #cecec8 #93968f #e1e2da;
-                        border-radius: clamp(3px, 5cqw, 7px);
-                        background: linear-gradient(165deg, #fffefa 0%, #f4f4ee 48%, #e4e5de 100%);
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset 1px 0 1px rgba(255, 255, 255, .9),
-                            inset -1px 0 1px rgba(90, 96, 84, .18),
-                            inset 0 -3px 1px #c0c3b9,
-                            inset 0 -4px 0 rgba(255, 255, 255, .8);
-                        mask: none;
-                        -webkit-mask: none;
                         overflow: hidden;
                         align-items: stretch;
                         justify-content: stretch;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::after,
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-fx {
+                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::after{
                         display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::before {
-                        inset: 1px 1px 4px;
-                        z-index: 3;
-                        border-radius: inherit;
-                        background:
-                            linear-gradient(115deg, rgba(255, 255, 255, .24), transparent 42%),
-                            linear-gradient(180deg, rgba(255, 255, 255, .2), transparent 22%);
-                        opacity: 1;
                     }
 
 
@@ -13345,16 +13069,8 @@
 
                     #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
                         padding: 1px;
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset -1px 0 1px rgba(90, 96, 84, .12),
-                            inset 0 -1px 0 #c0c3b9,
-                            inset 0 -2px 0 rgba(255, 255, 255, .8);
                     }
 
-                    #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::before {
-                        bottom: 2px;
-                    }
 
                     .bbgl-title-card[data-rank-finish="machined"] .bbgl-title-card-rank-label {
                         display: none;
@@ -13362,7 +13078,6 @@
 
                     .bbgl-title-card-rank-plaque.finish-machined {
                         container-type: size;
-                        --rank-drop: none;
                         width: 93%;
                         height: 84.5%;
                     }
@@ -13375,44 +13090,11 @@
                         align-items: center;
                         justify-content: center;
                         padding: calc((var(--rank-lightbox-rim) + var(--rank-lightbox-thin-rim)) / 2 + 2px) calc(var(--rank-lightbox-thin-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px);
-                        border: 0;
-                        border-radius: clamp(3px, 5cqw, 7px);
-                        background: linear-gradient(165deg, #7d928d, #4c6462 48%, #344b4b);
-                        box-shadow:
-                            inset 0 2px 0 rgba(255, 255, 255, .95),
-                            inset 2px 0 1px rgba(238, 244, 246, .72),
-                            inset -2px 0 1px rgba(67, 79, 84, .62),
-                            inset 0 -3px 0 rgba(86, 99, 105, .9),
-                            0 2px 1px rgba(0, 0, 0, .78),
-                            0 5px 7px rgba(0, 0, 0, .42);
-                        animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                        mask: none;
-                        -webkit-mask: none;
                         overflow: hidden;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx {
-                        inset: var(--rank-lightbox-thin-rim);
-                        border: clamp(.4px, .8cqmin, 1px) solid #1a2428;
-                        border-radius: clamp(3px, 6cqmin, 6px);
-                        background: linear-gradient(160deg, #1c2325, #090d0e 65%, #111719);
-                        box-shadow:
-                            inset 0 2cqmin 4cqmin rgba(0, 0, 0, .88),
-                            inset 1.2cqmin 0 2.5cqmin rgba(0, 0, 0, .5),
-                            inset -1cqmin -1cqmin 2cqmin rgba(157, 174, 181, .14),
-                            0 .7cqmin 0 rgba(255, 255, 255, .1);
-                        filter:
-                            drop-shadow(0 -.7cqmin .5cqmin rgba(255, 255, 255, .5))
-                            drop-shadow(0 1.2cqmin 1cqmin rgba(0, 0, 0, .7));
-                        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                    }
 
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx::before,
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx::after {
-                        display: none;
-                    }
+                    
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::after {
                         inset: 0;
@@ -13425,26 +13107,6 @@
                         transform: none;
                         animation: none;
                     }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::before {
-                        inset: 0;
-                        z-index: 0;
-                        border-radius: inherit;
-                        background: linear-gradient(145deg, #fff 0%, #edf2f3 28%, #c5ced1 68%, #89969b 100%);
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset 1px 0 0 rgba(255, 255, 255, .75),
-                            inset -1px 0 0 rgba(70, 82, 87, .5),
-                            inset 0 -2px 0 rgba(78, 90, 95, .72),
-                            inset 0 0 3px rgba(232, 239, 242, .42),
-                            inset 0 0 6px rgba(216, 229, 234, .16);
-                        opacity: 1;
-                        animation: bbgl-rank-lightbox-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-
-
 
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
@@ -13542,22 +13204,9 @@
                         76%, 100% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18)); }
                     }
 
-                    @keyframes bbgl-rank-lightbox-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% { opacity: 0; }
-                        30.01%, 38%, 44% { opacity: .25; }
-                        53%, 72% { opacity: .65; }
-                        76%, 100% { opacity: 1; }
-                    }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::before {
-                        animation: none;
-                        opacity: 1;
-                    }
+                    
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face {
-                        animation: none;
-                        filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
-                    }
 
                     .bbgl-title-card[data-rank-finish="polished"] .bbgl-title-card-rank-label {
                         display: none;
@@ -13566,22 +13215,14 @@
                     .bbgl-title-card-rank-plaque.finish-polished {
                         width: 100%;
                         container-type: size;
-                        --rank-drop: none;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face {
                         padding: 0;
-                        border: 0;
-                        border-radius: 0;
-                        mask: none;
-                        -webkit-mask: none;
                         overflow: visible;
-                        background: none;
-                        box-shadow: none;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-fx,
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::before,
+                    
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::after {
                         display: none;
                     }
@@ -13671,56 +13312,19 @@
 
                     .bbgl-title-card-rank-plaque.finish-silver {
                         container-type: size;
-                        --rank-drop: none;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face {
                         isolation: isolate;
-                        --rank-silver-shield-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 2 C60 2 65 11 77 12 L88 12 Q96 12 96 21 L94 49 C92 70 75 86 50 98 C25 86 8 70 6 49 L4 21 Q4 12 12 12 L23 12 C35 11 40 2 50 2Z'/%3E%3C/svg%3E");
                         padding: 23cqh 10cqw 23cqh;
-                        background: linear-gradient(155deg, #f9ffff 0%, #aebbc0 15%, #eef5f8 23%, #59666d 35%, #d9e5ea 46%, #fff 49%, #87969e 57%, #34434d 73%, #c1d0d8 87%, #f2f9fc 100%);
-                        box-shadow: none;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
                         overflow: hidden;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx {
-                        inset: 3cqmin;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        background: linear-gradient(165deg, #cad5da 0%, #74838b 19%, #3d4c55 36%, #637680 55%, #a2b2bb 65%, #44545e 83%, #8c9ca5 100%);
-                        box-shadow: inset 0 1px 1px rgba(255, 255, 255, .8);
-                    }
 
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx::before {
-                        content: '';
-                        position: absolute;
-                        inset: 18cqh 5cqw 9cqh;
-                        border: 0;
-                        border-radius: 0;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        background: linear-gradient(165deg, #46565f, #293943 58%, #536770);
-                        box-shadow: none;
-                    }
+                    
 
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx::after {
-                        content: '';
-                        display: block;
-                        position: absolute;
-                        inset: 0;
-                        border: 0;
-                        box-shadow: none;
-                        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23d6e3eb' stroke-width='.65' d='M33 17 C27 19 22 19 14 19 Q10 19 10 24 L12 48 C14 66 29 80 50 91 C71 80 86 66 88 48 L90 24 Q90 19 86 19 C78 19 73 19 67 17'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        opacity: .75;
-                    }
 
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face::before {
-                        background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 .5px, transparent .5px 3px);
-                        opacity: .35;
-                    }
-
+                    
 
                     .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-title-text {
                         position: absolute;
@@ -13770,13 +13374,11 @@
                         filter: var(--bbgl-emerald-encasing);
                     }
 
-
                     @media (prefers-reduced-motion: reduce) {
                         .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
                             filter: var(--bbgl-emerald-encasing);
                         }
                     }
-
 
                     .bbgl-title-card[data-rank-finish="gold"] .bbgl-title-card-rank-label {
                         display: none;
@@ -13786,62 +13388,46 @@
                         width: 100%;
                         height: 100%;
                         container-type: size;
-                        --rank-drop: none;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face {
                         padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        mask: none;
-                        -webkit-mask: none;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::before,
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::after,
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-fx {
+                    
+                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::after{
                         display: none;
                     }
 
-
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
-                        top: 55.1%;
-                        left: 25%;
-                        width: 50%;
-                        height: 26%;
+                        top: 55.3%;
+                        left: 24%;
+                        width: 52%;
+                        height: 25.5%;
                         min-width: 0;
                         min-height: 0;
-                        font-size: min(7.6cqw, 11.5cqh);
+                        font-size: min(8.2cqw, 12.4cqh);
                         line-height: 1.08;
                     }
-
 
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-title-text {
                         --bbgl-gold-letter-depth: drop-shadow(0 -.2px 0 #ffe8a0) drop-shadow(.25px .5px 0 #8c5719) drop-shadow(0 .8px .25px #1c1006);
                         filter: var(--bbgl-gold-letter-depth);
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                        filter: var(--bbgl-gold-light, none);
-                    }
 
                     .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
                         filter: var(--bbgl-gold-light) var(--bbgl-gold-letter-depth);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                        filter: none;
-                    }
 
                     #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
                         filter: var(--bbgl-gold-letter-depth);
                     }
 
                     @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                            filter: none;
-                        }
+                        
                         .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
                             filter: var(--bbgl-gold-letter-depth);
                         }
@@ -13855,28 +13441,16 @@
                         width: 100%;
                         height: 100%;
                         container-type: size;
-                        --rank-drop: none;
                     }
 
                     .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face {
                         padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        mask: none;
-                        -webkit-mask: none;
                     }
 
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-fx,
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face::before,
+                    
                     .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face::after {
                         display: none;
                     }
-
-
-
-
-
-
 
                     .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-title-text {
                         position: absolute;
@@ -13889,7 +13463,6 @@
                         font-size: min(14cqw, 17cqh);
                         line-height: 1.04;
                     }
-
 
                     /* Card rank plates as images (04-section-iii-plaque.js). */
 ${RANK_PLATE_CSS}
@@ -14027,7 +13600,6 @@ ${RANK_PLATE_CSS}
                         50% { opacity: .84; }
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card::before,
                     #bbgl-panel.bbgl-no-animations .bbgl-titles-name {
                         animation: none;
                     }
@@ -14690,10 +14262,6 @@ ${RANK_PLATE_CSS}
 
                     body:not(.is-touch-device) .bbgl-title-star.is-unlocked:hover .bbgl-title-star-fill svg path {
                         filter: drop-shadow(0 -1px 0 #fff7) drop-shadow(0 2px 1px #000b);
-                    }
-
-                    .bbgl-title-card {
-                        box-shadow: inset 1px 1px 0 #ba8a6438, inset -1px -1px 0 #000b, inset 0 0 0 3px #10080447, 0 3px 5px #000b;
                     }
 
                     /* Progressive title plaque boards and lettering (04-section-iii-plaque.js). */
@@ -15679,7 +15247,7 @@ ${TITLE_PLAQUE_CSS}
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Berkshire+Swash&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
@@ -19506,8 +19074,8 @@ function achTitlePlayerName() {
 function achRankPlaqueLabelHTML(label) {
     const words = String(label || '').trim().split(/\s+/).filter(Boolean);
     // Always wrapped, even for a single word: .bbgl-rank-notch-line is what carries the z-index
-    // that keeps lettering above the frame/field layer painted by .bbgl-rank-notch-fx. A bare text
-    // node cannot be given a z-index, so an unwrapped label would render UNDER the inner field.
+    // that keeps lettering above the plate's sweep and sheen layers. A bare text node cannot be
+    // given a z-index, so an unwrapped label would render under them.
     if (words.length < 2) {
         const text = achEsc(words[0] || '');
         return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`;
@@ -19566,10 +19134,10 @@ function achShieldGlimmersHTML() {
 }
 
 function achPlatinumGlintsHTML() {
-    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 124" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M40 1L41 6L47 7L41 8L40 14L39 8L33 7L39 6Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M178 35L179 42L185 43L179 44L178 51L177 44L171 43L177 42Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 105L101 111L107 112L101 113L100 119L99 113L93 112L99 111Z"/>' +
+    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 126.6" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M33.4 1L34.4 6L40.4 7L34.4 8L33.4 14L32.4 8L26.4 7L32.4 6Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M182.6 32.2L183.6 37.2L189.6 38.2L183.6 39.2L182.6 45.2L181.6 39.2L175.6 38.2L181.6 37.2Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 76.7L101 81.7L107 82.7L101 83.7L100 89.7L99 83.7L93 82.7L99 81.7Z"/>' +
         '</g></svg>';
 }
 
@@ -19659,7 +19227,7 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
     const silverShield = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-silver');
     const goldCrown = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-gold');
     const pearlMarquee = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-pearl');
-    const lines = nameTag
+    const lines = pearlMarquee ? '' : nameTag
         ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
         : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
     // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); the lettering is the only markup.
@@ -19669,7 +19237,7 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
         + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
     const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() : '';
-    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span>${sparkles}</span></div>`;
+    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face">${inner}</span>${sparkles}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -19715,15 +19283,13 @@ function achCurrentRankPlaqueData(atrophy, level) {
     };
 }
 
-// data-sign-stage is the progressive plaque step (titlePlaqueStage(), 03-section-ii-utils.js); the
-// stage styles only apply under .is-progressive, so TITLE_PLAQUE_PROGRESSIVE = false leaves the
-// original card. The step's cloth art is built on first use (ensurePlaqueArt, 04-section-iii-plaque.js).
+// data-sign-stage is the progressive plaque step (titlePlaqueStage(), 03-section-ii-utils.js). The
+// step's cloth lighting is built on first use (ensurePlaqueArt, 04-section-iii-plaque.js).
 function achTitleIdentityHTML(currentRank, titleValue, labelExtra = '') {
     const stage = getLivePlaqueStage();
     ensurePlaqueArt(stage);
-    const progressive = TITLE_PLAQUE_PROGRESSIVE ? ' is-progressive' : '';
     return `<div class="bbgl-titles-center">` +
-        `<div class="bbgl-title-card${progressive}" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
+        `<div class="bbgl-title-card is-progressive" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
         `<div class="bbgl-title-card-sign"><div class="bbgl-title-card-sign-face">` +
         `<span class="bbgl-title-card-title-label">The${labelExtra}</span><span class="bbgl-title-card-value">${titleValue}</span>` +
         `</div></div><div class="bbgl-title-card-connector" aria-hidden="true"></div>` +

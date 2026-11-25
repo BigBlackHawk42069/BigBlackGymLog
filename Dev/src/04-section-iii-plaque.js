@@ -6,8 +6,7 @@
     // ─── Progressive title plaque ───────────────────────────────────────────
     // The identity card's 11 looks, step 0-10 (titlePlaqueStage(), 03-section-ii-utils.js). Split out of
     // 04-section-iii-styles.js, which it loads just ahead of; both ship verbatim. Everything here is
-    // scoped to .bbgl-title-card.is-progressive, so the original card rules stay as they were and come
-    // back as-is with TITLE_PLAQUE_PROGRESSIVE off.
+    // scoped to .bbgl-title-card.is-progressive, which the card always carries.
     //
     // PLAQUE_STEPS is the whole ladder: each step lists only what changes from the one before. The board
     // (raw pine → pine → oak → walnut) and the cloth (canvas → felt → velvet) are images; the lettering
@@ -133,7 +132,7 @@
         mill: ['plate-1-aluminum'],
         machined: ['plate-2-lightbox'],
         polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver'],
+        silver: ['plate-4-silver', '100% 100%'],
         gold: ['plate-5-gold', '100% 100%'],
         pearl: ['plate-6-platinum', '100% 100%']
     };
@@ -215,7 +214,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.605;
+    aspect-ratio: 1.704;
 }
 
 /* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
@@ -253,15 +252,6 @@
 
 #bbgl-panel .bbgl-title-card-rank-plaque {
     filter: none !important;
-}
-
-#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-face::before,
-#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-fx {
-    display: none !important;
-}
-
-#bbgl-panel .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face {
-    animation: none !important;
 }
 
 /* The name tag's grid kept a row for its heading; with no heading the lettering centres on the plate. */
@@ -336,7 +326,7 @@
     // Adds a step's cloth art to its own style element the first time a card at that step renders.
     const plaqueArtBuilt = new Set();
     function ensurePlaqueArt(stage) {
-        if (!TITLE_PLAQUE_PROGRESSIVE || plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
+        if (plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
         plaqueArtBuilt.add(stage);
         let style = document.getElementById('bbgl-plaque-art');
         if (!style) {

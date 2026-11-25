@@ -2226,8 +2226,8 @@ function achTitlePlayerName() {
 function achRankPlaqueLabelHTML(label) {
     const words = String(label || '').trim().split(/\s+/).filter(Boolean);
     // Always wrapped, even for a single word: .bbgl-rank-notch-line is what carries the z-index
-    // that keeps lettering above the frame/field layer painted by .bbgl-rank-notch-fx. A bare text
-    // node cannot be given a z-index, so an unwrapped label would render UNDER the inner field.
+    // that keeps lettering above the plate's sweep and sheen layers. A bare text node cannot be
+    // given a z-index, so an unwrapped label would render under them.
     if (words.length < 2) {
         const text = achEsc(words[0] || '');
         return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`;
@@ -2286,10 +2286,10 @@ function achShieldGlimmersHTML() {
 }
 
 function achPlatinumGlintsHTML() {
-    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 124" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M40 1L41 6L47 7L41 8L40 14L39 8L33 7L39 6Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M178 35L179 42L185 43L179 44L178 51L177 44L171 43L177 42Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 105L101 111L107 112L101 113L100 119L99 113L93 112L99 111Z"/>' +
+    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 126.6" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M33.4 1L34.4 6L40.4 7L34.4 8L33.4 14L32.4 8L26.4 7L32.4 6Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M182.6 32.2L183.6 37.2L189.6 38.2L183.6 39.2L182.6 45.2L181.6 39.2L175.6 38.2L181.6 37.2Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 76.7L101 81.7L107 82.7L101 83.7L100 89.7L99 83.7L93 82.7L99 81.7Z"/>' +
         '</g></svg>';
 }
 
@@ -2379,7 +2379,7 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
     const silverShield = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-silver');
     const goldCrown = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-gold');
     const pearlMarquee = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-pearl');
-    const lines = nameTag
+    const lines = pearlMarquee ? '' : nameTag
         ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
         : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
     // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); the lettering is the only markup.
@@ -2389,7 +2389,7 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
         + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
     const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() : '';
-    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span>${sparkles}</span></div>`;
+    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face">${inner}</span>${sparkles}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -2435,15 +2435,13 @@ function achCurrentRankPlaqueData(atrophy, level) {
     };
 }
 
-// data-sign-stage is the progressive plaque step (titlePlaqueStage(), 03-section-ii-utils.js); the
-// stage styles only apply under .is-progressive, so TITLE_PLAQUE_PROGRESSIVE = false leaves the
-// original card. The step's cloth art is built on first use (ensurePlaqueArt, 04-section-iii-plaque.js).
+// data-sign-stage is the progressive plaque step (titlePlaqueStage(), 03-section-ii-utils.js). The
+// step's cloth lighting is built on first use (ensurePlaqueArt, 04-section-iii-plaque.js).
 function achTitleIdentityHTML(currentRank, titleValue, labelExtra = '') {
     const stage = getLivePlaqueStage();
     ensurePlaqueArt(stage);
-    const progressive = TITLE_PLAQUE_PROGRESSIVE ? ' is-progressive' : '';
     return `<div class="bbgl-titles-center">` +
-        `<div class="bbgl-title-card${progressive}" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
+        `<div class="bbgl-title-card is-progressive" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` +
         `<div class="bbgl-title-card-sign"><div class="bbgl-title-card-sign-face">` +
         `<span class="bbgl-title-card-title-label">The${labelExtra}</span><span class="bbgl-title-card-value">${titleValue}</span>` +
         `</div></div><div class="bbgl-title-card-connector" aria-hidden="true"></div>` +
