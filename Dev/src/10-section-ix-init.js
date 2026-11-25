@@ -243,10 +243,10 @@
             return;
         }
         // Header background only slides when the season it depicts is actually about to change
-        // (SEASONAL_HEADER_IMGS[old] !== SEASONAL_HEADER_IMGS[m]) - stepping within the same
+        // (seasonalHeaderImg(old) !== seasonalHeaderImg(m)) - stepping within the same
         // season leaves it static, matching how it only changes at season boundaries at all.
         const hb = dom.headerBg;
-        const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m];
+        const headerChanging = hb && seasonalHeaderImg(calendarState.month) !== seasonalHeaderImg(m);
         Perf.start('changeMonth:ghost');
         slideOutGhost(c, 'bbgl-cal-ghost', d);
         if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true);

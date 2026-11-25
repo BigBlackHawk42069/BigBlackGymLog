@@ -722,8 +722,9 @@
         // On the header wrapper (holds both readers: .bbgl-header-bg, .bbgl-level-lens), not the panel
         // root, where an inherited var change restyles the entire panel.
         const hw = dom.headerBg ? dom.headerBg.parentElement : dom.panel;
-        const isSummer = m >= 5 && m <= 7;
-        setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`);
+        const headerImg = seasonalHeaderImg(m);
+        const isSummer = headerImg === SEASONAL_HEADER_IMGS[6];
+        setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${headerImg}')`);
         setStyleVarIfChanged(hw, '--bbgl-header-crop-b', isSummer ? '8px' : '0px');
         setStyleVarIfChanged(hw, '--bbgl-header-pos-y', isSummer ? 'top' : 'bottom');
         yt.textContent = y;
@@ -1053,7 +1054,7 @@
     });
 
     function buildNoteToolsHTML() {
-        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear</div></div>`;
+        return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" aria-label="Remove custom notes" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">✕</div></div>`;
     }
 
     function monthHasNotes() {
@@ -1066,7 +1067,7 @@
         if (dom.panel) dom.panel.classList.toggle('bbgl-note-clearing', clearing);
         if (cb) {
             cb.classList.toggle('is-engaged', clearing);
-            // Faded when no day on the month shown (spill-over days included) carries a note.
+            // Hidden when no day on the month shown (spill-over days included) carries a note.
             cb.classList.toggle('is-empty', !clearing && !monthHasNotes());
         }
     }
@@ -1308,7 +1309,7 @@
             DataController.removeCustomNote(cell.dataset.date);
             const note = cell.querySelector('.bbgl-custom-note');
             if (note) note.remove();
-            cell.classList.remove('has-custom-note', 'is-note-held');
+            cell.classList.remove('has-custom-note', 'has-note-over-stack', 'is-note-held');
             cell.style.removeProperty('--pi-clear-offset');
             if (!monthHasNotes()) setNoteMode(null);
         }, true);
@@ -1413,13 +1414,15 @@
         // Sits under a new-sticker note but over everything else, so it leaves first and the event
         // stack waits one step (--pi-clear-offset) behind it.
         // stackSlot: with exactly one event post-it the note takes the second slot of a two-post-it
-        // stack; otherwise it sits centred in the lone post-it spot.
-        const appendCustomNote = (stackSlot = null) => {
+        // stack; otherwise it sits centred in the lone post-it spot. overStack: event post-its lie
+        // under it, so it peels on hover (as it does over a sticker, has-sticker); otherwise it stays.
+        const appendCustomNote = (stackSlot = null, overStack = false) => {
             if (!hasCustomNote) return;
             const note = buildNotePaper('bbgl-custom-note', noteText, true);
             if (stackSlot != null) note.style.top = `calc(var(--pi-base) + ${stackSlot} * var(--pi-step))`;
             cell.appendChild(note);
             cell.classList.add('has-custom-note');
+            if (overStack) cell.classList.add('has-note-over-stack');
             cell.style.setProperty('--pi-clear-offset', '0.4s');
             if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held');
         };
@@ -1461,7 +1464,7 @@
                 ep.style.setProperty('--stack-total', eventImgs.length);
                 cell.appendChild(ep);
             });
-            appendCustomNote(nEvents === 1 ? 1 : null);
+            appendCustomNote(nEvents === 1 ? 1 : null, nEvents > 0);
             if (hasNewNote) {
                 // Always sits in the lone-post-it spot, centred over whatever stack is beneath it.
                 const np = document.createElement('div');
@@ -2368,7 +2371,7 @@
         });
     }
 
-    // EXP gained since this bar was built lights up (sheenFill's gain layers in 04). The baseline is
+    // EXP gained since this bar was built lights up (.bbgl-exp-gain in 04). The baseline is
     // the bar's first render, so it lasts until the bar is rebuilt: a page load, or the panel or gym
     // bar being recreated. A level-up lights the new level from 0; a tier change starts over.
     // Fully Bricked never grows, so it never lights.
@@ -4665,7 +4668,7 @@
 
     function buildLevelBarHTML(gym = false) {
         const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level';
-        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div><div class="bbgl-exp-card-cut" aria-hidden="true"><div class="bbgl-exp-card"></div></div><div class="bbgl-exp-hit" aria-hidden="true"></div></div>`;
+        return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-gain"></div><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div><div class="bbgl-exp-card-cut" aria-hidden="true"><div class="bbgl-exp-card"></div></div><div class="bbgl-exp-hit" aria-hidden="true"></div></div>`;
     }
 
     function buildLevelValveSVG(prefix) {

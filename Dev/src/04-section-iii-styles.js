@@ -36,8 +36,22 @@
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
     ].map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
+    // Southern-hemisphere players see the season six months on, judged from the browser's own time
+    // zone (nothing is sent anywhere). runtime._devHemisphere ('north'/'south') overrides it in dev mode.
+    const SOUTHERN_TZ = /^(Australia|Antarctica)\/|^Pacific\/(Auckland|Chatham|Fiji|Tongatapu|Apia|Noumea|Efate|Norfolk|Rarotonga|Tahiti|Port_Moresby)$|^America\/(Argentina\/.+|Sao_Paulo|Santiago|Punta_Arenas|Montevideo|Asuncion|Lima|La_Paz)$|^Africa\/(Johannesburg|Maputo|Harare|Windhoek|Gaborone|Maseru|Mbabane|Lusaka|Lubumbashi|Blantyre)$|^Indian\/(Reunion|Mauritius|Antananarivo)$|^Atlantic\/Stanley$/;
+    let _tzSouthern = null;
+    function isSouthernHemisphere() {
+        const mode = runtime.devMode ? runtime._devHemisphere : null;
+        if (mode === 'north') return false;
+        if (mode === 'south') return true;
+        if (_tzSouthern === null) {
+            try { _tzSouthern = SOUTHERN_TZ.test(Intl.DateTimeFormat().resolvedOptions().timeZone || ''); } catch (e) { _tzSouthern = false; }
+        }
+        return _tzSouthern;
+    }
+    const seasonalHeaderImg = m => SEASONAL_HEADER_IMGS[isSouthernHemisphere() ? (m + 6) % 12 : m];
     const ASSETS = {
-        HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
+        HEADER_IMG: seasonalHeaderImg(TimeManager.now().month),
         GLASS_OVERLAY: cdnize(ASSET_ROOT + 'Calendar/glass-ovly.webp'),
         STICKER_BG: cdnize(ASSET_ROOT + 'Stickerbook/stkr-bckgr.webp'),
         NEW_STICKER_FRAME: cdnize(ASSET_ROOT + 'Calendar/nw-stickr.webp'),
@@ -141,22 +155,22 @@
     // peak at centre, a specular line just above it) plus soft diagonal highlight bands along the
     // length. ramp is [edge, shadow, low, mid, peak] and hi the highlight as 'r, g, b'. Static, so the
     // charge and flash animations are unchanged. Applied to the fill and its ::before chamber copy
-    // alike: background: inherit on the copy doesn't carry the blend modes.
-    // The top two layers mark EXP gained since the bar was built (--bbgl-gain-from, set by
-    // levelGainFrom in 07, in percent of the level): the settled part is dimmed, the gained part
-    // glows in the tier's peak colour lifted toward its highlight, and the two cross-fade over 24px so the glow bleeds a little
-    // into the old EXP. --bbgl-gain-shift moves the stops into the ::before chamber's own box.
-    // dim is false for Fully Bricked, which never grows: no dimming, and the gain stops are parked.
-    const sheenFill = ([edge, shadow, low, mid, peak], hi, dim = true) => `background:
-                            linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - 24px), color-mix(in srgb, color-mix(in srgb, ${peak} 60%, rgb(${hi})) 50%, transparent) calc(var(--bbgl-gain-x) - 8px), color-mix(in srgb, color-mix(in srgb, ${peak} 60%, rgb(${hi})) 75%, transparent) var(--bbgl-gain-x)),
-                            linear-gradient(90deg, rgba(0, 0, 0, ${dim ? .16 : 0}) calc(var(--bbgl-gain-x) - 24px), transparent var(--bbgl-gain-x)),
+    // alike: background: inherit on the copy doesn't carry the blend modes. The gain overlay
+    // (.bbgl-exp-gain) inherits it too, dimming included, so its brightness divides the dim (--bbgl-fill-dim) back out:
+    // the gain looks the same however dark the dormant fill is. dim is per tier, FILL_DIM by default;
+    // lift is how much brighter than the undimmed sheen the gain shows.
+    const FILL_DIM = .26;
+    const sheenFill = ([edge, shadow, low, mid, peak], hi, dim = FILL_DIM, lift = 1.35) => `background:
+                            linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})),
                             linear-gradient(100deg, transparent 0%, rgba(${hi}, .22) 8%, transparent 16%, transparent 38%, rgba(${hi}, .16) 46%, transparent 54%, transparent 72%, rgba(${hi}, .2) 80%, transparent 88%),
                             linear-gradient(180deg, transparent 30%, rgba(${hi}, .55) 42%, rgba(${hi}, .15) 47%, transparent 54%),
                             ${GAS_SMOKE},
                             linear-gradient(180deg, ${edge} 0%, ${shadow} 18%, ${low} 32%, ${mid} 42%, ${peak} 48%, ${mid} 56%, ${low} 70%, ${shadow} 84%, ${edge} 100%),
                             ${shadow};
-                        background-blend-mode: screen, normal, screen, screen, soft-light, normal, normal;
-                        box-shadow: none;${dim ? '' : ' --bbgl-gain-x: 9999px;'}`;
+                        background-blend-mode: normal, screen, screen, soft-light, normal, normal;
+                        box-shadow: none;
+                        --bbgl-fill-dim: ${dim};
+                        --bbgl-gain-lift: ${lift};`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     // Paint-bound loops (background-position sheens, SVG glints) repaint on every display refresh,
     // and Chrome re-rasterizes whatever shares their tile each time; even a transform-only loop makes
@@ -4525,6 +4539,8 @@
                         background-size: calc(100% + 1px) calc(100% + var(--bbgl-header-crop-b, 0px));
                         background-position: left var(--bbgl-header-pos-y, bottom);
                         opacity: 0.85;
+                        /* Dimmed so the header's buttons and text stand out against the seasonal art. */
+                        filter: brightness(.82);
                         z-index: 0;
                         pointer-events: none;
                         border-radius: 3px 3px 0 0;
@@ -4572,6 +4588,11 @@
                         margin-bottom: 6px;
                         transition: transform .2s, text-shadow .2s;
                         will-change: transform; /* same reason as .stats-btn / .header-trigger */
+                    }
+
+                    /* Lower in compact, to leave room for the note tools and Clear above them. */
+                    #bbgl-panel.bbgl-compact .arrow-btn {
+                        margin-bottom: 1px;
                     }
 
                     @media (hover: hover) {
@@ -5110,8 +5131,9 @@
 
                     /* Custom note: the user's own post-it. Same box and lone-post-it spot as the
                        new-sticker note, over the event stack and under a new-sticker note. It is not
-                       a .bbgl-event-post-it, so the stack rules above never move it; it always leaves
-                       first, --pi-note-offset after a new-sticker note that is leaving ahead of it. */
+                       a .bbgl-event-post-it, so the stack rules above never move it. Like any post-it it only
+                       peels when it covers something (a sticker, or event post-its: .has-note-over-stack),
+                       and then it leaves first, --pi-note-offset after a new-sticker note leaving ahead of it. */
                     .bbgl-custom-note {
                         position: absolute;
                         top: 13%;
@@ -5125,9 +5147,9 @@
                         pointer-events: none;
                     }
 
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.has-new-note).is-hover-intent .bbgl-custom-note,
-                    .bbgl-day-cell:not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
-                    .bbgl-day-cell.is-viewing .bbgl-custom-note {
+                    body:not(.is-touch-device) .bbgl-day-cell:is(.has-sticker, .has-note-over-stack):not(.has-new-note).is-hover-intent .bbgl-custom-note,
+                    .bbgl-day-cell:is(.has-sticker, .has-note-over-stack):not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
+                    .bbgl-day-cell:is(.has-sticker, .has-note-over-stack).is-viewing .bbgl-custom-note {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                         transition-delay: var(--pi-note-offset, 0s);
@@ -5235,27 +5257,30 @@
                         gap: inherit;
                     }
 
-                    /* Note button at the top centre of the header, Clear hanging off its left side so
-                       the note stays centred. Its top is measured from the month header's 4px top
-                       padding. Out of flow, so the header's layout is unchanged. */
+                    /* Note button at the top centre of the header, Delete standing in the margin on its right,
+                       so nothing moves when Delete shows or hides. --bbgl-note-top is measured from the month
+                       header's 4px top padding. Out of flow, so the header's layout is unchanged. */
                     .bbgl-note-tools {
-                        --bbgl-note-btn: 27px;
+                        --bbgl-note-btn: 29px;
+                        --bbgl-note-top: -2px;
                         position: absolute;
-                        top: 1px;
+                        top: var(--bbgl-note-top);
                         left: 50%;
-                        transform: translateX(-50%);
+                        /* Shifted left a little (a quarter of the clear button's .14 gap + .3 width reach);
+                           the button rides along at the same gap. */
+                        transform: translateX(calc(-50% - var(--bbgl-note-btn) * .12));
                         z-index: 12;
                         display: flex;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(33px, calc(33px + 6px * var(--bbgl-dock-t)), 39px);
-                        top: 3px;
+                        --bbgl-note-btn: clamp(35px, calc(35px + 13px * var(--bbgl-dock-t)), 48px);
+                        --bbgl-note-top: 3px;
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(35px, calc(35px + 14px * var(--bbgl-page-t)), 49px);
-                        top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
+                        --bbgl-note-btn: clamp(37px, calc(37px + 15px * var(--bbgl-page-t)), 52px);
+                        --bbgl-note-top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
                     }
 
                     .bbgl-note-btn {
@@ -5269,16 +5294,28 @@
                         transform: rotate(-4deg);
                         filter: drop-shadow(-1px 3px 3px rgba(0, 0, 0, .55));
                         transition: transform .15s ease-out, filter .15s ease-out;
+                        /* Its text is sized from --bbgl-note-btn, so it needs no size container (the
+                           paper's default): with one, the text could be laid out against the wrong box
+                           while the bottom panel was hidden and come back clipped away. */
+                        container-type: normal;
+                    }
+
+                    /* The text box widened to the paper's edges (it spans 8-98% of the art), and the lettering
+                       sized so the longest word, "Custom" (2.76em in Patrick Hand), fills it less a small margin. */
+                    .bbgl-note-btn .bbgl-note-text {
+                        inset: 15% 4% 9% 10%;
+                        overflow: visible;
                     }
 
                     .bbgl-note-btn .bbgl-note-text > span {
-                        font-size: 25cqw;
+                        font-size: calc(var(--bbgl-note-btn) * .29 - .5px);
                         line-height: .95;
                     }
 
+                    /* Hover keeps the tilt and only grows: rotating on hover made Chrome drop the lettering. */
                     @media (hover: hover) {
                         .bbgl-note-btn:hover {
-                            transform: rotate(-1deg) scale(1.06);
+                            transform: rotate(-4deg) scale(1.06);
                         }
                     }
 
@@ -5286,39 +5323,45 @@
                         opacity: .35;
                     }
 
-                    /* Plain handwritten label, no box. */
+                    /* A small upright rounded rectangle with a red cross, standing a little clear of the note's right side.
+                       Turns solid red while clearing is engaged. */
                     .bbgl-note-clear-btn {
                         position: absolute;
-                        right: calc(100% + 3px);
-                        top: 50%;
-                        transform: translateY(-50%);
-                        padding: 1px 2px;
-                        color: rgba(255, 255, 255, .75);
-                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
-                        font-size: calc(var(--bbgl-note-btn) * .4);
-                        line-height: 1;
-                        white-space: nowrap;
-                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 1px 2px #000;
+                        left: calc(100% + var(--bbgl-note-btn) * .14);
+                        top: 10%; /* the paper's top edge in the note art */
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-sizing: border-box;
+                        width: calc(var(--bbgl-note-btn) * .3);
+                        height: calc(var(--bbgl-note-btn) * .48);
+                        border-radius: calc(var(--bbgl-note-btn) * .07);
+                        border: 1px solid rgba(255, 255, 255, .35);
+                        background: rgba(12, 12, 12, .78);
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+                        color: #ff4d4d;
+                        font: 700 calc(var(--bbgl-note-btn) * .23)/1 sans-serif;
                         cursor: pointer;
                         user-select: none;
                         -webkit-user-select: none;
-                        transition: color .15s, text-shadow .15s, opacity .15s;
+                        transition: background .15s, border-color .15s, color .15s;
                     }
 
                     @media (hover: hover) {
                         .bbgl-note-clear-btn:hover {
-                            color: #fff;
+                            border-color: rgba(255, 110, 110, .85);
+                            color: #ff7070;
                         }
                     }
 
                     .bbgl-note-clear-btn.is-engaged {
-                        color: #ff8a8a;
-                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 6px rgba(214, 64, 64, .9);
+                        background: #c62828;
+                        border-color: #ff8a8a;
+                        color: #fff;
                     }
 
                     .bbgl-note-clear-btn.is-empty {
-                        opacity: .4;
-                        pointer-events: none;
+                        display: none;
                     }
 
                     /* The note following the pointer while it is dragged out of the header. */
@@ -6483,19 +6526,33 @@
                         width: 0%;
                         z-index: 2;
                         border-radius: 1px / 35%;
-                        /* Leading edge drops off over 9px, soft enough to read as gas but short enough
-                           that the end point is clear. The fade lives in 9px of right padding past the
-                           width JS sets, so the solid gas ends exactly at the EXP position (a full bar
-                           reaches the end) and the tail trails beyond it, under the coupling when full. */
-                        box-sizing: content-box;
-                        padding-right: 9px;
-                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 9px), rgba(0, 0, 0, .55) calc(100% - 4px), transparent);
-                        mask-image: linear-gradient(90deg, #000 calc(100% - 9px), rgba(0, 0, 0, .55) calc(100% - 4px), transparent);
-                        /* Fill origin is 5cqi into the track and the level spans 90cqi. No gain parks the
-                           stops far past the end. */
-                        --bbgl-gain-x: calc(var(--bbgl-gain-from, 200) * .9cqi - var(--bbgl-gain-shift, 0px));
+                        /* Leading edge softens over its last 8px, inside the width JS sets, so the end point stays at the EXP position. Eased: it holds
+                           near full and drops off at the very end, so the softness reads as the band's own edge, not a faint strip ahead of it. */
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 8px), rgba(0, 0, 0, .96) calc(100% - 5.3px), rgba(0, 0, 0, .85) calc(100% - 3.3px), rgba(0, 0, 0, .6) calc(100% - 1.7px), transparent);
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 8px), rgba(0, 0, 0, .96) calc(100% - 5.3px), rgba(0, 0, 0, .85) calc(100% - 3.3px), rgba(0, 0, 0, .6) calc(100% - 1.7px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                     }
+
+                    /* EXP gained since the bar was built (--bbgl-gain-from, set by levelGainFrom in 07, in
+                       percent of the level; unset means no gain). A brightened copy of the fill over its
+                       whole box, masked to show from the old EXP point to the tip, fading in over a lead-in
+                       that reaches back 60% of the gain's width, up to 30px. Only the right side
+                       grows. As the fill's child it shares its tip fade and tube clip. Fill origin is 5cqi
+                       into the track and the level spans 90cqi, so the old point is from * .9cqi. */
+                    .bbgl-exp-gain {
+                        display: none;
+                        position: absolute;
+                        inset: 0;
+                        --bbgl-gain-x: calc(var(--bbgl-gain-from) * .9cqi);
+                        background: inherit;
+                        filter: brightness(calc(var(--bbgl-gain-lift) / (1 - var(--bbgl-fill-dim)))) saturate(1.15);
+                        -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - min(30px, (100% - var(--bbgl-gain-x)) * .6)), #000 var(--bbgl-gain-x));
+                        mask-image: linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - min(30px, (100% - var(--bbgl-gain-x)) * .6)), #000 var(--bbgl-gain-x));
+                        pointer-events: none;
+                    }
+                    [style*="--bbgl-gain-from"] > .bbgl-exp-gain { display: block; }
+                    .bbgl-exp-gain,
+                    .bbgl-exp-gain::before { background-blend-mode: inherit; }
 
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill,
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill::after { animation: none; }
@@ -6876,7 +6933,7 @@
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill,
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill::before,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill::before {
-                        ${sheenFill(['#2a1405', '#5f350b', '#9d6318', '#d99a36', '#f3c860'], '255, 245, 214')}
+                        ${sheenFill(['#2a1405', '#5f350b', '#9d6318', '#d99a36', '#f3c860'], '255, 245, 214', .16, 1.5)}
                     }
 
 
@@ -6885,7 +6942,7 @@
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full,
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full::before,
                     #bbgl-gym-level-container[data-atrophy="2"][data-level="100"] #bbgl-gym-level-fill.level-full::before {
-                        ${sheenFill(['#140c24', '#2c1f46', '#5e3f8e', '#a472e0', '#d49bff'], '236, 246, 255', false)}
+                        ${sheenFill(['#140c24', '#2c1f46', '#5e3f8e', '#a472e0', '#d49bff'], '236, 246, 255')}
                     }
 
                     /* ─────────────────────────────────────────────────────── */
@@ -7017,7 +7074,7 @@
                        light as one colour (Lv 100 keeps its own lavender for the iridescent glow). */
                     .bbgl-exp-bar { ${valveMetalVars.steel} --bbgl-valve-flash: var(--bbgl-charge); }
                     .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} --bbgl-valve-flash: var(--bbgl-charge); }
-                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: var(--bbgl-charge-glow); }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: var(--bbgl-charge); }
                     .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} --bbgl-valve-flash: rgba(215, 170, 255, .95); }
                     .bbgl-level-valve {
                         position: absolute;
@@ -7048,15 +7105,14 @@
                        glass it reads as a full chamber rather than the thin tube's gradient seen through a
                        taller hole. Width stops at the fill's leading edge, so it fills in as the bar passes. */
                     #bbgl-level-fill::before,
-                    #bbgl-gym-level-fill::before {
+                    #bbgl-gym-level-fill::before,
+                    .bbgl-exp-gain::before {
                         content: '';
                         position: absolute;
                         left: calc(45cqi - var(--bbgl-valve-w) * .27);
                         top: var(--bbgl-notch-top);
                         width: max(0px, min(var(--bbgl-valve-w) * .54, 100% - (45cqi - var(--bbgl-valve-w) * .27)));
                         height: calc(var(--bbgl-notch-bot) - var(--bbgl-notch-top));
-                        --bbgl-gain-shift: calc(45cqi - var(--bbgl-valve-w) * .27); /* redeclared below: var() resolves where it is declared */
-                        --bbgl-gain-x: calc(var(--bbgl-gain-from, 200) * .9cqi - var(--bbgl-gain-shift));
                         background: inherit;
                         pointer-events: none;
                     }
@@ -7234,19 +7290,13 @@
                     }
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-exp-charge, .bbgl-exp-glow) { animation: none; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
                     #bbgl-panel.bbgl-no-animations .bbgl-exp-glow::after { animation: none; }
-                    /* How much the charge brightens while lit, at the flicker, and at the flash peak. Gold's
-                       thin tube holds at its lit level: any further lift tips it to yellow, so its flash
-                       comes from the orange bloom and the valve and crown. */
+                    /* How much the charge brightens while lit, at the flicker, and at the flash peak. */
                     .bbgl-exp-bar { --bbgl-lit: 1.25; --bbgl-flick: 1.45; --bbgl-peak: 1.5; --bbgl-halo-peak: 1.35; }
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-lit: 1.2; --bbgl-flick: 1.2; --bbgl-peak: 1.2; --bbgl-halo-peak: 1; }
-                    .bbgl-exp-bar[data-atrophy="2"] .bbgl-exp-glow { mix-blend-mode: normal; }
                     .bbgl-exp-bar { --bbgl-charge: #dfe8ee; --bbgl-charge-hot: #ffffff; --bbgl-charge-deep: #5e6b73; }
                     .bbgl-exp-bar[data-atrophy="1"] { --bbgl-charge: #4dff3a; --bbgl-charge-hot: #d4ffb0; --bbgl-charge-deep: #0f6a12; }
-                    /* Gold's tube uses the valve's gold ramp (valveMetalVars.gold) so it lights exactly like the
-                       valve and crown; the glow round everything is a warm gold taken from the valve's
-                       ramp (between its #d99a36 mids and #f3c860 highlights), lighter than the rank title's
-                       orange bloom but short of yellow. */
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #cf9612; --bbgl-charge-hot: #eda62e; --bbgl-charge-deep: #8c5c06; --bbgl-charge-core: #ffd08a; --bbgl-charge-glow: #f5b23c; }
+                    /* Gold charges from the top of the valve's gold ramp (valveMetalVars.gold). Its flash colour is the charge's own,
+                       like every tier: the halo fades out while the tube's charge holds, so a different hue shows through as a late flash. */
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #ffc23e; --bbgl-charge-hot: #ffe08f; --bbgl-charge-deep: #b97b0e; --bbgl-charge-core: #fff6dc; }
 
                     /* Level-up flash, arriving as the charge sweep. Each piece reaches its flash-lit state
                        as the front passes it: the bar's glow (.bbgl-exp-halo) and the fill's brightening
@@ -7308,14 +7358,14 @@
                         100% { opacity: 0; filter: none; }
                     }
                     @keyframes bbgl-charge-flash {
-                        0%   { filter: brightness(var(--bbgl-lit)); }
-                        20%  { filter: brightness(var(--bbgl-peak)); }
-                        100% { filter: brightness(1); }
+                        0%   { opacity: 1; filter: brightness(var(--bbgl-lit)); }
+                        20%  { opacity: 1; filter: brightness(var(--bbgl-peak)); }
+                        100% { opacity: 0; filter: brightness(1); }
                     }
                     @keyframes bbgl-glow-flash {
-                        0%   { filter: blur(.6px) brightness(var(--bbgl-lit)); }
-                        20%  { filter: blur(.6px) brightness(var(--bbgl-peak)); }
-                        100% { filter: blur(.6px) brightness(1); }
+                        0%   { opacity: .8; filter: blur(.6px) brightness(var(--bbgl-lit)); }
+                        20%  { opacity: .8; filter: blur(.6px) brightness(var(--bbgl-peak)); }
+                        100% { opacity: 0; filter: blur(.6px) brightness(1); }
                     }
                     /* Atrophy stall: the normal charge sweep, slowed to .9s and stopped about 75% of the
                        way along (front x = .99 - 1.2 * mask position, so 62% leaves the front at 25%).

@@ -159,17 +159,23 @@
     // override, so Train/Level Up keep advancing from the previewed spot. Today's real synced EXP
     // sits on top of careerLevelExp in getLiveLevelExp(), so it's netted out to land exactly.
     // Snaps instead of animating: the level-up animation queue crawls through big jumps.
-    function jumpToLevel(atrophy, level) {
+    // frac (0-1) lands that far into the level. The gain glow's baseline restarts at the new spot,
+    // so the next Train lights only what it adds.
+    function jumpToLevel(atrophy, level, frac = 0) {
         const floor = LEVEL_ATRO_START[atrophy];
         const lvl = Math.min(LEVEL_CAP, Math.max(floor, level));
         const todayReal = getLiveLevelExp() - (runtime.careerLevelExp || 0);
         let target = 0;
         for (let a = 0; a < atrophy; a++) target += LEVEL_ATRO_BUDGETS[a];
         for (let lv = floor; lv < lvl; lv++) target += computeLevelExpCost(lv, atrophy);
+        if (lvl < LEVEL_CAP) target += Math.floor(computeLevelExpCost(lvl, atrophy) * Math.min(.999, Math.max(0, frac)));
         runtime.careerLevelExp = Math.max(0, target - todayReal);
         const newTotal = getLiveLevelExp();
         runtime._lastLevelExp = newTotal;
-        getLevelBars().forEach(b => renderLevelBar(b, newTotal));
+        getLevelBars().forEach(b => {
+            b.fill._gainBase = null;
+            renderLevelBarInstant(b, newTotal);
+        });
         window.dispatchEvent(new CustomEvent('bbgl:dataUpdated'));
         runRefreshers();
     }
@@ -237,6 +243,31 @@
         const upBtn = buildDevButton('Level ▲', devLevelUp, smallBtn);
         const levelRow = buildRow([downBtn, levelInput, upBtn]);
 
+        // Fill stepper: drops the bar anywhere in the current level, to test the gain glow from there.
+        const fillSlider = document.createElement('input');
+        fillSlider.type = 'range';
+        fillSlider.min = '0';
+        fillSlider.max = '100';
+        fillSlider.step = '1';
+        fillSlider.style.cssText = 'flex:1;';
+        const fillLabel = document.createElement('span');
+        fillLabel.style.cssText = 'color:#fff;font-size:10px;width:34px;text-align:right;';
+        const levelPct = p => p.expToNext > 0 ? Math.round((p.expInLevel / p.expToNext) * 100) : 0;
+        fillSlider.addEventListener('input', () => {
+            fillLabel.textContent = fillSlider.value + '%';
+            const p = shownProgress();
+            jumpToLevel(p.atrophy, p.level, fillSlider.value / 100);
+        });
+        const fillRow = buildRow([fillSlider, fillLabel]);
+
+        refreshers.push(() => {
+            if (document.activeElement !== fillSlider) {
+                const pct = String(levelPct(shownProgress()));
+                if (fillSlider.value !== pct) fillSlider.value = pct;
+                fillLabel.textContent = pct + '%';
+            }
+        });
+
         refreshers.push(() => {
             if (document.activeElement === levelInput) return;
             const p = shownProgress();
@@ -264,7 +295,18 @@
             buildDevButton('+ 3-Note Stack', () => placeNewNote(true), tierBtn)
         ]);
 
-        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow, newNoteRow], 220);
+        // Seasonal header hemisphere (runtime._devHemisphere, read by isSouthernHemisphere() in 04).
+        const seasonSelect = document.createElement('select');
+        seasonSelect.style.cssText = selectStyle;
+        seasonSelect.innerHTML = `<option value="">Seasons: Auto (${isSouthernHemisphere() ? 'Southern' : 'Northern'} by time zone)</option><option value="north">Seasons: Northern</option><option value="south">Seasons: Southern</option>`;
+        seasonSelect.value = runtime._devHemisphere || '';
+        seasonSelect.addEventListener('change', () => {
+            runtime._devHemisphere = seasonSelect.value || null;
+            if (dom.panel) renderPanelContent();
+        });
+        const seasonRow = buildRow([seasonSelect]);
+
+        return buildDevSection('Triggers', [dayTierRow, trainRow, levelRow, fillRow, newNoteRow, seasonRow], 220);
     }
 
     // ─── Rank Preview section ───────────────────────────────────────────────
