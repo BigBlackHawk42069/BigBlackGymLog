@@ -369,8 +369,16 @@
             setActive(capBtn, isFullyBricked(p.atrophy, p.level));
         });
 
+        // Snaps straight to A2 Lv 100: jumpToLevel() renders the bars instantly and sets _lastLevelExp,
+        // so no level sequence (and none of its popups) runs.
+        const brickedBtn = buildDevButton('Jump to Fully Bricked', () => jumpToLevel(2, LEVEL_CAP), 'flex:1;padding:6px 2px;font-size:10px;');
+        refreshers.push(() => {
+            const p = shownProgress();
+            setActive(brickedBtn, isFullyBricked(p.atrophy, p.level));
+        });
+
         const rankGrid = [...rankBtns, capBtn];
-        return buildDevSection('Rank Preview', [atrophyRow, buildRow(rankGrid.slice(0, 3)), buildRow(rankGrid.slice(3))]);
+        return buildDevSection('Rank Preview', [atrophyRow, buildRow(rankGrid.slice(0, 3)), buildRow(rankGrid.slice(3)), buildRow([brickedBtn])]);
     }
 
     // ─── Title Preview section (stat-title board testing) ───────────────────

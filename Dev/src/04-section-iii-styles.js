@@ -10323,10 +10323,93 @@
                         left: 0;
                     }
 
-                    /* Fully Bricked's card plate has its name painted in; the bar's capstone matches its face. */
+                    /* Fully Bricked on the bar is the card plate's painted lettering, used as a mask
+                       (text-fully-bricked.webp) over the same face, ribbon and glow the other ranks
+                       paint into their glyphs. The real text stays, hidden, in the matching swash face
+                       so the capstone keeps its size and position. The glows are blurred by their
+                       wrappers, since a filter on the masked element itself would be clipped by the mask. */
                     .bbgl-rank-title.is-capstone .bbgl-rank-notch-line {
                         font-family: 'Berkshire Swash', Georgia, serif;
                         font-weight: 400;
+                        visibility: hidden;
+                    }
+
+                    .bbgl-rank-cap-art {
+                        position: absolute;
+                        inset: -12% -8%;
+                        pointer-events: none;
+                    }
+
+                    .bbgl-rank-cap-art i,
+                    .bbgl-rank-cap-glow {
+                        position: absolute;
+                        inset: 0;
+                    }
+
+                    .bbgl-rank-cap-art i {
+                        -webkit-mask: ${plaqueArtUrl('text-fully-bricked')} center / contain no-repeat;
+                        mask: ${plaqueArtUrl('text-fully-bricked')} center / contain no-repeat;
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-cap-glow {
+                        display: none;
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-cap-face {
+                        background: currentColor;
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-face {
+                        background-image:
+                            linear-gradient(105deg,
+                                transparent 0%, transparent 24%,
+                                rgba(255, 159, 220, .16) 29%,
+                                rgba(255, 159, 220, .58) 34%,
+                                rgba(255, 233, 143, .48) 42%,
+                                rgba(124, 245, 207, .50) 50%,
+                                rgba(255, 255, 255, .88) 52%,
+                                rgba(70, 180, 255, .56) 57%,
+                                rgba(177, 101, 241, .58) 65%,
+                                rgba(177, 101, 241, .14) 70%,
+                                transparent 76%, transparent 100%),
+                            linear-gradient(105deg,
+                                #d6e3e9 0%, #f3f8fa 18%, #ffffff 33%, #e8f0f3 43%,
+                                #ffffff 49%, #dde8ed 57%, #ffffff 72%, #edf4f7 88%, #cedce3 100%);
+                        background-size: 300% 100%, 100% 100%;
+                        background-position: 100% 50%, 0 0;
+                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-color {
+                        filter: blur(6.5px);
+                        opacity: .8;
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-color i {
+                        background-image: linear-gradient(105deg,
+                            #ff52bd 0%, #ffcb43 24%, #86ef82 43%,
+                            #36caff 63%, #a34dff 82%, #ff52bd 100%);
+                        background-size: 300% 100%;
+                        background-position: 100% 50%;
+                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-white {
+                        filter: blur(6.5px);
+                        opacity: .68;
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-white i {
+                        background-image: linear-gradient(105deg,
+                            #dcecf3 0%, #ffffff 22%, #e6f1f5 43%,
+                            #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-cap-art i {
+                        animation: none;
+                        background-position: 50% 50%, 0 0;
                     }
 
                     .bbgl-rank-title.is-milestone .bbgl-rank-title-text {
@@ -11433,7 +11516,6 @@ ${RANK_PLATE_CSS}
                     ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
 
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-label { filter: none; }
 
                     @media (prefers-reduced-motion: reduce) {
                         :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }

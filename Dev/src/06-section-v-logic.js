@@ -2293,27 +2293,55 @@ function achPlatinumGlintsHTML() {
         '</g></svg>';
 }
 
-// The platinum plate's prismatic light: a blue and a rose point light crossing the plate every 8s.
-function achPlatinumLighting() {
-    const id = 'bbgl-platinum-' + (achPlatinumLighting.serial = (achPlatinumLighting.serial || 0) + 1);
-    const html = `<svg class="bbgl-rank-surface-lighting" aria-hidden="true" width="0" height="0"><defs>
-            <filter id="${id}-light" x="-8%" y="-12%" width="116%" height="124%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
-                <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-                <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".7" specularExponent="18" lighting-color="#b9ecff" result="blue">
-                    <fePointLight x="-.3" y=".7" z=".4"><animate attributeName="x" values="-.3;.25;.7;1.3;1.3" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".7;.15;.35;.8;.8" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".5" specularExponent="25" lighting-color="#ffd4ed" result="rose">
-                    <fePointLight x="-.5" y=".8" z=".3"><animate attributeName="x" values="-.5;.05;.5;1.1;1.1" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".8;.25;.45;.9;.9" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feBlend in="blue" in2="rose" mode="screen" result="prism"/>
-                <feComposite in="prism" in2="relief" operator="in" result="reflection"/>
-                <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
-                <feComposite in="lit" in2="SourceAlpha" operator="in"/>
-            </filter>
-            <linearGradient id="${id}-recess" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#101a29"/><stop offset=".3" stop-color="#263345"/><stop offset=".53" stop-color="#302d43"/><stop offset=".74" stop-color="#1e3540"/><stop offset="1" stop-color="#101822"/></linearGradient>
-    </defs></svg>`;
-    return { html, style: `--bbgl-platinum-light: url(#${id}-light);` };
+// Fully Bricked's two cylinder spot lamps on the board, in the plate box's own units (160 x 94):
+// one in each lower corner beside the diamond's point, aimed at the diamond. They sweep out of step,
+// and the highlights inside the face follow them, so the lamps make the plate's moving light.
+const PLATINUM_LAMPS = { left: [19.2, 76.5], right: [140.8, 76.5], target: [80, 41], scale: 1.75 };
+
+function achPlatinumLampAngle([x, y]) {
+    const [tx, ty] = PLATINUM_LAMPS.target;
+    return +(Math.atan2(ty - y, tx - x) * 180 / Math.PI).toFixed(1);
+}
+
+// Beams, under the plate image: soft cones that only show on the wood between lamp and plate.
+function achPlatinumBeamsHTML() {
+    const id = achPlatinumBeamsHTML.serial = (achPlatinumBeamsHTML.serial || 0) + 1;
+    const beam = (side, [x, y]) => `<g class="bbgl-lamp-sweep is-${side}" style="transform-origin:${x}px ${y}px">
+        <polygon transform="rotate(${achPlatinumLampAngle([x, y])} ${x} ${y})" points="${x},${y - 1.2} ${x + 78},${y - 15} ${x + 78},${y + 15} ${x},${y + 1.2}" fill="url(#bbgl-lamp-beam-${id})"/></g>`;
+    return '<svg class="bbgl-rank-lamps is-back" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' +
+        `<linearGradient id="bbgl-lamp-beam-${id}"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="#cfe6ff" stop-opacity=".28"/><stop offset="1" stop-color="#cfe6ff" stop-opacity="0"/></linearGradient>` +
+        `</defs>${beam('left', PLATINUM_LAMPS.left)}${beam('right', PLATINUM_LAMPS.right)}</svg>`;
+}
+
+// The lamps themselves, over everything: a low base and stem, and a slim cylinder that pivots.
+function achPlatinumLampsHTML() {
+    const id = achPlatinumLampsHTML.serial = (achPlatinumLampsHTML.serial || 0) + 1;
+    const k = PLATINUM_LAMPS.scale;
+    const n = v => +(v * k).toFixed(2);
+    const lamp = (side, [x, y]) => `<g>
+        <rect x="${x - n(4)}" y="${y + n(4.5)}" width="${n(8)}" height="${n(1.8)}" rx="${n(.9)}" fill="#0c0d0f" opacity=".5" transform="translate(.3 .6)"/>
+        <rect x="${x - n(4)}" y="${y + n(4.5)}" width="${n(8)}" height="${n(1.8)}" rx="${n(.9)}" fill="url(#bbgl-lamp-metal-${id})"/>
+        <rect x="${x - n(.6)}" y="${y + n(1)}" width="${n(1.2)}" height="${n(3.8)}" fill="#24272b"/>
+        <g class="bbgl-lamp-sweep is-${side}" style="transform-origin:${x}px ${y}px"><g transform="rotate(${achPlatinumLampAngle([x, y])} ${x} ${y})">
+            <rect x="${x - n(4)}" y="${y - n(2.1)}" width="${n(11)}" height="${n(4.2)}" rx="${n(2.1)}" fill="url(#bbgl-lamp-metal-${id})" stroke="#08090a" stroke-width=".3"/>
+            <rect x="${x - n(1.5)}" y="${y - n(2.1)}" width="${n(.5)}" height="${n(4.2)}" fill="#08090a" opacity=".55"/>
+            <ellipse cx="${x + n(6.6)}" cy="${y}" rx="${n(.9)}" ry="${n(1.8)}" fill="#eef7ff"/>
+            <circle class="bbgl-lamp-glow" cx="${x + n(7)}" cy="${y}" r="${n(2.6)}" fill="#eef7ff" opacity=".35"/>
+        </g></g>
+    </g>`;
+    return '<svg class="bbgl-rank-lamps is-front" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' +
+        `<linearGradient id="bbgl-lamp-metal-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4e55"/><stop offset=".35" stop-color="#26292e"/><stop offset="1" stop-color="#101113"/></linearGradient>` +
+        `</defs>${lamp('left', PLATINUM_LAMPS.left)}${lamp('right', PLATINUM_LAMPS.right)}</svg>`;
+}
+
+// The light the lamps throw onto the diamond, inside the face (so the plate's mask clips it).
+function achPlatinumLampLightHTML() {
+    const id = achPlatinumLampLightHTML.serial = (achPlatinumLampLightHTML.serial || 0) + 1;
+    const [, ty] = PLATINUM_LAMPS.target;
+    return '<svg class="bbgl-rank-lamp-light" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' +
+        `<radialGradient id="bbgl-lamp-spot-${id}"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#cfe6ff" stop-opacity=".25"/><stop offset="1" stop-color="#cfe6ff" stop-opacity="0"/></radialGradient>` +
+        `</defs><circle class="bbgl-lamp-spot is-left" cx="70" cy="${ty}" r="30" fill="url(#bbgl-lamp-spot-${id})"/>` +
+        `<circle class="bbgl-lamp-spot is-right" cx="104" cy="${ty}" r="30" fill="url(#bbgl-lamp-spot-${id})"/></svg>`;
 }
 
 function achGoldZingLighting(textOnly) {
@@ -2383,13 +2411,13 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
         ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
         : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
     // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); the lettering is the only markup.
-    const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : pearlMarquee ? achPlatinumLighting() : null;
+    const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
     if (lighting) style += lighting.style;
-    const inner = (lighting?.html || '') + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
+    const inner = (lighting?.html || '') + (pearlMarquee ? achPlatinumLampLightHTML() : '') + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
         + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
-    const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() : '';
-    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face">${inner}</span>${sparkles}</span></div>`;
+    const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() + achPlatinumLampsHTML() : '';
+    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}">${pearlMarquee ? achPlatinumBeamsHTML() : ''}<span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face">${inner}</span>${sparkles}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -2542,7 +2570,10 @@ function achTitleLabelsHTML(atrophy, level) {
     // The destination is always named. Its muted/finished state carries the lock information; a
     // lock glyph here would sit on the finish divider and hide what the player is working toward.
     const capInner = achRankPlaqueLabelHTML('Fully Bricked');
-    const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text">${capInner}</span></div></div>`;
+    // The visible name is your painted lettering (text-fully-bricked.webp) as a mask over the same
+    // face, ribbon and glow layers the other ranks paint into their glyphs; the text stays for layout.
+    const capArt = '<span class="bbgl-rank-cap-art" aria-hidden="true"><span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span><i class="bbgl-rank-cap-face"></i></span>';
+    const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text">${capInner}${capArt}</span></div></div>`;
     return bands + cap;
 }
 
