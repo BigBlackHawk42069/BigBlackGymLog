@@ -1888,10 +1888,10 @@ function computeAchievements(s) {
     };
 }
 
-// The titles page's SMIL-animated SVGs (filter lights, glimmers). Their timelines keep ticking
+// The titles page's SMIL-animated SVGs (the plate filter lights). Their timelines keep ticking
 // after the page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit
 // ends and resumed (re-synced) by syncTitlesPageAnimationClock().
-const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest';
+const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
 
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
@@ -2258,191 +2258,6 @@ function achRankPlaqueLabelHTML(label) {
 //           the travelling specular sweep.
 //   -fx     ornament inside -face's mask: ::before the frame band (rivets/milling), ::after the
 //           recessed inner field the lettering sits on.
-function achGoldCrownHTML() {
-    const id = `bbgl-crown-${achGoldCrownHTML.serial = (achGoldCrownHTML.serial || 0) + 1}`;
-    const jewels = [[100, 36, 1], [32, 78, .72], [168, 78, .72]].map(([x, y, scale]) => `<g transform="translate(${x} ${y}) scale(${scale})">
-        <path d="M0-11L8 0L0 11L-8 0Z" fill="#57300a" transform="translate(0 1.3)"/>
-        <path d="M0-11L8 0L0 11L-8 0Z" fill="url(#${id}-stud)" stroke="#ffe7a0" stroke-width=".8"/>
-        <path d="M0-8L5.5 0L0 8L-5.5 0Z" fill="#520b16" stroke="#773719" stroke-width=".7"/>
-        <path d="M0-8L0-3L-2 0L-5.5 0Z" fill="#ffaaa1"/>
-        <path d="M0-8L5.5 0L2 0L0-3Z" fill="#e85553"/>
-        <path d="M5.5 0L0 8L0 3L2 0Z" fill="#840f27"/>
-        <path d="M0 8L-5.5 0L-2 0L0 3Z" fill="#c1293d"/>
-        <path d="M0-3L2 0L0 3L-2 0Z" fill="#ee6970"/>
-        <path d="M-3-2L0-6" fill="none" stroke="#ffe7d0" stroke-width=".65"/>
-        <g fill="url(#${id}-stud)" stroke="#ffeca7" stroke-width=".35"><circle cy="-8" r="1"/><circle cx="5.5" r="1"/><circle cy="8" r="1"/><circle cx="-5.5" r="1"/></g>
-    </g>`).join('');
-    return `<svg class="bbgl-rank-gold-crown" viewBox="4 0 192 118" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-gold" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff5b5"/><stop offset=".16" stop-color="#e4b64e"/><stop offset=".3" stop-color="#fff0a4"/><stop offset=".43" stop-color="#9d6318"/><stop offset=".53" stop-color="#f8d775"/><stop offset=".64" stop-color="#fff5bb"/><stop offset=".79" stop-color="#b77a22"/><stop offset="1" stop-color="#5f350b"/></linearGradient>
-            <linearGradient id="${id}-band" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff2aa"/><stop offset=".13" stop-color="#f1ca65"/><stop offset=".22" stop-color="#895015"/><stop offset=".34" stop-color="#dfad43"/><stop offset=".53" stop-color="#ffe498"/><stop offset=".77" stop-color="#d9a13b"/><stop offset=".91" stop-color="#774312"/><stop offset="1" stop-color="#f5cd70"/></linearGradient>
-            <radialGradient id="${id}-stud" cx=".3" cy=".25" r=".8"><stop stop-color="#fffbd5"/><stop offset=".3" stop-color="#f9d879"/><stop offset=".65" stop-color="#b67c22"/><stop offset="1" stop-color="#57300a"/></radialGradient>
-            <linearGradient id="${id}-window" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#38240d"/><stop offset=".32" stop-color="#21170c"/><stop offset=".7" stop-color="#30200e"/><stop offset="1" stop-color="#493015"/></linearGradient>
-        </defs>
-        <path d="M12 30C36 43 56 53 76 36Q89 23 100 10Q111 23 124 36C144 53 164 43 188 30L176 102H24Z" fill="#57320d" transform="translate(0 3)"/>
-        <path d="M12 30C36 43 56 53 76 36Q89 23 100 10Q111 23 124 36C144 53 164 43 188 30L176 102H24Z" fill="url(#${id}-gold)" stroke="#fff0a3" stroke-width="1.2" stroke-linejoin="round"/>
-        <path d="M20 43C42 53 61 59 80 43Q91 33 100 22Q109 33 120 43C139 59 158 53 180 43L171 97H29Z" fill="none" stroke="#754712" stroke-width="1.2"/>
-        <path d="M22 45C44 55 62 61 81 45Q92 35 100 25Q108 35 119 45C138 61 156 55 178 45" fill="none" stroke="#fff3b2" stroke-width=".75"/>
-        <path d="M16 39L26 100H174L184 39" fill="none" stroke="#694012" stroke-width="2.3"/>
-        <path d="M18 40L28 98H172L182 40" fill="none" stroke="#fff0a5" stroke-width=".8"/>
-        <path d="M21 39C43 50 61 55 78 40Q90 28 100 17Q110 28 122 40C139 55 157 50 179 39" fill="none" stroke="#754712" stroke-width="1.8" stroke-dasharray=".2 3.2" stroke-linecap="round"/>
-        <path d="M21 38C43 49 61 54 78 39Q90 27 100 16Q110 27 122 39C139 54 157 49 179 38" fill="none" stroke="#fff0ac" stroke-width="1.1" stroke-dasharray=".2 3.2" stroke-linecap="round"/>
-        <g fill="none" stroke-linecap="round">
-            <path d="M33 95C24 89 37 87 34 83M30 70C22 66 26 57 33 59C39 61 34 67 30 63M167 95C176 89 163 87 166 83M170 70C178 66 174 57 167 59C161 61 166 67 170 63" stroke="#81501a" stroke-width="1.7"/>
-            <path d="M33 94C24 88 37 86 34 82M30 69C22 65 26 56 33 58C39 60 34 66 30 62M167 94C176 88 163 86 166 82M170 69C178 65 174 56 167 58C161 60 166 66 170 62" stroke="#ffe6a0" stroke-width=".7"/>
-        </g>
-        <path d="M46 55H154L161 61V91L155 97H45L39 91V61Z" fill="#724713" stroke="#ffdfa0" stroke-width=".8"/>
-        <path d="M47 57H153L159 62V90L154 95H46L41 90V62Z" fill="url(#${id}-window)" stroke="#59360e" stroke-width=".8"/>
-        <path d="M42 63L47 58H153L158 63" fill="none" stroke="#160e07" stroke-width="1.2"/>
-        <path d="M42 90L46 94H154L158 90" fill="none" stroke="#f6cd77" stroke-opacity=".65" stroke-width=".65"/>
-        ${jewels}
-        <path d="M24 104H176V117H24Z" fill="#603710"/>
-        <path d="M24 101H176V114H24Z" fill="url(#${id}-band)" stroke="#eec26a" stroke-width=".9"/>
-        <path d="M27 103H173M27 112H173" fill="none" stroke="#fff0a5" stroke-width=".8"/>
-        <path d="M30 108H170" fill="none" stroke="#815018" stroke-width=".65" stroke-dasharray="1 2"/>
-        <g fill="url(#${id}-stud)" stroke="#f8d77e" stroke-width=".65">
-            <circle cx="12" cy="29" r="5"/><circle cx="100" cy="10" r="6"/><circle cx="188" cy="29" r="5"/>
-            <path d="M38 105L41 108L38 111L35 108ZM162 105L165 108L162 111L159 108Z"/>
-        </g>
-        <g fill="none" stroke="#7d4912" stroke-width=".65" stroke-linecap="round">
-            <path d="M48 108H77M51 108L54 105M55 108L58 111M59 108L62 105M63 108L66 111M67 108L70 105M71 108L74 111M123 108H152M126 111L129 108M130 105L133 108M134 111L137 108M138 105L141 108M142 111L145 108M146 105L149 108"/>
-        </g>
-    </svg>`;
-}
-
-function achPearlMarqueeHTML() {
-    const id = 'bbgl-platinum-' + (achPearlMarqueeHTML.serial = (achPearlMarqueeHTML.serial || 0) + 1);
-    return `<svg class="bbgl-rank-pearl-marquee bbgl-platinum-crest" viewBox="0 0 200 124" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-metal" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#fffaf0"/><stop offset=".14" stop-color="#b9cde7"/><stop offset=".23" stop-color="#fff"/><stop offset=".32" stop-color="#515775"/><stop offset=".42" stop-color="#e9cced"/><stop offset=".5" stop-color="#fff"/><stop offset=".6" stop-color="#c2eeeb"/><stop offset=".72" stop-color="#74788e"/><stop offset=".82" stop-color="#fff0d7"/><stop offset=".92" stop-color="#e5e1fa"/><stop offset="1" stop-color="#fff"/></linearGradient>
-            <linearGradient id="${id}-heart" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#f5fafc"/><stop offset=".12" stop-color="#b4c9dc"/><stop offset=".23" stop-color="#e9d6ec"/><stop offset=".34" stop-color="#f9fbec"/><stop offset=".43" stop-color="#748393"/><stop offset=".51" stop-color="#d1e9ed"/><stop offset=".6" stop-color="#f5f2ff"/><stop offset=".73" stop-color="#abb3d1"/><stop offset=".85" stop-color="#f4e4d4"/><stop offset="1" stop-color="#e9faff"/></linearGradient>
-            <filter id="${id}-light" x="-8%" y="-12%" width="116%" height="124%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
-                <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-                <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".7" specularExponent="18" lighting-color="#b9ecff" result="blue">
-                    <fePointLight x="-.3" y=".7" z=".4"><animate attributeName="x" values="-.3;.25;.7;1.3;1.3" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".7;.15;.35;.8;.8" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".5" specularExponent="25" lighting-color="#ffd4ed" result="rose">
-                    <fePointLight x="-.5" y=".8" z=".3"><animate attributeName="x" values="-.5;.05;.5;1.1;1.1" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".8;.25;.45;.9;.9" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feBlend in="blue" in2="rose" mode="screen" result="prism"/>
-                <feComposite in="prism" in2="relief" operator="in" result="reflection"/>
-                <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
-                <feComposite in="lit" in2="SourceAlpha" operator="in"/>
-            </filter>
-            <linearGradient id="${id}-recess" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#101a29"/><stop offset=".3" stop-color="#263345"/><stop offset=".53" stop-color="#302d43"/><stop offset=".74" stop-color="#1e3540"/><stop offset="1" stop-color="#101822"/></linearGradient>
-        </defs>
-        <g class="bbgl-platinum-metalwork" style="--crest-light:url(#${id}-light)">
-            <path d="M40 7H160L195 43L100 120L5 43Z" fill="#202837" transform="translate(0 2)"/>
-            <path d="M40 7H160L195 43L100 120L5 43Z" fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width="1.3" stroke-linejoin="round"/>
-            <path d="M43 13H157L186 43L100 112L14 43Z" fill="#465063" stroke="#7a8597" stroke-width="1"/>
-            <path d="M45 16H155L181 43L100 108L19 43Z" fill="url(#${id}-metal)" stroke="#f9f6ff" stroke-width="1.2"/>
-            <path d="M49 21H151L174 44L100 102L26 44Z" fill="#0b111d" stroke="#627088" stroke-width="1.4"/>
-            <path d="M51 24H149L170 44L100 98L30 44Z" fill="url(#${id}-recess)"/>
-            <path d="M30 44L51 24H149L170 44" fill="none" stroke="#080e17" stroke-width="1.8"/>
-            <path d="M30 45L100 99L170 45" fill="none" stroke="#d3e9f4" stroke-opacity=".7" stroke-width=".8"/>
-            <path d="M41 10H159L191 43L100 117L9 43Z" fill="none" stroke="#465168" stroke-width="2.2"/>
-            <path d="M41 9H159L191 42L100 116L9 42Z" fill="none" stroke="#f3f4ff" stroke-width=".7"/>
-            <path d="M43 13H157L186 43L100 112L14 43Z" fill="none" stroke="#e7e9ff" stroke-width="1.1" stroke-dasharray=".3 2.7" stroke-linecap="round"/>
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M50 18H86L100 14L114 18H150M35 27L22 42L59 73M165 27L178 42L141 73M66 79L88 96M134 79L112 96" stroke="#45516b" stroke-width="2.2"/>
-                <path d="M50 17H86L100 13L114 17H150M35 26L22 41L59 72M165 26L178 41L141 72M66 78L88 95M134 78L112 95" stroke="#eef9ff" stroke-width=".75"/>
-                <path d="M54 18L59 21L64 18L69 21L74 18M126 18L131 21L136 18L141 21L146 18M34 54L39 54L39 59L44 59L44 64M166 54L161 54L161 59L156 59L156 64" stroke="#c4d9e6" stroke-width=".7"/>
-            </g>
-            <g fill="url(#${id}-metal)" stroke="#f7fbff" stroke-width=".5">
-                <path d="M57 68L62 73L57 78L52 73ZM143 68L148 73L143 78L138 73Z"/>
-            </g>
-            <g fill="#caddec" stroke="#5c6c83" stroke-width=".4">
-                <path d="M57 70L60 73L57 76L54 73ZM143 70L146 73L143 76L140 73Z"/>
-            </g>
-            <path d="M57 70V76L60 73ZM143 70V76L146 73Z" fill="#fff" opacity=".85"/>
-            <g transform="translate(0 -21)">
-                <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
-                    <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
-                </g>
-                <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
-                <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
-                <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
-            </g>
-            <path d="M77 9H123L128 15L120 22H80L72 15Z" fill="#465266"/>
-            <path d="M78 9H122L126 14L119 20H81L74 14Z" fill="url(#${id}-metal)" stroke="#f4f9ff" stroke-width=".7"/>
-            <path d="M81 11H119M82 18H118" fill="none" stroke="#5d6b80" stroke-width=".65"/>
-            <g fill="#fff">
-                <path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M40 1L41 6L47 7L41 8L40 14L39 8L33 7L39 6Z"/>
-                <path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M178 35L179 42L185 43L179 44L178 51L177 44L171 43L177 42Z"/>
-                <path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 105L101 111L107 112L101 113L100 119L99 113L93 112L99 111Z"/>
-            </g>
-        </g>
-    </svg>`;
-}
-
-function achBronzePlaqueHTML() {
-    const id = `bbgl-bronze-${achBronzePlaqueHTML.serial = (achBronzePlaqueHTML.serial || 0) + 1}`;
-    return `<svg class="bbgl-rank-bronze-plaque" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-rim" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#d9ad75"/><stop offset=".13" stop-color="#a57443"/><stop offset=".23" stop-color="#51321f"/><stop offset=".34" stop-color="#9f683b"/><stop offset=".48" stop-color="#d9ad75"/><stop offset=".56" stop-color="#c2945f"/><stop offset=".65" stop-color="#784a29"/><stop offset=".8" stop-color="#b58450"/><stop offset=".92" stop-color="#382317"/><stop offset="1" stop-color="#c99b64"/></linearGradient>
-            <linearGradient id="${id}-face" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#d9ad75"/><stop offset=".16" stop-color="#87522e"/><stop offset=".3" stop-color="#bc8b54"/><stop offset=".42" stop-color="#634025"/><stop offset=".49" stop-color="#a16a3b"/><stop offset=".55" stop-color="#d9ad75"/><stop offset=".62" stop-color="#bb8d58"/><stop offset=".77" stop-color="#80502d"/><stop offset=".9" stop-color="#ad7b45"/><stop offset="1" stop-color="#593820"/></linearGradient>
-
-            <radialGradient id="${id}-rust"><stop stop-color="#ae502b" stop-opacity=".65"/><stop offset=".45" stop-color="#80371f" stop-opacity=".4"/><stop offset="1" stop-color="#572817" stop-opacity="0"/></radialGradient>
-            <radialGradient id="${id}-tarnish"><stop stop-color="#49291b" stop-opacity=".5"/><stop offset="1" stop-color="#683c24" stop-opacity="0"/></radialGradient>
-        </defs>
-        <path d="M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z" fill="url(#${id}-rim)" stroke="#624029" stroke-width="1"/>
-        <path d="M100 9C73 9 72 11 65 21Q60 28 49 28H32Q27 38 15 42L9 67L15 93Q27 98 32 111H168Q173 98 185 93L191 67L185 42Q173 38 168 28H151Q140 28 135 21C128 11 127 9 100 9Z" fill="url(#${id}-face)" stroke="#4c311f" stroke-width="1.7"/>
-        <path d="M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z" fill="#101211" stroke="#4b301d" stroke-width="2"/>
-        <path d="M34 38H166Q171 46 181 49L186 68L181 90Q171 94 166 102H34Q29 94 19 90L14 68L19 49Q29 46 34 38Z" fill="none" stroke="#d0a16a" stroke-opacity=".42" stroke-width=".7"/>
-        <path d="M62 25C72 14 73 12 100 12C127 12 128 14 138 25M34 109H166" fill="none" stroke="#d6a970" stroke-width="1"/>
-        <g fill="url(#${id}-rust)"><ellipse cx="29" cy="39" rx="8" ry="6"/><ellipse cx="171" cy="98" rx="8" ry="6"/></g>
-        <g fill="#392719" stroke="#d2a36d" stroke-width=".6"><circle cx="30" cy="34" r="1.5"/><circle cx="170" cy="34" r="1.5"/><circle cx="30" cy="102" r="1.5"/><circle cx="170" cy="102" r="1.5"/></g>
-    </svg>`;
-}
-
-function achShieldGlimmerHTML(x) {
-    // Invert the spotlight's easing to find its two passes over this jewel.
-    const progress = (x / 200 + .35) / 1.7;
-    let low = 0, high = 1;
-    for (let i = 0; i < 24; i++) {
-        const t = (low + high) / 2;
-        if (t * t * (3 - 2 * t) < progress) low = t;
-        else high = t;
-    }
-    const t = (low + high) / 2;
-    const pass = (3 * (1 - t) ** 2 * t * .3 + 3 * (1 - t) * t * t * .55 + t ** 3) / 2;
-    const times = [0, pass - .025, pass, pass + .025, 1 - pass - .025, 1 - pass, 1 - pass + .025, 1].map(v => v.toFixed(6)).join(';');
-    return `<g class="bbgl-shield-glimmer" opacity="0" fill="#edfff5" pointer-events="none">
-        <path d="M0-7L1.1-1.1L5 0L1.1 1.1L0 7L-1.1 1.1L-5 0L-1.1-1.1Z"/>
-        <circle r="1.3" fill="#fff"/>
-        <animate attributeName="opacity" values="0;0;1;0;0;1;0;0" keyTimes="${times}" dur="6.8s" repeatCount="indefinite"/>
-    </g>`;
-}
-
-function achSilverShieldJewelsHTML() {
-    const id = `bbgl-silver-shield-${achSilverShieldJewelsHTML.serial = (achSilverShieldJewelsHTML.serial || 0) + 1}`;
-    const jewels = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) => `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">
-        <path d="M-5-10H5L9-5V5L5 10H-5L-9 5V-5Z" fill="url(#${id}-rim)" stroke="#52666a" stroke-width=".7"/>
-        <path d="M-4-8H4L7-4V4L4 8H-4L-7 4V-4Z" fill="#003d29" stroke="#09271f" stroke-width=".6"/>
-        <path d="M-4-8H4L3-4H-3L-7-4Z" fill="#93dcbc"/>
-        <path d="M4-8L7-4V4L3 4V-4Z" fill="#087451"/>
-        <path d="M7 4L4 8H-4L-3 4Z" fill="#002f23"/>
-        <path d="M-7-4L-3-4V4L-4 8L-7 4Z" fill="#1a9d70"/>
-        <path d="M-3-4H3V4H-3Z" fill="url(#${id}-gem)"/>
-                <path d="M-4-8L-3-4L-7-4ZM4-8L3-4L7-4ZM7 4L3 4L4 8ZM-7 4L-3 4L-4 8Z" fill="#52b58e" opacity=".7"/>
-        <path d="M-3-4L1-2L3 4L-1 2Z" fill="#b4edcf" opacity=".22"/>
-        <path d="M3-4L1-2L-3 4L3 1Z" fill="#002e21" opacity=".55"/>
-        <path d="M-2 1L0-1L1 2M-1 3L1 1" fill="none" stroke="#8cc6a7" stroke-opacity=".25" stroke-width=".2"/>
-        <path d="M-4-7H2M-6-3V0" fill="none" stroke="#e0f5e9" stroke-width=".45"/>
-        <path d="M-5-8L-3-7M5 8L3 7" fill="none" stroke="url(#${id}-rim)" stroke-width="1.4" stroke-linecap="round"/>
-        ${achShieldGlimmerHTML(x)}
-    </g>`).join('');
-    return `<svg class="bbgl-rank-silver-shield-jewels" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true"><defs>
-            <linearGradient id="${id}-rim" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#fff"/><stop offset=".13" stop-color="#d7e3e9"/><stop offset=".23" stop-color="#536975"/><stop offset=".34" stop-color="#c7d5dd"/><stop offset=".48" stop-color="#fff"/><stop offset=".56" stop-color="#eef7fb"/><stop offset=".65" stop-color="#718995"/><stop offset=".8" stop-color="#dce9ef"/><stop offset=".92" stop-color="#435b68"/><stop offset="1" stop-color="#e6f1f6"/></linearGradient>
-            <linearGradient id="${id}-gem" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#93dcbc"/><stop offset=".22" stop-color="#1a9d70"/><stop offset=".46" stop-color="#006044"/><stop offset=".52" stop-color="#52b58e"/><stop offset=".68" stop-color="#087451"/><stop offset="1" stop-color="#002f23"/></linearGradient>
-    </defs><g fill="none" stroke="url(#${id}-rim)" stroke-width=".8" opacity=".8">
-        <path d="M22 48C18 60 24 74 37 85C31 76 29 68 34 63C39 57 44 66 39 69C35 71 33 66 36 64M178 48C182 60 176 74 163 85C169 76 171 68 166 63C161 57 156 66 161 69C165 71 167 66 164 64"/>
-        <path d="M65 99Q83 100 100 113Q117 100 135 99M83 103Q100 97 117 103M96 107L100 102L104 107L100 112Z"/>
-        <path d="M72 19Q82 12 88 13M128 19Q118 12 112 13"/>
-        </g>${jewels}</svg>`;
-}
-
 function achGoldZingLighting(textOnly) {
     const id = 'bbgl-gold-zing-' + (achGoldZingLighting.serial = (achGoldZingLighting.serial || 0) + 1);
     const image = svg => 'data:image/svg+xml,' + encodeURIComponent(svg).replaceAll("'", '%27');
@@ -2510,12 +2325,13 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
     const lines = nameTag
         ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
         : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
-    const greeting = nameTag ? '<span class="bbgl-rank-name-tag-heading">Hello, my RANK is...</span>'
+    // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); only the headings are markup.
+    const greeting = nameTag ? '<span class="bbgl-rank-plate-heading">RANK</span>'
         : lightbox ? '<span class="bbgl-rank-lightbox-heading"><span>RANK</span></span>'
-        : bronzePlaque ? `${achBronzePlaqueHTML()}<span class="bbgl-rank-bronze-heading">RANK</span>`
-        : silverShield ? `${achSilverShieldJewelsHTML()}<span class="bbgl-rank-silver-shield-heading">RANK</span>`
-        : goldCrown ? `${achGoldCrownHTML()}<span class="bbgl-rank-crown-heading">RANK</span>`
-        : pearlMarquee ? `${achPearlMarqueeHTML()}<span class="bbgl-rank-marquee-heading">RANK</span>` : '';
+        : bronzePlaque ? '<span class="bbgl-rank-bronze-heading">RANK</span>'
+        : silverShield ? '<span class="bbgl-rank-silver-shield-heading">RANK</span>'
+        : goldCrown ? '<span class="bbgl-rank-crown-heading">RANK</span>'
+        : pearlMarquee ? '<span class="bbgl-rank-marquee-heading">RANK</span>' : '';
     const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
     if (lighting) style += lighting.style;
     const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)

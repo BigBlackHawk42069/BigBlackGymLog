@@ -11274,24 +11274,6 @@
                         opacity: 1;
                     }
 
-                    .bbgl-rank-name-tag-heading {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-width: 0;
-                        min-height: 0;
-                        border-radius: clamp(2px, 3cqw, 4px) clamp(2px, 3cqw, 4px) 0 0;
-                        background: linear-gradient(180deg, #bc4145, #ad3036);
-                        box-shadow: inset 0 1px 1px rgba(86, 20, 24, .35), 0 1px 0 rgba(255, 255, 255, .9);
-                        color: #fff;
-                        font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
-                        font-size: min(9cqw, 23cqh);
-                        font-weight: 400;
-                        line-height: 1;
-                        letter-spacing: 0;
-                        text-shadow: none;
-                        white-space: nowrap;
-                    }
 
                     .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-title-text {
                         box-sizing: border-box;
@@ -11641,14 +11623,6 @@
                         }
                     }
 
-                    .bbgl-rank-bronze-plaque {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: visible;
-                        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45));
-                    }
 
                     .bbgl-rank-bronze-heading {
                         position: absolute;
@@ -11798,25 +11772,13 @@
                         filter: var(--bbgl-emerald-encasing);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-shield-glimmer {
-                        display: none;
-                    }
 
                     @media (prefers-reduced-motion: reduce) {
                         .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
                             filter: var(--bbgl-emerald-encasing);
                         }
-                        .bbgl-shield-glimmer { display: none; }
                     }
 
-                    .bbgl-rank-silver-shield-jewels {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        z-index: 1;
-                        pointer-events: none;
-                    }
 
                     .bbgl-title-card[data-rank-finish="gold"] .bbgl-title-card-rank-label {
                         display: none;
@@ -11843,13 +11805,6 @@
                         display: none;
                     }
 
-                    .bbgl-rank-gold-crown {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-                    }
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
@@ -11933,35 +11888,11 @@
                         display: none;
                     }
 
-                    .bbgl-rank-pearl-marquee {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-                    }
 
-                    .bbgl-platinum-metalwork {
-                        filter: var(--crest-light);
-                    }
 
-                    .bbgl-platinum-glint {
-                        opacity: 0;
-                        transform-box: fill-box;
-                        transform-origin: center;
-                        animation: bbgl-platinum-glint 8s step-end infinite;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
-                    }
 
-                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-metalwork { filter: none; }
-                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-glint { display: none; }
 
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-platinum-metalwork { filter: none; }
-                        .bbgl-platinum-glint { display: none; }
-                    }
 
                     .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-title-text {
                         position: absolute;
@@ -11989,6 +11920,9 @@
                         color: #283644;
                         text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
                     }
+
+                    /* Card rank plates as images (04-section-iii-plaque.js). */
+${RANK_PLATE_CSS}
 
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
                        One in each corner (str top-left, def top-right, spd bottom-left, dex
