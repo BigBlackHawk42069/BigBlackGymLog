@@ -38,11 +38,10 @@
     const PLAQUE_BOARD_ART = { pineRaw: 'board-pine-raw', pine: 'board-pine', oak: 'board-oak', walnut: 'board-walnut' };
     const PLAQUE_DRAPE_ART = { canvas: 'drape-canvas', felt: 'drape-felt', velvet: 'drape-velvet' };
     const plaqueArtUrl = name => `url("${PLAQUE_ART_ROOT}${name}.webp")`;
-    // The images carry a margin for their own shadows: the board's is 12px round a 174 × 169 card, the
-    // drape's 6px round a 200 × 66 face (128 tall with the valance), so these insets put the art back
-    // where it was drawn at any card size.
-    const PLAQUE_BOARD_INSET = '-7.1% -6.9%';
-    const PLAQUE_DRAPE_INSET = `-9.06% -3% -${+((PLAQUE_VB_H / 96 - 1) * 100 + 9.06).toFixed(2)}% -3%`;
+    // The images are cropped to their visible pixels. The board fills the card; the drape spans x 6-234
+    // and y 5-100.5 of the fold lighting's 240 × 96-per-face-height grid, as % of the face.
+    const PLAQUE_BOARD_INSET = '0';
+    const PLAQUE_DRAPE_INSET = '1.04% 2.5% -0.52%';
     // One selector per step, joined: `suffix` targets a part of the card ('' for the card itself).
     const plaqueEach = (stages, suffix) => stages.map(s => `.bbgl-title-card.is-progressive[data-sign-stage="${s}"]${suffix}`).join(',\n');
     // One rule per distinct body, so steps that look the same share it. `body(step)` returns the
@@ -124,35 +123,35 @@
         plaqueRules(' .bbgl-title-card-title-label', step => PLAQUE_LETTERS[step.letters].label) +
         plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label);
 
-    // Rank plates on the card, one image per finish. Each image is the plate plus a 14px shadow margin,
-    // so it's drawn on the label's ::before pushed out by that margin ([vertical, horizontal] % of the
-    // plate box); the face keeps its box, so the lettering and headings sit exactly as before. The image
-    // is also the face's mask, so the sweep and sheen stay on the plate's shape. Aluminum keeps its own
-    // aspect. The silver and gold surface lighting moves from the face to the label, so it lights the art.
+    // Rank plates on the card, one image per finish, cropped to the plate and fitted inside the plate box
+    // (contain, so a plate drawn narrower than its box isn't stretched). It sits on the label's ::before;
+    // the face keeps its box, so the lettering and headings sit exactly as before. The image is also the
+    // face's mask, so the sweep and sheen stay on the plate's shape. The silver and gold surface lighting
+    // moves from the face to the label, so it lights the art.
     const RANK_PLATE_ART = {
-        mill: ['plate-1-aluminum', 9.12, 9.91],
-        machined: ['plate-2-lightbox', 17.66, 9.41],
-        polished: ['plate-3-bronze', 15.54, 8.75],
-        silver: ['plate-4-silver', 15.54, 9.12],
-        gold: ['plate-5-gold', 14.92, 8.75],
-        pearl: ['plate-6-platinum', 14.92, 8.75]
+        mill: 'plate-1-aluminum',
+        machined: 'plate-2-lightbox',
+        polished: 'plate-3-bronze',
+        silver: 'plate-4-silver',
+        gold: 'plate-5-gold',
+        pearl: 'plate-6-platinum'
     };
-    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, v, h]]) => `
+    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, art]) => `
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
-    inset: -${v}% -${h}%;
     background-image: ${plaqueArtUrl(art)};
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-face {
-    -webkit-mask: ${plaqueArtUrl(art)} center / ${+(100 + 2 * h).toFixed(2)}% ${+(100 + 2 * v).toFixed(2)}% no-repeat !important;
-    mask: ${plaqueArtUrl(art)} center / ${+(100 + 2 * h).toFixed(2)}% ${+(100 + 2 * v).toFixed(2)}% no-repeat !important;
+    -webkit-mask: ${plaqueArtUrl(art)} center / contain no-repeat !important;
+    mask: ${plaqueArtUrl(art)} center / contain no-repeat !important;
 }`).join('\n') + `
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-label::before {
     content: '';
     position: absolute;
+    inset: 0;
     z-index: 0;
-    background: center / 100% 100% no-repeat;
+    background: center / contain no-repeat;
     pointer-events: none;
 }
 
