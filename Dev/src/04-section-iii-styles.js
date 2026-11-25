@@ -11384,40 +11384,9 @@
                         animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
                     }
 
-                    .bbgl-rank-lightbox-heading {
-                        position: absolute;
-                        top: 0;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 40%;
-                        height: calc(var(--rank-lightbox-thin-rim) + var(--rank-lightbox-rim) * .65);
-                        padding: 0;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(8cqw, 16cqh);
-                        font-weight: 600;
-                        line-height: 1;
-                        letter-spacing: .14em;
-                        color: #263c39;
-                        text-shadow: none;
-                        white-space: nowrap;
-                    }
 
-                    .bbgl-rank-lightbox-heading > span {
-                        display: block;
-                    }
 
-                    #bbgl-panel.bbgl-expanded .bbgl-rank-lightbox-heading,
-                    #bbgl-panel.bbgl-mode-page .bbgl-rank-lightbox-heading {
-                        font-size: max(7.5px, min(8.4cqw, 16.8cqh));
-                    }
 
-                    #bbgl-panel.bbgl-compact .bbgl-rank-lightbox-heading {
-                        font-size: min(8.4cqw, 16.8cqh);
-                    }
 
                     .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
                         min-width: 0;
@@ -11623,33 +11592,16 @@
                         }
                     }
 
-
-                    .bbgl-rank-bronze-heading {
-                        position: absolute;
-                        top: 13%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(12cqw, 16cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .16em;
-                        padding-left: .16em;
-                        color: #000;
-                        text-shadow: 0 -.5px 0 rgba(43, 23, 12, .8), 0 1px 0 rgba(244, 199, 138, .75);
-                    }
-
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-title-text {
                         position: absolute;
-                        top: 33%;
+                        top: 26%;
                         left: 10%;
                         width: 80%;
                         height: 50%;
                         min-width: 0;
                         min-height: 0;
                         max-width: 100%;
-                        font-size: min(10cqw, 20cqh);
+                        font-size: min(8.8cqw, 17cqh);
                         line-height: 1.1;
                     }
 
@@ -11709,20 +11661,6 @@
                         opacity: .35;
                     }
 
-                    .bbgl-rank-silver-shield-heading {
-                        position: absolute;
-                        top: 5cqh;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(11cqw, 13cqh);
-                        font-weight: 600;
-                        line-height: 1;
-                        letter-spacing: .12em;
-                        color: #283841;
-                        text-shadow: 0 1px 0 rgba(240, 249, 255, .65);
-                    }
 
                     .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-title-text {
                         position: absolute;
@@ -11808,30 +11746,16 @@
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
-                        top: 49%;
-                        left: 18%;
-                        width: 64%;
-                        height: 33%;
+                        top: 54%;
+                        left: 25%;
+                        width: 50%;
+                        height: 26%;
                         min-width: 0;
                         min-height: 0;
-                        font-size: min(9.5cqw, 14cqh);
+                        font-size: min(7.6cqw, 11.5cqh);
                         line-height: 1.08;
                     }
 
-                    .bbgl-rank-crown-heading {
-                        position: absolute;
-                        top: 86%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(9cqw, 9cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .14em;
-                        color: #5b340c;
-                        text-shadow: 0 1px 0 rgba(255, 242, 178, .8);
-                    }
 
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-title-text {
                         --bbgl-gold-letter-depth: drop-shadow(0 -.2px 0 #ffe8a0) drop-shadow(.25px .5px 0 #8c5719) drop-shadow(0 .8px .25px #1c1006);
@@ -11906,23 +11830,26 @@
                         line-height: 1.04;
                     }
 
-                    .bbgl-rank-marquee-heading {
-                        position: absolute;
-                        top: 7.7%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(9cqw, 10cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .16em;
-                        color: #283644;
-                        text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
-                    }
 
                     /* Card rank plates as images (04-section-iii-plaque.js). */
 ${RANK_PLATE_CSS}
+
+                    .bbgl-platinum-glint {
+                        opacity: 0;
+                        transform-box: fill-box;
+                        transform-origin: center;
+                        animation: bbgl-platinum-glint 8s step-end infinite;
+                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
+                    }
+
+                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
+
+                    #bbgl-panel.bbgl-no-animations :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }
+                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-label { filter: none; }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }
+                    }
 
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
                        One in each corner (str top-left, def top-right, spd bottom-left, dex

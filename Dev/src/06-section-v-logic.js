@@ -1888,10 +1888,10 @@ function computeAchievements(s) {
     };
 }
 
-// The titles page's SMIL-animated SVGs (the plate filter lights). Their timelines keep ticking
+// The titles page's SMIL-animated SVGs (the plate filter lights, gem glimmers). Their timelines keep ticking
 // after the page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit
 // ends and resumed (re-synced) by syncTitlesPageAnimationClock().
-const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
+const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-shield-sparkles';
 
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
@@ -2258,6 +2258,64 @@ function achRankPlaqueLabelHTML(label) {
 //           the travelling specular sweep.
 //   -fx     ornament inside -face's mask: ::before the frame band (rivets/milling), ::after the
 //           recessed inner field the lettering sits on.
+// Animated layers over the card's plate images, drawn in each image's own coordinates (the old
+// plate SVGs' viewBoxes); .bbgl-rank-plate-sparkles sizes the overlay to the image's fitted box.
+function achShieldGlimmerHTML(x) {
+    // Invert the spotlight's easing to find its two passes over this jewel.
+    const progress = (x / 200 + .35) / 1.7;
+    let low = 0, high = 1;
+    for (let i = 0; i < 24; i++) {
+        const t = (low + high) / 2;
+        if (t * t * (3 - 2 * t) < progress) low = t;
+        else high = t;
+    }
+    const t = (low + high) / 2;
+    const pass = (3 * (1 - t) ** 2 * t * .3 + 3 * (1 - t) * t * t * .55 + t ** 3) / 2;
+    const times = [0, pass - .025, pass, pass + .025, 1 - pass - .025, 1 - pass, 1 - pass + .025, 1].map(v => v.toFixed(6)).join(';');
+    return `<g class="bbgl-shield-glimmer" opacity="0" fill="#edfff5" pointer-events="none">
+        <path d="M0-7L1.1-1.1L5 0L1.1 1.1L0 7L-1.1 1.1L-5 0L-1.1-1.1Z"/>
+        <circle r="1.3" fill="#fff"/>
+        <animate attributeName="opacity" values="0;0;1;0;0;1;0;0" keyTimes="${times}" dur="6.8s" repeatCount="indefinite"/>
+    </g>`;
+}
+
+function achShieldGlimmersHTML() {
+    const gems = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) =>
+        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">${achShieldGlimmerHTML(x)}</g>`).join('');
+    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
+}
+
+function achPlatinumGlintsHTML() {
+    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 124" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M40 1L41 6L47 7L41 8L40 14L39 8L33 7L39 6Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M178 35L179 42L185 43L179 44L178 51L177 44L171 43L177 42Z"/>' +
+        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 105L101 111L107 112L101 113L100 119L99 113L93 112L99 111Z"/>' +
+        '</g></svg>';
+}
+
+// The platinum plate's prismatic light: a blue and a rose point light crossing the plate every 8s.
+function achPlatinumLighting() {
+    const id = 'bbgl-platinum-' + (achPlatinumLighting.serial = (achPlatinumLighting.serial || 0) + 1);
+    const html = `<svg class="bbgl-rank-surface-lighting" aria-hidden="true" width="0" height="0"><defs>
+            <filter id="${id}-light" x="-8%" y="-12%" width="116%" height="124%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+                <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
+                <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
+                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".7" specularExponent="18" lighting-color="#b9ecff" result="blue">
+                    <fePointLight x="-.3" y=".7" z=".4"><animate attributeName="x" values="-.3;.25;.7;1.3;1.3" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".7;.15;.35;.8;.8" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
+                </feSpecularLighting>
+                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".5" specularExponent="25" lighting-color="#ffd4ed" result="rose">
+                    <fePointLight x="-.5" y=".8" z=".3"><animate attributeName="x" values="-.5;.05;.5;1.1;1.1" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".8;.25;.45;.9;.9" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
+                </feSpecularLighting>
+                <feBlend in="blue" in2="rose" mode="screen" result="prism"/>
+                <feComposite in="prism" in2="relief" operator="in" result="reflection"/>
+                <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
+                <feComposite in="lit" in2="SourceAlpha" operator="in"/>
+            </filter>
+            <linearGradient id="${id}-recess" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#101a29"/><stop offset=".3" stop-color="#263345"/><stop offset=".53" stop-color="#302d43"/><stop offset=".74" stop-color="#1e3540"/><stop offset="1" stop-color="#101822"/></linearGradient>
+    </defs></svg>`;
+    return { html, style: `--bbgl-platinum-light: url(#${id}-light);` };
+}
+
 function achGoldZingLighting(textOnly) {
     const id = 'bbgl-gold-zing-' + (achGoldZingLighting.serial = (achGoldZingLighting.serial || 0) + 1);
     const image = svg => 'data:image/svg+xml,' + encodeURIComponent(svg).replaceAll("'", '%27');
@@ -2317,7 +2375,6 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
 
 function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = '') {
     const nameTag = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-mill');
-    const lightbox = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-machined');
     const bronzePlaque = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-polished');
     const silverShield = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-silver');
     const goldCrown = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-gold');
@@ -2325,19 +2382,14 @@ function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = 
     const lines = nameTag
         ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
         : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
-    // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); only the headings are markup.
-    const greeting = nameTag ? '<span class="bbgl-rank-plate-heading">RANK</span>'
-        : lightbox ? '<span class="bbgl-rank-lightbox-heading"><span>RANK</span></span>'
-        : bronzePlaque ? '<span class="bbgl-rank-bronze-heading">RANK</span>'
-        : silverShield ? '<span class="bbgl-rank-silver-shield-heading">RANK</span>'
-        : goldCrown ? '<span class="bbgl-rank-crown-heading">RANK</span>'
-        : pearlMarquee ? '<span class="bbgl-rank-marquee-heading">RANK</span>' : '';
-    const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
+    // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); the lettering is the only markup.
+    const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : pearlMarquee ? achPlatinumLighting() : null;
     if (lighting) style += lighting.style;
-    const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
+    const inner = (lighting?.html || '') + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
         + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
     const styleAttr = style ? ` style="${style}"` : '';
-    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span></span></div>`;
+    const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() : '';
+    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span>${sparkles}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the

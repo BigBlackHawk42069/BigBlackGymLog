@@ -168,6 +168,58 @@
     filter: var(--bbgl-gold-light, none);
 }
 
+#bbgl-panel .bbgl-title-card-rank-plaque.finish-pearl.is-revealed .bbgl-rank-notch-label {
+    filter: var(--bbgl-platinum-light, none);
+}
+
+/* The lightbox powers on: the plate flickers up from dim on the same beats as its lettering, and
+   its glow comes up with it. */
+#bbgl-panel .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label {
+    animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
+    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
+}
+
+#bbgl-panel .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label::before {
+    animation: bbgl-rank-plate-power-on 2.5s step-end 1 both;
+    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
+}
+
+@keyframes bbgl-rank-plate-power-on {
+    0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: brightness(.5) saturate(.6); }
+    30.01%, 38%, 44% { filter: brightness(.66) saturate(.75); }
+    53%, 72% { filter: brightness(.85) saturate(.9); }
+    76%, 100% { filter: none; }
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label::before {
+    animation: none;
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label {
+    animation: none;
+    filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
+}
+
+/* Gem glimmers and star glints, laid over the plate image's fitted box (its own aspect, centred). */
+#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-plate-sparkles {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    height: 100%;
+    transform: translateX(-50%);
+    z-index: 3;
+    overflow: visible;
+    pointer-events: none;
+}
+
+#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
+    aspect-ratio: 1.605;
+}
+
+#bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
+    aspect-ratio: 1.637;
+}
+
 #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
     filter: none;
 }
@@ -199,22 +251,12 @@
     animation: none !important;
 }
 
+/* The name tag's grid kept a row for its heading; with no heading the lettering centres on the plate. */
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-    padding: 9% 12% 7% !important;
-}
-
-.bbgl-rank-plate-heading {
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    color: rgba(36, 40, 43, .85);
-    font-family: 'Courier New', monospace;
-    font-size: min(8cqw, 20cqh);
-    font-weight: 700;
-    letter-spacing: .18em;
-    line-height: 1;
-    text-shadow: 0 .6px 0 rgba(255, 255, 255, .55);
-    white-space: nowrap;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 8% 10% !important;
 }
 `;
 
