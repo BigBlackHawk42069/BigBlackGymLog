@@ -168,7 +168,12 @@
         let target = 0;
         for (let a = 0; a < atrophy; a++) target += LEVEL_ATRO_BUDGETS[a];
         for (let lv = floor; lv < lvl; lv++) target += computeLevelExpCost(lv, atrophy);
-        if (lvl < LEVEL_CAP) target += Math.floor(computeLevelExpCost(lvl, atrophy) * Math.min(.999, Math.max(0, frac)));
+        // Fractional EXP so low levels (a few dozen EXP each) land exactly; 100% stops a hair short of
+        // the level-up so the bar reads as full without levelling.
+        if (lvl < LEVEL_CAP) {
+            const cost = computeLevelExpCost(lvl, atrophy);
+            target += frac >= 1 ? cost - .001 : cost * Math.max(0, frac);
+        }
         runtime.careerLevelExp = Math.max(0, target - todayReal);
         const newTotal = getLiveLevelExp();
         runtime._lastLevelExp = newTotal;

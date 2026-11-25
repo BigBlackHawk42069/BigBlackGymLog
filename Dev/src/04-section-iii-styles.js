@@ -6526,11 +6526,24 @@
                         width: 0%;
                         z-index: 2;
                         border-radius: 1px / 35%;
-                        /* Leading edge softens over its last 8px, inside the width JS sets, so the end point stays at the EXP position. Eased: it holds
-                           near full and drops off at the very end, so the softness reads as the band's own edge, not a faint strip ahead of it. */
-                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 8px), rgba(0, 0, 0, .96) calc(100% - 5.3px), rgba(0, 0, 0, .85) calc(100% - 3.3px), rgba(0, 0, 0, .6) calc(100% - 1.7px), transparent);
-                        mask-image: linear-gradient(90deg, #000 calc(100% - 8px), rgba(0, 0, 0, .96) calc(100% - 5.3px), rgba(0, 0, 0, .85) calc(100% - 3.3px), rgba(0, 0, 0, .6) calc(100% - 1.7px), transparent);
+                        /* Leading edge softens over its last 11px. Eased: it holds near full and drops off at the very end,
+                           so the softness reads as the band's own edge, not a faint strip ahead of it. The fade's visual
+                           midpoint is ~2px in from its end, so 2px of padding past the width JS sets puts the edge
+                           the eye sees exactly at the EXP position. */
+                        box-sizing: content-box;
+                        padding-right: 2px;
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 11px), rgba(0, 0, 0, .96) calc(100% - 7.3px), rgba(0, 0, 0, .85) calc(100% - 4.5px), rgba(0, 0, 0, .6) calc(100% - 2.3px), transparent);
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 11px), rgba(0, 0, 0, .96) calc(100% - 7.3px), rgba(0, 0, 0, .85) calc(100% - 4.5px), rgba(0, 0, 0, .6) calc(100% - 2.3px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
+                    }
+
+                    /* A full bar has no leading edge: solid right up to the coupling, or the fade's faint tip
+                       reads as a gap that the level-up charge then lights as a band. */
+                    #bbgl-level-fill.level-full,
+                    #bbgl-gym-level-fill.level-full {
+                        padding-right: 0;
+                        -webkit-mask-image: none;
+                        mask-image: none;
                     }
 
                     /* EXP gained since the bar was built (--bbgl-gain-from, set by levelGainFrom in 07, in
