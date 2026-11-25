@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '591fa90d72b21ddab931b64525b31baff203f5d9'
+        'BigBlackHawk42069/BigBlackGymLog': 'f543fa2394d1398f2bfb43eb36314c4cc4a958cf'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -1809,9 +1809,9 @@
         mill: ['plate-1-aluminum'],
         machined: ['plate-2-lightbox'],
         polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver', '85% 100%'],
+        silver: ['plate-4-silver'],
         gold: ['plate-5-gold', '100% 100%'],
-        pearl: ['plate-6-platinum']
+        pearl: ['plate-6-platinum', '100% 100%']
     };
     const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, size = 'contain']]) => `
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
@@ -1891,7 +1891,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.45;
+    aspect-ratio: 1.605;
 }
 
 /* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
@@ -1906,7 +1906,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
-    aspect-ratio: 1.637;
+    aspect-ratio: 1.704;
 }
 
 #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
@@ -19560,9 +19560,9 @@ function achShieldGlimmerHTML(x) {
 }
 
 function achShieldGlimmersHTML() {
-    const gems = [[28, 25, -12], [171.4, 25, 12], [99.4, 131.8, 0]].map(([x, y, angle]) =>
-        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.15)">${achShieldGlimmerHTML(x)}</g>`).join('');
-    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 159" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
+    const gems = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) =>
+        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">${achShieldGlimmerHTML(x)}</g>`).join('');
+    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
 }
 
 function achPlatinumGlintsHTML() {

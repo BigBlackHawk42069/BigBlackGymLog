@@ -2280,9 +2280,9 @@ function achShieldGlimmerHTML(x) {
 }
 
 function achShieldGlimmersHTML() {
-    const gems = [[28, 25, -12], [171.4, 25, 12], [99.4, 131.8, 0]].map(([x, y, angle]) =>
-        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.15)">${achShieldGlimmerHTML(x)}</g>`).join('');
-    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 159" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
+    const gems = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) =>
+        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">${achShieldGlimmerHTML(x)}</g>`).join('');
+    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
 }
 
 function achPlatinumGlintsHTML() {

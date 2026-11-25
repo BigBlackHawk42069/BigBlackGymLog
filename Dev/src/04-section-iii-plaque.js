@@ -133,9 +133,9 @@
         mill: ['plate-1-aluminum'],
         machined: ['plate-2-lightbox'],
         polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver', '85% 100%'],
+        silver: ['plate-4-silver'],
         gold: ['plate-5-gold', '100% 100%'],
-        pearl: ['plate-6-platinum']
+        pearl: ['plate-6-platinum', '100% 100%']
     };
     const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, size = 'contain']]) => `
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
@@ -215,7 +215,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.45;
+    aspect-ratio: 1.605;
 }
 
 /* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
@@ -230,7 +230,7 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
-    aspect-ratio: 1.637;
+    aspect-ratio: 1.704;
 }
 
 #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
