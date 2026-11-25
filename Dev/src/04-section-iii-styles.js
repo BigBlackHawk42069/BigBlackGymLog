@@ -11395,6 +11395,7 @@
                         font-size: min(15cqw, 28cqh);
                         line-height: 1.12;
                         text-align: center;
+                        top: -5%;
                     }
 
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
@@ -11594,7 +11595,7 @@
 
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-title-text {
                         position: absolute;
-                        top: 26%;
+                        top: 25.2%;
                         left: 10%;
                         width: 80%;
                         height: 50%;
@@ -11746,7 +11747,7 @@
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
-                        top: 54%;
+                        top: 55.1%;
                         left: 25%;
                         width: 50%;
                         height: 26%;

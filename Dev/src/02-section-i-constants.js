@@ -74,7 +74,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '20a088a62aa1b8101b7e5dd0767eac565b7484fe'
+        'BigBlackHawk42069/BigBlackGymLog': '591fa90d72b21ddab931b64525b31baff203f5d9'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,

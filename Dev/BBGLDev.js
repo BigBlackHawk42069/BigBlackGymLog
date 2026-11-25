@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '20a088a62aa1b8101b7e5dd0767eac565b7484fe'
+        'BigBlackHawk42069/BigBlackGymLog': '591fa90d72b21ddab931b64525b31baff203f5d9'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -1800,26 +1800,28 @@
         plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label);
 
     // Rank plates on the card, one image per finish, cropped to the plate and fitted inside the plate box
-    // (contain, so a plate drawn narrower than its box isn't stretched). It sits on the label's ::before;
-    // the face keeps its box, so the lettering and headings sit exactly as before. The image is also the
-    // face's mask, so the sweep and sheen stay on the plate's shape. The silver and gold surface lighting
-    // moves from the face to the label, so it lights the art.
+    // (contain, so a plate drawn narrower than its box isn't stretched), or drawn at an explicit size
+    // (% of the box) to widen it. It sits on the label's ::before; the face keeps its box, so the
+    // lettering sits exactly as before. The image is also the face's mask, so the sweep and sheen stay on
+    // the plate's shape. The silver and gold surface lighting moves from the face to the label, so it
+    // lights the art.
     const RANK_PLATE_ART = {
-        mill: 'plate-1-aluminum',
-        machined: 'plate-2-lightbox',
-        polished: 'plate-3-bronze',
-        silver: 'plate-4-silver',
-        gold: 'plate-5-gold',
-        pearl: 'plate-6-platinum'
+        mill: ['plate-1-aluminum'],
+        machined: ['plate-2-lightbox'],
+        polished: ['plate-3-bronze'],
+        silver: ['plate-4-silver', '85% 100%'],
+        gold: ['plate-5-gold', '100% 100%'],
+        pearl: ['plate-6-platinum']
     };
-    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, art]) => `
+    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, size = 'contain']]) => `
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
     background-image: ${plaqueArtUrl(art)};
+    background-size: ${size};
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-face {
-    -webkit-mask: ${plaqueArtUrl(art)} center / contain no-repeat !important;
-    mask: ${plaqueArtUrl(art)} center / contain no-repeat !important;
+    -webkit-mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
+    mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
 }`).join('\n') + `
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-notch-label::before {
@@ -1889,7 +1891,18 @@
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.605;
+    aspect-ratio: 1.45;
+}
+
+/* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
+#bbgl-panel .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
+}
+
+/* Gold lettering spaced like the rank bar's. */
+#bbgl-panel .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-line {
+    letter-spacing: .07em;
 }
 
 #bbgl-panel .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
@@ -13441,6 +13454,7 @@
                         font-size: min(15cqw, 28cqh);
                         line-height: 1.12;
                         text-align: center;
+                        top: -5%;
                     }
 
                     :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
@@ -13640,7 +13654,7 @@
 
                     .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-title-text {
                         position: absolute;
-                        top: 26%;
+                        top: 25.2%;
                         left: 10%;
                         width: 80%;
                         height: 50%;
@@ -13792,7 +13806,7 @@
 
                     .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
                         position: absolute;
-                        top: 54%;
+                        top: 55.1%;
                         left: 25%;
                         width: 50%;
                         height: 26%;
@@ -19546,9 +19560,9 @@ function achShieldGlimmerHTML(x) {
 }
 
 function achShieldGlimmersHTML() {
-    const gems = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) =>
-        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">${achShieldGlimmerHTML(x)}</g>`).join('');
-    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
+    const gems = [[28, 25, -12], [171.4, 25, 12], [99.4, 131.8, 0]].map(([x, y, angle]) =>
+        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.15)">${achShieldGlimmerHTML(x)}</g>`).join('');
+    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 159" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
 }
 
 function achPlatinumGlintsHTML() {
