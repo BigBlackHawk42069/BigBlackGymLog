@@ -2214,19 +2214,19 @@ function achTitlePlayerName() {
 // its last line's first capital is RANK_TEXT_CAP px tall, which is what the bar sizes them by.
 const RANK_TEXT_CAP = 40;
 const RANK_EMBLEM_SIZE = {
-    'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 261], 'T3R1-Cracked-Clay': [500, 261],
+    'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
-    'T1R3-Hand-Stroked-Clay': [500, 220], 'T2R3-Foot-Pumped-Clay': [500, 219], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
+    'T1R3-Hand-Stroked-Clay': [500, 222], 'T2R3-Foot-Pumped-Clay': [500, 221], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
     'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 303], 'T3R4-Kiln-Fired-Clay': [500, 300],
-    'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 298], 'T3R5-Competently-Bricked': [500, 301],
+    'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 297], 'T3R5-Competently-Bricked': [500, 301],
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [179, 63], 'T2R1-Parched-Clay': [164, 111], 'T3R1-Cracked-Clay': [161, 108],
-    'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [226, 99],
-    'T1R3-Hand-Stroked-Clay': [330, 107], 'T2R3-Foot-Pumped-Clay': [320, 107], 'T3R3-Vacuum-Sucked-Clay': [358, 108],
-    'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [198, 102], 'T3R4-Kiln-Fired-Clay': [202, 98],
-    'T1R5-Half-Bricked': [192, 89], 'T2R5-Mostly-Bricked': [189, 90], 'T3R5-Competently-Bricked': [225, 92],
+    'T1R1-Dry-Clay': [186, 70], 'T2R1-Parched-Clay': [209, 62], 'T3R1-Cracked-Clay': [253, 72],
+    'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [188, 99],
+    'T1R3-Hand-Stroked-Clay': [312, 110], 'T2R3-Foot-Pumped-Clay': [311, 112], 'T3R3-Vacuum-Sucked-Clay': [340, 112],
+    'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [197, 100], 'T3R4-Kiln-Fired-Clay': [152, 98],
+    'T1R5-Half-Bricked': [187, 91], 'T2R5-Mostly-Bricked': [192, 98], 'T3R5-Competently-Bricked': [279, 102],
     'T3R6-Fully-Bricked': [240, 104]
 };
 const RANK_CAP_ART = 'T3R6-Fully-Bricked';
