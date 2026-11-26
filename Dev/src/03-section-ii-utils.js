@@ -674,15 +674,14 @@
     // `max` is inclusive and doubles as the bracket axis on the titles page (levelRankBrackets()
     // below reads widths straight off these numbers) — edit a max here and the axis re-draws
     // itself.
+    //
+    // Each title names its art files (rankArtName(), 06-section-v-logic.js): spaces become hyphens,
+    // so renaming a title means renaming its emblem and lettering images too.
     const LEVEL_TITLE_BANDS = [
         { max: 19, titles: ['Dry Clay', 'Parched Clay', 'Cracked Clay'] },
         { max: 39, titles: ['Moistened Clay', 'Saturated Clay', 'Dripping Wet Clay'] },
-        { max: 59, titles: ['Hand-Jerked Clay', 'Foot-Pumped Clay', 'Vacuum-Milked Clay'] },
+        { max: 59, titles: ['Hand-Stroked Clay', 'Foot-Pumped Clay', 'Vacuum-Sucked Clay'] },
         { max: 79, titles: ['Pit-Fired Clay', 'Scove-Fired Clay', 'Kiln-Fired Clay'] },
-        // "Half Bricked" is deliberately unhyphenated so it is two WORDS. Plaque labels wrap on
-        // whitespace (achRankPlaqueLabelHTML), so the hyphenated form was a single 12-character
-        // token that could only render as one long line — the widest plaque on the bar, in its
-        // most crowded slot. As two words it stacks like its siblings.
         { max: 99, titles: ['Half Bricked', 'Mostly Bricked', 'Competently Bricked'] }
     ];
     // The one true end state: the final atrophy tier at the level cap. Drives the "Fully Bricked"

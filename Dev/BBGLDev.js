@@ -1279,15 +1279,14 @@
     // `max` is inclusive and doubles as the bracket axis on the titles page (levelRankBrackets()
     // below reads widths straight off these numbers) — edit a max here and the axis re-draws
     // itself.
+    //
+    // Each title names its art files (rankArtName(), 06-section-v-logic.js): spaces become hyphens,
+    // so renaming a title means renaming its emblem and lettering images too.
     const LEVEL_TITLE_BANDS = [
         { max: 19, titles: ['Dry Clay', 'Parched Clay', 'Cracked Clay'] },
         { max: 39, titles: ['Moistened Clay', 'Saturated Clay', 'Dripping Wet Clay'] },
-        { max: 59, titles: ['Hand-Jerked Clay', 'Foot-Pumped Clay', 'Vacuum-Milked Clay'] },
+        { max: 59, titles: ['Hand-Stroked Clay', 'Foot-Pumped Clay', 'Vacuum-Sucked Clay'] },
         { max: 79, titles: ['Pit-Fired Clay', 'Scove-Fired Clay', 'Kiln-Fired Clay'] },
-        // "Half Bricked" is deliberately unhyphenated so it is two WORDS. Plaque labels wrap on
-        // whitespace (achRankPlaqueLabelHTML), so the hyphenated form was a single 12-character
-        // token that could only render as one long line — the widest plaque on the bar, in its
-        // most crowded slot. As two words it stacks like its siblings.
         { max: 99, titles: ['Half Bricked', 'Mostly Bricked', 'Competently Bricked'] }
     ];
     // The one true end state: the final atrophy tier at the level cap. Drives the "Fully Bricked"
@@ -1794,56 +1793,113 @@
         plaqueRules(' .bbgl-title-card-title-label', step => PLAQUE_LETTERS[step.letters].label) +
         plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label);
 
-    // Rank plates on the card, one image per finish (the card also appears in the level bar's tooltip,
-    // outside the panel, so these rules are scoped to both), cropped to the plate and fitted inside the plate box
-    // (contain, so a plate drawn narrower than its box isn't stretched), or drawn at an explicit size
-    // (% of the box) to widen it. It sits on the label's ::before; the face keeps its box, so the
-    // lettering sits exactly as before. The image is also the face's mask, so the sweep and sheen stay on
-    // the plate's shape. The silver and gold surface lighting moves from the face to the label, so it
-    // lights the art.
-    const RANK_PLATE_ART = {
-        mill: ['plate-1-aluminum'],
-        machined: ['plate-2-lightbox'],
-        polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver', '100% 100%'],
-        gold: ['plate-5-gold', '100% 100%'],
-        pearl: ['plate-6-platinum', '100% 100%']
-    };
-    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, size = 'contain']]) => `
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
-    background-image: ${plaqueArtUrl(art)};
-    background-size: ${size};
+    // The card's rank emblem (achRankPlaqueHTML(), 06-section-v-logic.js): one image per atrophy tier
+    // and band with its lettering baked in. The card also appears in the level bar's tooltip, outside
+    // the panel, so these rules are scoped to both. The plaque is a size container; the label inside it
+    // takes the emblem's own proportions (--rank-ar) at the largest size that fits, so overlays drawn
+    // in the plate's units and masks of the emblem (--rank-emblem) land on the art.
+    const RANK_EMBLEM_CSS = `
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96%;
+    height: 96%;
+    max-width: 100%;
+    margin: auto;
+    container-type: size;
+    pointer-events: auto;
+    cursor: help;
+    z-index: 1;
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-face {
-    -webkit-mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
-    mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
-}`).join('\n') + `
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    position: relative;
+    display: block;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+}
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label::before {
-    content: '';
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
     position: absolute;
     inset: 0;
-    z-index: 0;
-    background: center / contain no-repeat;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+}
+
+.bbgl-title-card .bbgl-title-card-rank-label {
+    display: none;
+}
+
+.bbgl-rank-surface-lighting {
+    position: absolute;
     pointer-events: none;
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-    background: none !important;
-    filter: none !important;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-label {
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-label {
     filter: var(--bbgl-shield-light, none);
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-label {
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-label {
     filter: var(--bbgl-gold-light, none);
 }
 
-/* Fully Bricked's lamps: beams under the plate, lamps over it, and the light they throw inside the
-   face. Lamp heads, beams and spots share one 7s sweep; the right lamp runs half a cycle behind. */
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+        filter: none;
+    }
+}
+
+/* Bronze: a band of warm light slides across the emblem, clipped to it. The band is 300% wide and moved
+   by transform inside a static masked box, so it runs on the compositor. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300%;
+    background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+    mix-blend-mode: screen;
+    transform: translateX(-46.666667%);
+    will-change: transform;
+    animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    animation: none;
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+/* Fully Bricked's lamps: beams under the emblem, lamps over it, and the light they throw on it (masked
+   to the emblem). Lamp heads, beams and spots share one 7s sweep; the right lamp runs half a cycle behind. */
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps,
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
     position: absolute;
@@ -1855,6 +1911,11 @@
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps.is-back {
+    left: 50%;
+    top: 50%;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+    transform: translate(-50%, -50%);
     z-index: 0;
     mix-blend-mode: screen;
     opacity: .55;
@@ -1866,8 +1927,10 @@
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
-    z-index: 1;
+    z-index: 2;
     mix-blend-mode: screen;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-lamp-glow {
@@ -1901,128 +1964,8 @@
     :is(.bbgl-lamp-sweep, .bbgl-lamp-spot) { animation: none; }
 }
 
-/* The lightbox powers on: the plate flickers up from dim on the same beats as its lettering, and
-   its glow comes up with it. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label {
-    animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
-    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label::before {
-    animation: bbgl-rank-plate-power-on 2.5s step-end 1 both;
-    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-}
-
-@keyframes bbgl-rank-plate-power-on {
-    0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: brightness(.5) saturate(.6); }
-    30.01%, 38%, 44% { filter: brightness(.66) saturate(.75); }
-    53%, 72% { filter: brightness(.85) saturate(.9); }
-    76%, 100% { filter: none; }
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label::before {
-    animation: none;
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label {
-    animation: none;
-    filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
-}
-
-/* Gem glimmers and star glints, laid over the plate image's fitted box (its own aspect, centred). */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-plate-sparkles {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    height: 100%;
-    transform: translateX(-50%);
-    z-index: 3;
-    overflow: visible;
-    pointer-events: none;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.704;
-}
-
-/* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
-}
-
-/* Gold lettering spaced like the rank bar's. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-line {
-    letter-spacing: .07em;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
-    aspect-ratio: 1.704;
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-    filter: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-        filter: none;
-    }
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    clip-path: none !important;
-    overflow: visible !important;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
-    filter: none !important;
-}
-
-/* Compact mode: the card is taller than it is wide, so its rank area is much squarer than page mode's
-   (66 x 47 against 160 x 94). Each plate keeps page mode's proportions and share of the width instead
-   of filling that squarer box; its art, lettering (sized off the plate as a container), sparkles and
-   lamps then scale as one. The fixed side margins also shrink, since 12px is a big share of 80px. */
 #bbgl-panel.bbgl-compact .bbgl-title-card-rank {
     width: calc(100% - 4px);
-}
-${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: ['100%', 1.776], silver: ['95.9%', 1.704], gold: ['100%', 1.704], pearl: ['100%', 1.704] }).map(([fin, [w, ar]]) => `
-#bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-${fin} {
-    width: ${w};
-    height: auto;
-    aspect-ratio: ${ar};
-}`).join('\n')}
-
-/* The lettering's outlines and shadows in em rather than px, at exactly their page-mode thickness
-   (bronze 14.08px, silver 16.12px, gold 11.64px lettering), so they shrink with the text in compact
-   instead of doubling in weight. The rank bar keeps its own px values. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-silver.is-revealed .bbgl-rank-title-text {
-    -webkit-text-stroke-width: .0071em;
-    text-shadow: 0 .071em 0 #624029, 0 .1066em 0 #4c311f;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-bright-silver.is-revealed .bbgl-rank-title-text {
-    filter:
-        drop-shadow(.0155em 0 0 #c9d3d880)
-        drop-shadow(-.0155em 0 0 #c9d3d880)
-        drop-shadow(0 .0155em 0 #c9d3d880)
-        drop-shadow(0 -.0155em 0 #c9d3d880)
-        drop-shadow(0 .124em .124em rgba(0, 0, 0, .8));
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-gold.is-revealed .bbgl-rank-title-text {
-    --bbgl-gold-letter-depth: drop-shadow(0 -.0172em 0 #ffe8a0) drop-shadow(.0215em .043em 0 #8c5719) drop-shadow(0 .0687em .0215em #1c1006);
-}
-
-/* The name tag's grid kept a row for its heading; with no heading the lettering centres on the plate. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 8% 10% !important;
 }
 `;
 
@@ -8483,7 +8426,7 @@ ${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: [
                     }
 
                     #bbgl-level-num {
-                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -8913,7 +8856,7 @@ ${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: [
                     }
 
                     #bbgl-gym-level-num {
-                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(6.5px, 1.0cqi, 8.5px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -12459,93 +12402,78 @@ ${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: [
                         left: 0;
                     }
 
-                    /* Fully Bricked on the bar is the card plate's painted lettering, used as a mask
-                       (text-fully-bricked.webp) over the same face, ribbon and glow the other ranks
-                       paint into their glyphs. The real text stays, hidden, in the matching swash face
-                       so the capstone keeps its size and position. The glows are blurred by their
-                       wrappers, since a filter on the masked element itself would be clipped by the mask. */
-                    .bbgl-rank-title.is-capstone .bbgl-rank-notch-line {
-                        font-family: 'Berkshire Swash', Georgia, serif;
-                        font-weight: 400;
-                        visibility: hidden;
+                    /* Fully Bricked on the bar: the platinum lettering image, with an iridescent sheen travelling across
+                       it and a blurred white and colour glow behind it, both masked to the letters (--rank-name). Locked,
+                       it's plain grey text so its art isn't loaded before it's earned. */
+                    .bbgl-rank-cap-name {
+                        font-family: Georgia, 'Times New Roman', serif;
+                        font-style: italic;
+                        font-size: calc(var(--bbgl-t-fs-notch, 10px) * 1.1);
+                        letter-spacing: .02em;
+                        white-space: nowrap;
                     }
 
-                    .bbgl-rank-cap-art {
+                    .bbgl-rank-cap-glow,
+                    .bbgl-rank-cap-glow i {
                         position: absolute;
-                        inset: -12% -8%;
+                        inset: 0;
                         pointer-events: none;
                     }
 
-                    .bbgl-rank-cap-art i,
                     .bbgl-rank-cap-glow {
-                        position: absolute;
-                        inset: 0;
-                    }
-
-                    .bbgl-rank-cap-art i {
-                        -webkit-mask: ${plaqueArtUrl('text-fully-bricked')} center / contain no-repeat;
-                        mask: ${plaqueArtUrl('text-fully-bricked')} center / contain no-repeat;
-                    }
-
-                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-cap-glow {
-                        display: none;
-                    }
-
-                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-cap-face {
-                        background: currentColor;
-                    }
-
-                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-face {
-                        background-image:
-                            linear-gradient(105deg,
-                                transparent 0%, transparent 24%,
-                                rgba(255, 159, 220, .16) 29%,
-                                rgba(255, 159, 220, .58) 34%,
-                                rgba(255, 233, 143, .48) 42%,
-                                rgba(124, 245, 207, .50) 50%,
-                                rgba(255, 255, 255, .88) 52%,
-                                rgba(70, 180, 255, .56) 57%,
-                                rgba(177, 101, 241, .58) 65%,
-                                rgba(177, 101, 241, .14) 70%,
-                                transparent 76%, transparent 100%),
-                            linear-gradient(105deg,
-                                #d6e3e9 0%, #f3f8fa 18%, #ffffff 33%, #e8f0f3 43%,
-                                #ffffff 49%, #dde8ed 57%, #ffffff 72%, #edf4f7 88%, #cedce3 100%);
-                        background-size: 300% 100%, 100% 100%;
-                        background-position: 100% 50%, 0 0;
-                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-color {
+                        z-index: 0;
                         filter: blur(6.5px);
+                    }
+
+                    .bbgl-rank-cap-glow i {
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-cap-glow.is-white {
+                        opacity: .68;
+                    }
+
+                    .bbgl-rank-cap-glow.is-white i {
+                        background-image: linear-gradient(105deg, #dcecf3 0%, #ffffff 22%, #e6f1f5 43%, #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
+                    }
+
+                    .bbgl-rank-cap-glow.is-color {
                         opacity: .8;
                     }
 
-                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-color i {
-                        background-image: linear-gradient(105deg,
-                            #ff52bd 0%, #ffcb43 24%, #86ef82 43%,
-                            #36caff 63%, #a34dff 82%, #ff52bd 100%);
+                    .bbgl-rank-cap-glow.is-color i,
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-name-art::after {
                         background-size: 300% 100%;
                         background-position: 100% 50%;
                         animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-white {
-                        filter: blur(6.5px);
-                        opacity: .68;
+                    .bbgl-rank-cap-glow.is-color i {
+                        background-image: linear-gradient(105deg, #ff52bd 0%, #ffcb43 24%, #86ef82 43%, #36caff 63%, #a34dff 82%, #ff52bd 100%);
                     }
 
-                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-cap-glow.is-white i {
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
                         background-image: linear-gradient(105deg,
-                            #dcecf3 0%, #ffffff 22%, #e6f1f5 43%,
-                            #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
+                            transparent 0%, transparent 24%,
+                            rgba(255, 159, 220, .16) 29%,
+                            rgba(255, 159, 220, .58) 34%,
+                            rgba(255, 233, 143, .48) 42%,
+                            rgba(124, 245, 207, .50) 50%,
+                            rgba(255, 255, 255, .88) 52%,
+                            rgba(70, 180, 255, .56) 57%,
+                            rgba(177, 101, 241, .58) 65%,
+                            rgba(177, 101, 241, .14) 70%,
+                            transparent 76%, transparent 100%);
+                        mix-blend-mode: screen;
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-cap-art i {
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-cap-glow i,
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-name-art::after {
                         animation: none;
-                        background-position: 50% 50%, 0 0;
+                        background-position: 50% 50%;
                     }
 
                     .bbgl-rank-title.is-milestone .bbgl-rank-title-text {
@@ -12564,301 +12492,80 @@ ${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: [
                         text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
                     }
 
-                    /* ─── Rank-name material ladder ─────────────────────────────────────
-                       The visible rank scale and identity-card plaque share this progression. Each
-                       atrophy cycle changes the WORDS but keeps the same five materials; Fully
-                       Bricked is the one true terminal sixth tier. Apply paint to each wrapped line
-                       rather than the title container so two-line names receive one clean gradient
-                       per line.
-
-                       T1 stays plain. T2 is the first presentation upgrade: flat lettering flickers
-                       on like a fluorescent sign, then holds a restrained steady light. T3 is the
-                       first physical-looking title and begins the material progression. Gold and the
-                       Diamond-family A2 capstone retain color-driven motion inside the glyphs. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
-                        color: #fff;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        -webkit-text-stroke: 0;
-                        text-shadow: 0 1px 1px rgba(0, 0, 0, .65);
-                        filter: none;
+                    /* ─── Rank names on the bar ─────────────────────────────────────────
+                       Each unlocked name is its lettering image (achRankNameArtHTML(), 06-section-v-logic.js), sized so
+                       its capital is --bbgl-rank-name-cap tall. The wrapper carries the image as a mask (--rank-name) for
+                       the effects laid over the letters: the bronze sheen (band 3) and Fully Bricked's iridescence. Bands
+                       4 and 5 are lit by the same SVG surface lighting as their card emblems. */
+                    .bbgl-rank-title {
+                        --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-bright-silver, .material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
+                    .bbgl-rank-name-art {
+                        position: relative;
+                        display: block;
+                        isolation: isolate;
                     }
 
-                    /* T1 — deliberately plain baseline. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-iron.is-revealed .bbgl-rank-notch-line {
-                        color: #000;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
-                        font-weight: 400;
-                        text-shadow: none;
-                        filter: none;
+                    .bbgl-rank-name-img {
+                        position: relative;
+                        z-index: 1;
+                        display: block;
+                        width: auto;
+                        height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
+                        pointer-events: none;
+                        user-select: none;
+                    }
+
+                    .bbgl-rank-name-art::after {
+                        position: absolute;
+                        inset: 0;
+                        z-index: 2;
+                        pointer-events: none;
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
+                        background-image: linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%);
+                        background-size: 375% 100%;
+                        mix-blend-mode: screen;
+                        opacity: .75;
+                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
                         animation: none;
+                        opacity: 0;
                     }
 
-                    .bbgl-rank-title.material-iron.is-revealed .bbgl-rank-notch-line {
-                        color: #eee9dc;
+                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-shield-light, none);
                     }
 
-                    /* T2 — illuminated typography, still flat rather than materially constructed.
-                       The uneven one-shot ignition briefly falls back to its gray unlit face before
-                       settling into a modest off-white lamp glow. It never flickers again once lit,
-                       keeping T3's brighter aluminum face and reflected streak as a clear promotion. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        color: #d9dddf;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        font-weight: 500;
-                        text-shadow:
-                            var(--rank-steel-outline, 0 0 0 transparent),
-                            0 1px 1px rgba(0, 0, 0, .68),
-                            0 0 3px rgba(232, 239, 242, .82),
-                            0 0 8px rgba(216, 229, 234, .48),
-                            0 0 14px rgba(201, 219, 225, .20);
-                        filter: none;
-                        animation: bbgl-rank-name-fluorescent-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        background-image: linear-gradient(141deg,
-                            #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%,
-                            #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%,
-                            #ad7b45 90%, #593820 100%);
-                        background-size: 100% 100%;
-                        background-repeat: no-repeat;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        font-family: 'Aldrich', 'Arial Black', sans-serif;
-                        font-weight: 400;
-                        letter-spacing: .015em;
-                        -webkit-text-stroke: .1px rgba(217, 173, 117, .3);
-                        text-shadow: 0 1px 0 #624029, 0 1.5px 0 #4c311f;
-                        filter: none;
-                        animation: none;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-notch-line {
-                        width: 100%;
-                        text-align: center;
-                        color: transparent;
-                        background: none;
-                        -webkit-text-fill-color: transparent;
-                        -webkit-text-stroke: inherit;
-                        text-shadow: inherit;
-                        filter: none;
-                        animation: none;
-                    }
-                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(1px 0 0 #090b0b)
-                            drop-shadow(-1px 0 0 #090b0b)
-                            drop-shadow(0 1px 0 #090b0b)
-                            drop-shadow(0 -1px 0 #090b0b)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                    }
-
-                    /* T4 gets a silver outline. Its emerald face is background-clipped text with a
-                       transparent fill, so a text-shadow would show through the letters - it needs
-                       the same filter approach as T3. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(.25px 0 0 #c9d3d880)
-                            drop-shadow(-.25px 0 0 #c9d3d880)
-                            drop-shadow(0 .25px 0 #c9d3d880)
-                            drop-shadow(0 -.25px 0 #c9d3d880)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                    }
-
-                    /* T5 gets an outline in its crown plaque deep gold (achGoldCrownHTML), dark
-                       enough to separate from the bright gold letters. On the wrapper, not the
-                       line, so it stacks with the line glow filter instead of replacing it. */
                     .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(.5px 0 0 #9d6318b3)
-                            drop-shadow(-.5px 0 0 #9d6318b3)
-                            drop-shadow(0 .5px 0 #9d6318b3)
-                            drop-shadow(0 -.5px 0 #9d6318b3)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
+                        filter: var(--bbgl-gold-light, none);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed {
-                        --rank-emerald-base: linear-gradient(135deg, #93dcbc 0%, #1a9d70 22%, #006044 46%, #52b58e 52%, #087451 68%, #002f23 100%);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        background-image: var(--rank-emerald-base);
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line {
-                        background: none;
-                        font-weight: 400;
-                        -webkit-text-stroke: .2px rgba(147, 220, 188, .42);
-                        text-shadow: 0 1px 1px rgba(0, 44, 28, .52);
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-revealed .bbgl-rank-title-text {
                         filter: none;
-                        animation: none;
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line {
-                        background-image: linear-gradient(141deg, #fff5b5 0%, #e4b64e 16%, #fff0a4 30%, #9d6318 43%, #f8d775 53%, #fff5bb 64%, #b77a22 79%, #5f350b 100%);
-                        background-size: 100% 100%;
-                        text-shadow: none;
-                        filter: none;
-                        animation: none;
-                    }
-
-                    /* T6 — Fully Bricked. The bright high-contrast platinum ramp is the permanent
-                       body of every glyph; the iridescent layer above it is translucent light, not
-                       paint. Only that colored reflection travels, so the title remains glassy,
-                       platinum and dimensional at every point in the animation rather than turning
-                       into alternating blocks of opaque rainbow color. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line {
-                        background-image:
-                            linear-gradient(105deg,
-                                transparent 0%, transparent 24%,
-                                rgba(255, 159, 220, .16) 29%,
-                                rgba(255, 159, 220, .58) 34%,
-                                rgba(255, 233, 143, .48) 42%,
-                                rgba(124, 245, 207, .50) 50%,
-                                rgba(255, 255, 255, .88) 52%,
-                                rgba(70, 180, 255, .56) 57%,
-                                rgba(177, 101, 241, .58) 65%,
-                                rgba(177, 101, 241, .14) 70%,
-                                transparent 76%, transparent 100%),
-                            linear-gradient(105deg,
-                                #d6e3e9 0%, #f3f8fa 18%, #ffffff 33%, #e8f0f3 43%,
-                                #ffffff 49%, #dde8ed 57%, #ffffff 72%, #edf4f7 88%, #cedce3 100%);
-                        background-size: 300% 100%, 100% 100%;
-                        background-position: 100% 50%, 0 0;
-                        text-shadow: 0 1px 1px rgba(57, 65, 78, .42);
-                        filter: drop-shadow(0 0 3.5px rgba(239, 251, 255, .62));
-                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    /* Depth belongs behind the completed two-line title, not over the translucent
-                       glyph fill. Applying it to the shared wrapper keeps the pearl face bright
-                       while giving the whole mark a darker, more prominent lift from the panel. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(0 2px 1px rgba(12, 16, 25, .76))
-                            drop-shadow(0 3px 2.5px rgba(6, 9, 16, .52));
-                    }
-
-                    /* A blurred duplicate of each line paints one continuous iridescent ribbon
-                       behind the platinum face. Unlike stacked colored drop-shadows, the hues keep
-                       their own positions instead of mixing into a single gray-white bloom. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::before {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        background-image: linear-gradient(105deg,
-                            #ff52bd 0%, #ffcb43 24%, #86ef82 43%,
-                            #36caff 63%, #a34dff 82%, #ff52bd 100%);
-                        background-size: 300% 100%;
-                        background-position: 100% 50%;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter: blur(6.5px);
-                        opacity: .80;
-                        pointer-events: none;
-                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    /* Stationary pearl-platinum light beneath the colored ribbon restores the
-                       strong luminous base without mixing the iridescent hues together. It uses
-                       the same blur radius, so intensity rises without growing the bloom. */
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::after {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -2;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        background-image: linear-gradient(105deg,
-                            #dcecf3 0%, #ffffff 22%, #e6f1f5 43%,
-                            #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter: blur(6.5px);
-                        opacity: .68;
-                        pointer-events: none;
-                    }
-
-                    @keyframes bbgl-rank-name-fluorescent-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% {
-                            color: #858a8d;
-                            font-weight: 400;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68);
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-title.is-revealed .bbgl-rank-title-text {
+                            filter: none;
                         }
-                        30.01%, 38%, 44% {
-                            color: #a3adaf;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 2px rgba(224, 232, 235, .25),
-                                0 0 5px rgba(207, 221, 226, .10);
-                        }
-                        53%, 72% {
-                            color: #c9ced0;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 3px rgba(224, 232, 235, .50),
-                                0 0 7px rgba(207, 221, 226, .24);
-                        }
-                        76%, 100% {
-                            color: #d9dddf;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 3px rgba(232, 239, 242, .82),
-                                0 0 8px rgba(216, 229, 234, .48),
-                                0 0 14px rgba(201, 219, 225, .20);
+                        .bbgl-rank-title.is-revealed .bbgl-rank-name-art::after {
+                            animation: none;
+                            opacity: 0;
                         }
                     }
-
-                    ${steppedKeyframes('bbgl-rank-name-diamond', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%, 0 0;`)}
 
                     ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line::before {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::before {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
+                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0;`)}
 
                     /* Locked bar segments use a dim engraved glyph. The off-bar capstone is the one
                        exception: its gray name stays visible so the final destination is explicit. */
@@ -12940,722 +12647,11 @@ ${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: [
                         white-space: nowrap;
                     }
 
-                    /* ─── Material plaques ────────────────────────────────────────────────
-                       One title per band plus Fully Bricked. The finish ladder escalates on two
-                       axes: METAL (aluminium -> steel -> silver -> gold -> nacre) and WORKMANSHIP
-                       (bare blank -> chamfered -> framed with a sunk field -> rivets -> milled
-                       edge) — the first three tiers share a metal family and separate on
-                       workmanship alone.
-
-                       Ornament scale keys off --bbgl-t-rank-tag-cut, which already scales per panel
-                       mode, so the ladder resizes without a new per-mode variable. Frame band width
-                       is ADDED to --bbgl-t-rank-tag-pad-x rather than carved out of it, so inner
-                       text clearance stays fixed and only the frame widens the plate. The five
-                       level bands are even 20-point spans (LEVEL_TITLE_BANDS), capstone at 100. */
-                    .bbgl-rank-notch {
-                        --rank-frame-w: 0px;
-                        /* Breathing room between the lettering and the frame band, on top of the
-                           per-mode tag padding. Without it ascenders and descenders sit hard
-                           against the inner field's edge on the framed tiers. */
-                        --rank-pad-block: 1.5px;
-                        --rank-pad-inline: 1px;
-                        --rank-ink: #c4c6c3;
-                        --rank-sweep-a: 0;
-                        --rank-sweep-dur: 5s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .75)) drop-shadow(0 2px 3px rgba(0, 0, 0, .4));
-                        position: absolute;
-                        top: 50%;
-                        transform: translateX(-50%);
-                        pointer-events: auto;
-                        cursor: help;
-                        white-space: nowrap;
-                        text-align: center;
-                        z-index: 1;
-                    ;
-                    }
-
-                    /* ── Silhouette primitives. Every mask layer is FULL-BOX and opaque except at
-                       its own feature, composited with intersect, so cuts compose without
-                       fighting. mask (not clip-path) because clip-path cannot cut the concave
-                       corners tiers 3+ use — and both would clip an outer box-shadow, which is
-                       why the drop-shadow moved to a filter on the unmasked wrapper. */
-
-                    
-
-                    /* ── T1 mill-finish aluminium. Deliberately crude — coarse bidirectional
-                       grain, dead matte, no frame, blunt rectangle. This is the baseline the rest
-                       of the ladder has to visibly escape, so it is the one tier that is allowed
-                       to look cheap. */
-                    .bbgl-rank-notch.finish-mill {
-                        --rank-ink: #a8adaa;
-                    }
-
-                    /* ── T2 machined steel. Chamfers, first frame band, real polish. The metal
-                       ramps are deliberately 9-10 stops with abrupt value REVERSALS — a dark band
-                       hard against a bright one is what reads as metal. A monotonic light-to-dark
-                       fade never will, which is what the old tags all did. */
-                    .bbgl-rank-notch.finish-machined {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .78);
-                        --rank-ink: #dfe3e1;
-                    }
-
-                    /* ── T3 polished steel. Concave corners, first recessed field, first sweep. */
-                    .bbgl-rank-notch.finish-polished {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .92);
-                        --rank-ink: #f2f5f4;
-                        --rank-sweep-a: .5;
-                        --rank-sweep-dur: 6s;
-                    }
-
-                    /* ── T4 silver. Bright cool metal plus the first corner rivets. */
-                    .bbgl-rank-notch.finish-silver {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.1);
-                        --rank-ink: #ffffff;
-                        --rank-sweep-a: .72;
-                        --rank-sweep-dur: 5s;
-                    }
-
-                    /* ── T5 gold. Widest frame, milled edge, and the first outward glow.
-                       The milling alphas are held at ~.10: anything above ~.18 stops reading as
-                       tooling on the metal and turns the frame into a barcode. */
-                    .bbgl-rank-notch.finish-gold {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-ink: #fff6d2;
-                        --rank-sweep-a: .8;
-                        --rank-sweep-dur: 4.5s;
-                    }
-
-                    /* ── T6 iridescent nacre. Bright shell FRAME over a DEEP field — pastel frame
-                       on pastel field read as a greetings card and vanished against the panel.
-                       Palette deliberately rhymes with bbgl-title-iridescent (Phase 9 titles) and
-                       the diamond jewels so the capstone reads as the same family. */
-                    .bbgl-rank-notch.finish-pearl {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-ink: #ffffff;
-                        --rank-sweep-a: .85;
-                        --rank-sweep-dur: 4s;
-                    }
-
-                    /* Positioned wrapper only. Its single job is the drop-shadow, which MUST be a
-                       filter rather than a box-shadow: the mask on .bbgl-rank-notch-face below cuts
-                       the silhouette, and a mask clips an outer box-shadow away entirely.
-
-                       Centred, not left-anchored: .bbgl-rank-notch sits at the exact level it
-                       names, and the plaque straddles that tick. .bbgl-rank-notch has no intrinsic
-                       width of its own (its only child is this out-of-flow absolutely positioned
-                       label), so this element's own left:50%/translateX(-50%) is what centres the
-                       plaque's real box on the milestone. */
-                    .bbgl-rank-notch-label {
-                        position: absolute;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        width: max-content;
-                    }
-
-                    /* The plate. Frame width is ADDED to the configured inner padding so the text
-                       clearance inside the frame is unchanged from before; only the frame band
-                       itself widens the plaque. */
-                    .bbgl-rank-notch-face {
-                        position: relative;
-                        display: block;
-                        box-sizing: border-box;
-                        padding-block: calc(var(--bbgl-t-rank-tag-pad-y) + var(--rank-frame-w) + var(--rank-pad-block));
-                        padding-inline: calc(var(--bbgl-t-rank-tag-pad-x) + var(--rank-frame-w) + var(--rank-pad-inline));
-                        font-family: 'Fjalla One', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: var(--bbgl-t-fs-notch);
-                        line-height: 1;
-                        font-weight: 500;
-                        letter-spacing: .025em;
-                        white-space: nowrap;
-                        text-align: center;
-                        color: var(--rank-ink);
-                        text-shadow: 0 -1px 0 rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .1);
-                    }
-
-                    /* z-index is load-bearing: the face's positioned layers (sweep, sheen) would
-                       otherwise paint OVER the lettering. Every label is span-wrapped in
-                       achRankPlaqueLabelHTML() precisely so this can apply. */
-                    .bbgl-rank-notch-line {
-                        display: block;
-                        white-space: nowrap;
-                        position: relative;
-                        z-index: 2;
-                    }
-
-
-                    /* Travelling specular highlight. Deliberately a transform animation, NOT
-                       background-position: this runs on up to five plaques at once on a page that
-                       already carries the CRT transform, and only transform stays on the
-                       compositor. Inherits .bbgl-rank-notch-face's mask, so light never spills
-                       past the silhouette. */
-                    .bbgl-rank-notch-face::after {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        left: 0;
-                        width: 100%;
-                        z-index: 3;
-                        background: linear-gradient(102deg,
-                            transparent 38%,
-                            rgba(255, 255, 255, calc(var(--rank-sweep-a) * .45)) 47%,
-                            rgba(255, 255, 255, var(--rank-sweep-a)) 50%,
-                            rgba(255, 255, 255, calc(var(--rank-sweep-a) * .45)) 53%,
-                            transparent 62%);
-                        transform: translateX(-105%);
-                        pointer-events: none;
-                    }
-
-                    .bbgl-rank-notch.is-revealed .bbgl-rank-notch-face::after {
-                        animation: bbgl-rank-sweep var(--rank-sweep-dur) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    @keyframes bbgl-rank-sweep {
-                        0% { transform: translateX(-105%); }
-                        55%, 100% { transform: translateX(105%); }
-                    }
-
-
-                    
-
-
-                    
-
-
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face {
-                        padding: 0;
-                        color: rgba(6, 8, 8, .85);
-                        text-shadow: 0 1px 0 rgba(190, 196, 190, .13), 0 -1px 1px rgba(0, 0, 0, .7);
-                    }
-
-                    
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face::after {
-                        content: none;
-                    }
-
-
-                    
-
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.is-revealed .bbgl-rank-notch-face::after {
-                        animation: none;
-                    }
-
-                    /* With animations off the sweep would otherwise freeze mid-plate as a static
-                       white smear, so park it fully off the plaque instead. */
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch .bbgl-rank-notch-face::after {
-                        opacity: 0;
-                    }
-
-                    /* Card context for one current-rank plaque. The plaque renderer is shared with
-                       the dormant trophy shelf, but every positioning rule below severs this copy
-                       from the shelf coordinate system. Material, silhouette, frame, grain and
-                       sweep remain the exact same implementation used by the original plaques. */
-                    .bbgl-title-card-rank-plaque {
-                        --rank-pad-block: calc(var(--bbgl-t-gap-v) * .85 + 1px);
-                        --rank-pad-inline: calc(var(--bbgl-t-gap) * .8 + 1px);
-                        position: relative;
-                        top: auto;
-                        left: auto;
-                        display: block;
-                        width: 96%;
-                        height: 96%;
-                        max-width: 100%;
-                        transform: none;
-                        margin-block: auto;
-                        margin-inline: auto;
-                        pointer-events: auto;
-                        z-index: 1;
-                    }
-
-                    .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-                        position: relative;
-                        left: auto;
-                        bottom: auto;
-                        display: block;
-                        width: 100%;
-                        height: 100%;
-                        max-width: 100%;
-                        transform: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        width: 100%;
-                        height: 100%;
-                        max-width: 100%;
-                        font-size: calc(var(--bbgl-t-fs-line) * 1.08);
-                        line-height: 1.05;
-                    }
-
-                    /* The progress-bar finishes for silver and diamond paint the two-line rank as
-                       one shared block. The card adds that same wrapper, then neutralises the bar's
-                       absolute milestone positioning while leaving its typography/paint untouched. */
-                    .bbgl-title-card-rank-plaque .bbgl-rank-title-text {
-                        position: relative;
-                        top: auto;
-                        left: auto;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        transform: none;
-                        z-index: 2;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="mill"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill {
-                        container-type: size;
-                        width: 88.32%;
-                        height: 86.4%;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-                        display: grid;
-                        grid-template-rows: 36% minmax(0, 1fr);
-                        padding: clamp(2px, 3cqh, 4px);
-                        overflow: hidden;
-                        align-items: stretch;
-                        justify-content: stretch;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::after{
-                        display: none;
-                    }
-
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-title-text {
-                        box-sizing: border-box;
-                        min-width: 0;
-                        min-height: 0;
-                        padding: 3px 5%;
-                        font-size: min(16.5cqw, 44cqh);
-                        line-height: 1.08;
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-                        padding: 1px;
-                    }
-
-
-                    .bbgl-title-card[data-rank-finish="machined"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined {
-                        container-type: size;
-                        width: 93%;
-                        height: 84.5%;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face {
-                        --rank-lightbox-rim: 17cqmin;
-                        --rank-lightbox-thin-rim: calc(var(--rank-lightbox-rim) * .5);
-                        --rank-lightbox-edge: clamp(.4px, 1cqmin, 1px);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: calc((var(--rank-lightbox-rim) + var(--rank-lightbox-thin-rim)) / 2 + 2px) calc(var(--rank-lightbox-thin-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px);
-                        overflow: hidden;
-                    }
-
-
-                    
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::after {
-                        inset: 0;
-                        width: auto;
-                        border-radius: inherit;
-                        background: none;
-                        box-shadow:
-                            inset 0 var(--rank-lightbox-edge) 0 rgba(255, 255, 255, .65),
-                            inset 0 calc(var(--rank-lightbox-edge) * -1.5) 0 rgba(24, 58, 55, .5);
-                        transform: none;
-                        animation: none;
-                    }
-
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
-                        min-width: 0;
-                        min-height: 0;
-                        width: 100%;
-                        font-size: min(15cqw, 28cqh);
-                        line-height: 1.12;
-                        text-align: center;
-                        top: -5%;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
-                        color: #e3e8ea;
-                        font-weight: 450;
-                        letter-spacing: .015em;
-                        -webkit-text-stroke: .012em rgba(238, 245, 247, .48);
-                        text-shadow:
-                            -.025em -.025em .02em rgba(255, 255, 255, .82),
-                            -.025em 0 .02em #b8c3c7,
-                            .025em 0 .02em #718087,
-                            0 .03em .02em #66747a,
-                            .035em .035em .04em #354248,
-                            0 .07em .08em rgba(0, 0, 0, .52),
-                            0 0 .14em rgba(232, 239, 242, .76),
-                            0 0 .32em rgba(216, 229, 234, .42),
-                            0 0 .58em rgba(201, 219, 225, .19);
-                        animation: bbgl-rank-lightbox-title-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined.material-steel.is-revealed .bbgl-rank-notch-line {
-                        width: 100%;
-                        text-align: center;
-                    }
-
-                    @keyframes bbgl-rank-lightbox-title-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% {
-                            color: #536764;
-                            -webkit-text-stroke-color: rgba(87, 109, 106, .3);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(190, 207, 203, .26),
-                                -.025em 0 .02em #647774,
-                                .025em 0 .02em #354744,
-                                0 .03em .02em #2c3d3b,
-                                .035em .035em .04em #202d2c,
-                                0 .07em .08em rgba(0, 0, 0, .62);
-                        }
-                        30.01%, 38%, 44% {
-                            color: #879391;
-                            -webkit-text-stroke-color: rgba(177, 193, 194, .36);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(226, 235, 233, .46),
-                                -.025em 0 .02em #7e8e8c,
-                                .025em 0 .02em #4b5d5b,
-                                0 .03em .02em #405250,
-                                .035em .035em .04em #293836,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .2),
-                                0 0 .3em rgba(216, 229, 234, .08);
-                        }
-                        53%, 72% {
-                            color: #bcc5c6;
-                            -webkit-text-stroke-color: rgba(218, 229, 231, .43);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(255, 255, 255, .7),
-                                -.025em 0 .02em #aab5b8,
-                                .025em 0 .02em #68767c,
-                                0 .03em .02em #5d6b71,
-                                .035em .035em .04em #354248,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .5),
-                                0 0 .32em rgba(216, 229, 234, .24);
-                        }
-                        76%, 100% {
-                            color: #e3e8ea;
-                            -webkit-text-stroke-color: rgba(238, 245, 247, .48);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(255, 255, 255, .82),
-                                -.025em 0 .02em #b8c3c7,
-                                .025em 0 .02em #718087,
-                                0 .03em .02em #66747a,
-                                .035em .035em .04em #354248,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .76),
-                                0 0 .32em rgba(216, 229, 234, .42),
-                                0 0 .58em rgba(201, 219, 225, .19);
-                        }
-                    }
-
-                    @keyframes bbgl-rank-lightbox-frame-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: drop-shadow(0 0 0 rgba(232, 239, 242, 0)); }
-                        30.01%, 38%, 44% { filter: drop-shadow(0 0 1px rgba(232, 239, 242, .16)); }
-                        53%, 72% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .32)) drop-shadow(0 0 4px rgba(216, 229, 234, .1)); }
-                        76%, 100% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18)); }
-                    }
-
-
-                    
-
-
-                    .bbgl-title-card[data-rank-finish="polished"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished {
-                        width: 100%;
-                        container-type: size;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face {
-                        padding: 0;
-                        overflow: visible;
-                    }
-
-                    
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    /* The sweep is a 300%-wide band slid by transform inside a static masked clip, so it
-                       runs on the compositor. A background-position sweep repainted the card every frame,
-                       and Chrome re-rasterized the plaque's filtered neighbours with it. */
-                    .bbgl-rank-bronze-sheen {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
-                        display: block;
-                        position: absolute;
-                        inset: 0;
-                        z-index: 3;
-                        overflow: hidden;
-                        pointer-events: none;
-                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        left: 0;
-                        width: 300%;
-                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-                        transform: translateX(-46.666667%);
-                        will-change: transform;
-                        animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        background-image:
-                            linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%),
-                            linear-gradient(141deg, #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%, #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%, #ad7b45 90%, #593820 100%);
-                        background-size: 375% 100%, 100% 100%;
-                        will-change: transform;
-                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
+                    /* ─── Card rank emblem ────────────────────────────────────────────────
+                       Rules live with the title plaque art (RANK_EMBLEM_CSS, 04-section-iii-plaque.js). */
                     ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
 
-                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0, 0 0;`)}
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        animation: none;
-                        background-position: 140.909091% 0, 0 0;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                        animation: none;
-                        opacity: 0;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                            animation: none;
-                            opacity: 0;
-                        }
-                        :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                            animation: none;
-                            background-position: 140.909091% 0, 0 0;
-                        }
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 25.2%;
-                        left: 10%;
-                        width: 80%;
-                        height: 50%;
-                        min-width: 0;
-                        min-height: 0;
-                        max-width: 100%;
-                        font-size: min(8.8cqw, 17cqh);
-                        line-height: 1.1;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="silver"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver {
-                        container-type: size;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face {
-                        isolation: isolate;
-                        padding: 23cqh 10cqw 23cqh;
-                        overflow: hidden;
-                    }
-
-
-                    
-
-
-                    
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 23%;
-                        left: 10%;
-                        width: 80%;
-                        height: 54%;
-                        min-width: 0;
-                        min-height: 0;
-                        max-width: 100%;
-                        font-size: min(10.5cqw, 26cqh);
-                        line-height: 1.2;
-                    }
-
-                    .bbgl-rank-surface-lighting {
-                        position: absolute;
-                        pointer-events: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-shield-light, none);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: none;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                            filter: none;
-                        }
-                    }
-
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        --bbgl-emerald-encasing: drop-shadow(.16px 0 0 #c9d3d880) drop-shadow(-.16px 0 0 #c9d3d880) drop-shadow(0 .16px 0 #c9d3d880) drop-shadow(0 -.16px 0 #c9d3d880) drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                        filter: var(--bbgl-shield-light) var(--bbgl-emerald-encasing);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-emerald-encasing);
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                            filter: var(--bbgl-emerald-encasing);
-                        }
-                    }
-
-                    .bbgl-title-card[data-rank-finish="gold"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold {
-                        width: 100%;
-                        height: 100%;
-                        container-type: size;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face {
-                        padding: 0;
-                    }
-
-                    
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::after{
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 55.3%;
-                        left: 24%;
-                        width: 52%;
-                        height: 25.5%;
-                        min-width: 0;
-                        min-height: 0;
-                        font-size: min(8.2cqw, 12.4cqh);
-                        line-height: 1.08;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-title-text {
-                        --bbgl-gold-letter-depth: drop-shadow(0 -.2px 0 #ffe8a0) drop-shadow(.25px .5px 0 #8c5719) drop-shadow(0 .8px .25px #1c1006);
-                        filter: var(--bbgl-gold-letter-depth);
-                    }
-
-
-                    .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-gold-light) var(--bbgl-gold-letter-depth);
-                    }
-
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-gold-letter-depth);
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        
-                        .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                            filter: var(--bbgl-gold-letter-depth);
-                        }
-                    }
-
-                    .bbgl-title-card[data-rank-finish="pearl"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl {
-                        width: 100%;
-                        height: 100%;
-                        container-type: size;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face {
-                        padding: 0;
-                    }
-
-                    
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 21%;
-                        left: 22%;
-                        width: 56%;
-                        height: 36%;
-                        min-width: 0;
-                        min-height: 0;
-                        font-size: min(14cqw, 17cqh);
-                        line-height: 1.04;
-                    }
-
-                    /* Card rank plates as images (04-section-iii-plaque.js). */
-${RANK_PLATE_CSS}
-
-                    .bbgl-platinum-glint {
-                        opacity: 0;
-                        transform-box: fill-box;
-                        transform-origin: center;
-                        animation: bbgl-platinum-glint 8s step-end infinite;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
-                    }
-
-                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        :is(.bbgl-platinum-glint, .bbgl-shield-glimmer) { display: none; }
-                    }
+                    ${RANK_EMBLEM_CSS}
 
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
                        One in each corner (str top-left, def top-right, spd bottom-left, dex
@@ -13742,10 +12738,6 @@ ${RANK_PLATE_CSS}
                     .bbgl-title-block {
                         padding-top: var(--bbgl-t-win-pad-y);
                         padding-bottom: var(--bbgl-t-win-pad-y);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
-                        will-change: transform;
                     }
 
                     /* The lit glass inside it. inset:1px keeps the texture off the tube's own line so
@@ -15420,7 +14412,7 @@ ${TITLE_PLAQUE_CSS}
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Berkshire+Swash&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;700&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
@@ -18909,23 +17901,21 @@ function computeAchievements(s) {
     };
 }
 
-// The titles page's SMIL-animated SVGs (the plate filter lights, gem glimmers). Their timelines keep ticking
-// after the page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit
-// ends and resumed (re-synced) by syncTitlesPageAnimationClock().
-const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-shield-sparkles';
+// The titles page's SMIL-animated SVGs (the plate filter lights). Their timelines keep ticking after the
+// page is hidden, re-rasterizing filters nobody sees, so they're paused whenever the visit ends and
+// resumed (re-synced) by syncTitlesPageAnimationClock().
+const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
 
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
-    runtime._rankLightboxAnimation = null;
     const el = container || document.getElementById('bbgl-achievements-container');
     if (el) {
         el.style.removeProperty('--bbgl-titles-animation-delay');
-        el.style.removeProperty('--bbgl-rank-lightbox-delay');
         el.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => svg.pauseAnimations());
     }
 }
 
-// `targets` (default: the container) are the elements the two delay vars are stamped on. A full
+// `targets` (default: the container) are the elements the delay var is stamped on. A full
 // rebuild stamps the container, since every node under it is new. A partial patch passes just the
 // subtrees it replaced: re-stamping the container would restyle the whole page and re-time every
 // animation already running on it, when only the new nodes need the current elapsed time.
@@ -18942,18 +17932,7 @@ function syncTitlesPageAnimationClock(container, targets = [container]) {
         runtime._titlesPageAnimationStartedAt = now;
     }
     const elapsed = Math.max(0, now - runtime._titlesPageAnimationStartedAt);
-    const { atrophy, level } = liveRankState();
-    const unlocked = !!levelRankBrackets(atrophy, level)[1]?.unlocked;
-    let lightbox = runtime._rankLightboxAnimation;
-    if (!lightbox || lightbox.atrophy !== atrophy || lightbox.unlocked !== unlocked) {
-        lightbox = runtime._rankLightboxAnimation = { atrophy, unlocked, startedAt: now };
-    }
-    // The one-shot ignition starts at unlock; routine rebuilds retain its elapsed time.
-    const lightboxDelay = `${-Math.max(0, now - lightbox.startedAt)}ms`;
-    targets.forEach(el => {
-        el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`);
-        el.style.setProperty('--bbgl-rank-lightbox-delay', lightboxDelay);
-    });
+    targets.forEach(el => el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`));
 }
 
 function achRefreshPageDom() {
@@ -19241,77 +18220,45 @@ function achTitlePlayerName() {
     return (h && h.meta && h.meta.playerName) || '—';
 }
 
-// Plaque words stack vertically, but never beyond two lines. For titles with three or more words,
-// choose the split whose two rendered lines are closest in character length; each resulting line
-// is kept intact by CSS so the browser cannot turn a three-word rank into three separate rows.
-function achRankPlaqueLabelHTML(label) {
-    const words = String(label || '').trim().split(/\s+/).filter(Boolean);
-    // Always wrapped, even for a single word: .bbgl-rank-notch-line is what carries the z-index
-    // that keeps lettering above the plate's sweep and sheen layers. A bare text node cannot be
-    // given a z-index, so an unwrapped label would render under them.
-    if (words.length < 2) {
-        const text = achEsc(words[0] || '');
-        return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`;
-    }
-    let splitAt = 1;
-    let bestDiff = Infinity;
-    for (let i = 1; i < words.length; i++) {
-        const leftLen = words.slice(0, i).join(' ').length;
-        const rightLen = words.slice(i).join(' ').length;
-        const diff = Math.abs(leftLen - rightLen);
-        if (diff < bestDiff) {
-            bestDiff = diff;
-            splitAt = i;
-        }
-    }
-    return [words.slice(0, splitAt), words.slice(splitAt)]
-        .map(line => {
-            const text = achEsc(line.join(' '));
-            return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`;
-        })
-        .join('');
+// Rank art (Assets/Achievements/web): per atrophy tier and band, an emblem with its lettering baked in
+// for the card, and the lettering alone for the rank bar. Files are named T{tier}R{band}-{Title}, the
+// title's spaces as hyphens. Both are <img> elements written only for unlocked ranks, so nothing is
+// downloaded before it is earned. Sizes are the images' pixel sizes; every lettering image is scaled so
+// its last line's first capital is RANK_TEXT_CAP px tall, which is what the bar sizes them by.
+const RANK_TEXT_CAP = 40;
+const RANK_EMBLEM_SIZE = {
+    'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 261], 'T3R1-Cracked-Clay': [500, 261],
+    'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
+    'T1R3-Hand-Stroked-Clay': [500, 220], 'T2R3-Foot-Pumped-Clay': [500, 219], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
+    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 303], 'T3R4-Kiln-Fired-Clay': [500, 300],
+    'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 298], 'T3R5-Competently-Bricked': [500, 301],
+    'T3R6-Fully-Bricked': [500, 294]
+};
+const RANK_TEXT_SIZE = {
+    'T1R1-Dry-Clay': [179, 63], 'T2R1-Parched-Clay': [164, 111], 'T3R1-Cracked-Clay': [161, 108],
+    'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [226, 99],
+    'T1R3-Hand-Stroked-Clay': [330, 107], 'T2R3-Foot-Pumped-Clay': [320, 107], 'T3R3-Vacuum-Sucked-Clay': [358, 108],
+    'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [198, 102], 'T3R4-Kiln-Fired-Clay': [202, 98],
+    'T1R5-Half-Bricked': [192, 89], 'T2R5-Mostly-Bricked': [189, 90], 'T3R5-Competently-Bricked': [225, 92],
+    'T3R6-Fully-Bricked': [240, 104]
+};
+const RANK_CAP_ART = 'T3R6-Fully-Bricked';
+
+function rankArtName(atrophy, band) {
+    const b = LEVEL_TITLE_BANDS[band];
+    const title = b.titles[atrophy] || b.titles[0];
+    return `T${(atrophy || 0) + 1}R${band + 1}-${title.replace(/\s+/g, '-')}`;
 }
 
-// Three nested boxes per plaque — more paint layers than two elements' pseudo-elements can supply:
-//   -label  positioned wrapper; carries the drop-shadow as a FILTER (a box-shadow would be clipped
-//           by the mask that cuts -face's silhouette).
-//   -face   the plate: masked silhouette, metal gradient, bevel. ::before is grain/patina, ::after
-//           the travelling specular sweep.
-//   -fx     ornament inside -face's mask: ::before the frame band (rivets/milling), ::after the
-//           recessed inner field the lettering sits on.
-// Animated layers over the card's plate images, drawn in each image's own coordinates (the old
-// plate SVGs' viewBoxes); .bbgl-rank-plate-sparkles sizes the overlay to the image's fitted box.
-function achShieldGlimmerHTML(x) {
-    // Invert the spotlight's easing to find its two passes over this jewel.
-    const progress = (x / 200 + .35) / 1.7;
-    let low = 0, high = 1;
-    for (let i = 0; i < 24; i++) {
-        const t = (low + high) / 2;
-        if (t * t * (3 - 2 * t) < progress) low = t;
-        else high = t;
-    }
-    const t = (low + high) / 2;
-    const pass = (3 * (1 - t) ** 2 * t * .3 + 3 * (1 - t) * t * t * .55 + t ** 3) / 2;
-    const times = [0, pass - .025, pass, pass + .025, 1 - pass - .025, 1 - pass, 1 - pass + .025, 1].map(v => v.toFixed(6)).join(';');
-    return `<g class="bbgl-shield-glimmer" opacity="0" fill="#edfff5" pointer-events="none">
-        <path d="M0-7L1.1-1.1L5 0L1.1 1.1L0 7L-1.1 1.1L-5 0L-1.1-1.1Z"/>
-        <circle r="1.3" fill="#fff"/>
-        <animate attributeName="opacity" values="0;0;1;0;0;1;0;0" keyTimes="${times}" dur="6.8s" repeatCount="indefinite"/>
-    </g>`;
-}
+const rankArtSrc = name => `${PLAQUE_ART_ROOT}${name}.webp`;
 
-function achShieldGlimmersHTML() {
-    const gems = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) =>
-        `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">${achShieldGlimmerHTML(x)}</g>`).join('');
-    return `<svg class="bbgl-rank-plate-sparkles bbgl-rank-shield-sparkles" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">${gems}</svg>`;
-}
-
-function achPlatinumGlintsHTML() {
-    return '<svg class="bbgl-rank-plate-sparkles bbgl-rank-platinum-sparkles" viewBox="0 0 200 126.6" preserveAspectRatio="none" aria-hidden="true"><g fill="#fff">' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M33.4 1L34.4 6L40.4 7L34.4 8L33.4 14L32.4 8L26.4 7L32.4 6Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M182.6 32.2L183.6 37.2L189.6 38.2L183.6 39.2L182.6 45.2L181.6 39.2L175.6 38.2L181.6 37.2Z"/>' +
-        '<path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 76.7L101 81.7L107 82.7L101 83.7L100 89.7L99 83.7L93 82.7L99 81.7Z"/>' +
-        '</g></svg>';
+// The bar's lettering image, sized by its capital height. The wrapper carries the image as a CSS mask
+// (--rank-name) for the effects painted over the letters.
+function achRankNameArtHTML(name, under = '') {
+    const [w, h] = RANK_TEXT_SIZE[name];
+    const src = rankArtSrc(name + '-text');
+    return `<span class="bbgl-rank-name-art" style="--rank-name-h:${(h / RANK_TEXT_CAP).toFixed(4)};--rank-name:url('${src}')">${under}` +
+        `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`;
 }
 
 // Fully Bricked's two cylinder spot lamps on the board, in the plate box's own units (160 x 94):
@@ -19422,23 +18369,23 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
     return { html, style: `--bbgl-shield-light: url(#${id});` };
 }
 
-function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = '') {
-    const nameTag = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-mill');
-    const bronzePlaque = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-polished');
-    const silverShield = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-silver');
-    const goldCrown = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-gold');
-    const pearlMarquee = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-pearl');
-    const lines = pearlMarquee ? '' : nameTag
-        ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>`
-        : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>';
-    // The plates themselves are images (RANK_PLATE_ART, 04-section-iii-plaque.js); the lettering is the only markup.
-    const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null;
-    if (lighting) style += lighting.style;
-    const inner = (lighting?.html || '') + (pearlMarquee ? achPlatinumLampLightHTML() : '') + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines)
-        + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : '');
-    const styleAttr = style ? ` style="${style}"` : '';
-    const sparkles = silverShield ? achShieldGlimmersHTML() : pearlMarquee ? achPlatinumGlintsHTML() + achPlatinumLampsHTML() : '';
-    return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}">${pearlMarquee ? achPlatinumBeamsHTML() : ''}<span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face">${inner}</span>${sparkles}</span></div>`;
+// The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
+// plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
+// line up with the art. Silver and gold light the whole label with an SVG filter; bronze runs a sheen
+// over the emblem; Fully Bricked adds its lamps.
+function achRankPlaqueHTML(cls, tip, finish, label, name) {
+    const [w, h] = RANK_EMBLEM_SIZE[name];
+    const src = rankArtSrc(name);
+    const lighting = finish === 'silver' ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
+    const pearl = finish === 'pearl';
+    const style = `--rank-ar:${(w / h).toFixed(4)};--rank-emblem:url('${src}');${lighting?.style || ''}`;
+    const inner = (lighting?.html || '') +
+        `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` +
+        (pearl ? achPlatinumLampLightHTML() : '') +
+        (finish === 'polished' ? '<span class="bbgl-rank-bronze-sheen"></span>' : '') +
+        (pearl ? achPlatinumLampsHTML() : '');
+    return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` +
+        `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -19461,6 +18408,7 @@ function achCurrentRankPlaqueData(atrophy, level) {
     const isCap = bricked;
     const finishIdx = isCap ? finishes.length - 1 : Math.max(0, currentIdx);
     const current = brackets[Math.max(0, currentIdx)] || brackets[0];
+    const name = isCap ? RANK_CAP_ART : rankArtName(atrophy, Math.max(0, currentIdx));
     const label = isCap ? 'Fully Bricked' : atrophyBandTitle(atrophy, level);
     const tip = isCap
         ? achRankTipHTML(label, LEVEL_CAP, LEVEL_CAP, true)
@@ -19480,7 +18428,7 @@ function achCurrentRankPlaqueData(atrophy, level) {
         material: materials[finishIdx] || 'iron',
         label,
         tip,
-        html: achRankPlaqueHTML(cls, '', tip, true, label, 'bbgl-rank-title-text')
+        html: achRankPlaqueHTML(cls, tip, finishes[finishIdx] || 'mill', label, name)
     };
 }
 
@@ -19578,23 +18526,22 @@ function achTitleLabelsHTML(atrophy, level) {
             b.unlocked ? 'is-revealed' : 'is-locked'
         ].filter(Boolean).join(' ');
         const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked);
-        // Same closest-split two-line wrap the plaques used (achRankPlaqueLabelHTML above) — each
-        // line lands in its own .bbgl-rank-notch-line block, which is what makes it wrap instead of
-        // running the whole title across one line.
-        const inner = b.unlocked ? achRankPlaqueLabelHTML(b.label) : ICONS.LOCK;
+        const inner = b.unlocked ? achRankNameArtHTML(rankArtName(atrophy, i)) : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
         const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null;
-        return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text">${inner}</span></div></div>`;
+        const label = b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '';
+        return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
     const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked);
-    // The destination is always named. Its muted/finished state carries the lock information; a
-    // lock glyph here would sit on the finish divider and hide what the player is working toward.
-    const capInner = achRankPlaqueLabelHTML('Fully Bricked');
-    // The visible name is your painted lettering (text-fully-bricked.webp) as a mask over the same
-    // face, ribbon and glow layers the other ranks paint into their glyphs; the text stays for layout.
-    const capArt = '<span class="bbgl-rank-cap-art" aria-hidden="true"><span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span><i class="bbgl-rank-cap-face"></i></span>';
-    const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text">${capInner}${capArt}</span></div></div>`;
+    // The destination is always named. Locked, it's plain grey text (its art isn't loaded until it's
+    // earned); a lock glyph would sit on the finish divider and hide what the player is working toward.
+    // Earned, the platinum lettering gets the iridescent sheen and the glows behind it.
+    const capInner = bricked
+        ? achRankNameArtHTML(RANK_CAP_ART, '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>')
+        : '<span class="bbgl-rank-cap-name">Fully Bricked</span>';
+    const capLabel = bricked ? ' role="img" aria-label="Fully Bricked"' : '';
+    const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text"${capLabel}>${capInner}</span></div></div>`;
     return bands + cap;
 }
 
@@ -31448,7 +30395,7 @@ const BestGymController = {
         popupLabel.textContent = 'Popups';
         popupLabel.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;';
         const popupBtns = [
-            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
+            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Stroked Clay' }],
             ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
             ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],
             ['Bricked', { kind: 'bricked', id: 'dev:bricked' }]

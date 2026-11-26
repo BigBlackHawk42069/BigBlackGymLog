@@ -32,11 +32,11 @@
     const KEYS = { STATE: 'bbgl_view_state_v1', CONFIG: 'bbgl_config_v1', PENDING_SYNC: 'bbgl_pending_full_sync_v1', LAST_SYNC: 'bbgl_last_data_sync_v1', SESSION_CACHE: 'bbgl_session_cache_v1', DEMO: 'bbgl_demo_mode', SB_NOTIF: 'bbgl_sb_notif_seen', DEV_MODE: 'bbgl_dev_mode', CHANGELOG_VER: 'bbgl_changelog_seen_ver', REWARD_GATE_VER: 'bbgl_reward_gate_ver', CHANGELOG_NOTIF: 'bbgl_changelog_notif', WARS_SYNC: 'bbgl_wars_last_sync_v1', WARS_DATA: 'bbgl_wars_data_v1', FACTION_HISTORY: 'bbgl_faction_history_v1' };
     const WIPE_BELOW_VERSION = '0.9.90';
     const REWARD_GATE_BELOW_VERSION = '0.9.92';
-    const CDN_PINS = { 'BigBlackHawk42069/BigBlackGymLog': '1f587b350ee837b12a65ef6aefcf7bb49d45c298' };
+    const CDN_PINS = { 'BigBlackHawk42069/BigBlackGymLog': '4c0cb10521cd974b151476658ccc83af67aac97a' };
     const cdnize = u => u.replace(/^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//, (m, owner, repo, ref) => `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${CDN_PINS[owner + '/' + repo] || ref}/`);
     const BASE_DOCS_URL = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/main/UserDocs/';
     const CONSTANTS = { MONTHS: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"], MONTHS_SHORT: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], COLORS: { STR: '#3264c6', DEF: '#dc3912', SPD: '#ff9900', DEX: '#109618', TOT: '#9d039d', GAINS: '#69f0ae' } };
-    const GAME = { GOLD_WEEK_JUMPS: 3, HJ_WINDOW_SECONDS: 300, HJ_QUARTER_SECONDS: 900, STAT_MAP: { 5300: 'strength', 5301: 'defense', 5302: 'speed', 5303: 'dexterity' } };
+    const GAME = { GOLD_WEEK_JUMPS: 3, HJ_QUARTER_SECONDS: 900, STAT_MAP: { 5300: 'strength', 5301: 'defense', 5302: 'speed', 5303: 'dexterity' } };
     const ITEM_LOG_META = { 8981: { label: 'Green Egg Used', group: 'energy', energy: true, short: 'Egg', achLabel: 'Green Eggs Used' }, 2290: { label: 'Xanax Taken', group: 'energy', energy: true, short: 'Xans' }, 2230: { label: 'LSD Taken', group: 'energy', energy: true, short: 'LSD' }, 2040: { label: 'Energy Can Used', group: 'energy', energy: true, short: 'Cans', achLabel: 'Energy Cans Used' }, 2190: { label: 'Hotel Coupon Used', group: 'energy', energy: true, short: 'FHC', achLabel: 'FHCs Used', achTipLabel: 'Feathery Hotel Coupons Used' }, 4900: { label: 'Points Refill Used', group: 'energy', energy: true, short: 'Refill', achLabel: 'Refills Used' }, 2120: { label: 'Parachute Used', group: 'stat', stat: true, achLabel: 'Parachutes Used' }, 2130: { label: 'Skateboard Used', group: 'stat', stat: true, achLabel: 'Skateboards Used' }, 2140: { label: 'Boxing Gloves Used', group: 'stat', stat: true }, 2150: { label: 'Dumbbells Used', group: 'stat', stat: true }, 2020: { label: 'Candy Used', group: 'happy', happy: true }, 2180: { label: 'Erotic DVD Used', group: 'happy', happy: true, achLabel: 'Erotic DVDs Used' }, 2210: { label: 'Ecstasy Taken', group: 'happy', happy: true }, 8983: { label: 'Yellow Egg Used', group: 'happy', happy: true, achLabel: 'Yellow Eggs Used' }, 2291: { label: 'Xanax OD', group: 'od', energyLost: true, short: 'Xan OD' }, 2231: { label: 'LSD OD', group: 'od', energyLost: true, short: 'LSD OD' }, 2211: { label: 'Ecstasy OD', group: 'od', happyLost: true, energyLost: true, short: 'Ex OD' }, 2050: { label: 'Book Used', group: 'book', book: true }, 2051: { label: 'Book Finished', group: 'book', book: true } };
     const BOOK_META = { 744: { name: 'Brawn Over Brains', short: '+5% Strength on finish (max 10m)', effect: 'Increases strength by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'str', readPeriod: true }, 745: { name: 'Time Is In The Mind', short: '+5% Speed on finish (max 10m)', effect: 'Increases speed by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'spd', readPeriod: true }, 746: { name: 'Keeping Your Face Handsome', short: '+5% Defense on finish (max 10m)', effect: 'Increases defense by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'def', readPeriod: true }, 747: { name: 'A Job For Your Hands', short: '+5% Dexterity on finish (max 10m)', effect: 'Increases dexterity by 5% up to 10,000,000 upon completion.', training: 'stat', stat: 'dex', readPeriod: true }, 748: { name: 'Working 9 Til 5', short: '+5% working stats (max 2,500)', effect: 'Increases all working stats by 5% up to 2,500 each upon completion.', readPeriod: true }, 749: { name: 'Making Friends, Enemies, And Cakes', short: '+100 friend, enemy & target slots', effect: 'Increases friends list, enemies list & targets list capacity by +100 upon completion.', readPeriod: true }, 750: { name: 'High School For Adults', short: 'Free merit reset', effect: 'Provides a free merit reset upon completion.', readPeriod: true }, 751: { name: 'Milk Yourself Sober', short: 'Removes drug addiction', effect: 'Removes a substantial amount of drug addiction upon completion.', readPeriod: true }, 752: { name: 'Fight Like An Asshole', short: '+25% all battle stats', effect: 'Provides a passive 25% bonus to all stats for 31 days.' }, 753: { name: 'Mind Over Matter', short: '+100% Strength', effect: 'Provides a passive 100% bonus to Strength for 31 days.' }, 754: { name: 'No Shame No Pain', short: '+100% Defense', effect: 'Provides a passive 100% bonus to Defense for 31 days.' }, 755: { name: 'Run Like The Wind', short: '+100% Speed', effect: 'Provides a passive 100% bonus to Speed for 31 days.' }, 756: { name: 'Weaseling Out Of Trouble', short: '+100% Dexterity', effect: 'Provides a passive 100% bonus to Dexterity for 31 days.' }, 757: { name: 'Get Hard Or Go Home', short: '+20% all gym gains', effect: 'Increases all gym gains by 20% for 31 days.', training: 'gym' }, 758: { name: 'Gym Grunting - Shouting To Success', short: '+30% Strength gym gains', effect: 'Increases Strength gym gains by 30% for 31 days.', training: 'gym', stat: 'str' }, 759: { name: 'Self Defense In The Workplace', short: '+30% Defense gym gains', effect: 'Increases Defense gym gains by 30% for 31 days.', training: 'gym', stat: 'def' }, 760: { name: 'Speed 3 - The Rejected Script', short: '+30% Speed gym gains', effect: 'Increases Speed gym gains by 30% for 31 days.', training: 'gym', stat: 'spd' }, 761: { name: 'Limbo Lovers 101', short: '+30% Dexterity gym gains', effect: 'Increases Dexterity gym gains by 30% for 31 days.', training: 'gym', stat: 'dex' }, 762: { name: 'The Hamburglar\'s Guide To Crime', short: '+25% crime skill & XP', effect: 'Increases crime skill & crime experience gain by 25% for 31 days.' }, 763: { name: 'What Are Old Folk Good For Anyway?', short: '+25% leveling EXP', effect: 'Increases leveling EXP gain by 25% for 31 days.' }, 764: { name: 'Medical Degree Schmedical Degree', short: '-50% hospital time', effect: 'Decreases all hospital times by 50% for 31 days.' }, 765: { name: 'No More Soap On A Rope', short: '-50% jail time', effect: 'Decreases all jail times by 50% for 31 days.' }, 766: { name: 'Mailing Yourself Abroad', short: '-25% travel time', effect: 'Decreases all travel times by 25% for 31 days.' }, 767: { name: 'Smuggling For Beginners', short: '+10 travel items', effect: 'Increases travel items by 10 for 31 days.' }, 768: { name: 'Stealthy Stealing of Underwear', short: 'Maximum stealth', effect: 'Maximum stealth for the next 31 days.' }, 769: { name: 'Shawshank Sure Ain\'t For Me!', short: 'Better busts & escapes', effect: 'Large jail bust & escape boost for the next 31 days.' }, 770: { name: 'Ignorance Is Bliss', short: 'Happy regens past max', effect: 'Happiness can regenerate above maximum for 31 days.', training: 'happy' }, 771: { name: 'Winking To Win', short: '2x contract rewards', effect: 'Doubles contract credit and money rewards for 31 days.' }, 772: { name: 'Finders Keepers', short: 'More city item spawns', effect: 'Drastically increases city item spawns for 31 days.' }, 773: { name: 'Hot Turkey', short: 'No drug addiction gain', effect: 'Gain no drug addiction for 31 days.' }, 774: { name: 'Higher Daddy, Higher!', short: '+20% energy regen', effect: 'Provides +20% energy regeneration for 31 days.', training: 'energy' }, 775: { name: 'The Real Dutch Courage', short: '2x nerve regen', effect: 'Doubles nerve regeneration for 31 days.' }, 776: { name: 'Because I\'m Happy - The Pharrell Story', short: '2x happy regen', effect: 'Doubles happiness regeneration for 31 days.', training: 'happy' },
         777: { name: 'No More Sick Days', short: '2x life regen', effect: 'Doubles life regeneration for 31 days.' }, 778: { name: 'Duke - My Story', short: 'Duke retaliates for you', effect: 'Duke will occasionally retaliate against your attackers for 31 days.' }, 779: { name: 'Self Control Is For Losers', short: '-50% consumable cooldowns', effect: 'Decreases all consumable cooldowns by 50% for 31 days.', training: 'energy' }, 780: { name: 'Going Back For More', short: '-50% medical cooldowns', effect: 'Decreases all medical cooldowns by 50% for 31 days.' }, 781: { name: 'Get Drunk And Lose Dignity', short: '2x alcohol effects', effect: 'Doubles alcohol effects for 31 days.' }, 782: { name: 'Fuelling Your Way To Failure', short: '2x energy drink effects', effect: 'Doubles energy drink effects for 31 days.', training: 'energy' }, 783: { name: 'Yes Please Diabetes', short: '2x candy effects', effect: 'Doubles candy effects for 31 days.', training: 'happy' }, 784: { name: 'Ugly Energy', short: '250 max energy', effect: 'Increases maximum energy (including energy refills) to 250 for 31 days.', training: 'energy' }, 785: { name: 'Memories And Mammaries', short: 'Repeats last book read', effect: 'Takes the same effect from the last used book for 31 days.', training: 'repeat' }, 786: { name: 'Brown-nosing The Boss', short: 'More employee effectiveness', effect: 'Greatly increases personal employee effectiveness for 31 days.' }, 787: { name: 'Running Away From Trouble', short: 'Guaranteed attack escapes', effect: 'Guaranteed attacking escape attempt success for 31 days.' } };
@@ -74,13 +74,6 @@
     const PAGE_TITLES = ["Sweat Equity", "Casino Collection", "Frequent Felon Passport", "Memories of Misdemeanors", "Postcards from the Frontline"];
     const STICKER_SPONSOR_PAGE = -1;
     const STICKER_SPONSOR_TITLE = "Sponsorship";
-    const CUSTOM_STICKERS = [
-    //Sweat Equity
-    { id: 1, name: "Just Checking the Mirror", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/jst-chk-mirrr.webp' },{ id: 2, name: "Up, Down, Repeat", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/up-dn-rpt.webp' },{ id: 3, name: "Flat Bench Therapy", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/flt-bnch-thrpy.webp' },{ id: 4, name: "Bring Home the Feed", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/brng-hm-feed.webp' },{ id: 5, name: "Never Skip Leg Day", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/nvr-skp-leg.webp' },{ id: 6, name: "Tire Rotation", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/tire-rotn.webp' },{ id: 7, name: "Back End Engagement", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/bck-end-engmt.webp' },{ id: 8, name: "The Upside of Exercise", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/upsd-exrcse.webp' },{ id: 9, name: "Shellshock Stretches", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/shlshk-strch.webp' },{ id: 10, name: "Certified Cardio", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Gym/crtfd-crdio.webp' },
-    //Casino Collection
-    { id: 11, name: "Just One More Spin", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/jst-one-spn.webp' },{ id: 12, name: "Bingo! I Think...", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/bingo-i-thnk.webp' },{ id: 13, name: "Lucky Shot", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lcky-sht.webp' },{ id: 14, name: "Holy Craps", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/holy-crps.webp' },{ id: 15, name: "Tilted in My Favor", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/tltd-my-fvr.webp' },{ id: 16, name: "Choose Wisely", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/chse-wsly.webp' },{ id: 17, name: "Hit Me", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/hit-me.webp' },{ id: 18, name: "Dead Men's Hand", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/dead-mens.webp' },{ id: 19, name: "Trigger Warning", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/trgr-wrng.webp' },{ id: 20, name: "Leslie's Sick Day", url: 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/Casino/lsls-sck-dy.webp' }
-    ];
-    CUSTOM_STICKERS.forEach(s => { s.url = cdnize(s.url); s.thumbUrl = s.url.replace('/ScrptImgs/Stickerbook/', '/ScrptImgs/Calendar/Stickers/'); });
     let runtime = { isClosing: false, isViewAnimating: false, isSyncing: false, bfScanning: false, bfWaitingLock: false, bfChecking: false, bfStop: false, bfYield: false, bfWake: null, bfRateUntil: 0, bfFailSince: 0, bfFailCount: 0, bfKeyBlockedFor: null, bfInboxCount: 0, apiCallTotal: 0, resizeObserver: null, titleFrameResizeObserver: null, toolbarPaginationResizeObserver: null, stickerSlots: [], stickerData: [], currentStickerPage: 0, viewerLoopId: null, viewerRotation: 0, viewerSpeed: 0.3, currentOpenedItemId: null, brandAnchor: null, brandResizeObserver: null, lastFrameTime: 0, returnView: null, layoutRafId: null, currentStats: null, demoMode: false, demoHistory: null, demoEnteredFrom: null, devMode: false, _achCache: null, _achPrewarm: null, _achPrewarmHandle: null, _achPage: 0, _titlesPageAnimationStartedAt: null, wasVersionWiped: false, careerLevelExp: 0, statTitleE: null, _titlePick: null, _noteMode: null, _heldNoteDate: null, _devTitleOverride: null, _devBookOverride: null, _devDocsBase: null, _devNewNoteDate: null, _devPostItStackDate: null };
     const _TAB_ID = Math.random().toString(36).slice(2);
     let _historyCache = null;
@@ -155,7 +148,7 @@
     function computeLevelExpCost(level, atrophy) { const start = LEVEL_ATRO_START[atrophy]; const t = (level - start) / (LEVEL_CAP - 1 - start); const val1 = (LEVEL_STEP1_VAL - LEVEL_FLOOR) / (LEVEL_P0_MAX - LEVEL_FLOOR); const val2 = (LEVEL_STEP2_VAL - LEVEL_FLOOR) / (LEVEL_P0_MAX - LEVEL_FLOOR); let frac; if (t <= LEVEL_STEP1_END) { frac = val1 * (t / LEVEL_STEP1_END); } else if (t <= LEVEL_STEP2_END) { frac = val1 + (val2 - val1) * ((t - LEVEL_STEP1_END) / (LEVEL_STEP2_END - LEVEL_STEP1_END)); } else { const u = (t - LEVEL_STEP2_END) / (1 - LEVEL_STEP2_END); frac = val2 + (1 - val2) * Math.pow(u, LEVEL_TAIL_POWER); } const base = Math.round(LEVEL_FLOOR + (LEVEL_P0_MAX - LEVEL_FLOOR) * frac); return Math.round(base * LEVEL_ATRO_MULT[atrophy]); }
     const LEVEL_ATRO_BUDGETS = [0, 1, 2].map(a => { let s = 0; for (let lv = LEVEL_ATRO_START[a]; lv < LEVEL_CAP; lv++) s += computeLevelExpCost(lv, a); return s; });
     function calculateLevelProgress(totalExp) { let remaining = totalExp; let atrophy = 0; for (let a = 0; a < 3; a++) { const budget = LEVEL_ATRO_BUDGETS[a]; if (remaining < budget) { atrophy = a; break; } remaining -= budget; atrophy = a + 1; } if (atrophy >= 3) return { atrophy: 2, level: LEVEL_CAP, expInLevel: 0, expToNext: 0 }; let level = LEVEL_ATRO_START[atrophy]; for (let lv = LEVEL_ATRO_START[atrophy]; lv < LEVEL_CAP; lv++) { const cost = computeLevelExpCost(lv, atrophy); if (remaining < cost) { level = lv; break; } remaining -= cost; level = lv + 1; } const expInLevel = level < LEVEL_CAP ? remaining : 0; const expToNext = level < LEVEL_CAP ? computeLevelExpCost(level, atrophy) : 0; return { atrophy, level, expInLevel, expToNext }; }
-    const LEVEL_TITLE_BANDS = [{ max: 19, titles: ['Dry Clay', 'Parched Clay', 'Cracked Clay'] }, { max: 39, titles: ['Moistened Clay', 'Saturated Clay', 'Dripping Wet Clay'] }, { max: 59, titles: ['Hand-Jerked Clay', 'Foot-Pumped Clay', 'Vacuum-Milked Clay'] }, { max: 79, titles: ['Pit-Fired Clay', 'Scove-Fired Clay', 'Kiln-Fired Clay'] }, { max: 99, titles: ['Half Bricked', 'Mostly Bricked', 'Competently Bricked'] }];
+    const LEVEL_TITLE_BANDS = [{ max: 19, titles: ['Dry Clay', 'Parched Clay', 'Cracked Clay'] }, { max: 39, titles: ['Moistened Clay', 'Saturated Clay', 'Dripping Wet Clay'] }, { max: 59, titles: ['Hand-Stroked Clay', 'Foot-Pumped Clay', 'Vacuum-Sucked Clay'] }, { max: 79, titles: ['Pit-Fired Clay', 'Scove-Fired Clay', 'Kiln-Fired Clay'] }, { max: 99, titles: ['Half Bricked', 'Mostly Bricked', 'Competently Bricked'] }];
     function isFullyBricked(atrophy, level) { return (atrophy || 0) >= 2 && (level || 0) >= LEVEL_CAP; }
     function atrophyBandTitle(atrophy, level) { const band = LEVEL_TITLE_BANDS.find(b => level <= b.max) || LEVEL_TITLE_BANDS[LEVEL_TITLE_BANDS.length - 1]; return band.titles[atrophy] || band.titles[0]; }
     function levelRankBrackets(atrophy, level) { const a = Math.max(0, Math.min(2, atrophy || 0)); const out = []; let start = 0; LEVEL_TITLE_BANDS.forEach((band, i) => { const span = band.max - start + 1; const unlocked = i === 0 || level >= start; out.push({ start, end: band.max, span, widthPct: span / LEVEL_CAP * 100, unlocked, label: unlocked ? band.titles[a] || band.titles[0] : '?' }); start = band.max + 1; }); return out; }
@@ -167,7 +160,6 @@
     function statTitlePhases(eByStat) { const out = {}; STAT_KEYS.forEach(k => { out[k] = statTitlePhaseForE(eByStat && eByStat[k] || 0); }); return out; }
     function statTitleUnlockedCount(phases) { return STAT_KEYS.reduce((n, k) => n + Math.max(0, ((phases && phases[k]) ?? -1) + 1), 0); }
     const TITLE_PLAQUE_STEPS = [2, 4, 8, 12, 16, 20, 25, 30, 35, 40];
-    const TITLE_PLAQUE_PROGRESSIVE = true;
     function titlePlaqueStage(phases) { const total = statTitleUnlockedCount(phases); return TITLE_PLAQUE_STEPS.filter(n => total >= n).length; }
     function statTitleWord(stat, phase) { const ladder = STAT_TITLE_WORDS[stat]; if (!ladder || (phase | 0) < 0) return null; const p = Math.min(phase | 0, ladder.length - 1); return ladder[p] ? { noun: ladder[p].noun, adj: ladder[p].adj, phase: p } : null; }
     function composeStatTitleParts(selection) { if (selection && selection.placeholder) { return [{ text: STAT_TITLE_PLACEHOLDER.adj, phase: 0, stat: null }, { text: STAT_TITLE_PLACEHOLDER.noun, phase: 0, stat: null }]; } if (!selection || !selection.primary || !selection.secondary) return null; const noun = statTitleWord(selection.primary.stat, selection.primary.phase); const adj = statTitleWord(selection.secondary.stat, selection.secondary.phase); if (!noun || !adj) return null; return [{ text: adj.adj, phase: adj.phase, stat: selection.secondary.stat }, { text: noun.noun, phase: noun.phase, stat: selection.primary.stat }]; }
@@ -196,25 +188,30 @@
      *  The Big & Black Part of the script.
      */
     const PLAQUE_STEPS = (() => {
-        const GOLD_PAIR = ['#e2b755', '#c89a3c'];
         const steps = [
-            { fabric: 'canvas', fray: true, nails: true, board: 'plank', boardNails: 'iron', letters: 'ink' },
-            { fray: false, hem: '#7d6c4c' },
-            { hem: '#6f5a3a' },
-            { nails: false, tacks: true, board: 'oak', boardNails: 'brass' },
+            { fabric: 'canvas', board: 'pineRaw', letters: 'ink' },
             {},
-            { fabric: 'felt', hem: '#806578', tacks: false, letters: 'cream' },
             {},
-            { fabric: 'velvet', hem: '#e9dcc0', tassels: ['#e9dcc0', '#d8c7a2'], fringe: ['#e2d3b1', '#6a2d62'], board: 'walnut', boardNails: false },
-            { hem: '#d8b45a', goldEdge: true, cord: true, laurel: true, tassels: GOLD_PAIR, fringe: ['#e2b755', '#a97d2c'], board: 'walnutPolished', caps: true, letters: 'gold' },
-            { filigree: true, sheen: true, board: 'walnutLacquer', letterStroke: true },
-            { hem: false, tassels: false, fringe: false, embroidery: true, bullion: true, fullTassels: true }
+            { board: 'pine' },
+            {},
+            { fabric: 'felt', board: 'oak', letters: 'cream' },
+            {},
+            { fabric: 'velvet', board: 'walnut' },
+            { letters: 'gold' },
+            { letterStroke: true },
+            {}
         ];
         let prev = {};
         return steps.map(d => (prev = { ...prev, ...d }));
     })();
     const PLAQUE_VB_H = 186;
     const PLAQUE_VALANCE_INSET = `0 0 -${+((PLAQUE_VB_H / 96 - 1) * 100).toFixed(2)}% 0`;
+    const PLAQUE_ART_ROOT = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/Assets/Achievements/web/');
+    const PLAQUE_BOARD_ART = { pineRaw: 'board-pine-raw', pine: 'board-pine', oak: 'board-oak', walnut: 'board-walnut' };
+    const PLAQUE_DRAPE_ART = { canvas: 'drape-canvas', felt: 'drape-felt', velvet: 'drape-velvet' };
+    const plaqueArtUrl = name => `url("${PLAQUE_ART_ROOT}${name}.webp")`;
+    const PLAQUE_BOARD_INSET = '0';
+    const PLAQUE_DRAPE_INSET = '1.04% 2.5% -0.52%';
     const plaqueEach = (stages, suffix) => stages.map(s => `.bbgl-title-card.is-progressive[data-sign-stage="${s}"]${suffix}`).join(',\n');
     const plaqueRules = (suffix, body) => {
         const groups = new Map();
@@ -227,51 +224,6 @@
         let css = '';
         groups.forEach((stages, b) => { css += `\n${plaqueEach(stages, suffix)} {\n${b}\n}\n`; });
         return css;
-    };
-
-    const PLAQUE_BRASS = ['#f6dc8a', '#c9993f', '#6a4714'];
-    const PLAQUE_WOODS = {
-        plank: { border: '#5a3a1c', bevel: '', grain: `repeating-linear-gradient(88deg, transparent 0 17px, rgba(60, 35, 15, .22) 18px, transparent 20px 37px),
-            repeating-linear-gradient(90deg, transparent 0 4px, rgba(90, 55, 25, .2) 5px, transparent 6px 11px),
-            repeating-linear-gradient(90deg, rgba(255, 235, 200, .07) 0 1px, transparent 1px 3px),
-            radial-gradient(ellipse 7% 3.5% at 9% 82%, #4b2e14 0 35%, #8a6034 60%, transparent 76%),
-            radial-gradient(ellipse 6% 3% at 92% 44%, #4b2e14 0 35%, #8a6034 60%, transparent 76%),
-            linear-gradient(100deg, #b4854f, #cd9d66 40%, #bf8f5c 70%, #a47444)` },
-        oak: { border: '#2e1a0b', bevel: 'inset 2px 2px 0 rgba(255, 215, 170, .2), inset -2px -2px 0 rgba(0, 0, 0, .42), ', grain: `repeating-linear-gradient(90deg, transparent 0 3px, rgba(40, 20, 8, .26) 3px 4px, transparent 4px 9px),
-            repeating-linear-gradient(90deg, rgba(255, 210, 160, .08) 0 2px, transparent 2px 13px),
-            linear-gradient(170deg, rgba(255, 235, 210, .14), transparent 35%),
-            linear-gradient(100deg, #6c4323, #8a5a33 40%, #7b4e2b 70%, #5e391e)` },
-        walnut: { border: '#140b07', bevel: 'inset 2px 2px 0 rgba(186, 138, 100, .18), inset -2px -2px 0 rgba(0, 0, 0, .5), ', grain: `repeating-linear-gradient(92deg, transparent 0 5px, rgba(8, 4, 2, .28) 6px, transparent 7px 13px),
-            repeating-linear-gradient(88deg, rgba(176, 128, 92, .04) 0 1px, transparent 1px 3px),
-            radial-gradient(ellipse 28% 120% at 24% 35%, #3a241800 45%, #140a0666 70%, transparent 78%),
-            linear-gradient(100deg, #24160f, #3d281d 38%, #2f1e15 72%, #20140d)` },
-        walnutPolished: { border: '#140b07', bevel: 'inset 2px 2px 0 rgba(200, 150, 110, .22), inset -2px -2px 0 rgba(0, 0, 0, .55), ', grain: `linear-gradient(165deg, rgba(255, 225, 190, .16), transparent 30%, transparent 70%, rgba(255, 225, 190, .06)),
-            repeating-linear-gradient(92deg, transparent 0 5px, rgba(8, 4, 2, .3) 6px, transparent 7px 13px),
-            repeating-linear-gradient(88deg, rgba(196, 140, 100, .06) 0 1px, transparent 1px 3px),
-            radial-gradient(ellipse 28% 120% at 24% 35%, #4a2e1e00 45%, #140a0666 70%, transparent 78%),
-            linear-gradient(100deg, #28180f, #452d20 38%, #34211a 72%, #22150e)` },
-        walnutLacquer: { border: '#120904', bevel: 'inset 2px 2px 0 rgba(215, 160, 115, .26), inset -2px -2px 0 rgba(0, 0, 0, .6), ', grain: `linear-gradient(165deg, rgba(255, 230, 200, .24), rgba(255, 230, 200, .04) 26%, transparent 34%, transparent 66%, rgba(255, 230, 200, .1) 88%, transparent),
-            repeating-linear-gradient(92deg, transparent 0 5px, rgba(6, 2, 0, .34) 6px, transparent 7px 13px),
-            repeating-linear-gradient(88deg, rgba(210, 150, 105, .07) 0 1px, transparent 1px 3px),
-            radial-gradient(ellipse 28% 120% at 24% 35%, #52321f00 45%, #120804aa 70%, transparent 78%),
-            linear-gradient(100deg, #24130a, #4a2e1f 38%, #36211a 72%, #1d100a)` }
-    };
-    const PLAQUE_NAIL_HEADS = { iron: ['#6b6b6b', '#1e1e1e'], brass: ['#d8b35a', '#5a3d12'] };
-    const plaqueBoard = step => {
-        const wood = PLAQUE_WOODS[step.board], layers = [];
-        if (step.boardNails) {
-            const [fill, rim] = PLAQUE_NAIL_HEADS[step.boardNails];
-            ['left 0 bottom 0', 'right 0 bottom 0', 'left 0 top 58%', 'right 0 top 58%'].forEach(pos =>
-                layers.push(`radial-gradient(circle, #fff9 0 .6px, ${fill} 1px 1.7px, ${rim} 2.2px, transparent 2.6px) ${pos} / 6px 6px no-repeat`));
-        }
-        if (step.caps) {
-            ['left 0 bottom 0', 'right 0 bottom 0'].forEach((pos, i) =>
-                layers.push(`radial-gradient(circle at ${i ? '100%' : '0'} 100%, ${PLAQUE_BRASS[0]} 0 3px, ${PLAQUE_BRASS[1]} 6px, ${PLAQUE_BRASS[2]} 8.5px, #2a1a06 9.2px, transparent 9.8px) ${pos} / 12px 12px no-repeat`));
-            ['left 0 top 58%', 'right 0 top 58%'].forEach(pos =>
-                layers.push(`radial-gradient(circle, #fff6 0 .6px, ${PLAQUE_BRASS[0]} 1px, ${PLAQUE_BRASS[1]} 1.9px, ${PLAQUE_BRASS[2]} 2.5px, transparent 2.9px) ${pos} / 6px 6px no-repeat`));
-        }
-        layers.push(wood.grain);
-        return `border-color: ${wood.border};\nbackground: ${layers.join(',\n')};\nbox-shadow: ${wood.bevel}inset 1px 1px 0 rgba(255, 230, 200, .18), inset -1px -1px 0 rgba(0, 0, 0, .55), 0 3px 5px #000b;`;
     };
 
     const PLAQUE_LETTERS = {
@@ -289,8 +241,29 @@
         }
     };
     const TITLE_PLAQUE_CSS = `
+.bbgl-title-card.is-progressive {
+    background: none;
+    border-color: transparent;
+    box-shadow: none;
+}
+
+.bbgl-title-card.is-progressive::after {
+    content: '';
+    position: absolute;
+    inset: ${PLAQUE_BOARD_INSET};
+    z-index: -1;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: center / 100% 100% no-repeat;
+    -webkit-mask-image: none;
+    mask-image: none;
+    opacity: 1;
+    pointer-events: none;
+}
+
 .bbgl-title-card.is-progressive .bbgl-title-card-sign-face::before {
-    inset: ${PLAQUE_VALANCE_INSET};
+    inset: ${PLAQUE_DRAPE_INSET};
     will-change: transform;
     background-position: center;
     background-size: 100% 100%;
@@ -306,33 +279,186 @@
     mix-blend-mode: hard-light;
     opacity: .8;
 }
-` + plaqueRules('', plaqueBoard) +
+` + plaqueRules('::after', step => `background-image: ${plaqueArtUrl(PLAQUE_BOARD_ART[step.board])};`) +
+        plaqueRules(' .bbgl-title-card-sign-face::before', step => `background-image: ${plaqueArtUrl(PLAQUE_DRAPE_ART[step.fabric])};`) +
         plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-word', step => PLAQUE_LETTERS[step.letters].words + (step.letterStroke ? '\n-webkit-text-stroke: .02em rgba(110, 72, 18, .55);' : '')) +
         plaqueRules(' .bbgl-title-card-title-label', step => PLAQUE_LETTERS[step.letters].label) +
-        plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label) +
-        plaqueRules('::after', step => step.board.startsWith('walnut') ? "content: '';\ninset: 3px;\nborder: 1px solid rgba(214, 173, 86, .55);\nborder-radius: 2px;\nbackground: none;\nbox-shadow: 0 0 0 1px rgba(0, 0, 0, .25);\n-webkit-mask-image: none;\nmask-image: none;" : '');
+        plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label);
+
+    const RANK_EMBLEM_CSS = `
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96%;
+    height: 96%;
+    max-width: 100%;
+    margin: auto;
+    container-type: size;
+    pointer-events: auto;
+    cursor: help;
+    z-index: 1;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    position: relative;
+    display: block;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+}
+
+.bbgl-title-card .bbgl-title-card-rank-label {
+    display: none;
+}
+
+.bbgl-rank-surface-lighting {
+    position: absolute;
+    pointer-events: none;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-label {
+    filter: var(--bbgl-shield-light, none);
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-label {
+    filter: var(--bbgl-gold-light, none);
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+        filter: none;
+    }
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300%;
+    background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+    mix-blend-mode: screen;
+    transform: translateX(-46.666667%);
+    will-change: transform;
+    animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    animation: none;
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps,
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps.is-back {
+    left: 50%;
+    top: 50%;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+    transform: translate(-50%, -50%);
+    z-index: 0;
+    mix-blend-mode: screen;
+    opacity: .55;
+    filter: blur(1px);
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps.is-front {
+    z-index: 4;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
+    z-index: 2;
+    mix-blend-mode: screen;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-lamp-glow {
+    filter: blur(1.2px);
+}
+
+.bbgl-lamp-sweep,
+.bbgl-lamp-spot {
+    transform-box: view-box;
+    animation: bbgl-lamp-sweep 7s ease-in-out infinite alternate;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+.bbgl-lamp-spot.is-left { animation-name: bbgl-lamp-spot-left; }
+.bbgl-lamp-spot.is-right { animation-name: bbgl-lamp-spot-right; }
+
+.bbgl-lamp-sweep.is-right,
+.bbgl-lamp-spot.is-right {
+    animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) - 3.5s);
+}
+
+@keyframes bbgl-lamp-sweep { from { transform: rotate(-11deg); } to { transform: rotate(11deg); } }
+@keyframes bbgl-lamp-spot-left { from { transform: translate(-26px, -6px); } to { transform: translate(14px, 8px); } }
+@keyframes bbgl-lamp-spot-right { from { transform: translate(-14px, 8px); } to { transform: translate(26px, -6px); } }
+
+#bbgl-panel.bbgl-no-animations :is(.bbgl-lamp-sweep, .bbgl-lamp-spot) {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(.bbgl-lamp-sweep, .bbgl-lamp-spot) { animation: none; }
+}
+
+#bbgl-panel.bbgl-compact .bbgl-title-card-rank {
+    width: calc(100% - 4px);
+}
+`;
 
     const plaqueArtCSS = (() => {
-        const FABRICS = {
-            canvas: {
-                base: '#d6cbb0', weave: { p: 2.6, thread: ['#b6a888', '#efe6cf', '#d6cab0'], gap: '#9a8c6d' },
-                jitter: .6, slubs: .22, tone: .1, stains: .22, fold: { blur: 3, scale: 3.2, wrinkle: .3, wf: '.04 .03' }, frayColor: '#e4d9bf'
-            },
-            felt: {
-                base: '#2c2d2b', knotBase: '#5e3d69', fibers: .06, fiberFreq: '.8',
-                tone: .08, fold: { blur: 3.6, scale: 2.6, wrinkle: .05, wf: '.05 .05' }
-            },
-            velvet: {
-                base: '#461441', sheen: .35, knot: { base: '#262527', sheen: 0, fibers: .06, fiberFreq: '.8' },
-                tone: .2, fold: { blur: 3, scale: 5, wrinkle: .12, wf: '.03 .03' }
-            }
+        const FOLDS = {
+            canvas: { blur: 3, scale: 3.2, wrinkle: .3, wf: '.04 .03' },
+            felt: { blur: 3.6, scale: 2.6, wrinkle: .05, wf: '.05 .05' },
+            velvet: { blur: 3, scale: 5, wrinkle: .12, wf: '.03 .03' }
         };
-        const GOLD = ['#fff0b3', '#e2b755', '#9c6f22'];
-        const TASSEL_AT = [19.5, 100.4], TASSEL_HEAD = TASSEL_AT[1] + 54;
         const f1 = n => +n.toFixed(2);
-        const rng = seed => { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); };
-        const stops = (cs, offs) => cs.map((c, i) => `<stop offset="${offs[i]}" stop-color="${c}"/>`).join('');
-        const fullRect = attrs => `<rect width="240" height="106" ${attrs}/>`;
         const svgUrl = body => `url("data:image/svg+xml,${`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 4 240 ${PLAQUE_VB_H}" preserveAspectRatio="none">${body}</svg>`.replace(/"/g, "'").replace(/%/g, '%25').replace(/#/g, '%23').replace(/</g, '%3C').replace(/>/g, '%3E')}")`;
         const mx = d => d.replace(/([MLCQHVZ])([^MLCQHVZ]*)/g, (m, c, args) => {
             const n = args.trim().split(/\s+/).filter(Boolean).map(Number);
@@ -340,30 +466,6 @@
             if (c === 'H') return 'H' + n.map(x => f1(240 - x)).join(' ');
             return c + n.map((v, i) => i % 2 === 0 ? f1(240 - v) : v).join(' ');
         });
-        const sampleQuads = (q, step) => {
-            const poly = [[q[0], q[1]]];
-            for (let i = 2; i < q.length; i += 4) {
-                const [x0, y0] = poly[poly.length - 1];
-                for (let k = 1; k <= 200; k++) {
-                    const t = k / 200, u = 1 - t;
-                    poly.push([u * u * x0 + 2 * u * t * q[i] + t * t * q[i + 2], u * u * y0 + 2 * u * t * q[i + 1] + t * t * q[i + 3]]);
-                }
-            }
-            const len = [0];
-            for (let i = 1; i < poly.length; i++) len.push(len[i - 1] + Math.hypot(poly[i][0] - poly[i - 1][0], poly[i][1] - poly[i - 1][1]));
-            const at = s => {
-                let i = 1;
-                while (i < poly.length - 1 && len[i] < s) i++;
-                const t = (s - len[i - 1]) / ((len[i] - len[i - 1]) || 1);
-                return [poly[i - 1][0] + (poly[i][0] - poly[i - 1][0]) * t, poly[i - 1][1] + (poly[i][1] - poly[i - 1][1]) * t];
-            };
-            const L = len[len.length - 1], pts = [];
-            for (let s = 0; s <= L; s += step) {
-                const [x, y] = at(s), [x2, y2] = at(Math.min(L, s + .5));
-                pts.push([x, y, Math.atan2(y2 - y, x2 - x)]);
-            }
-            return pts;
-        };
         const ridges = (list, idBase) => {
             let defs = '', paths = '';
             list.forEach(([d, w, o = 1, fade], i) => {
@@ -378,232 +480,30 @@
             });
             return { defs, paths };
         };
-        const flipRidges = list => list.map(([d, w, o, f]) => [mx(d), w, o, f]);
         const filterBox = 'x="0" y="0" width="240" height="106" filterUnits="userSpaceOnUse"';
-        const noise = (id, freq, octaves, seed, rgb, k, c) => `<filter id="${id}" ${filterBox}><feTurbulence type="fractalNoise" baseFrequency="${freq}" numOctaves="${octaves}" seed="${seed}"/><feColorMatrix values="0 0 0 0 ${rgb[0]}  0 0 0 0 ${rgb[1]}  0 0 0 0 ${rgb[2]}  ${f1(k)} 0 0 0 ${f1(c)}"/></filter>`;
         const foldsFilter = fo => `<filter id="folds" ${filterBox} color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="${fo.blur}" result="r"/>` +
             `<feTurbulence type="fractalNoise" baseFrequency="${fo.wf}" numOctaves="3" seed="7" result="n"/><feColorMatrix in="n" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${fo.wrinkle} 0 0 0 0" result="na"/>` +
             `<feComposite in="r" in2="na" operator="arithmetic" k2="1" k3="1" result="h"/><feDiffuseLighting in="h" surfaceScale="${fo.scale}" diffuseConstant="1" lighting-color="#fff"><feDistantLight azimuth="235" elevation="30"/></feDiffuseLighting></filter>`;
-        const materialDefs = m => {
-            let d = `<linearGradient id="gold" x1="0" y1="0" x2=".2" y2="1">${stops(GOLD, [0, .5, 1])}</linearGradient>` +
-                '<filter id="soft" x="-10%" y="-50%" width="120%" height="200%"><feGaussianBlur stdDeviation=".8"/></filter>' +
-                '<filter id="softWide" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2"/></filter>';
-            if (m.weave) {
-                const { p, thread: [dk, lt, md], gap } = m.weave;
-                const t = p * .8, o = (p - t) / 2, r = t * .45, thread = `<stop stop-color="${dk}"/><stop offset=".45" stop-color="${lt}"/><stop offset=".75" stop-color="${md}"/><stop offset="1" stop-color="${dk}"/>`;
-                d += `<linearGradient id="tv">${thread}</linearGradient><linearGradient id="th" x2="0" y2="1">${thread}</linearGradient>` +
-                    `<pattern id="weave" width="${f1(2 * p)}" height="${f1(2 * p)}" patternUnits="userSpaceOnUse"><rect width="${f1(2 * p)}" height="${f1(2 * p)}" fill="${gap}"/>` +
-                    `<rect y="${f1(o)}" width="${f1(2 * p)}" height="${f1(t)}" fill="url(#th)"/><rect y="${f1(p + o)}" width="${f1(2 * p)}" height="${f1(t)}" fill="url(#th)"/>` +
-                    `<rect x="${f1(o)}" y="${f1(-o)}" width="${f1(t)}" height="${f1(p + 2 * o - .2)}" rx="${f1(r)}" fill="url(#tv)"/><rect x="${f1(p + o)}" y="${f1(p - o)}" width="${f1(t)}" height="${f1(p + 2 * o - .2)}" rx="${f1(r)}" fill="url(#tv)"/></pattern>` +
-                    `<filter id="jit" ${filterBox}><feTurbulence type="fractalNoise" baseFrequency=".22" numOctaves="2" seed="3"/><feDisplacementMap in="SourceGraphic" scale="${m.jitter}" xChannelSelector="R" yChannelSelector="G"/></filter>`;
-            }
-            d += noise('tone', '.025 .035', 3, 11, [0, 0, 0], m.tone * 3, -m.tone * 1.3);
-            if (m.slubs) d += `<filter id="slubs" ${filterBox}><feTurbulence type="fractalNoise" baseFrequency=".015 .7" numOctaves="2" seed="5" result="h"/><feTurbulence type="fractalNoise" baseFrequency=".7 .015" numOctaves="2" seed="8" result="v"/><feComposite in="h" in2="v" operator="arithmetic" k2=".5" k3=".5"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  ${f1(m.slubs * 4)} 0 0 0 ${f1(-m.slubs * 1.9)}"/></filter>`;
-            const fib = m.fibers ? m : m.knot && m.knot.fibers ? m.knot : null;
-            if (fib) d += noise('fibers', fib.fiberFreq, 1, 2, [1, 1, 1], fib.fibers * 5, -fib.fibers * 2.4);
-            if (m.stains) d += noise('stains', '.012 .016', 2, 21, [.55, .42, .18], m.stains * 6, -m.stains * 3.6);
-            d += foldsFilter(m.fold);
-            if (m.sheen) d += `<filter id="sheen" ${filterBox} color-interpolation-filters="sRGB"><feGaussianBlur in="SourceAlpha" stdDeviation="3" result="r"/><feSpecularLighting in="r" surfaceScale="9" specularConstant=".9" specularExponent="14" lighting-color="#f2b8ea"><feDistantLight azimuth="235" elevation="38"/></feSpecularLighting></filter>`;
-            return d;
-        };
-        const cloth = (d, heights, m, id, { outline = 0, shade = 0, hollow = false, lit = true } = {}) => {
-            let g = fullRect(`fill="${m.base}"`);
-            if (m.weave) g += fullRect('fill="url(#weave)" filter="url(#jit)"');
-            if (m.slubs) g += fullRect('filter="url(#slubs)" opacity=".8"');
-            if (m.fibers) g += fullRect('filter="url(#fibers)"');
-            if (m.stains) g += fullRect('filter="url(#stains)" style="mix-blend-mode:multiply"');
-            g += fullRect('filter="url(#tone)"');
-            const h = (hollow ? '' : `<path d="${d}" fill="#000" fill-opacity=".3"/>`) + heights;
-            if (lit) g += `<g filter="url(#folds)" style="mix-blend-mode:hard-light" opacity=".8">${h}</g>`;
-            if (m.sheen) g += `<g filter="url(#sheen)" style="mix-blend-mode:screen" opacity="${m.sheen}">${h}</g>`;
-            if (shade) g += fullRect(`fill="#000" fill-opacity="${shade}"`);
-            return `<clipPath id="${id}"><path d="${d}"/></clipPath><g clip-path="url(#${id})">${g}<path d="${d}" fill="none" stroke="#000" stroke-opacity="${outline}" stroke-width="2" filter="url(#soft)"/></g>`;
-        };
-        const clipped = (clip, s) => `<g clip-path="url(#${clip})">${s}</g>`;
-        const softLine = (d, color, op, w, filter = 'soft', attrs = '') => `<path d="${d}" fill="none" stroke="${color}" stroke-opacity="${op}" stroke-width="${w}" filter="url(#${filter})"${attrs}/>`;
 
         const FACE = 'M17 5H223L210 78Q166 96 120 98Q74 96 30 78Z';
-        const LID = 'M6 89.5C14.5 82.5 29 80.5 40 87';
-        const LID_HEM = 'M7.5 85C15.5 78.5 28.5 76.5 38 82';
         const SIDE = 'M17 5C17 31 30 58 40 87C29 80.5 14.5 82.5 6 89.5C10 66 14 36 17 5Z';
-        const SIDE_OUTER = 'M6 89.5C10 66 14 36 17 5';
-        const BOARD_X = 15.5;
-        const KNOT = `${LID}C44.5 91 35 97 19.5 100.5C13 97.5 7.4 94 6 89.5Z`;
-        const FRONT = 'M15.5 84.5C23.3 82.1 32.5 82.5 40 87C44.5 91 35 97 19.5 100.5C16.6 99.6 15.5 97 15.5 93Z';
-        const FOLD_EDGE = 'M19.5 100.5C16.6 99.6 15.5 97 15.5 93V84.5';
-        const KNOT_RIM = 'M15.5 84.5C11.9 85.6 8.7 87.3 6 89.5C7.4 94 13 97.5 19.5 100.5';
-        const FRONT_RIM = 'M40 87C44.5 91 35 97 19.5 100.5';
-        const HEM = 'M30 77Q74 92 120 94Q166 92 210 77';
-        const HEM_EDGE_Q = [30, 78, 74, 96, 120, 98, 166, 96, 210, 78];
-        const HEM_EDGE = 'M30 78Q74 96 120 98Q166 96 210 78';
+        const KNOT = 'M6 89.5C14.5 82.5 29 80.5 40 87C44.5 91 35 97 19.5 100.5C13 97.5 7.4 94 6 89.5Z';
         const FACE_RIDGES = [['M18 7H222', 2.4, .7], ['M34 74Q120 108 206 74', 3, .55, 'ends'], ['M36 66Q120 94 204 66', 2.4, .35, 'ends']];
-        [['M36 75Q29 40 22 8', 3, .9, 'end'], ['M40 77Q40 44 44 9', 2.6, .6, 'end'], ['M43 79Q56 48 72 10', 2.2, .4, 'end']].forEach(r => FACE_RIDGES.push(r));
-        FACE_RIDGES.push(...flipRidges(FACE_RIDGES.slice(3)));
-        const SIDE_RIDGES = [['M19 7C21 32 28 57 35 84', 3, 1], ['M14 10C15 37 19 63 22 84', 2.4, .7, 'start'], ['M10 32C10.5 55 10 72 8.5 88', 2, .5, 'start']];
-        const KNOT_RIDGES = [[KNOT_RIM, 5, 1]];
-        const FRONT_RIDGES = [[FRONT_RIM, 5, 1], ['M20 99.9C17.6 99.2 16.7 96.8 16.7 93V84.8', 2.6, 1]];
-        const bottomPoints = n => {
-            const q = (t, a, c, b) => (1 - t) * (1 - t) * a + 2 * (1 - t) * t * c + t * t * b;
-            const pts = [];
-            for (let i = 0; i <= n; i++) {
-                const u = i / n, t = u < .5 ? u * 2 : (u - .5) * 2;
-                pts.push(u < .5 ? [q(t, 30, 74, 120), q(t, 78, 96, 98)] : [q(t, 120, 166, 210), q(t, 98, 96, 78)]);
-            }
-            return pts;
-        };
-
-        const FULL_TASSEL_DEFS = `<radialGradient id="knotGold" cx=".35" cy=".3" r=".8">${stops(['#fff0b3', '#e2b755', '#7a5418'], [0, .45, 1])}</radialGradient>` +
-            `<linearGradient id="tHead">${stops(['#8a5f1a', '#fff0b3', '#e2b755', '#7a5418'], [0, .3, .6, 1])}</linearGradient>` +
-            `<linearGradient id="tSkirt">${stops(['#8a5f1a', '#f0c95e', '#d9a948', '#6b4a14'], [0, .3, .65, 1])}</linearGradient>`;
-        const fullTassel = () => {
-            const [x, y] = TASSEL_AT, head = TASSEL_HEAD, ky = f1((y + head) / 2), r = rng(Math.round(x * 7));
-            const line = `M${x} ${y}V${head}`;
-            const cord = dx => `<g transform="translate(${dx} 0)"><path d="${line}" fill="none" stroke="#7a5418" stroke-width="1.15"/><path d="${line}" fill="none" stroke="#d9a948" stroke-width=".8"/><path d="${line}" fill="none" stroke="#fff0b3" stroke-opacity=".55" stroke-width=".25" transform="translate(-.2 0)"/></g>`;
-            const s = softLine(line, '#000', .45, 2.6) + cord(-.55) + cord(.55) +
-                `<ellipse cx="${x}" cy="${ky + .7}" rx="2.3" ry="2.1" fill="#000" fill-opacity=".45" filter="url(#soft)"/><ellipse cx="${x}" cy="${ky}" rx="2.1" ry="1.9" fill="url(#knotGold)" stroke="#5a3d12" stroke-width=".3"/>` +
-                `<path d="M${x - 1.9} ${ky - .7}Q${x} ${ky + .5} ${x + 1.9} ${ky - .7}M${x - 2} ${ky + .5}Q${x} ${ky + 1.6} ${x + 2} ${ky + .5}" fill="none" stroke="#6b4a14" stroke-opacity=".7" stroke-width=".35"/>` +
-                `<path d="M${x - 1} ${ky - 1.2}Q${x - .3} ${ky - 1.6} ${x + .6} ${ky - 1.4}" fill="none" stroke="#fff4c8" stroke-opacity=".85" stroke-width=".35" stroke-linecap="round"/>`;
-            let h = `<path d="M${x - 1.6} ${head + .4}Q${x - 2.9} ${head + 3.4} ${x - 2.2} ${head + 5.2}H${x + 2.2}Q${x + 2.9} ${head + 3.4} ${x + 1.6} ${head + .4}Q${x} ${head - .6} ${x - 1.6} ${head + .4}Z" fill="url(#tHead)" stroke="#5a3d12" stroke-width=".3"/>` +
-                `<path d="M${x - 1.5} ${head + 1.6}Q${x} ${head + 1} ${x + 1.5} ${head + 1.6}" fill="none" stroke="#fff4c8" stroke-opacity=".7" stroke-width=".35"/>` +
-                `<path d="M${x - 2.6} ${head + 5.2}H${x + 2.6}V${head + 6.6}H${x - 2.6}Z" fill="url(#tHead)" stroke="#5a3d12" stroke-width=".3"/><path d="M${x - 2.6} ${head + 5.9}H${x + 2.6}" stroke="#6b4a14" stroke-opacity=".6" stroke-width=".3" stroke-dasharray=".5 .5"/>`;
-            const top = head + 6.6;
-            let dark = '', light = '';
-            for (let i = 0; i < 14; i++) {
-                const u = i / 13 - .5, x0 = x + u * 5, x1 = x + u * 6.6 + (r() - .5) * .4, len = 10.2 + (r() - .5) * 1.4 - Math.abs(u) * 1.2;
-                const seg = `M${f1(x0)} ${f1(top)}Q${f1(x0 + u * .6)} ${f1(top + len * .6)} ${f1(x1)} ${f1(top + len)}`;
-                if (Math.abs(u) > .3 || i % 3 === 1) dark += seg; else light += seg;
-            }
-            h += `<path d="M${x - 2.5} ${top}L${x - 3.4} ${top + 9.6}Q${x} ${top + 10.6} ${x + 3.4} ${top + 9.6}L${x + 2.5} ${top}Z" fill="url(#tSkirt)"/>` +
-                `<path d="${dark}" fill="none" stroke="#7a5418" stroke-width=".45" stroke-linecap="round"/><path d="${light}" fill="none" stroke="#f3d27a" stroke-width=".4" stroke-linecap="round"/>`;
-            return s + `<g transform="translate(${x} ${head}) scale(1.35) translate(${-x} ${-head})">${h}</g>`;
-        };
-
-        const valanceSVG = o => {
-            const m = FABRICS[o.fabric];
-            let mirrorId = 0;
-            const mirror = s => { const id = `m${mirrorId++}`; return `<g id="${id}">${s}</g><use href="#${id}" transform="translate(240 0) scale(-1 1)"/>`; };
-            const faceRidges = ridges(FACE_RIDGES, 'fr');
-            let defs = materialDefs(m) + faceRidges.defs +
-                '<linearGradient id="crease"><stop stop-color="#000" stop-opacity=".8"/><stop offset="1" stop-color="#000" stop-opacity="0"/></linearGradient>' +
-                `<linearGradient id="goldCord" gradientUnits="userSpaceOnUse" x1="0" y1="4.4" x2="0" y2="6.8">${stops(GOLD, [0, .5, 1])}</linearGradient>`;
-            if (o.sheen) defs += '<linearGradient id="sheenG" x2="1">' + [[0, 0], [.3, .09], [.5, 0], [.7, .07], [1, 0]].map(([off, op]) => `<stop offset="${off}" stop-color="#fff" stop-opacity="${op}"/>`).join('') + '</linearGradient>';
-
-            let body = cloth(FACE, faceRidges.paths, m, 'cf', { outline: .35, lit: false });
-            if (o.sheen) body += `<path d="${FACE}" fill="url(#sheenG)"/>`;
-            body += mirror('<path d="M18 7C22 36 38 56 46 76L35 80C33 56 20 33 18 7Z" fill="url(#crease)" filter="url(#soft)" opacity=".85"/>');
-            if (o.laurel) {
-                let sprig = '';
-                for (let i = 0; i < 5; i++) {
-                    const t = i / 4, x = 118 - t * 15, y = 92.5 - t * t * 5;
-                    sprig += `<ellipse cx="${x.toFixed(1)}" cy="${(y - .9).toFixed(1)}" rx="2" ry=".8" transform="rotate(${(-25 - t * 20).toFixed(0)} ${x.toFixed(1)} ${(y - .9).toFixed(1)})" fill="url(#gold)"/>` +
-                        `<ellipse cx="${(x + .6).toFixed(1)}" cy="${(y + .9).toFixed(1)}" rx="1.8" ry=".7" transform="rotate(${(15 - t * 25).toFixed(0)} ${(x + .6).toFixed(1)} ${(y + .9).toFixed(1)})" fill="url(#gold)"/>`;
-                }
-                body += mirror(`<path d="M119 92.6Q110 92.4 102 87.2" fill="none" stroke="#b58a34" stroke-width=".5"/>${sprig}`);
-            }
-            if (o.filigree) body += mirror('<path d="M22 9C31 9 35 13 32 16C30 18 27 16 29 14.5M22 9C25 13 25 17 22 20C20 22 18 20 20 18.5" fill="none" stroke="url(#gold)" stroke-width=".8" stroke-linecap="round"/><circle cx="22" cy="9" r="1" fill="url(#gold)"/>');
-            if (o.hem) body += softLine(HEM, '#000', .25, 1.6, 'soft', ' transform="translate(0 .6)"') + `<path d="${HEM}" fill="none" stroke="${o.hem}" stroke-opacity=".8" stroke-width=".6" stroke-dasharray="2.4 1.6"/>`;
-            if (o.embroidery) {
-                let scroll = '';
-                sampleQuads([36, 75.5, 74, 89.5, 120, 91.5, 166, 89.5, 204, 75.5], 8.6).forEach(([x, y, a], i) => {
-                    scroll += `<g transform="translate(${f1(x)} ${f1(y)}) rotate(${f1(a * 180 / Math.PI)}) scale(1.7 ${i % 2 ? -1.7 : 1.7})"><path d="M-2.6 0C-2.6 -1.9 0 -1.9 0 0C0 1.5 1.9 1.5 1.9 .2" fill="none" stroke="url(#gold)" stroke-width=".5" stroke-linecap="round"/><ellipse cx="-1.3" cy="-1.9" rx=".9" ry=".4" transform="rotate(-20 -1.3 -1.9)" fill="url(#gold)"/></g>`;
-                });
-                body += `<g filter="url(#embShadow)">${scroll}</g>`;
-                defs += '<filter id="embShadow" x="-5%" y="-20%" width="110%" height="140%"><feDropShadow dx="0" dy=".35" stdDeviation=".25" flood-color="#000" flood-opacity=".7"/></filter>';
-            }
-            if (o.goldEdge) body += softLine(HEM_EDGE, '#000', .35, 2.2) + `<path d="${HEM_EDGE}" fill="none" stroke="url(#gold)" stroke-width="1.4"/><path d="${HEM_EDGE}" fill="none" stroke="#6b4a14" stroke-opacity=".45" stroke-width="1.4" stroke-dasharray=".9 1.2"/>`;
-            if (o.fray) {
-                const r = rng(7);
-                let d = '';
-                sampleQuads(HEM_EDGE_Q, .9).forEach(([x, y, a]) => {
-                    const nx = -Math.sin(a), ny = Math.cos(a);
-                    let dx = nx, dy = ny + .8;
-                    const l = Math.hypot(dx, dy); dx /= l; dy /= l;
-                    const len = .7 + r() * r() * 3.2, lean = (r() - .5) * .8;
-                    d += `M${f1(x - nx * .4)} ${f1(y - ny * .4)}l${f1(dx * len + lean)} ${f1(dy * len)}`;
-                });
-                body += softLine(HEM_EDGE, '#2a1c0e', .3, 1.2) + `<path d="${d}" stroke="${m.frayColor}" stroke-width=".45" stroke-opacity=".9"/>`;
-            }
-            if (o.bullion) {
-                let a = '', b = '';
-                bottomPoints(58).forEach(([x, y], i) => {
-                    const len = i % 2 ? 4.4 : 5.2;
-                    let d = `M${f1(x)} ${f1(y - .3)}`;
-                    for (let k = 0; k < 4; k++) d += `l${k % 2 ? -.45 : .45} ${f1(len / 4)}`;
-                    if (i % 2) b += d; else a += d;
-                });
-                body += softLine(a + b, '#000', .45, 1.3, 'soft', ' transform="translate(0 .6)"') +
-                    `<path d="${a}" fill="none" stroke="#c89a3c" stroke-width=".9" stroke-linejoin="round"/><path d="${b}" fill="none" stroke="#a97d2c" stroke-width=".9" stroke-linejoin="round"/>` +
-                    `<path d="${a}${b}" fill="none" stroke="#fff0b3" stroke-opacity=".55" stroke-width=".3" stroke-dasharray=".5 .7"/>`;
-            } else if (o.fringe) {
-                const pts = bottomPoints(60);
-                o.fringe.forEach((c, k) => {
-                    const d = pts.filter((_, i) => i % 2 === k).map(([x, y]) => `M${x.toFixed(1)} ${(y - .4).toFixed(1)}v4.2`).join('');
-                    body += `<path d="${d}" stroke="${c}" stroke-width=".7"/>`;
-                });
-            }
-
-            const km = m.knot ? { ...m, ...m.knot } : m.knotBase ? { ...m, base: m.knotBase } : m;
-            const own = m.knot || m.knotBase;
-            [0, 1].forEach(i => {
-                const flip = d => i ? mx(d) : d;
-                const side = flip(SIDE), knot = flip(KNOT), front = flip(FRONT);
-                const [sr, kr, frr] = [[SIDE_RIDGES, 'sr'], [KNOT_RIDGES, 'kr'], [FRONT_RIDGES, 'fk']].map(([list, id]) => ridges(i ? flipRidges(list) : list, id + i));
-                defs += sr.defs + kr.defs + frr.defs;
-                const edge = i ? 240 - BOARD_X : BOARD_X, out = i ? 1 : -1;
-                defs += `<linearGradient id="wrap${i}" gradientUnits="userSpaceOnUse" x1="${edge}" y1="0" x2="${f1(edge + out * 10)}" y2="0"><stop stop-opacity=".55"/><stop offset="1" stop-opacity=".05"/></linearGradient>`;
-                body += cloth(side, sr.paths, m, `cs${i}`, { outline: .5, shade: .2 }) + `<path d="${side}" fill="none" stroke="#000" stroke-opacity=".35" stroke-width=".6"/>`;
-                if (o.goldEdge) body += `<path d="${side}" fill="none" stroke="url(#gold)" stroke-width=".7"/>`;
-                body += clipped(`cs${i}`, softLine(flip(SIDE_OUTER), '#000', .5, 7, 'softWide'));
-                body += `<path d="${knot}" fill="#000" fill-opacity=".45" filter="url(#soft)" transform="translate(0 1)"/>` +
-                    cloth(knot, kr.paths, km, `ck${i}`, { shade: own ? .35 : .55, hollow: true }) +
-                    clipped(`ck${i}`, softLine(flip(KNOT_RIM), '#fff', .22, 1.1)) +
-                    `<path d="${knot}" fill="none" stroke="#000" stroke-opacity=".3" stroke-width=".5"/>` +
-                    clipped(`ck${i}`, `<rect x="${i ? edge : 0}" width="${BOARD_X}" height="106" fill="url(#wrap${i})"/>`);
-                body += `<clipPath id="kc${i}"><path d="${knot}"/></clipPath>` + clipped(`kc${i}`,
-                    `<path d="${front}" fill="#000" fill-opacity=".6" filter="url(#softWide)" transform="translate(${out * 3.5} .6)"/>` +
-                    `<path d="${front}" fill="#000" fill-opacity=".6" filter="url(#soft)" transform="translate(${out * .9} .2)"/>`);
-                body += cloth(front, frr.paths, km, `cfr${i}`, { shade: own ? .12 : .25, hollow: true }) +
-                    clipped(`cfr${i}`, softLine(flip(FRONT_RIM), '#fff', .2, 1.1) +
-                        softLine(flip(FOLD_EDGE), '#fff', .16, 1.4, 'soft', ` transform="translate(${-out * 1.3} 0)"`) + softLine(flip(FOLD_EDGE), '#000', .5, .9));
-                body += clipped(`kc${i}`, `<path d="${side}" fill="#000" fill-opacity=".65" filter="url(#softWide)" transform="translate(0 2.8)"/>` +
-                    `<path d="${side}" fill="#000" fill-opacity=".5" filter="url(#soft)" transform="translate(0 .9)"/>`);
-            });
-            body += softLine(LID + mx(LID), '#000', .55, 1.4);
-            if (o.hem) body += `<path d="${LID_HEM}${mx(LID_HEM)}" fill="none" stroke="${o.hem}" stroke-opacity=".6" stroke-width=".55" stroke-dasharray="2.4 1.6"/>`;
-            if (o.tassels) {
-                const [cord, bodyC] = o.tassels, [tx, ty] = TASSEL_AT, top = TASSEL_HEAD + 5;
-                body += mirror(`<path d="M${tx} ${ty}V${top - .6}" stroke="${cord}" stroke-width=".8"/><circle cx="${tx}" cy="${top}" r="1.5" fill="${cord}"/>` +
-                    `<path d="M${tx - 1.7} ${top + 1}L${tx - 3} ${top + 12.3}H${tx + 3}L${tx + 1.7} ${top + 1}Z" fill="${bodyC}"/><path d="M${tx - 1.7} ${top + 3.8}V${top + 12.1}M${tx - .6} ${top + 3.8}V${top + 12.2}M${tx + .6} ${top + 3.8}V${top + 12.2}M${tx + 1.7} ${top + 3.8}V${top + 12.1}" stroke="#000" stroke-opacity=".28" stroke-width=".3"/>` +
-                    `<path d="M${tx - 2} ${top + 2.2}H${tx + 2}" stroke="${cord}" stroke-width=".9"/>`);
-            }
-            if (o.fullTassels) {
-                defs += FULL_TASSEL_DEFS;
-                body += mirror(fullTassel());
-            }
-            if (o.cord) body += '<path d="M16 5.6H224" stroke="#000" stroke-opacity=".4" stroke-width="3" filter="url(#soft)" transform="translate(0 .8)"/><path d="M16 5.6H224" stroke="url(#goldCord)" stroke-width="2.4" stroke-linecap="round"/><path d="M16 5.6H224" stroke="#6b4a14" stroke-opacity=".55" stroke-width="2.4" stroke-dasharray="1 1.6"/>';
-            if (o.nails || o.tacks) {
-                const [fill, rim] = PLAQUE_NAIL_HEADS[o.nails ? 'iron' : 'brass'];
-                body += [22, 71, 120, 169, 218].map(x => `<circle cx="${x + .3}" cy="9" r="1.7" fill="#000" fill-opacity=".45" filter="url(#soft)"/><circle cx="${x}" cy="8.4" r="1.45" fill="${fill}" stroke="${rim}" stroke-width=".45"/><circle cx="${x - .4}" cy="8" r=".45" fill="#fff" fill-opacity=".5"/>`).join('');
-            }
-            return svgUrl(`<defs>${defs}</defs>${body}`);
-        };
+        const SIDE_FOLDS = [['M36 75Q29 40 22 8', 3, .9, 'end'], ['M40 77Q40 44 44 9', 2.6, .6, 'end'], ['M43 79Q56 48 72 10', 2.2, .4, 'end']];
+        FACE_RIDGES.push(...SIDE_FOLDS, ...SIDE_FOLDS.map(([d, w, o, f]) => [mx(d), w, o, f]));
 
         const lightSVG = fabric => {
             const r = ridges(FACE_RIDGES, 'fr');
-            const defs = r.defs + foldsFilter(FABRICS[fabric].fold) +
+            const defs = r.defs + foldsFilter(FOLDS[fabric]) +
                 `<mask id="face" maskUnits="userSpaceOnUse" x="0" y="0" width="240" height="106"><path d="${FACE}" fill="#fff"/><path d="${SIDE}${mx(SIDE)}${KNOT}${mx(KNOT)}" fill="#000"/></mask>`;
             return svgUrl(`<defs>${defs}</defs><g mask="url(#face)"><g filter="url(#folds)"><path d="${FACE}" fill="#000" fill-opacity=".3"/>${r.paths}</g></g>`);
         };
 
-        return s => {
-            const step = PLAQUE_STEPS[s];
-            return `${plaqueEach([s], ' .bbgl-title-card-sign-face::before')} { background-image: ${valanceSVG(step)}; }\n` +
-                `${plaqueEach([s], '')} { --bbgl-plaque-light: ${lightSVG(step.fabric)}; }\n`;
-        };
+        return s => `${plaqueEach([s], '')} { --bbgl-plaque-light: ${lightSVG(PLAQUE_STEPS[s].fabric)}; }\n`;
     })();
     const plaqueArtBuilt = new Set();
     function ensurePlaqueArt(stage) {
-        if (!TITLE_PLAQUE_PROGRESSIVE || plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
+        if (plaqueArtBuilt.has(stage) || !PLAQUE_STEPS[stage]) return;
         plaqueArtBuilt.add(stage);
         let style = document.getElementById('bbgl-plaque-art');
         if (!style) {
@@ -645,16 +545,56 @@
         }).catch(() => {});
     }
 
+    const ASSET_ROOT = 'https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/Assets/';
+    const CAL_IMG_BASE = cdnize(ASSET_ROOT + 'Calendar/');
+    const CUSTOM_STICKERS = [
+        { id: 1, name: "Just Checking the Mirror", art: 'Gym/jst-chk-mirrr' },
+        { id: 2, name: "Up, Down, Repeat", art: 'Gym/up-dn-rpt' },
+        { id: 3, name: "Flat Bench Therapy", art: 'Gym/flt-bnch-thrpy' },
+        { id: 4, name: "Bring Home the Feed", art: 'Gym/brng-hm-feed' },
+        { id: 5, name: "Never Skip Leg Day", art: 'Gym/nvr-skp-leg' },
+        { id: 6, name: "Tire Rotation", art: 'Gym/tire-rotn' },
+        { id: 7, name: "Back End Engagement", art: 'Gym/bck-end-engmt' },
+        { id: 8, name: "The Upside of Exercise", art: 'Gym/upsd-exrcse' },
+        { id: 9, name: "Shellshock Stretches", art: 'Gym/shlshk-strch' },
+        { id: 10, name: "Certified Cardio", art: 'Gym/crtfd-crdio' },
+        { id: 11, name: "Just One More Spin", art: 'Casino/jst-one-spn' },
+        { id: 12, name: "Bingo! I Think...", art: 'Casino/bingo-i-thnk' },
+        { id: 13, name: "Lucky Shot", art: 'Casino/lcky-sht' },
+        { id: 14, name: "Holy Craps", art: 'Casino/holy-crps' },
+        { id: 15, name: "Tilted in My Favor", art: 'Casino/tltd-my-fvr' },
+        { id: 16, name: "Choose Wisely", art: 'Casino/chse-wsly' },
+        { id: 17, name: "Hit Me", art: 'Casino/hit-me' },
+        { id: 18, name: "Dead Men's Hand", art: 'Casino/dead-mens' },
+        { id: 19, name: "Trigger Warning", art: 'Casino/trgr-wrng' },
+        { id: 20, name: "Leslie's Sick Day", art: 'Casino/lsls-sck-dy' }
+    ];
+    CUSTOM_STICKERS.forEach(s => {
+        s.url = cdnize(ASSET_ROOT + 'Stickerbook/' + s.art + '.webp');
+        s.thumbUrl = cdnize(ASSET_ROOT + 'Calendar/Stickers/' + s.art + '.webp');
+    });
     const SEASONAL_HEADER_IMGS = [
         'wintr-headr', 'wintr-headr', 'sprng-hdr', 'sprng-hdr', 'sprng-hdr', 'smr-hdr',
         'smr-hdr', 'smr-hdr', 'fal-hdr', 'fal-hdr', 'fal-hdr', 'wintr-headr'
-    ].map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+    ].map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
+    const SOUTHERN_TZ = /^(Australia|Antarctica)\/|^Pacific\/(Auckland|Chatham|Fiji|Tongatapu|Apia|Noumea|Efate|Norfolk|Rarotonga|Tahiti|Port_Moresby)$|^America\/(Argentina\/.+|Sao_Paulo|Santiago|Punta_Arenas|Montevideo|Asuncion|Lima|La_Paz)$|^Africa\/(Johannesburg|Maputo|Harare|Windhoek|Gaborone|Maseru|Mbabane|Lusaka|Lubumbashi|Blantyre)$|^Indian\/(Reunion|Mauritius|Antananarivo)$|^Atlantic\/Stanley$/;
+    let _tzSouthern = null;
+    function isSouthernHemisphere() {
+        const mode = runtime.devMode ? runtime._devHemisphere : null;
+        if (mode === 'north') return false;
+        if (mode === 'south') return true;
+        if (_tzSouthern === null) {
+            try { _tzSouthern = SOUTHERN_TZ.test(Intl.DateTimeFormat().resolvedOptions().timeZone || ''); } catch (e) { _tzSouthern = false; }
+        }
+        return _tzSouthern;
+    }
+    const seasonalHeaderImg = m => SEASONAL_HEADER_IMGS[isSouthernHemisphere() ? (m + 6) % 12 : m];
     const ASSETS = {
-        HEADER_IMG: SEASONAL_HEADER_IMGS[TimeManager.now().month],
-        GLASS_OVERLAY: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/glass-ovly.webp"),
-        STICKER_BG: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Stickerbook/stkr-bckgr.webp"),
-        NEW_STICKER_FRAME: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/nw-stickr.webp"),
-        CUSTOM_NOTE: cdnize("https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/cstm-note.webp"),
+        HEADER_IMG: seasonalHeaderImg(TimeManager.now().month),
+        GLASS_OVERLAY: cdnize(ASSET_ROOT + 'Calendar/glass-ovly.webp'),
+        STICKER_BG: cdnize(ASSET_ROOT + 'Stickerbook/stkr-bckgr.webp'),
+        NEW_STICKER_FRAME: cdnize(ASSET_ROOT + 'Calendar/nw-stickr.webp'),
+        CUSTOM_NOTE: cdnize(ASSET_ROOT + 'Calendar/cstm-note.webp'),
         GRADIENT: `<defs><linearGradient id="bbgl_silver_grad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#d9d9d9;stop-opacity:1" /><stop offset="100%" style="stop-color:#999999;stop-opacity:1" /></linearGradient></defs>`
     };
     const ICONS = {
@@ -682,7 +622,7 @@
         CHEVRON: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg>`
     };
     const CROWN_BADGE_URLS = ['A0crwn2', 'A1crwn2', 'A2crwn2', 'Fcrwn2']
-        .map(name => cdnize(`https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/${name}.webp`));
+        .map(name => cdnize(`${ASSET_ROOT}Calendar/${name}.webp`));
     const VALVE_METAL = {
         steel: ['#c0c0b6', '#707675', '#3f4749', '#252c2e', '#171d1f', '#505654', '#858983', '#14191a'],
         fitting: ['#12191d', '#8e999e', '#c5cdd0', '#626e74', '#263036', '#515d63', '#11181c'],
@@ -713,14 +653,18 @@
         return { steel: vars(c => c), silver: vars(tiers.silver), gold: vars(tiers.gold), platinum: vars(tiers.platinum) };
     })();
     const GAS_SMOKE = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='30' preserveAspectRatio='none'%3E%3Cfilter id='n' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .16' numOctaves='3' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 2.2 -.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E") 0 0 / 300px 100% repeat-x`;
-    const sheenFill = ([edge, shadow, low, mid, peak], hi) => `background:
+    const FILL_DIM = .26;
+    const sheenFill = ([edge, shadow, low, mid, peak], hi, dim = FILL_DIM, lift = 1.35) => `background:
+                            linear-gradient(rgba(0, 0, 0, ${dim}), rgba(0, 0, 0, ${dim})),
                             linear-gradient(100deg, transparent 0%, rgba(${hi}, .22) 8%, transparent 16%, transparent 38%, rgba(${hi}, .16) 46%, transparent 54%, transparent 72%, rgba(${hi}, .2) 80%, transparent 88%),
                             linear-gradient(180deg, transparent 30%, rgba(${hi}, .55) 42%, rgba(${hi}, .15) 47%, transparent 54%),
                             ${GAS_SMOKE},
                             linear-gradient(180deg, ${edge} 0%, ${shadow} 18%, ${low} 32%, ${mid} 42%, ${peak} 48%, ${mid} 56%, ${low} 70%, ${shadow} 84%, ${edge} 100%),
                             ${shadow};
-                        background-blend-mode: screen, screen, soft-light, normal, normal;
-                        box-shadow: none;`;
+                        background-blend-mode: normal, screen, screen, soft-light, normal, normal;
+                        box-shadow: none;
+                        --bbgl-fill-dim: ${dim};
+                        --bbgl-gain-lift: ${lift};`;
     const BAR_METAL_PALETTE = [[0, '#161616'], [22, '#353535'], [42, '#4b4b4b'], [50, '#555555'], [60, '#494949'], [80, '#2e2e2e'], [100, '#111111']];
     const SHEEN_FPS = 30;
     const cubicBezier = (x1, y1, x2, y2) => {
@@ -3407,6 +3351,7 @@
                         background-size: calc(100% + 1px) calc(100% + var(--bbgl-header-crop-b, 0px));
                         background-position: left var(--bbgl-header-pos-y, bottom);
                         opacity: 0.85;
+                        filter: brightness(.82);
                         z-index: 0;
                         pointer-events: none;
                         border-radius: 3px 3px 0 0;
@@ -3449,6 +3394,10 @@
                         margin-bottom: 6px;
                         transition: transform .2s, text-shadow .2s;
                         will-change: transform;
+                    }
+
+                    #bbgl-panel.bbgl-compact .arrow-btn {
+                        margin-bottom: 1px;
                     }
 
                     @media (hover: hover) {
@@ -3885,9 +3834,9 @@
                         pointer-events: none;
                     }
 
-                    body:not(.is-touch-device) .bbgl-day-cell:not(.has-new-note).is-hover-intent .bbgl-custom-note,
-                    .bbgl-day-cell:not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
-                    .bbgl-day-cell.is-viewing .bbgl-custom-note {
+                    body:not(.is-touch-device) .bbgl-day-cell:is(.has-sticker, .has-note-over-stack):not(.has-new-note).is-hover-intent .bbgl-custom-note,
+                    .bbgl-day-cell:is(.has-sticker, .has-note-over-stack):not(.has-new-note).is-scrub-hovered .bbgl-custom-note,
+                    .bbgl-day-cell:is(.has-sticker, .has-note-over-stack).is-viewing .bbgl-custom-note {
                         transform: translateX(110%) translateY(-20%) rotate(20deg);
                         transition: transform .25s ease-in;
                         transition-delay: var(--pi-note-offset, 0s);
@@ -3980,23 +3929,24 @@
                     }
 
                     .bbgl-note-tools {
-                        --bbgl-note-btn: 27px;
+                        --bbgl-note-btn: 29px;
+                        --bbgl-note-top: -2px;
                         position: absolute;
-                        top: 1px;
+                        top: var(--bbgl-note-top);
                         left: 50%;
-                        transform: translateX(-50%);
+                        transform: translateX(calc(-50% - var(--bbgl-note-btn) * .12));
                         z-index: 12;
                         display: flex;
                     }
 
                     #bbgl-panel.bbgl-expanded .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(33px, calc(33px + 6px * var(--bbgl-dock-t)), 39px);
-                        top: 3px;
+                        --bbgl-note-btn: clamp(35px, calc(35px + 13px * var(--bbgl-dock-t)), 48px);
+                        --bbgl-note-top: 3px;
                     }
 
                     #bbgl-panel.bbgl-mode-page .bbgl-note-tools {
-                        --bbgl-note-btn: clamp(35px, calc(35px + 14px * var(--bbgl-page-t)), 49px);
-                        top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
+                        --bbgl-note-btn: clamp(37px, calc(37px + 15px * var(--bbgl-page-t)), 52px);
+                        --bbgl-note-top: clamp(3px, calc(3px + 7px * var(--bbgl-page-t)), 10px);
                     }
 
                     .bbgl-note-btn {
@@ -4010,16 +3960,22 @@
                         transform: rotate(-4deg);
                         filter: drop-shadow(-1px 3px 3px rgba(0, 0, 0, .55));
                         transition: transform .15s ease-out, filter .15s ease-out;
+                        container-type: normal;
+                    }
+
+                    .bbgl-note-btn .bbgl-note-text {
+                        inset: 15% 4% 9% 10%;
+                        overflow: visible;
                     }
 
                     .bbgl-note-btn .bbgl-note-text > span {
-                        font-size: 25cqw;
+                        font-size: calc(var(--bbgl-note-btn) * .29 - .5px);
                         line-height: .95;
                     }
 
                     @media (hover: hover) {
                         .bbgl-note-btn:hover {
-                            transform: rotate(-1deg) scale(1.06);
+                            transform: rotate(-4deg) scale(1.06);
                         }
                     }
 
@@ -4029,36 +3985,41 @@
 
                     .bbgl-note-clear-btn {
                         position: absolute;
-                        right: calc(100% + 3px);
-                        top: 50%;
-                        transform: translateY(-50%);
-                        padding: 1px 2px;
-                        color: rgba(255, 255, 255, .75);
-                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
-                        font-size: calc(var(--bbgl-note-btn) * .4);
-                        line-height: 1;
-                        white-space: nowrap;
-                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 1px 2px #000;
+                        left: calc(100% + var(--bbgl-note-btn) * .14);
+                        top: 10%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-sizing: border-box;
+                        width: calc(var(--bbgl-note-btn) * .3);
+                        height: calc(var(--bbgl-note-btn) * .48);
+                        border-radius: calc(var(--bbgl-note-btn) * .07);
+                        border: 1px solid rgba(255, 255, 255, .35);
+                        background: rgba(12, 12, 12, .78);
+                        box-shadow: 0 1px 3px rgba(0, 0, 0, .7);
+                        color: #ff4d4d;
+                        font: 700 calc(var(--bbgl-note-btn) * .23)/1 sans-serif;
                         cursor: pointer;
                         user-select: none;
                         -webkit-user-select: none;
-                        transition: color .15s, text-shadow .15s, opacity .15s;
+                        transition: background .15s, border-color .15s, color .15s;
                     }
 
                     @media (hover: hover) {
                         .bbgl-note-clear-btn:hover {
-                            color: #fff;
+                            border-color: rgba(255, 110, 110, .85);
+                            color: #ff7070;
                         }
                     }
 
                     .bbgl-note-clear-btn.is-engaged {
-                        color: #ff8a8a;
-                        text-shadow: 0 0 1px rgba(0, 0, 0, .95), 0 0 6px rgba(214, 64, 64, .9);
+                        background: #c62828;
+                        border-color: #ff8a8a;
+                        color: #fff;
                     }
 
                     .bbgl-note-clear-btn.is-empty {
-                        opacity: .4;
-                        pointer-events: none;
+                        display: none;
                     }
 
                     .bbgl-note-ghost {
@@ -4898,7 +4859,7 @@
                     }
 
                     #bbgl-level-num {
-                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(7px, 1.8cqi, 10px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -5058,11 +5019,33 @@
                         z-index: 2;
                         border-radius: 1px / 35%;
                         box-sizing: content-box;
-                        padding-right: 20px;
-                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
-                        mask-image: linear-gradient(90deg, #000 calc(100% - 20px), rgba(0, 0, 0, .8) calc(100% - 14px), rgba(0, 0, 0, .4) calc(100% - 7px), transparent);
+                        padding-right: 2px;
+                        -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 11px), rgba(0, 0, 0, .96) calc(100% - 7.3px), rgba(0, 0, 0, .85) calc(100% - 4.5px), rgba(0, 0, 0, .6) calc(100% - 2.3px), transparent);
+                        mask-image: linear-gradient(90deg, #000 calc(100% - 11px), rgba(0, 0, 0, .96) calc(100% - 7.3px), rgba(0, 0, 0, .85) calc(100% - 4.5px), rgba(0, 0, 0, .6) calc(100% - 2.3px), transparent);
                         transition: width .8s cubic-bezier(.25, 1, .5, 1);
                     }
+
+                    #bbgl-level-fill.level-full,
+                    #bbgl-gym-level-fill.level-full {
+                        padding-right: 0;
+                        -webkit-mask-image: none;
+                        mask-image: none;
+                    }
+
+                    .bbgl-exp-gain {
+                        display: none;
+                        position: absolute;
+                        inset: 0;
+                        --bbgl-gain-x: calc(var(--bbgl-gain-from) * .9cqi);
+                        background: inherit;
+                        filter: brightness(calc(var(--bbgl-gain-lift) / (1 - var(--bbgl-fill-dim)))) saturate(1.15);
+                        -webkit-mask-image: linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - min(30px, (100% - var(--bbgl-gain-x)) * .6)), #000 var(--bbgl-gain-x));
+                        mask-image: linear-gradient(90deg, transparent calc(var(--bbgl-gain-x) - min(30px, (100% - var(--bbgl-gain-x)) * .6)), #000 var(--bbgl-gain-x));
+                        pointer-events: none;
+                    }
+                    [style*="--bbgl-gain-from"] > .bbgl-exp-gain { display: block; }
+                    .bbgl-exp-gain,
+                    .bbgl-exp-gain::before { background-blend-mode: inherit; }
 
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill,
                     #bbgl-panel.bbgl-no-animations #bbgl-level-fill::after { animation: none; }
@@ -5236,7 +5219,7 @@
                     }
 
                     #bbgl-gym-level-num {
-                        font-family: 'VT323', 'Roboto Mono', 'Aldrich', 'Fjalla One', 'Arial Narrow', sans-serif;
+                        font-family: 'VT323', 'Roboto Mono', 'Fjalla One', 'Arial Narrow', sans-serif;
                         font-size: clamp(6.5px, 1.0cqi, 8.5px);
                         font-weight: 700;
                         letter-spacing: 0.5px;
@@ -5388,7 +5371,7 @@
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill,
                     #bbgl-panel[data-atrophy="2"] #bbgl-level-fill::before,
                     #bbgl-gym-level-container[data-atrophy="2"] #bbgl-gym-level-fill::before {
-                        ${sheenFill(['#2a1405', '#5f350b', '#9d6318', '#d99a36', '#f3c860'], '255, 245, 214')}
+                        ${sheenFill(['#2a1405', '#5f350b', '#9d6318', '#d99a36', '#f3c860'], '255, 245, 214', .16, 1.5)}
                     }
 
                     #bbgl-panel[data-atrophy="2"][data-level="100"] #bbgl-level-fill.level-full,
@@ -5486,7 +5469,7 @@
                     }
                     .bbgl-exp-bar { ${valveMetalVars.steel} --bbgl-valve-flash: var(--bbgl-charge); }
                     .bbgl-exp-bar[data-atrophy="1"] { ${valveMetalVars.silver} --bbgl-valve-flash: var(--bbgl-charge); }
-                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: var(--bbgl-charge-glow); }
+                    .bbgl-exp-bar[data-atrophy="2"] { ${valveMetalVars.gold} --bbgl-valve-flash: var(--bbgl-charge); }
                     .bbgl-exp-bar[data-atrophy="2"][data-level="100"] { ${valveMetalVars.platinum} --bbgl-valve-flash: rgba(215, 170, 255, .95); }
                     .bbgl-level-valve {
                         position: absolute;
@@ -5514,7 +5497,8 @@
                         clip-path: polygon(0 var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-band-top), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-notch-top), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-band-top), 100% var(--bbgl-band-top), 100% var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-band-bot), calc(45cqi + var(--bbgl-valve-w) * .27) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-notch-bot), calc(45cqi - var(--bbgl-valve-w) * .27) var(--bbgl-band-bot), 0 var(--bbgl-band-bot));
                     }
                     #bbgl-level-fill::before,
-                    #bbgl-gym-level-fill::before {
+                    #bbgl-gym-level-fill::before,
+                    .bbgl-exp-gain::before {
                         content: '';
                         position: absolute;
                         left: calc(45cqi - var(--bbgl-valve-w) * .27);
@@ -5666,11 +5650,9 @@
                     #bbgl-panel.bbgl-no-animations :is(.bbgl-exp-charge, .bbgl-exp-glow) { animation: none; -webkit-mask-position: 100% 0; mask-position: 100% 0; }
                     #bbgl-panel.bbgl-no-animations .bbgl-exp-glow::after { animation: none; }
                     .bbgl-exp-bar { --bbgl-lit: 1.25; --bbgl-flick: 1.45; --bbgl-peak: 1.5; --bbgl-halo-peak: 1.35; }
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-lit: 1.2; --bbgl-flick: 1.2; --bbgl-peak: 1.2; --bbgl-halo-peak: 1; }
-                    .bbgl-exp-bar[data-atrophy="2"] .bbgl-exp-glow { mix-blend-mode: normal; }
                     .bbgl-exp-bar { --bbgl-charge: #dfe8ee; --bbgl-charge-hot: #ffffff; --bbgl-charge-deep: #5e6b73; }
                     .bbgl-exp-bar[data-atrophy="1"] { --bbgl-charge: #4dff3a; --bbgl-charge-hot: #d4ffb0; --bbgl-charge-deep: #0f6a12; }
-                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #cf9612; --bbgl-charge-hot: #eda62e; --bbgl-charge-deep: #8c5c06; --bbgl-charge-core: #ffd08a; --bbgl-charge-glow: #f5b23c; }
+                    .bbgl-exp-bar[data-atrophy="2"] { --bbgl-charge: #ffc23e; --bbgl-charge-hot: #ffe08f; --bbgl-charge-deep: #b97b0e; --bbgl-charge-core: #fff6dc; }
 
                     .bbgl-exp-halo {
                         position: absolute;
@@ -5727,14 +5709,14 @@
                         100% { opacity: 0; filter: none; }
                     }
                     @keyframes bbgl-charge-flash {
-                        0%   { filter: brightness(var(--bbgl-lit)); }
-                        20%  { filter: brightness(var(--bbgl-peak)); }
-                        100% { filter: brightness(1); }
+                        0%   { opacity: 1; filter: brightness(var(--bbgl-lit)); }
+                        20%  { opacity: 1; filter: brightness(var(--bbgl-peak)); }
+                        100% { opacity: 0; filter: brightness(1); }
                     }
                     @keyframes bbgl-glow-flash {
-                        0%   { filter: blur(.6px) brightness(var(--bbgl-lit)); }
-                        20%  { filter: blur(.6px) brightness(var(--bbgl-peak)); }
-                        100% { filter: blur(.6px) brightness(1); }
+                        0%   { opacity: .8; filter: blur(.6px) brightness(var(--bbgl-lit)); }
+                        20%  { opacity: .8; filter: blur(.6px) brightness(var(--bbgl-peak)); }
+                        100% { opacity: 0; filter: blur(.6px) brightness(1); }
                     }
                     .bbgl-exp-stall { --bbgl-charge-end: 62%; --bbgl-front-end: 25%; }
                     .bbgl-exp-stall.bbgl-exp-charging:not(.bbgl-level-up-flash) :is(.bbgl-exp-charge, .bbgl-exp-halo),
@@ -7542,48 +7524,8 @@
                         min-width: 0;
                         min-height: 0;
                         padding: 0 0 4px;
-                        border: 1px solid #140b07;
-                        border-radius: 3px;
+                        border: 1px solid transparent;
                         box-sizing: border-box;
-                        background:
-                            repeating-linear-gradient(92deg, transparent 0 5px, rgba(8, 4, 2, .28) 6px, transparent 7px 13px),
-                            repeating-linear-gradient(88deg, rgba(176, 128, 92, .04) 0 1px, transparent 1px 3px),
-                            radial-gradient(ellipse 28% 120% at 24% 35%, #3a241800 45%, #140a0666 70%, transparent 78%),
-                            linear-gradient(100deg, #24160f, #3d281d 38%, #2f1e15 72%, #20140d);
-                        box-shadow:
-                            inset 1px 1px 0 rgba(186, 138, 100, .22),
-                            inset -1px -1px 0 rgba(0, 0, 0, .7),
-                            inset 0 0 0 3px rgba(16, 8, 4, .28);
-                    }
-
-                    .bbgl-title-card::before {
-                        content: none;
-                        position: absolute;
-                        inset: 0;
-                        z-index: -2;
-                        border: 1px solid color-mix(in srgb, var(--bbgl-t-win-color) 38%, rgba(255, 255, 255, .96));
-                        border-radius: inherit;
-                        pointer-events: none;
-                        filter:
-                            drop-shadow(0 0 1px color-mix(in srgb, var(--bbgl-t-win-color) 55%, #fff))
-                            drop-shadow(0 0 calc(4px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 55%, transparent))
-                            drop-shadow(0 0 calc(11px * var(--bbgl-t-win-glow)) color-mix(in srgb, var(--bbgl-t-win-color) 26%, transparent));
-                        animation: bbgl-neon-hum var(--bbgl-t-win-hum, 8s) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    .bbgl-title-card::after {
-                        content: none;
-                        position: absolute;
-                        inset: 1px;
-                        z-index: -1;
-                        border-radius: inherit;
-                        pointer-events: none;
-                        background:
-                            radial-gradient(ellipse 118% 118% at 50% 50%, transparent 34%, color-mix(in srgb, var(--bbgl-t-win-color) 13%, transparent) 100%),
-                            repeating-linear-gradient(0deg, transparent 0 2px, color-mix(in srgb, var(--bbgl-t-win-color) 9%, transparent) 2px 4px);
-                        -webkit-mask-image: radial-gradient(ellipse 130% 130% at 50% 50%, rgba(0, 0, 0, .25) 20%, #000 100%);
-                        mask-image: radial-gradient(ellipse 130% 130% at 50% 50%, rgba(0, 0, 0, .25) 20%, #000 100%);
                     }
 
                     .bbgl-title-card-rank {
@@ -7632,23 +7574,6 @@
                         margin: -1px 0;
                         pointer-events: none;
                     }
-
-                    .bbgl-title-card-connector::before,
-                    .bbgl-title-card-connector::after {
-                        content: none;
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        width: 2px;
-                        border-radius: 1px;
-                        background: linear-gradient(90deg, #090a0b, #73797a 43%, #292d2e 66%, #08090a);
-                        box-shadow:
-                            inset 0 0 1px rgba(255, 255, 255, .18),
-                            0 1px 1px rgba(0, 0, 0, .8);
-                    }
-
-                    .bbgl-title-card-connector::before { left: 0; }
-                    .bbgl-title-card-connector::after { right: 0; }
 
                     .bbgl-title-card-title-label {
                         position: static;
@@ -7701,7 +7626,6 @@
                         content: '';
                         position: absolute;
                         inset: 0;
-                        background: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%204%20240%2096%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22face%22%20x2%3D%22.2%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23363735%22%2F%3E%3Cstop%20offset%3D%22.45%22%20stop-color%3D%22%23262826%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23171917%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22side%22%3E%3Cstop%20stop-color%3D%22%23101210%22%2F%3E%3Cstop%20offset%3D%22.35%22%20stop-color%3D%22%2330332f%22%2F%3E%3Cstop%20offset%3D%22.7%22%20stop-color%3D%22%23242623%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%230a0c0a%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22purple%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%22.3%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22%2317101d%22%2F%3E%3Cstop%20offset%3D%22.28%22%20stop-color%3D%22%23684672%22%2F%3E%3Cstop%20offset%3D%22.55%22%20stop-color%3D%22%2370497c%22%2F%3E%3Cstop%20offset%3D%22.8%22%20stop-color%3D%22%2351335e%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23271b2d%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22crease%22%3E%3Cstop%20stop-color%3D%22%23000%22%20stop-opacity%3D%22.8%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23000%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3Cpattern%20id%3D%22weave%22%20width%3D%223%22%20height%3D%223%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M0%200L3%203M-1%202L1%204%22%20stroke%3D%22%23c7c4b6%22%20stroke-opacity%3D%22.055%22%20stroke-width%3D%22.5%22%2F%3E%3Cpath%20d%3D%22M0%203L3%200%22%20stroke%3D%22%23000%22%20stroke-opacity%3D%22.16%22%20stroke-width%3D%22.5%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M17%205H223L210%2078Q166%2096%20120%2098Q74%2096%2030%2078Z%22%20fill%3D%22url%28%23face%29%22%20stroke%3D%22%23111310%22%20stroke-width%3D%221%22%2F%3E%3Cpath%20d%3D%22M17%205H223L210%2078Q166%2096%20120%2098Q74%2096%2030%2078Z%22%20fill%3D%22url%28%23weave%29%22%2F%3E%3Cpath%20d%3D%22M18%207C22%2036%2038%2056%2046%2076L35%2080C33%2056%2020%2033%2018%207Z%22%20fill%3D%22url%28%23crease%29%22%2F%3E%3Cpath%20d%3D%22M222%207C218%2036%20202%2056%20194%2076L205%2080C207%2056%20220%2033%20222%207Z%22%20fill%3D%22url%28%23crease%29%22%2F%3E%3Cpath%20d%3D%22M30%2077Q74%2092%20120%2094Q166%2092%20210%2077%22%20fill%3D%22none%22%20stroke%3D%22%23806578%22%20stroke-opacity%3D%22.65%22%20stroke-width%3D%22.65%22%20stroke-dasharray%3D%223%202%22%2F%3E%3Cpath%20d%3D%22M17%205C17%2029%2029%2048%2039%2070C29%2063%2015%2065%206%2074C10%2057%2014%2031%2017%205Z%22%20fill%3D%22url%28%23side%29%22%20stroke%3D%22%23141612%22%20stroke-width%3D%22.6%22%2F%3E%3Cpath%20d%3D%22M223%205C223%2029%20211%2048%20201%2070C211%2063%20225%2065%20234%2074C230%2057%20226%2031%20223%205Z%22%20fill%3D%22url%28%23side%29%22%20stroke%3D%22%23141612%22%20stroke-width%3D%22.6%22%2F%3E%3Cpath%20d%3D%22M17%205C17%2029%2029%2048%2039%2070C29%2063%2015%2065%206%2074C10%2057%2014%2031%2017%205ZM223%205C223%2029%20211%2048%20201%2070C211%2063%20225%2065%20234%2074C230%2057%20226%2031%20223%205Z%22%20fill%3D%22url%28%23weave%29%22%2F%3E%3Cpath%20d%3D%22M6%2074C15%2066%2029%2064%2039%2070C43%2076%2031%2082%2018%2085L17%2078C12%2078%208%2076%206%2074Z%22%20fill%3D%22url%28%23purple%29%22%20stroke%3D%22%23151015%22%20stroke-width%3D%22.7%22%2F%3E%3Cpath%20d%3D%22M234%2074C225%2066%20211%2064%20201%2070C197%2076%20209%2082%20222%2085L223%2078C228%2078%20232%2076%20234%2074Z%22%20fill%3D%22url%28%23purple%29%22%20stroke%3D%22%23151015%22%20stroke-width%3D%22.7%22%2F%3E%3Cpath%20d%3D%22M6%2074C15%2066%2029%2064%2039%2070M234%2074C225%2066%20211%2064%20201%2070%22%20fill%3D%22none%22%20stroke%3D%22%230b0d0a%22%20stroke-width%3D%222%22%2F%3E%3Cpath%20d%3D%22M7%2070C17%2062%2028%2061%2037%2066M233%2070C223%2062%20212%2061%20203%2066%22%20fill%3D%22none%22%20stroke%3D%22%23806578%22%20stroke-width%3D%22.65%22%20stroke-dasharray%3D%223%202%22%20stroke-opacity%3D%22.65%22%2F%3E%3Cpath%20d%3D%22M18%207Q120%208%20222%207%22%20fill%3D%22none%22%20stroke%3D%22%23777669%22%20stroke-opacity%3D%22.25%22%20stroke-width%3D%221%22%2F%3E%3Cpath%20d%3D%22M17%2078C23%2080%2034%2076%2039%2071M223%2078C217%2080%20206%2076%20201%2071%22%20fill%3D%22none%22%20stroke%3D%22%23201524%22%20stroke-width%3D%221.3%22%2F%3E%3Cpath%20d%3D%22M18%2079L19%2083M222%2079L221%2083%22%20fill%3D%22none%22%20stroke%3D%22%239976a1%22%20stroke-opacity%3D%22.3%22%20stroke-width%3D%22.7%22%2F%3E%3C%2Fsvg%3E") center / 100% 100% no-repeat;
                         pointer-events: none;
                         z-index: -1;
                     }
@@ -7959,6 +7883,77 @@
                         left: 0;
                     }
 
+                    .bbgl-rank-cap-name {
+                        font-family: Georgia, 'Times New Roman', serif;
+                        font-style: italic;
+                        font-size: calc(var(--bbgl-t-fs-notch, 10px) * 1.1);
+                        letter-spacing: .02em;
+                        white-space: nowrap;
+                    }
+
+                    .bbgl-rank-cap-glow,
+                    .bbgl-rank-cap-glow i {
+                        position: absolute;
+                        inset: 0;
+                        pointer-events: none;
+                    }
+
+                    .bbgl-rank-cap-glow {
+                        z-index: 0;
+                        filter: blur(6.5px);
+                    }
+
+                    .bbgl-rank-cap-glow i {
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-cap-glow.is-white {
+                        opacity: .68;
+                    }
+
+                    .bbgl-rank-cap-glow.is-white i {
+                        background-image: linear-gradient(105deg, #dcecf3 0%, #ffffff 22%, #e6f1f5 43%, #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
+                    }
+
+                    .bbgl-rank-cap-glow.is-color {
+                        opacity: .8;
+                    }
+
+                    .bbgl-rank-cap-glow.is-color i,
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-name-art::after {
+                        background-size: 300% 100%;
+                        background-position: 100% 50%;
+                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    .bbgl-rank-cap-glow.is-color i {
+                        background-image: linear-gradient(105deg, #ff52bd 0%, #ffcb43 24%, #86ef82 43%, #36caff 63%, #a34dff 82%, #ff52bd 100%);
+                    }
+
+                    .bbgl-rank-title.is-capstone.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
+                        background-image: linear-gradient(105deg,
+                            transparent 0%, transparent 24%,
+                            rgba(255, 159, 220, .16) 29%,
+                            rgba(255, 159, 220, .58) 34%,
+                            rgba(255, 233, 143, .48) 42%,
+                            rgba(124, 245, 207, .50) 50%,
+                            rgba(255, 255, 255, .88) 52%,
+                            rgba(70, 180, 255, .56) 57%,
+                            rgba(177, 101, 241, .58) 65%,
+                            rgba(177, 101, 241, .14) 70%,
+                            transparent 76%, transparent 100%);
+                        mix-blend-mode: screen;
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-cap-glow i,
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-capstone .bbgl-rank-name-art::after {
+                        animation: none;
+                        background-position: 50% 50%;
+                    }
+
                     .bbgl-rank-title.is-milestone .bbgl-rank-title-text {
                         top: auto;
                         bottom: calc(var(--bbgl-t-tick-h) + .2em + var(--bbgl-rank-visual-drop, 0px));
@@ -7975,265 +7970,75 @@
                         text-shadow: 0 1px 1px rgba(0, 0, 0, .8);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
-                        color: #fff;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        -webkit-text-stroke: 0;
-                        text-shadow: 0 1px 1px rgba(0, 0, 0, .65);
-                        filter: none;
+                    .bbgl-rank-title {
+                        --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-bright-silver, .material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
+                    .bbgl-rank-name-art {
+                        position: relative;
+                        display: block;
+                        isolation: isolate;
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-iron.is-revealed .bbgl-rank-notch-line {
-                        color: #000;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        font-family: 'Patrick Hand', 'Segoe Print', 'Comic Sans MS', cursive;
-                        font-weight: 400;
-                        text-shadow: none;
-                        filter: none;
+                    .bbgl-rank-name-img {
+                        position: relative;
+                        z-index: 1;
+                        display: block;
+                        width: auto;
+                        height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
+                        pointer-events: none;
+                        user-select: none;
+                    }
+
+                    .bbgl-rank-name-art::after {
+                        position: absolute;
+                        inset: 0;
+                        z-index: 2;
+                        pointer-events: none;
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
+                        background-image: linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%);
+                        background-size: 375% 100%;
+                        mix-blend-mode: screen;
+                        opacity: .75;
+                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
                         animation: none;
+                        opacity: 0;
                     }
 
-                    .bbgl-rank-title.material-iron.is-revealed .bbgl-rank-notch-line {
-                        color: #eee9dc;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        color: #d9dddf;
-                        background: none;
-                        -webkit-text-fill-color: currentColor;
-                        font-weight: 500;
-                        text-shadow:
-                            var(--rank-steel-outline, 0 0 0 transparent),
-                            0 1px 1px rgba(0, 0, 0, .68),
-                            0 0 3px rgba(232, 239, 242, .82),
-                            0 0 8px rgba(216, 229, 234, .48),
-                            0 0 14px rgba(201, 219, 225, .20);
-                        filter: none;
-                        animation: bbgl-rank-name-fluorescent-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        background-image: linear-gradient(141deg,
-                            #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%,
-                            #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%,
-                            #ad7b45 90%, #593820 100%);
-                        background-size: 100% 100%;
-                        background-repeat: no-repeat;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        font-family: 'Aldrich', 'Arial Black', sans-serif;
-                        font-weight: 400;
-                        letter-spacing: .015em;
-                        -webkit-text-stroke: .1px rgba(217, 173, 117, .3);
-                        text-shadow: 0 1px 0 #624029, 0 1.5px 0 #4c311f;
-                        filter: none;
-                        animation: none;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-notch-line {
-                        width: 100%;
-                        text-align: center;
-                        color: transparent;
-                        background: none;
-                        -webkit-text-fill-color: transparent;
-                        -webkit-text-stroke: inherit;
-                        text-shadow: inherit;
-                        filter: none;
-                        animation: none;
-                    }
-                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(1px 0 0 #090b0b)
-                            drop-shadow(-1px 0 0 #090b0b)
-                            drop-shadow(0 1px 0 #090b0b)
-                            drop-shadow(0 -1px 0 #090b0b)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(.25px 0 0 #c9d3d880)
-                            drop-shadow(-.25px 0 0 #c9d3d880)
-                            drop-shadow(0 .25px 0 #c9d3d880)
-                            drop-shadow(0 -.25px 0 #c9d3d880)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
+                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
+                        filter: var(--bbgl-shield-light, none);
                     }
 
                     .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(.5px 0 0 #9d6318b3)
-                            drop-shadow(-.5px 0 0 #9d6318b3)
-                            drop-shadow(0 .5px 0 #9d6318b3)
-                            drop-shadow(0 -.5px 0 #9d6318b3)
-                            drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
+                        filter: var(--bbgl-gold-light, none);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed {
-                        --rank-emerald-base: linear-gradient(135deg, #93dcbc 0%, #1a9d70 22%, #006044 46%, #52b58e 52%, #087451 68%, #002f23 100%);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        background-image: var(--rank-emerald-base);
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-bright-silver.is-revealed .bbgl-rank-notch-line {
-                        background: none;
-                        font-weight: 400;
-                        -webkit-text-stroke: .2px rgba(147, 220, 188, .42);
-                        text-shadow: 0 1px 1px rgba(0, 44, 28, .52);
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.is-revealed .bbgl-rank-title-text {
                         filter: none;
-                        animation: none;
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line {
-                        background-image: linear-gradient(141deg, #fff5b5 0%, #e4b64e 16%, #fff0a4 30%, #9d6318 43%, #f8d775 53%, #fff5bb 64%, #b77a22 79%, #5f350b 100%);
-                        background-size: 100% 100%;
-                        text-shadow: none;
-                        filter: none;
-                        animation: none;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line {
-                        background-image:
-                            linear-gradient(105deg,
-                                transparent 0%, transparent 24%,
-                                rgba(255, 159, 220, .16) 29%,
-                                rgba(255, 159, 220, .58) 34%,
-                                rgba(255, 233, 143, .48) 42%,
-                                rgba(124, 245, 207, .50) 50%,
-                                rgba(255, 255, 255, .88) 52%,
-                                rgba(70, 180, 255, .56) 57%,
-                                rgba(177, 101, 241, .58) 65%,
-                                rgba(177, 101, 241, .14) 70%,
-                                transparent 76%, transparent 100%),
-                            linear-gradient(105deg,
-                                #d6e3e9 0%, #f3f8fa 18%, #ffffff 33%, #e8f0f3 43%,
-                                #ffffff 49%, #dde8ed 57%, #ffffff 72%, #edf4f7 88%, #cedce3 100%);
-                        background-size: 300% 100%, 100% 100%;
-                        background-position: 100% 50%, 0 0;
-                        text-shadow: 0 1px 1px rgba(57, 65, 78, .42);
-                        filter: drop-shadow(0 0 3.5px rgba(239, 251, 255, .62));
-                        animation: bbgl-rank-name-diamond 4.2s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-title-text {
-                        filter:
-                            drop-shadow(0 2px 1px rgba(12, 16, 25, .76))
-                            drop-shadow(0 3px 2.5px rgba(6, 9, 16, .52));
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::before {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -1;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        background-image: linear-gradient(105deg,
-                            #ff52bd 0%, #ffcb43 24%, #86ef82 43%,
-                            #36caff 63%, #a34dff 82%, #ff52bd 100%);
-                        background-size: 300% 100%;
-                        background-position: 100% 50%;
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter: blur(6.5px);
-                        opacity: .80;
-                        pointer-events: none;
-                        animation: bbgl-rank-name-diamond-glow 4.2s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::after {
-                        content: attr(data-rank-text);
-                        position: absolute;
-                        inset: 0;
-                        z-index: -2;
-                        color: transparent;
-                        -webkit-text-fill-color: transparent;
-                        background-image: linear-gradient(105deg,
-                            #dcecf3 0%, #ffffff 22%, #e6f1f5 43%,
-                            #ffffff 55%, #d9e8f0 76%, #ffffff 100%);
-                        background-clip: text;
-                        -webkit-background-clip: text;
-                        filter: blur(6.5px);
-                        opacity: .68;
-                        pointer-events: none;
-                    }
-
-                    @keyframes bbgl-rank-name-fluorescent-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% {
-                            color: #858a8d;
-                            font-weight: 400;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68);
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-title.is-revealed .bbgl-rank-title-text {
+                            filter: none;
                         }
-                        30.01%, 38%, 44% {
-                            color: #a3adaf;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 2px rgba(224, 232, 235, .25),
-                                0 0 5px rgba(207, 221, 226, .10);
-                        }
-                        53%, 72% {
-                            color: #c9ced0;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 3px rgba(224, 232, 235, .50),
-                                0 0 7px rgba(207, 221, 226, .24);
-                        }
-                        76%, 100% {
-                            color: #d9dddf;
-                            font-weight: 500;
-                            text-shadow:
-                                var(--rank-steel-outline, 0 0 0 transparent),
-                                0 1px 1px rgba(0, 0, 0, .68),
-                                0 0 3px rgba(232, 239, 242, .82),
-                                0 0 8px rgba(216, 229, 234, .48),
-                                0 0 14px rgba(201, 219, 225, .20);
+                        .bbgl-rank-title.is-revealed .bbgl-rank-name-art::after {
+                            animation: none;
+                            opacity: 0;
                         }
                     }
-
-                    ${steppedKeyframes('bbgl-rank-name-diamond', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%, 0 0;`)}
 
                     ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
 
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).is-revealed .bbgl-rank-notch-line {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-notch-line::before {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-diamond.is-revealed .bbgl-rank-notch-line::before {
-                        animation: none;
-                        background-position: 50% 50%;
-                    }
+                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0;`)}
 
                     .bbgl-rank-title.is-locked {
                         display: inline-flex;
@@ -8308,1133 +8113,9 @@
                         white-space: nowrap;
                     }
 
-                    .bbgl-rank-notch {
-                        --rank-frame-w: 0px;
-                        --rank-sil: linear-gradient(#000, #000);
-                        --rank-face: linear-gradient(180deg, #444849, #181b1c);
-                        --rank-bevel: inset 0 0 0 1px rgba(92, 98, 99, .45);
-                        --rank-frame: none;
-                        --rank-rivets: none;
-                        --rank-field: none;
-                        --rank-field-shadow: none;
-                        --rank-grain: none;
-                        --rank-grain-a: .5;
-                        --rank-pad-block: 1.5px;
-                        --rank-pad-inline: 1px;
-                        --rank-ink: #c4c6c3;
-                        --rank-sweep-a: 0;
-                        --rank-sweep-dur: 5s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .75)) drop-shadow(0 2px 3px rgba(0, 0, 0, .4));
-                        position: absolute;
-                        top: 50%;
-                        transform: translateX(-50%);
-                        pointer-events: auto;
-                        cursor: help;
-                        white-space: nowrap;
-                        text-align: center;
-                        z-index: 1;
-                    }
-
-                    .bbgl-rank-notch.finish-machined {
-                        --rank-sil:
-                            linear-gradient(135deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(225deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(45deg,  transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat,
-                            linear-gradient(315deg, transparent 0 var(--bbgl-t-rank-tag-cut), #000 var(--bbgl-t-rank-tag-cut)) 0 0/100% 100% no-repeat;
-                    }
-
-                    .bbgl-rank-notch:is(.finish-polished, .finish-silver, .finish-gold, .finish-pearl) {
-                        --rank-corner: calc(var(--bbgl-t-rank-tag-cut) * 1.15);
-                        --rank-sil:
-                            radial-gradient(circle at 0 0,       transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 100% 0,    transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 0 100%,    transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat,
-                            radial-gradient(circle at 100% 100%, transparent 0 var(--rank-corner), #000 calc(var(--rank-corner) + .7px)) 0 0/100% 100% no-repeat;
-                    }
-
-                    .bbgl-rank-notch.finish-mill {
-                        --rank-face: linear-gradient(179deg, #6c7274 0%, #5a6062 26%, #4b5152 52%, #565c5e 74%, #43494a 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #2b3031,
-                            inset 0 1px 0 rgba(255, 255, 255, .10),
-                            inset 0 -1px 0 rgba(0, 0, 0, .45);
-                        --rank-grain:
-                            repeating-linear-gradient(0deg, rgba(255, 255, 255, .05) 0 1px, transparent 1px 2px),
-                            repeating-linear-gradient(90deg, rgba(0, 0, 0, .10) 0 1px, transparent 1px 4px);
-                        --rank-grain-a: .7;
-                        --rank-ink: #a8adaa;
-                    }
-
-                    .bbgl-rank-notch.finish-machined {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .78);
-                        --rank-face: linear-gradient(178deg,
-                            #8f9698 0%, #c1c9ca 9%, #6e7679 24%, #3d4447 38%,
-                            #566063 50%, #9ba4a6 57%, #c6cecf 63%, #5c6467 78%, #333a3d 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #767d7f,
-                            inset 0 1px 0 rgba(255, 255, 255, .38),
-                            inset 0 -1px 0 rgba(0, 0, 0, .55);
-                        --rank-frame: linear-gradient(178deg, #b4bcbe, #6d7578 55%, #464e51);
-                        --rank-field-shadow: inset 0 1px 1px rgba(0, 0, 0, .5), inset 0 -1px 0 rgba(255, 255, 255, .16);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .055) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .5;
-                        --rank-ink: #dfe3e1;
-                    }
-
-                    .bbgl-rank-notch.finish-polished {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * .92);
-                        --rank-face: linear-gradient(177deg,
-                            #b6bfc1 0%, #e6eeef 7%, #7d8689 20%, #414a4d 33%,
-                            #6c767a 45%, #b3bcbe 52%, #e2eaeb 58%, #6b7477 74%, #3a4245 89%, #8d9698 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #9aa2a4,
-                            inset 0 1px 0 rgba(255, 255, 255, .55),
-                            inset 0 -1px 0 rgba(0, 0, 0, .5);
-                        --rank-frame: linear-gradient(178deg, #eaf1f2, #8b9497 45%, #4c5457 70%, #b9c1c3);
-                        --rank-field: linear-gradient(178deg, #5c6568, #8f989b 40%, #414a4d);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .22);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .06) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .4;
-                        --rank-ink: #f2f5f4;
-                        --rank-sweep-a: .5;
-                        --rank-sweep-dur: 6s;
-                    }
-
-                    .bbgl-rank-notch.finish-silver {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.1);
-                        --rank-face: linear-gradient(177deg,
-                            #d8dedf 0%, #ffffff 7%, #98a1a4 19%, #4d5659 32%,
-                            #7f898c 44%, #ccd4d5 51%, #ffffff 57%, #7d8689 74%, #454e51 90%, #aeb6b8 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #dfe6e7,
-                            inset 0 1px 0 rgba(255, 255, 255, .75),
-                            inset 0 -1px 0 rgba(0, 0, 0, .45);
-                        --rank-frame: linear-gradient(178deg, #ffffff, #a9b2b5 42%, #565f62 72%, #e2e9ea);
-                        --rank-field: linear-gradient(178deg, #6f797c, #a8b1b4 40%, #4e5558);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .6), inset 0 -1px 0 rgba(255, 255, 255, .4);
-                        --rank-rivets:
-                            radial-gradient(circle at var(--rank-rivet-o) var(--rank-rivet-o), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at calc(100% - var(--rank-rivet-o)) var(--rank-rivet-o), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at var(--rank-rivet-o) calc(100% - var(--rank-rivet-o)), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px),
-                            radial-gradient(circle at calc(100% - var(--rank-rivet-o)) calc(100% - var(--rank-rivet-o)), #f2f7f8 0 .9px, #5a6366 1.1px, transparent 1.7px);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .07) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .35;
-                        --rank-ink: #ffffff;
-                        --rank-sweep-a: .72;
-                        --rank-sweep-dur: 5s;
-                    }
-
-                    .bbgl-rank-notch.finish-gold {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-face: linear-gradient(177deg,
-                            #e8bd5c 0%, #fff3bd 7%, #b8862c 19%, #6a4610 32%,
-                            #a97c25 44%, #e6bd5b 51%, #fff0b0 57%, #a2761f 74%, #5d3f0d 90%, #cfa243 100%);
-                        --rank-bevel:
-                            inset 0 0 0 1px #f4d581,
-                            inset 0 1px 0 rgba(255, 248, 208, .6),
-                            inset 0 -1px 0 rgba(0, 0, 0, .5);
-                        --rank-frame: linear-gradient(178deg, #fff3bd, #d3a63f 40%, #7d5a13 70%, #f0cd6e);
-                        --rank-field: linear-gradient(178deg, #8d6819, #c2963a 40%, #6b4d0f);
-                        --rank-field-shadow: inset 0 1px 2px rgba(0, 0, 0, .66), inset 0 -1px 0 rgba(255, 240, 180, .35);
-                        --rank-rivets: repeating-linear-gradient(90deg,
-                            rgba(255, 246, 205, .10) 0 .5px,
-                            rgba(110, 78, 16, .08) .5px 1.5px,
-                            transparent 1.5px 3px);
-                        --rank-grain: repeating-linear-gradient(0deg, rgba(255, 255, 255, .06) 0 1px, transparent 1px 2px);
-                        --rank-grain-a: .35;
-                        --rank-ink: #fff6d2;
-                        --rank-sweep-a: .8;
-                        --rank-sweep-dur: 4.5s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .75)) drop-shadow(0 0 4px rgba(240, 190, 70, .35));
-                    }
-
-                    .bbgl-rank-notch.finish-pearl {
-                        --rank-frame-w: calc(var(--bbgl-t-rank-tag-cut) * 1.28);
-                        --rank-face: linear-gradient(112deg, #ffffff, #a8e6f0, #f0b6d8, #fff0b8, #b9e2f2, #ffffff);
-                        --rank-bevel:
-                            inset 0 0 0 1px rgba(255, 255, 255, .9),
-                            inset 0 1px 0 rgba(255, 255, 255, .85),
-                            inset 0 -1px 0 rgba(90, 80, 110, .35);
-                        --rank-frame: linear-gradient(112deg, #ffffff, #7fe4fb, #ff9fdc, #ffe98f, #8fdcf7, #ffffff);
-                        --rank-field: linear-gradient(112deg, #1d2440, #2b4a63, #4a2c52, #4a4130, #253f5c, #1d2440);
-                        --rank-field-shadow: inset 0 1px 3px rgba(0, 0, 0, .7), inset 0 -1px 0 rgba(255, 255, 255, .35);
-                        --rank-rivets: repeating-linear-gradient(90deg,
-                            rgba(255, 255, 255, .14) 0 .5px,
-                            rgba(120, 190, 225, .10) .5px 1.5px,
-                            transparent 1.5px 3px);
-                        --rank-grain: radial-gradient(ellipse 140% 60% at 30% 20%, rgba(255, 255, 255, .5), transparent 60%);
-                        --rank-grain-a: .5;
-                        --rank-ink: #ffffff;
-                        --rank-sweep-a: .85;
-                        --rank-sweep-dur: 4s;
-                        --rank-drop: drop-shadow(0 1px 1px rgba(0, 0, 0, .7)) drop-shadow(0 0 5px rgba(200, 235, 245, .45));
-                    }
-
-                    .bbgl-rank-notch-label {
-                        position: absolute;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        width: max-content;
-                        filter: var(--rank-drop);
-                    }
-
-                    .bbgl-rank-notch-face {
-                        position: relative;
-                        display: block;
-                        box-sizing: border-box;
-                        padding-block: calc(var(--bbgl-t-rank-tag-pad-y) + var(--rank-frame-w) + var(--rank-pad-block));
-                        padding-inline: calc(var(--bbgl-t-rank-tag-pad-x) + var(--rank-frame-w) + var(--rank-pad-inline));
-                        background: var(--rank-face);
-                        box-shadow: var(--rank-bevel);
-                        -webkit-mask: var(--rank-sil);
-                        mask: var(--rank-sil);
-                        -webkit-mask-composite: source-in;
-                        mask-composite: intersect;
-                        font-family: 'Fjalla One', 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: var(--bbgl-t-fs-notch);
-                        line-height: 1;
-                        font-weight: 500;
-                        letter-spacing: .025em;
-                        white-space: nowrap;
-                        text-align: center;
-                        color: var(--rank-ink);
-                        text-shadow: 0 -1px 0 rgba(0, 0, 0, .9), 0 1px 0 rgba(255, 255, 255, .1);
-                    }
-
-                    .bbgl-rank-notch-line {
-                        display: block;
-                        white-space: nowrap;
-                        position: relative;
-                        z-index: 2;
-                    }
-
-                    .bbgl-rank-notch-face::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        z-index: 2;
-                        background: var(--rank-grain);
-                        opacity: var(--rank-grain-a);
-                        pointer-events: none;
-                    }
-
-                    .bbgl-rank-notch-face::after {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        left: 0;
-                        width: 100%;
-                        z-index: 3;
-                        background: linear-gradient(102deg,
-                            transparent 38%,
-                            rgba(255, 255, 255, calc(var(--rank-sweep-a) * .45)) 47%,
-                            rgba(255, 255, 255, var(--rank-sweep-a)) 50%,
-                            rgba(255, 255, 255, calc(var(--rank-sweep-a) * .45)) 53%,
-                            transparent 62%);
-                        transform: translateX(-105%);
-                        pointer-events: none;
-                    }
-
-                    .bbgl-rank-notch.is-revealed .bbgl-rank-notch-face::after {
-                        animation: bbgl-rank-sweep var(--rank-sweep-dur) ease-in-out infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    @keyframes bbgl-rank-sweep {
-                        0% { transform: translateX(-105%); }
-                        55%, 100% { transform: translateX(105%); }
-                    }
-
-                    .bbgl-rank-notch-fx {
-                        position: absolute;
-                        inset: 0;
-                        z-index: 1;
-                        pointer-events: none;
-                    }
-
-                    .bbgl-rank-notch-fx::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        border: var(--rank-frame-w) solid transparent;
-                        background: var(--rank-rivets), var(--rank-frame);
-                        background-repeat: no-repeat;
-                        background-origin: border-box;
-                        background-clip: border-box;
-                        -webkit-mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000);
-                        mask: linear-gradient(#000, #000) padding-box, linear-gradient(#000, #000);
-                        -webkit-mask-composite: destination-out;
-                        mask-composite: exclude;
-                    }
-
-                    .bbgl-rank-notch-fx::after {
-                        content: '';
-                        position: absolute;
-                        inset: var(--rank-frame-w);
-                        background: var(--rank-field);
-                        box-shadow: var(--rank-field-shadow);
-                    }
-
-                    .bbgl-rank-notch.finish-silver {
-                        --rank-rivet-o: calc(var(--rank-frame-w) * .92);
-                    }
-
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-label {
-                        filter: none;
-                    }
-
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face {
-                        padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        -webkit-mask: none;
-                        mask: none;
-                        color: rgba(6, 8, 8, .85);
-                        text-shadow: 0 1px 0 rgba(190, 196, 190, .13), 0 -1px 1px rgba(0, 0, 0, .7);
-                    }
-
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face::before,
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-face::after {
-                        content: none;
-                    }
-
-                    .bbgl-rank-notch:not(.is-revealed) .bbgl-rank-notch-fx {
-                        display: none;
-                    }
-
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
-                    .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after {
-                        background-size: 320% 100%;
-                        animation: bbgl-rank-pearl 5.5s step-end infinite alternate;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    ${steppedKeyframes('bbgl-rank-pearl', 5.5, [[0, [0]], [1, [100]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-face,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::before,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.finish-pearl.is-bricked .bbgl-rank-notch-fx::after,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch.is-revealed .bbgl-rank-notch-face::after {
-                        animation: none;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-notch .bbgl-rank-notch-face::after {
-                        opacity: 0;
-                    }
-
-                    .bbgl-title-card-rank-plaque {
-                        --rank-pad-block: calc(var(--bbgl-t-gap-v) * .85 + 1px);
-                        --rank-pad-inline: calc(var(--bbgl-t-gap) * .8 + 1px);
-                        position: relative;
-                        top: auto;
-                        left: auto;
-                        display: block;
-                        width: 96%;
-                        height: 96%;
-                        max-width: 100%;
-                        transform: none;
-                        margin-block: auto;
-                        margin-inline: auto;
-                        pointer-events: auto;
-                        z-index: 1;
-                    }
-
-                    .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-                        position: relative;
-                        left: auto;
-                        bottom: auto;
-                        display: block;
-                        width: 100%;
-                        height: 100%;
-                        max-width: 100%;
-                        transform: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        width: 100%;
-                        height: 100%;
-                        max-width: 100%;
-                        font-size: calc(var(--bbgl-t-fs-line) * 1.08);
-                        line-height: 1.05;
-                    }
-
-                    .bbgl-title-card-rank-plaque .bbgl-rank-title-text {
-                        position: relative;
-                        top: auto;
-                        left: auto;
-                        display: flex;
-                        flex-direction: column;
-                        align-items: center;
-                        justify-content: center;
-                        transform: none;
-                        z-index: 2;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="mill"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill {
-                        container-type: size;
-                        --rank-drop: none;
-                        width: 88.32%;
-                        height: 86.4%;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-                        display: grid;
-                        grid-template-rows: 36% minmax(0, 1fr);
-                        padding: clamp(2px, 3cqh, 4px);
-                        border: 1px solid;
-                        border-color: #fffefa #cecec8 #93968f #e1e2da;
-                        border-radius: clamp(3px, 5cqw, 7px);
-                        background: linear-gradient(165deg, #fffefa 0%, #f4f4ee 48%, #e4e5de 100%);
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset 1px 0 1px rgba(255, 255, 255, .9),
-                            inset -1px 0 1px rgba(90, 96, 84, .18),
-                            inset 0 -3px 1px #c0c3b9,
-                            inset 0 -4px 0 rgba(255, 255, 255, .8);
-                        mask: none;
-                        -webkit-mask: none;
-                        overflow: hidden;
-                        align-items: stretch;
-                        justify-content: stretch;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::after,
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-fx {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::before {
-                        inset: 1px 1px 4px;
-                        z-index: 3;
-                        border-radius: inherit;
-                        background:
-                            linear-gradient(115deg, rgba(255, 255, 255, .24), transparent 42%),
-                            linear-gradient(180deg, rgba(255, 255, 255, .2), transparent 22%);
-                        opacity: 1;
-                    }
-
-                    .bbgl-rank-name-tag-heading {
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        min-width: 0;
-                        min-height: 0;
-                        border-radius: clamp(2px, 3cqw, 4px) clamp(2px, 3cqw, 4px) 0 0;
-                        background: linear-gradient(180deg, #bc4145, #ad3036);
-                        box-shadow: inset 0 1px 1px rgba(86, 20, 24, .35), 0 1px 0 rgba(255, 255, 255, .9);
-                        color: #fff;
-                        font-family: 'Trebuchet MS', 'Segoe UI', sans-serif;
-                        font-size: min(9cqw, 23cqh);
-                        font-weight: 400;
-                        line-height: 1;
-                        letter-spacing: 0;
-                        text-shadow: none;
-                        white-space: nowrap;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-title-text {
-                        box-sizing: border-box;
-                        min-width: 0;
-                        min-height: 0;
-                        padding: 3px 5%;
-                        font-size: min(16.5cqw, 44cqh);
-                        line-height: 1.08;
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-                        padding: 1px;
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset -1px 0 1px rgba(90, 96, 84, .12),
-                            inset 0 -1px 0 #c0c3b9,
-                            inset 0 -2px 0 rgba(255, 255, 255, .8);
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face::before {
-                        bottom: 2px;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="machined"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined {
-                        container-type: size;
-                        --rank-drop: none;
-                        width: 93%;
-                        height: 84.5%;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face {
-                        --rank-lightbox-rim: 17cqmin;
-                        --rank-lightbox-thin-rim: calc(var(--rank-lightbox-rim) * .5);
-                        --rank-lightbox-edge: clamp(.4px, 1cqmin, 1px);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: calc((var(--rank-lightbox-rim) + var(--rank-lightbox-thin-rim)) / 2 + 2px) calc(var(--rank-lightbox-thin-rim) + 2px) calc(var(--rank-lightbox-thin-rim) + 2px);
-                        border: 0;
-                        border-radius: clamp(3px, 5cqw, 7px);
-                        background: linear-gradient(165deg, #7d928d, #4c6462 48%, #344b4b);
-                        box-shadow:
-                            inset 0 2px 0 rgba(255, 255, 255, .95),
-                            inset 2px 0 1px rgba(238, 244, 246, .72),
-                            inset -2px 0 1px rgba(67, 79, 84, .62),
-                            inset 0 -3px 0 rgba(86, 99, 105, .9),
-                            0 2px 1px rgba(0, 0, 0, .78),
-                            0 5px 7px rgba(0, 0, 0, .42);
-                        animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                        mask: none;
-                        -webkit-mask: none;
-                        overflow: hidden;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx {
-                        inset: var(--rank-lightbox-thin-rim);
-                        border: clamp(.4px, .8cqmin, 1px) solid #1a2428;
-                        border-radius: clamp(3px, 6cqmin, 6px);
-                        background: linear-gradient(160deg, #1c2325, #090d0e 65%, #111719);
-                        box-shadow:
-                            inset 0 2cqmin 4cqmin rgba(0, 0, 0, .88),
-                            inset 1.2cqmin 0 2.5cqmin rgba(0, 0, 0, .5),
-                            inset -1cqmin -1cqmin 2cqmin rgba(157, 174, 181, .14),
-                            0 .7cqmin 0 rgba(255, 255, 255, .1);
-                        filter:
-                            drop-shadow(0 -.7cqmin .5cqmin rgba(255, 255, 255, .5))
-                            drop-shadow(0 1.2cqmin 1cqmin rgba(0, 0, 0, .7));
-                        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='white' fill-rule='evenodd' d='M0 0H100V100H0Z M30 0H70V7Q70 13.3 63.7 13.3H36.3Q30 13.3 30 7Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx::before,
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-fx::after {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::after {
-                        inset: 0;
-                        width: auto;
-                        border-radius: inherit;
-                        background: none;
-                        box-shadow:
-                            inset 0 var(--rank-lightbox-edge) 0 rgba(255, 255, 255, .65),
-                            inset 0 calc(var(--rank-lightbox-edge) * -1.5) 0 rgba(24, 58, 55, .5);
-                        transform: none;
-                        animation: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::before {
-                        inset: 0;
-                        z-index: 0;
-                        border-radius: inherit;
-                        background: linear-gradient(145deg, #fff 0%, #edf2f3 28%, #c5ced1 68%, #89969b 100%);
-                        box-shadow:
-                            inset 0 1px 0 #fff,
-                            inset 1px 0 0 rgba(255, 255, 255, .75),
-                            inset -1px 0 0 rgba(70, 82, 87, .5),
-                            inset 0 -2px 0 rgba(78, 90, 95, .72),
-                            inset 0 0 3px rgba(232, 239, 242, .42),
-                            inset 0 0 6px rgba(216, 229, 234, .16);
-                        opacity: 1;
-                        animation: bbgl-rank-lightbox-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-                    .bbgl-rank-lightbox-heading {
-                        position: absolute;
-                        top: 0;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        width: 40%;
-                        height: calc(var(--rank-lightbox-thin-rim) + var(--rank-lightbox-rim) * .65);
-                        padding: 0;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(8cqw, 16cqh);
-                        font-weight: 600;
-                        line-height: 1;
-                        letter-spacing: .14em;
-                        color: #263c39;
-                        text-shadow: none;
-                        white-space: nowrap;
-                    }
-
-                    .bbgl-rank-lightbox-heading > span {
-                        display: block;
-                    }
-
-                    #bbgl-panel.bbgl-expanded .bbgl-rank-lightbox-heading,
-                    #bbgl-panel.bbgl-mode-page .bbgl-rank-lightbox-heading {
-                        font-size: max(7.5px, min(8.4cqw, 16.8cqh));
-                    }
-
-                    #bbgl-panel.bbgl-compact .bbgl-rank-lightbox-heading {
-                        font-size: min(8.4cqw, 16.8cqh);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-title-text {
-                        min-width: 0;
-                        min-height: 0;
-                        width: 100%;
-                        font-size: min(15cqw, 28cqh);
-                        line-height: 1.12;
-                        text-align: center;
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-steel.is-revealed .bbgl-rank-notch-line {
-                        color: #e3e8ea;
-                        font-weight: 450;
-                        letter-spacing: .015em;
-                        -webkit-text-stroke: .012em rgba(238, 245, 247, .48);
-                        text-shadow:
-                            -.025em -.025em .02em rgba(255, 255, 255, .82),
-                            -.025em 0 .02em #b8c3c7,
-                            .025em 0 .02em #718087,
-                            0 .03em .02em #66747a,
-                            .035em .035em .04em #354248,
-                            0 .07em .08em rgba(0, 0, 0, .52),
-                            0 0 .14em rgba(232, 239, 242, .76),
-                            0 0 .32em rgba(216, 229, 234, .42),
-                            0 0 .58em rgba(201, 219, 225, .19);
-                        animation: bbgl-rank-lightbox-title-on 2.5s step-end 1 both;
-                        animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-machined.material-steel.is-revealed .bbgl-rank-notch-line {
-                        width: 100%;
-                        text-align: center;
-                    }
-
-                    @keyframes bbgl-rank-lightbox-title-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% {
-                            color: #536764;
-                            -webkit-text-stroke-color: rgba(87, 109, 106, .3);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(190, 207, 203, .26),
-                                -.025em 0 .02em #647774,
-                                .025em 0 .02em #354744,
-                                0 .03em .02em #2c3d3b,
-                                .035em .035em .04em #202d2c,
-                                0 .07em .08em rgba(0, 0, 0, .62);
-                        }
-                        30.01%, 38%, 44% {
-                            color: #879391;
-                            -webkit-text-stroke-color: rgba(177, 193, 194, .36);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(226, 235, 233, .46),
-                                -.025em 0 .02em #7e8e8c,
-                                .025em 0 .02em #4b5d5b,
-                                0 .03em .02em #405250,
-                                .035em .035em .04em #293836,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .2),
-                                0 0 .3em rgba(216, 229, 234, .08);
-                        }
-                        53%, 72% {
-                            color: #bcc5c6;
-                            -webkit-text-stroke-color: rgba(218, 229, 231, .43);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(255, 255, 255, .7),
-                                -.025em 0 .02em #aab5b8,
-                                .025em 0 .02em #68767c,
-                                0 .03em .02em #5d6b71,
-                                .035em .035em .04em #354248,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .5),
-                                0 0 .32em rgba(216, 229, 234, .24);
-                        }
-                        76%, 100% {
-                            color: #e3e8ea;
-                            -webkit-text-stroke-color: rgba(238, 245, 247, .48);
-                            text-shadow:
-                                -.025em -.025em .02em rgba(255, 255, 255, .82),
-                                -.025em 0 .02em #b8c3c7,
-                                .025em 0 .02em #718087,
-                                0 .03em .02em #66747a,
-                                .035em .035em .04em #354248,
-                                0 .07em .08em rgba(0, 0, 0, .52),
-                                0 0 .14em rgba(232, 239, 242, .76),
-                                0 0 .32em rgba(216, 229, 234, .42),
-                                0 0 .58em rgba(201, 219, 225, .19);
-                        }
-                    }
-
-                    @keyframes bbgl-rank-lightbox-frame-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: drop-shadow(0 0 0 rgba(232, 239, 242, 0)); }
-                        30.01%, 38%, 44% { filter: drop-shadow(0 0 1px rgba(232, 239, 242, .16)); }
-                        53%, 72% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .32)) drop-shadow(0 0 4px rgba(216, 229, 234, .1)); }
-                        76%, 100% { filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18)); }
-                    }
-
-                    @keyframes bbgl-rank-lightbox-on {
-                        0%, 30%, 33%, 40%, 45%, 64%, 74% { opacity: 0; }
-                        30.01%, 38%, 44% { opacity: .25; }
-                        53%, 72% { opacity: .65; }
-                        76%, 100% { opacity: 1; }
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face::before {
-                        animation: none;
-                        opacity: 1;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-face {
-                        animation: none;
-                        filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
-                    }
-
-                    .bbgl-title-card[data-rank-finish="polished"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished {
-                        width: 100%;
-                        container-type: size;
-                        --rank-drop: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face {
-                        padding: 0;
-                        border: 0;
-                        border-radius: 0;
-                        mask: none;
-                        -webkit-mask: none;
-                        overflow: visible;
-                        background: none;
-                        box-shadow: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-fx,
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::before,
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    .bbgl-rank-bronze-sheen {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
-                        display: block;
-                        position: absolute;
-                        inset: 0;
-                        z-index: 3;
-                        overflow: hidden;
-                        pointer-events: none;
-                        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                        content: '';
-                        position: absolute;
-                        top: 0;
-                        bottom: 0;
-                        left: 0;
-                        width: 300%;
-                        background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-                        transform: translateX(-46.666667%);
-                        will-change: transform;
-                        animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        background-image:
-                            linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%),
-                            linear-gradient(141deg, #d9ad75 0%, #87522e 16%, #bc8b54 30%, #634025 42%, #a16a3b 49%, #d9ad75 55%, #bb8d58 62%, #80502d 77%, #ad7b45 90%, #593820 100%);
-                        background-size: 375% 100%, 100% 100%;
-                        will-change: transform;
-                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
                     ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
 
-                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0, 0 0;`)}
-
-                    #bbgl-panel.bbgl-no-animations :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                        animation: none;
-                        background-position: 140.909091% 0, 0 0;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                        animation: none;
-                        opacity: 0;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen::before {
-                            animation: none;
-                            opacity: 0;
-                        }
-                        :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-silver.is-revealed .bbgl-rank-title-text {
-                            animation: none;
-                            background-position: 140.909091% 0, 0 0;
-                        }
-                    }
-
-                    .bbgl-rank-bronze-plaque {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: visible;
-                        filter: drop-shadow(0 2px 2px rgba(0, 0, 0, .45));
-                    }
-
-                    .bbgl-rank-bronze-heading {
-                        position: absolute;
-                        top: 13%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(12cqw, 16cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .16em;
-                        padding-left: .16em;
-                        color: #000;
-                        text-shadow: 0 -.5px 0 rgba(43, 23, 12, .8), 0 1px 0 rgba(244, 199, 138, .75);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-polished .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 33%;
-                        left: 10%;
-                        width: 80%;
-                        height: 50%;
-                        min-width: 0;
-                        min-height: 0;
-                        max-width: 100%;
-                        font-size: min(10cqw, 20cqh);
-                        line-height: 1.1;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="silver"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver {
-                        container-type: size;
-                        --rank-drop: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face {
-                        isolation: isolate;
-                        --rank-silver-shield-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M50 2 C60 2 65 11 77 12 L88 12 Q96 12 96 21 L94 49 C92 70 75 86 50 98 C25 86 8 70 6 49 L4 21 Q4 12 12 12 L23 12 C35 11 40 2 50 2Z'/%3E%3C/svg%3E");
-                        padding: 23cqh 10cqw 23cqh;
-                        background: linear-gradient(155deg, #f9ffff 0%, #aebbc0 15%, #eef5f8 23%, #59666d 35%, #d9e5ea 46%, #fff 49%, #87969e 57%, #34434d 73%, #c1d0d8 87%, #f2f9fc 100%);
-                        box-shadow: none;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        overflow: hidden;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx {
-                        inset: 3cqmin;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        background: linear-gradient(165deg, #cad5da 0%, #74838b 19%, #3d4c55 36%, #637680 55%, #a2b2bb 65%, #44545e 83%, #8c9ca5 100%);
-                        box-shadow: inset 0 1px 1px rgba(255, 255, 255, .8);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx::before {
-                        content: '';
-                        position: absolute;
-                        inset: 18cqh 5cqw 9cqh;
-                        border: 0;
-                        border-radius: 0;
-                        mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        -webkit-mask: var(--rank-silver-shield-outline) center / 100% 100% no-repeat;
-                        background: linear-gradient(165deg, #46565f, #293943 58%, #536770);
-                        box-shadow: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-fx::after {
-                        content: '';
-                        display: block;
-                        position: absolute;
-                        inset: 0;
-                        border: 0;
-                        box-shadow: none;
-                        background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath fill='none' stroke='%23d6e3eb' stroke-width='.65' d='M33 17 C27 19 22 19 14 19 Q10 19 10 24 L12 48 C14 66 29 80 50 91 C71 80 86 66 88 48 L90 24 Q90 19 86 19 C78 19 73 19 67 17'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-                        opacity: .75;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-face::before {
-                        background: repeating-linear-gradient(0deg, rgba(255, 255, 255, .035) 0 .5px, transparent .5px 3px);
-                        opacity: .35;
-                    }
-
-                    .bbgl-rank-silver-shield-heading {
-                        position: absolute;
-                        top: 5cqh;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(11cqw, 13cqh);
-                        font-weight: 600;
-                        line-height: 1;
-                        letter-spacing: .12em;
-                        color: #283841;
-                        text-shadow: 0 1px 0 rgba(240, 249, 255, .65);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 23%;
-                        left: 10%;
-                        width: 80%;
-                        height: 54%;
-                        min-width: 0;
-                        min-height: 0;
-                        max-width: 100%;
-                        font-size: min(10.5cqw, 26cqh);
-                        line-height: 1.2;
-                    }
-
-                    .bbgl-rank-surface-lighting {
-                        position: absolute;
-                        pointer-events: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-shield-light, none);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: none;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-face,
-                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                            filter: none;
-                        }
-                    }
-
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        --bbgl-emerald-encasing: drop-shadow(.16px 0 0 #c9d3d880) drop-shadow(-.16px 0 0 #c9d3d880) drop-shadow(0 .16px 0 #c9d3d880) drop-shadow(0 -.16px 0 #c9d3d880) drop-shadow(0 2px 2px rgba(0, 0, 0, .8));
-                        filter: var(--bbgl-shield-light) var(--bbgl-emerald-encasing);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-emerald-encasing);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-shield-glimmer {
-                        display: none;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                            filter: var(--bbgl-emerald-encasing);
-                        }
-                        .bbgl-shield-glimmer { display: none; }
-                    }
-
-                    .bbgl-rank-silver-shield-jewels {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        z-index: 1;
-                        pointer-events: none;
-                    }
-
-                    .bbgl-title-card[data-rank-finish="gold"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold {
-                        width: 100%;
-                        height: 100%;
-                        container-type: size;
-                        --rank-drop: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face {
-                        padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        mask: none;
-                        -webkit-mask: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::before,
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-face::after,
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-fx {
-                        display: none;
-                    }
-
-                    .bbgl-rank-gold-crown {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 49%;
-                        left: 18%;
-                        width: 64%;
-                        height: 33%;
-                        min-width: 0;
-                        min-height: 0;
-                        font-size: min(9.5cqw, 14cqh);
-                        line-height: 1.08;
-                    }
-
-                    .bbgl-rank-crown-heading {
-                        position: absolute;
-                        top: 86%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(9cqw, 9cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .14em;
-                        color: #5b340c;
-                        text-shadow: 0 1px 0 rgba(255, 242, 178, .8);
-                    }
-
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque).material-gold.is-revealed .bbgl-rank-title-text {
-                        --bbgl-gold-letter-depth: drop-shadow(0 -.2px 0 #ffe8a0) drop-shadow(.25px .5px 0 #8c5719) drop-shadow(0 .8px .25px #1c1006);
-                        filter: var(--bbgl-gold-letter-depth);
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                        filter: var(--bbgl-gold-light, none);
-                    }
-
-                    .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-gold-light) var(--bbgl-gold-letter-depth);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                        filter: none;
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-gold-letter-depth);
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-face {
-                            filter: none;
-                        }
-                        .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {
-                            filter: var(--bbgl-gold-letter-depth);
-                        }
-                    }
-
-                    .bbgl-title-card[data-rank-finish="pearl"] .bbgl-title-card-rank-label {
-                        display: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl {
-                        width: 100%;
-                        height: 100%;
-                        container-type: size;
-                        --rank-drop: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face {
-                        padding: 0;
-                        background: none;
-                        box-shadow: none;
-                        mask: none;
-                        -webkit-mask: none;
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-fx,
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face::before,
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-notch-face::after {
-                        display: none;
-                    }
-
-                    .bbgl-rank-pearl-marquee {
-                        position: absolute;
-                        inset: 0;
-                        width: 100%;
-                        height: 100%;
-                        overflow: hidden;
-                    }
-
-                    .bbgl-platinum-metalwork {
-                        filter: var(--crest-light);
-                    }
-
-                    .bbgl-platinum-glint {
-                        opacity: 0;
-                        transform-box: fill-box;
-                        transform-origin: center;
-                        animation: bbgl-platinum-glint 8s step-end infinite;
-                        animation-delay: calc(var(--bbgl-titles-animation-delay, 0ms) + var(--glint-delay));
-                    }
-
-                    ${steppedKeyframes('bbgl-platinum-glint', 8, [[0, [0, .3, -12]], [.03, [.95, 1, 0]], [.06, [.3, .6, 12]], [.09, [0, .3, -12]], [1, [0, .3, -12]]], LINEAR, v => `opacity: ${v[0]}; transform: scale(${v[1]}) rotate(${v[2]}deg);`)}
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-metalwork { filter: none; }
-                    #bbgl-panel.bbgl-no-animations .bbgl-platinum-glint { display: none; }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-platinum-metalwork { filter: none; }
-                        .bbgl-platinum-glint { display: none; }
-                    }
-
-                    .bbgl-title-card-rank-plaque.finish-pearl .bbgl-rank-title-text {
-                        position: absolute;
-                        top: 21%;
-                        left: 22%;
-                        width: 56%;
-                        height: 36%;
-                        min-width: 0;
-                        min-height: 0;
-                        font-size: min(14cqw, 17cqh);
-                        line-height: 1.04;
-                    }
-
-                    .bbgl-rank-marquee-heading {
-                        position: absolute;
-                        top: 7.7%;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        z-index: 2;
-                        font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif;
-                        font-size: min(9cqw, 10cqh);
-                        font-weight: 700;
-                        line-height: 1;
-                        letter-spacing: .16em;
-                        color: #283644;
-                        text-shadow: 0 1px 0 rgba(255, 255, 255, .8);
-                    }
+                    ${RANK_EMBLEM_CSS}
 
                     .bbgl-lvl-title.bbgl-titles-title {
                         font-family: 'Fjalla One', 'Barlow Condensed', 'Arial Narrow', sans-serif;
@@ -9472,10 +8153,6 @@
                         padding-bottom: var(--bbgl-t-win-pad-y);
                     }
 
-                    :is(.bbgl-rank-title, .bbgl-title-card-rank-plaque):is(.material-gold, .material-diamond).is-revealed .bbgl-rank-notch-line {
-                        will-change: transform;
-                    }
-
                     .bbgl-title-block::after {
                         content: '';
                         position: absolute;
@@ -9495,7 +8172,6 @@
                         50% { opacity: .84; }
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-title-card::before,
                     #bbgl-panel.bbgl-no-animations .bbgl-titles-name {
                         animation: none;
                     }
@@ -10038,10 +8714,6 @@
 
                     body:not(.is-touch-device) .bbgl-title-star.is-unlocked:hover .bbgl-title-star-fill svg path {
                         filter: drop-shadow(0 -1px 0 #fff7) drop-shadow(0 2px 1px #000b);
-                    }
-
-                    .bbgl-title-card {
-                        box-shadow: inset 1px 1px 0 #ba8a6438, inset -1px -1px 0 #000b, inset 0 0 0 3px #10080447, 0 3px 5px #000b;
                     }
 
 ${TITLE_PLAQUE_CSS}
@@ -10994,7 +9666,7 @@ ${TITLE_PLAQUE_CSS}
             const link = document.createElement('link');
             link.id = 'bbgl-fonts';
             link.rel = 'stylesheet';
-            link.href = 'https://fonts.googleapis.com/css2?family=Aldrich&family=Barlow+Condensed:wght@400;500;700&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
+            link.href = 'https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;700&family=Chakra+Petch:wght@600&family=Dancing+Script:wght@700&family=Fjalla+One&family=Inconsolata:wght@400;500;600;700&family=Neonderthaw&family=Orbitron:wght@300;500;600;700;900&family=Patrick+Hand&family=Roboto+Mono:wght@400;500;700&family=VT323&display=swap';
             root.appendChild(link);
         }
         const style = document.createElement('style');
@@ -12612,17 +11284,17 @@ ${TITLE_PLAQUE_CSS}
         flattenAllSeries() { const s = getActiveHistory(); const all = []; const days = [...(s.history || [])]; if (s.today) days.push(s.today); days.forEach(day => { if (day.series && day.series.length > 0) { day.series.forEach(e => all.push(e)); } else { const base = Formatter.parse(day.date); const ts = Math.floor(base.getTime() / 1000) + 43200; STAT_KEYS.forEach(stat => { const gain = day.gains && day.gains[stat] || 0; const cost = day.eSpent && day.eSpent[stat] || 0; const after = day.endBreakdown && day.endBreakdown[stat] || 0; if (gain > 0 || cost > 0) all.push({ ts, stat, gain, cost, after, rate: cost > 0 ? r2(gain / cost * 150) : 0, synthetic: true }); }); } }); return all.sort((a, b) => a.ts - b.ts); }, _runDailyGrind(logs, bs, s) { const allDays = [...(s.history || []), s.today]; const globalLastTs = allDays.reduce((max, day) => Math.max(max, day.lastLogTimestamp || 0), 0); const lastTs = Math.max(globalLastTs, s.meta.logStartDate || 0); const validLogs = logs.filter(l => l.ts > lastTs); validLogs.forEach(l => this._applyLogToState(l, s)); if (bs) this._snapToBattlestats(bs, s); }, _applyLogToState(l, s) { const logDate = Formatter.dateLogical(l.ts * 1000); if (s.today.date !== logDate) { if (s.today.series && s.today.series.length > 0) s.history.push(s.today); s.today = initializeDayObject(logDate, s.today.endBreakdown); } if (l.type === 'item') { if (!s.today.items) s.today.items = {}; if (!s.today.itemLogIds) s.today.itemLogIds = []; const itemKey = `${l.ts}_${l.logId}`; if (!s.today.itemLogIds.includes(itemKey)) { s.today.itemLogIds.push(itemKey); s.today.items[l.logId] = (s.today.items[l.logId] || 0) + 1; if (l.logId === ECAN_LOG && l.energy) s.today.itemEnergy = (s.today.itemEnergy || 0) + l.energy; if (l.energyLost != null) s.today.itemEnergyLost = (s.today.itemEnergyLost || 0) + l.energyLost; if (l.happyLost != null) s.today.itemHappyLost = (s.today.itemHappyLost || 0) + l.happyLost; if (l.happy) s.today.itemHappy = (s.today.itemHappy || 0) + l.happy; } const entry = { type: 'item', id: l.id, ts: l.ts, logId: l.logId }; if (l.energy) entry.energy = l.energy; if (l.energyLost != null) entry.energyLost = l.energyLost; if (l.happyLost != null) entry.happyLost = l.happyLost; if (l.happy) entry.happy = l.happy; if (l.bookId) entry.bookId = l.bookId; if (l.statKey) { entry.statKey = l.statKey; entry.statGain = l.statGain; } s.today.series.push(entry); } else { s.today.gains[l.stat] += l.gain; s.today.gains.total += l.gain; s.today.eSpent[l.stat] += l.cost; s.today.eSpent.total += l.cost; s.today.endBreakdown[l.stat] = l.after; if (l.ts > s.today.lastLogTimestamp) s.today.lastLogTimestamp = l.ts; s.today.series.push({ type: 'gym', id: l.id, ts: l.ts, stat: l.stat, gain: l.gain, cost: l.cost, after: l.after, rate: l.cost > 0 ? r2(l.gain / l.cost * 150) : 0 }); s.today.endTotal = sumStats(s.today.endBreakdown); } }, _snapToBattlestats(bs, s) { let upd = false; BS_STAT_ROWS.forEach(i => { const apiVal = bs[i.api]; if (apiVal === undefined) return; const localVal = s.today.endBreakdown[i.abbr] || 0; const lg = s.today.gains[i.abbr] || 0; if (localVal !== apiVal) { s.today.endBreakdown[i.abbr] = apiVal; s.today.startBreakdown[i.abbr] = apiVal - lg; upd = true; } }); if (upd) { s.today.endTotal = sumStats(s.today.endBreakdown); s.today.startTotal = sumStats(s.today.startBreakdown); } return upd; }, _rebuildFromSeries(seriesArr, baselineBreakdown) { Perf.start('_rebuildFromSeries'); const days = {}; let running = { ...baselineBreakdown }; seriesArr.forEach(e => { const dateKey = Formatter.dateLogical(e.ts * 1000); if (!days[dateKey]) days[dateKey] = initializeDayObject(dateKey,
         { ...running }); if (e.type === 'item') { if (!days[dateKey].items) days[dateKey].items = {}; if (!days[dateKey].itemLogIds) days[dateKey].itemLogIds = []; const itemKey = `${e.ts}_${e.logId}`; if (!days[dateKey].itemLogIds.includes(itemKey)) { days[dateKey].itemLogIds.push(itemKey); days[dateKey].items[e.logId] = (days[dateKey].items[e.logId] || 0) + 1; if (e.logId === ECAN_LOG && e.energy) days[dateKey].itemEnergy = (days[dateKey].itemEnergy || 0) + e.energy; if (e.energyLost != null) days[dateKey].itemEnergyLost = (days[dateKey].itemEnergyLost || 0) + e.energyLost; if (e.happyLost != null) days[dateKey].itemHappyLost = (days[dateKey].itemHappyLost || 0) + e.happyLost; if (e.happy) days[dateKey].itemHappy = (days[dateKey].itemHappy || 0) + e.happy; } if (!e.synthetic) days[dateKey].series.push(e); } else { days[dateKey].gains[e.stat] += e.gain; days[dateKey].gains.total += e.gain; days[dateKey].eSpent[e.stat] += e.cost; days[dateKey].eSpent.total += e.cost; days[dateKey].endBreakdown[e.stat] = e.after; if (e.ts > days[dateKey].lastLogTimestamp) days[dateKey].lastLogTimestamp = e.ts; if (!e.synthetic) days[dateKey].series.push(e); running[e.stat] = e.after; } }); Object.values(days).forEach(day => { day.endTotal = sumStats(day.endBreakdown); day.startTotal = sumStats(day.startBreakdown); }); const logicalToday = Formatter.dateLogical(), sortedKeys = Object.keys(days).sort(), todayObj = days[logicalToday] || initializeDayObject(logicalToday, { ...running }), history = sortedKeys.filter(k => k !== logicalToday).map(k => days[k]); Perf.end('_rebuildFromSeries'); return { history, today: todayObj }; }, async _reconcileFull(s, cleanLogs) { const stored = await DBManager.getStorage(); if (!stored) return { meta: s.meta, history: s.history, today: s.today }; if (stored.series && cleanLogs.length > 0) { const minApiTs = cleanLogs[0].ts; const maxApiTs = cleanLogs[cleanLogs.length - 1].ts; const apiEntries = cleanLogs.map(l => { if (l.type === 'item') return { ...l }; return { type: 'gym', id: l.id, ts: l.ts, stat: l.stat, gain: r2(l.gain), cost: l.cost, after: r2(l.after) }; }); const apiTsStatSet = new Set(apiEntries.map(seriesDedupKey)); const kept = stored.series.filter(e => e.ts < minApiTs || e.ts > maxApiTs || !apiTsStatSet.has(seriesDedupKey(e))); stored.series = [...kept, ...apiEntries].sort((a, b) => a.ts - b.ts); } stored.meta = { ...stored.meta, logStartDate: s.meta.logStartDate, syncFloor: s.meta.syncFloor || stored.meta.syncFloor, stickers: stored.meta.stickers || s.meta.stickers || {} }; const rebuilt = this._rebuildFromSeries(stored.series || [], stored.meta.baselineBreakdown || ZERO_BREAKDOWN); return { meta: stored.meta, history: rebuilt.history, today: rebuilt.today }; }, _reconcileIncremental(s, cleanLogs) { const minApiTs = cleanLogs[0].ts; const maxApiTs = cleanLogs[cleanLogs.length - 1].ts; const apiEntries = cleanLogs.map(l => { if (l.type === 'item') return { ...l }; return { type: 'gym', id: l.id, ts: l.ts, stat: l.stat, gain: r2(l.gain), cost: l.cost, after: r2(l.after) }; }); const apiTsStatSet = new Set(apiEntries.map(seriesDedupKey)); const earliestDay = Formatter.dateLogical(minApiTs * 1000); const allDays = [...(s.history || [])]; if (s.today) allDays.push(s.today); const prefix = [], affected = []; allDays.forEach(d => { (d.date < earliestDay ? prefix : affected).push(d); }); const keptAffected = []; affected.forEach(d => { if (Array.isArray(d.series)) { d.series.forEach(e => { if (e.ts < minApiTs || e.ts > maxApiTs || !apiTsStatSet.has(seriesDedupKey(e))) keptAffected.push(e); }); } }); const mergedAffected = [...keptAffected, ...apiEntries].sort((a, b) => a.ts - b.ts); const seed = prefix.length ? prefix[prefix.length - 1].endBreakdown : s.meta && s.meta.baselineBreakdown || ZERO_BREAKDOWN; const rebuilt = this._rebuildFromSeries(mergedAffected, seed); return { result: { meta: { ...s.meta }, history: [...prefix, ...rebuilt.history], today: rebuilt.today }, changedDays: [...rebuilt.history, rebuilt.today] }; } };
     function hashMix(n) { let t = n; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return (t ^ t >>> 14) >>> 0; }
-    function generateDemoData() { let _seed = 0x9e3779b9; function rand() { _seed += 0x6d2b79f5; return hashMix(_seed) / 4294967296; } function randInt(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); } const today = Formatter.dateLogical(); const todayMs = Formatter.parse(today).getTime(); const DAY_MS = 86400000; const NUM_DAYS = 365; const Simulation = { A: 3.480061091e-7, B: 250, C: 3.091619094e-6, D: 6.82775184551527e-5, E: -0.0301431777 }; const DEMO_GYM_DOTS = 9.0; const DEMO_HAPPY = 4950; const DEMO_MODIFIERS = 2.5; const DEMO_E_PER_TRAIN = 5; const DEMO_FORMULA_E_BASE = 10; function simulationGain(statTotal) { const happyFactor = DEMO_HAPPY + Simulation.B; const base = (Simulation.A * Math.log(happyFactor) + Simulation.C) * statTotal + Simulation.D * happyFactor + Simulation.E; const perStandardTrain = base * DEMO_GYM_DOTS * DEMO_MODIFIERS; const perTrain = perStandardTrain * (DEMO_E_PER_TRAIN / DEMO_FORMULA_E_BASE); return Math.max(0, perTrain); } const statKeys = ['str', 'def', 'spd', 'dex']; const dates = []; for (let i = NUM_DAYS - 1; i >= 0; i--) { const ms = todayMs - i * DAY_MS; const d = new Date(ms); dates.push(Formatter.dateISO(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); } const baseline = {}; statKeys.forEach(k => { baseline[k] = 15000 + randInt(0, 10000); }); const weekStartOffset = userConfig.weekStartMode === 'mon' ? 1 : 0; const todayDate = new Date(todayMs); const todayDow = todayDate.getUTCDay(); const daysFromWeekStart = (todayDow - weekStartOffset + 7) % 7; const weekDay0Str = dates[NUM_DAYS - 1 - daysFromWeekStart] || null; const weekDay1Str = daysFromWeekStart >= 1 ? dates[NUM_DAYS - daysFromWeekStart] : null; const running = { ...baseline }; const history = []; let mixedWeek = 0; dates.forEach((dateStr, idx) => { const roll = rand(); if (roll < 0.10) return; if (mixedWeek === 0 && rand() < 0.08) mixedWeek = 7; let eTotalRaw; if (mixedWeek > 0) { mixedWeek--; const subRoll = rand(); if (subRoll < 0.25) { eTotalRaw = randInt(200, 260) * 10; } else if (subRoll < 0.55) { eTotalRaw = randInt(150, 190) * 10; } else if (subRoll < 0.85) { eTotalRaw = randInt(100, 149) * 10; } else { eTotalRaw = randInt(50, 99) * 10; } } else if (roll < 0.15) { eTotalRaw = randInt(70, 99) * 10; } else { eTotalRaw = randInt(100, 160) * 10; } if (dateStr === weekDay0Str) eTotalRaw = Math.max(eTotalRaw, 2500);else if (dateStr === weekDay1Str && eTotalRaw < 2000) eTotalRaw = Math.min(Math.max(eTotalRaw, 1000), 1499);else if (rand() < 0.05) eTotalRaw = Math.max(eTotalRaw, 2500); const hjRoll = rand(); const isDiamondHJDay = hjRoll < 0.05; const isHJDay = isDiamondHJDay || hjRoll < 0.18; if (isDiamondHJDay && eTotalRaw < 1800) eTotalRaw = randInt(180, 220) * 10;else if (isHJDay && eTotalRaw < 1000) eTotalRaw = randInt(100, 170) * 10; const hjWindowStart = isHJDay ? randInt(36000, 36000 + 28800 - GAME.HJ_WINDOW_SECONDS) : null; const eTotal = eTotalRaw; const numStats = randInt(1, 4); const chosenStats = [...statKeys].sort(() => rand() - 0.5).slice(0, numStats); const ePerStat = {}; let eRemain = eTotal; chosenStats.forEach((k, i) => { const share = i === chosenStats.length - 1 ? eRemain : Math.round((rand() * 0.4 + 0.1) * eTotal / numStats) * 10 || 10; ePerStat[k] = Math.max(10, Math.min(share, eRemain)); eRemain -= ePerStat[k]; }); if (eRemain > 0 && chosenStats.length) ePerStat[chosenStats[0]] += eRemain; const startBreakdown = { ...running }; const eSpent = { total: eTotal, ...ZERO_BREAKDOWN }; const gains = { total: 0, ...ZERO_BREAKDOWN }; const series = []; const dayStartSec = Math.floor(Formatter.parse(dateStr).getTime() / 1000); chosenStats.forEach(k => { const cost = ePerStat[k] || 0; if (!cost) return; const trainsForStat = Math.floor(cost / DEMO_E_PER_TRAIN); let statGainAccum = 0; for (let t = 0; t < trainsForStat; t++) { const raw = simulationGain(running[k]); const jittered = raw * (0.97 + rand() * 0.06); running[k] += jittered; statGainAccum += jittered; const ts = hjWindowStart !== null ? dayStartSec + hjWindowStart + Math.floor(rand() * GAME.HJ_WINDOW_SECONDS) : dayStartSec + 36000 + Math.floor((t + rand()) * (28800 / Math.max(1, trainsForStat))); series.push({ ts, stat: k, gain: Math.round(jittered), cost: DEMO_E_PER_TRAIN, after: Math.round(running[k]), rate: r2(Math.round(jittered) / DEMO_E_PER_TRAIN * 150), synthetic: true }); } eSpent[k] = cost; const roundedStatGain = Math.round(statGainAccum); gains[k] = roundedStatGain; gains.total += roundedStatGain; }); eSpent.total = eSpent.str + eSpent.def + eSpent.spd + eSpent.dex; const endBreakdown = { ...running }; const day = initializeDayObject(dateStr,
-        startBreakdown); day.gains = gains; day.eSpent = eSpent; day.endBreakdown = endBreakdown; day.endTotal = endBreakdown.str + endBreakdown.def + endBreakdown.spd + endBreakdown.dex; day.series = series; day.lastLogTimestamp = series.length ? series[series.length - 1].ts : 0; history.push(day); }); const lastHistDay = history.length ? history[history.length - 1] : null; const todayStart = lastHistDay ? { ...lastHistDay.endBreakdown } : { ...running }; const todayObj = initializeDayObject(today, todayStart); const oldestDate = history.length ? history[0].date : today; const logStartDate = Math.floor(Formatter.parse(oldestDate).getTime() / 1000); const lastRates = {}; statKeys.forEach(k => { const perFiveE = simulationGain(running[k]); lastRates[k] = perFiveE * (DEMO_FORMULA_E_BASE / DEMO_E_PER_TRAIN); }); const meta = { baselineBreakdown: { ...baseline }, logStartDate }; return { meta, history, today: todayObj }; }
+    function generateDemoData() { let _seed = 0x9e3779b9; function rand() { _seed += 0x6d2b79f5; return hashMix(_seed) / 4294967296; } function randInt(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); } function pickWeighted(weights) { let r = rand() * weights.reduce((a, w) => a + w, 0); for (let i = 0; i < weights.length; i++) { r -= weights[i]; if (r < 0) return i; } return weights.length - 1; } function pickDays(count, lo, hi, gap, taken) { const out = []; for (let tries = 0; out.length < count && tries < count * 200; tries++) { const i = randInt(lo, hi); if (taken.has(i) || out.some(o => Math.abs(o - i) < gap)) continue; out.push(i); } out.forEach(i => taken.add(i)); return out; } const today = Formatter.dateLogical(); const todayMs = Formatter.parse(today).getTime(); const DAY_MS = 86400000; const NUM_DAYS = 365; const GYM_DOTS = 5.0; const BASE_HAPPY = 5000; const E_PER_TRAIN = 25; const DAILY_CAP = 1700; const STAT_AB = { str: [1600, 1700], spd: [1600, 2000], def: [2100, -600], dex: [1800, 1500] }; const r4 = x => Math.round(x * 10000) / 10000; function vladarGain(stat, S, H, E) { const [A, B] = STAT_AB[stat]; const s = Math.min(S, 50000000); return (s * r4(1 + 0.07 * r4(Math.log(1 + H / 250))) + 8 * Math.pow(H, 1.05) + (1 - Math.pow(H / 99999, 2)) * A + B) * (GYM_DOTS * E / 200000); } const statKeys = ['str', 'def', 'spd', 'dex']; const STAT_WEIGHTS = [0.3, 0.25, 0.25, 0.2]; const STAT_ENH_STAT = { 2150: 'str', 2130: 'spd', 2140: 'def', 2120: 'dex' }; const EXTRA_ITEMS = [{ id: 2040, min: 10, max: 100, energy: () => [5, 10, 15, 20, 25, 30][randInt(0, 5)] }, { id: 2230, min: 10, max: 100, energy: () => 50 }, { id: 2190, min: 10, max: 100, energy: () => 100 }, { id: 8981, min: 10, max: 100, energy: () => 50 }, { id: 2020, min: 10, max: 100, happy: () => [25, 35, 50, 75][randInt(0, 3)] }, { id: 2180, min: 10, max: 100, happy: () => 2500 }, { id: 2210, min: 10, max: 100, happy: () => BASE_HAPPY }, { id: 8983, min: 10, max: 100, happy: () => 1000 }, { id: 2150, min: 10, max: 100, stat: true }, { id: 2130, min: 10, max: 100, stat: true }, { id: 2140, min: 10, max: 100, stat: true }, { id: 2120, min: 10, max: 100, stat: true }, { id: LSD_OD_LOG, min: 2, max: 5, energyLost: () => randInt(4, 12) * 25 }, { id: EX_OD_LOG, min: 2, max: 5, energyLost: () => randInt(4, 12) * 25, happyLost: () => randInt(2000, BASE_HAPPY) }]; const dates = []; for (let i = NUM_DAYS; i >= 1; i--) { const d = new Date(todayMs - i * DAY_MS); dates.push(Formatter.dateISO(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())); } const plans = dates.map(() => ({ skip: rand() < 0.08, xanax: 0, refill: false, od: false, diamond: false, extras: [] })); const special = new Set(); pickDays(1, 0, 89, 20, special).forEach(i => { plans[i].diamond = true; }); pickDays(6, 90, NUM_DAYS - 1, 20, special).forEach(i => { plans[i].diamond = true; }); pickDays(10, 0, NUM_DAYS - 1, 14, special).forEach(i => { plans[i].od = true; }); plans.forEach(p => { if (p.diamond || p.od) p.skip = false; }); const trainDays = plans.map((p, i) => i).filter(i => !plans[i].skip && !plans[i].od); const refillDays = new Set(plans.map((p, i) => i).filter(i => plans[i].diamond)); while (refillDays.size < 150) refillDays.add(trainDays[randInt(0, trainDays.length - 1)]); refillDays.forEach(i => { plans[i].refill = true; }); EXTRA_ITEMS.forEach(item => { const n = randInt(item.min, item.max); for (let k = 0; k < n; k++) plans[randInt(0, NUM_DAYS - 1)].extras.push(item); }); const running = { str: 10, def: 10, spd: 10, dex: 10 }; const baseline = { ...running }; const history = []; let logSeq = 0; dates.forEach((dateStr, idx) => { const p = plans[idx]; const dayStartSec = Math.floor(Formatter.parse(dateStr).getTime() / 1000); const day = initializeDayObject(dateStr, running); const series = []; const addItem = (logId, ts, fields) => { const e = { type: 'item', id: `demo${++logSeq}`, ts, logId, ...fields }; series.push(e); day.items[logId] = (day.items[logId] || 0) + 1; day.itemLogIds.push(`${ts}_${logId}`); if (logId === ECAN_LOG && e.energy) day.itemEnergy += e.energy; if (e.energyLost != null) day.itemEnergyLost = (day.itemEnergyLost || 0) + e.energyLost; if (e.happyLost != null) day.itemHappyLost = (day.itemHappyLost || 0) + e.happyLost; if (e.happy) day.itemHappy += e.happy; return e; }; const sessions = []; let cap = DAILY_CAP; if (!p.skip) { sessions.push([randInt(12, 30) * 25, null]); if (p.diamond) { p.xanax = 3; cap = randInt(80, 96) * 25; } else if (p.od) { p.xanax = 1; cap = randInt(4, 16) * 25; } else { p.xanax = [0, 1, 2, 3][pickWeighted([0.06, 0.16, 0.66, 0.12])]; } for (let k = 0; k < p.xanax; k++) sessions.push([250, XANAX_LOG]); if (p.refill) sessions.push([150, 4900]); } const dayEnergyItems = p.extras.filter(x => x.energy); if (!p.skip) dayEnergyItems.forEach(x => sessions.push([x.energy(), x.id])); if (p.diamond) { let have = sessions.reduce((a, s) => a + s[0], 0); while (have < cap) { sessions.push([25,
+        ECAN_LOG]); have += 25; } } const t0 = dayStartSec + 8 * 3600; const span = 11 * 3600; let spent = 0; sessions.forEach(([energy, logId], k) => { const ts = t0 + Math.floor((k + rand() * 0.8) * span / sessions.length); if (logId) { const fields = {}; if (logId === XANAX_LOG) fields.energy = 250;else if (logId !== 4900) fields.energy = energy; addItem(logId, ts, fields); } const trains = Math.floor(Math.min(energy, cap - spent) / E_PER_TRAIN); if (trains <= 0) return; spent += trains * E_PER_TRAIN; const stat = statKeys[pickWeighted(STAT_WEIGHTS)]; const clicks = trains >= 4 && rand() < 0.4 ? 2 : 1; let happy = BASE_HAPPY; let left = trains; for (let c = 0; c < clicks; c++) { const n = c === clicks - 1 ? left : Math.ceil(trains / 2); left -= n; let gain = 0; for (let t = 0; t < n; t++) { const g = vladarGain(stat, running[stat], happy, E_PER_TRAIN); running[stat] += g; gain += g; happy = Math.max(0, happy - Math.round(E_PER_TRAIN * (0.4 + rand() * 0.2))); } const cost = n * E_PER_TRAIN; const g2 = r2(gain); series.push({ type: 'gym', id: `demo${++logSeq}`, ts: ts + 20 + c * 15, stat, gain: g2, cost, after: r2(running[stat]), rate: r2(g2 / cost * 150) }); day.gains[stat] += g2; day.gains.total += g2; day.eSpent[stat] += cost; day.eSpent.total += cost; } }); const t1 = dayStartSec + 20 * 3600; if (p.od) addItem(XANAX_OD_LOG, t1 - randInt(600, 1800), { energyLost: randInt(4, 12) * 25 }); p.extras.filter(x => !x.energy).forEach(x => { const ts = t1 + randInt(0, 5400); const fields = {}; if (x.happy) fields.happy = x.happy(); if (x.energyLost) fields.energyLost = x.energyLost(); if (x.happyLost) fields.happyLost = x.happyLost(); if (x.stat) { const sk = STAT_ENH_STAT[x.id]; fields.statKey = sk; fields.statGain = r2(Math.max(5, running[sk] * (0.002 + rand() * 0.003))); running[sk] += fields.statGain; } addItem(x.id, ts, fields); }); series.sort((a, b) => a.ts - b.ts); day.series = series; day.endBreakdown = { ...running }; day.endTotal = sumStats(day.endBreakdown); const lastGym = series.filter(e => e.type === 'gym').pop(); day.lastLogTimestamp = lastGym ? lastGym.ts : 0; history.push(day); }); const todayObj = initializeDayObject(today, running); const logStartDate = Math.floor(Formatter.parse(dates[0]).getTime() / 1000); return { meta: { baselineBreakdown: baseline, logStartDate }, history, today: todayObj }; }
     function getActiveHistory() { if (runtime.demoMode) { if (!runtime.demoHistory) runtime.demoHistory = generateDemoData(); return runtime.demoHistory; } if (_historyCache) return _historyCache; return { meta: { baselineBreakdown: { ...ZERO_BREAKDOWN } }, history: [], today: initializeDayObject(Formatter.dateLogical(), { ...ZERO_BREAKDOWN }) }; }
     function normalizeApiLogs(rawLogs) { if (!rawLogs || Object.keys(rawLogs).length === 0) return []; return Object.keys(rawLogs).map(k => { const l = rawLogs[k]; const meta = ITEM_LOG_META[l.log]; if (meta) { const e = { type: 'item', id: k, ts: l.timestamp, logId: l.log }; const d = l.data || {}; if (meta.energy) e.energy = l.log === XANAX_LOG ? 250 : parseInt(d.energy_increased || 0); if (meta.energyLost) e.energyLost = parseInt(d.energy_decreased ?? 0); if (meta.happyLost) e.happyLost = parseInt(d.happy_decreased ?? 0); if (meta.happy) e.happy = parseInt(d.happy_increased || 0); if (meta.book && d.item != null) e.bookId = parseInt(d.item); if (meta.stat) { const sn = ['strength', 'defense', 'speed', 'dexterity'].find(s => d[`${s}_increased`] != null); if (sn) { e.statKey = sn === 'strength' ? 'str' : sn === 'defense' ? 'def' : sn === 'speed' ? 'spd' : 'dex'; e.statGain = r2(parseFloat(d[`${sn}_increased`] || 0)); } } return e; } const sn = GAME.STAT_MAP[l.log]; if (!sn) return null; const ab = sn === 'strength' ? 'str' : sn === 'defense' ? 'def' : sn === 'speed' ? 'spd' : 'dex'; const gain = r2(parseFloat(l.data[`${sn}_increased`] || 0)); const cost = parseInt(l.data.energy_used || 0); return { type: 'gym', id: k, ts: l.timestamp, stat: ab, key: sn, gain, after: r2(parseFloat(l.data[`${sn}_after`] || 0)), cost, rate: cost > 0 ? r2(gain / cost * 150) : 0 }; }).filter(x => x !== null).sort((a, b) => a.ts - b.ts); }
     function initializeDayObject(dateStr, baseBreakdown) { const b = { ...baseBreakdown }; return { date: dateStr, startTotal: b.str + b.def + b.spd + b.dex, endTotal: b.str + b.def + b.spd + b.dex, startBreakdown: { ...b }, endBreakdown: { ...b }, gains: { total: 0, ...ZERO_BREAKDOWN }, eSpent: { total: 0, ...ZERO_BREAKDOWN }, items: {}, itemLogIds: [], itemEnergy: 0, itemHappy: 0, lastLogTimestamp: 0, series: [] }; }
     function computeAchievements(s) { const { hjDaySet } = DataController.getHappyJumpData(); const allDays = [...(s.history || [])]; if (s.today && s.today.date) { const filtered = allDays.filter(d => d.date !== s.today.date); filtered.push(s.today); allDays.splice(0, allDays.length, ...filtered); } allDays.sort((a, b) => a.date.localeCompare(b.date)); if (!allDays.length) return null; const GREEN = 1000, GOLD = 1500, DIAMOND = 2000; let greenDays = 0, goldDays = 0, diamondDays = 0, trainingDays = 0, lifetimeEnergy = 0, lifetimeGains = 0; let maxEDay = { value: 0, date: null }, maxGainsDay = { value: 0, date: null }, maxClick = { value: 0, date: null, stat: null }, maxStatGainDay = { value: 0, date: null, stat: null }; const bestTrainByStat = { str: null, def: null, spd: null, dex: null }, bestDayByStat = { str: null, def: null, spd: null, dex: null }, bestWeekByStat = { str: null, def: null, spd: null, dex: null }, bestMonthByStat = { str: null, def: null, spd: null, dex: null }; const bestHJByStat = { str: null, def: null, spd: null, dex: null, total: null }; const happyItemTotals = {}; HAPPY_LOGS.forEach(id => { happyItemTotals[id] = { count: 0, happy: 0 }; }); const energyItemTotals = {}; ENERGY_LOGS.forEach(id => { energyItemTotals[id] = { count: 0, energy: 0 }; }); const odItemTotals = {}; OD_LOGS.forEach(id => { odItemTotals[id] = { count: 0, energyLost: 0, happyLost: 0 }; }); const statEnhByStat = { str: { count: 0, gain: 0 }, def: { count: 0, gain: 0 }, spd: { count: 0, gain: 0 }, dex: { count: 0, gain: 0 } }; const weekE = {}, weekG = {}, monthE = {}, monthG = {}, weekDayMap = {}, weekStatG = {}, monthStatG = {}; allDays.forEach(day => { const e = day.eSpent && day.eSpent.total || 0, g = day.gains && day.gains.total || 0; lifetimeEnergy += e; lifetimeGains += g; if (e >= GOLD) { goldDays++; trainingDays++; } else if (e >= GREEN) { greenDays++; trainingDays++; } else if (e > 0) { trainingDays++; } if (e >= DIAMOND) diamondDays++; if (e > maxEDay.value) maxEDay = { value: e, date: day.date }; if (g > maxGainsDay.value) maxGainsDay = { value: g, date: day.date }; (day.series || []).forEach(entry => { if ((entry.gain || 0) > maxClick.value) maxClick = { value: entry.gain, date: day.date, stat: entry.stat, ts: entry.ts, cost: entry.cost }; const _esk = entry.stat; if ((entry.gain || 0) > 0 && bestTrainByStat[_esk] !== undefined) { const _cur = bestTrainByStat[_esk]; if (!_cur || entry.gain > _cur.value) bestTrainByStat[_esk] = { value: entry.gain, date: day.date, ts: entry.ts, cost: entry.cost }; } }); const wk = getWeekKey(day.date), mk = day.date.slice(0, 7); weekE[wk] = (weekE[wk] || 0) + e; weekG[wk] = (weekG[wk] || 0) + g; monthE[mk] = (monthE[mk] || 0) + e; monthG[mk] = (monthG[mk] || 0) + g; if (!weekDayMap[wk]) weekDayMap[wk] = []; weekDayMap[wk].push(day); ['str', 'def', 'spd', 'dex'].forEach(sk => { const sg = day.gains && day.gains[sk] || 0; if (!sg) return; if (sg > maxStatGainDay.value) maxStatGainDay = { value: sg, date: day.date, stat: sk }; { const _cur = bestDayByStat[sk]; if (!_cur || sg > _cur.value) bestDayByStat[sk] = { value: sg, date: day.date }; } const wsk = sk + '\x00' + wk, msk = sk + '\x00' + mk; weekStatG[wsk] = (weekStatG[wsk] || 0) + sg; monthStatG[msk] = (monthStatG[msk] || 0) + sg; }); if (day.items) { HAPPY_LOGS.forEach(id => { const qty = day.items[id] || 0; if (qty > 0) happyItemTotals[id].count += qty; }); ENERGY_LOGS.forEach(id => { const qty = day.items[id] || 0; if (qty > 0) energyItemTotals[id].count += qty; }); OD_LOGS.forEach(id => { const qty = day.items[id] || 0; if (qty > 0) odItemTotals[id].count += qty; }); } (day.series || []).forEach(e => { if (e.type === 'item' && e.happy && happyItemTotals[e.logId]) { happyItemTotals[e.logId].happy += e.happy; } if (e.type === 'item' && e.energy && energyItemTotals[e.logId]) { energyItemTotals[e.logId].energy += e.energy; } if (e.type === 'item' && e.energyLost != null && odItemTotals[e.logId]) { odItemTotals[e.logId].energyLost += e.energyLost; } if (e.type === 'item' && e.happyLost != null && odItemTotals[e.logId]) { odItemTotals[e.logId].happyLost += e.happyLost; } if (e.type === 'item' && e.statKey && statEnhByStat[e.statKey]) { statEnhByStat[e.statKey].count++; statEnhByStat[e.statKey].gain = Math.round((statEnhByStat[e.statKey].gain + (e.statGain || 0)) * 100) / 100; } }); }); const maxOf = (obj, key) => Object.entries(obj).reduce((best, [k, v]) => v > best.value ? { [key]: k, value: v } : best, { value: 0, [key]: null }); const maxStatOf = (obj, key) => Object.entries(obj).reduce((best, [k, v]) => { const sep = k.indexOf('\x00'); return v > best.value ? { value: v, stat: k.slice(0, sep), [key]: k.slice(sep + 1) } : best; }, { value: 0, stat: null, [key]: null }); const bestStatWk = maxStatOf(weekStatG, 'weekOf'), bestStatMn = maxStatOf(monthStatG, 'rawMonth'); Object.entries(weekStatG).forEach(([k, v]) => { const _sep = k.indexOf('\x00'); const _sk = k.slice(0, _sep),
         _wk = k.slice(_sep + 1); const _cur = bestWeekByStat[_sk]; if (!_cur || v > _cur.value) bestWeekByStat[_sk] = { value: v, weekOf: _wk }; }); Object.entries(monthStatG).forEach(([k, v]) => { const _sep = k.indexOf('\x00'); const _sk = k.slice(0, _sep), _mk = k.slice(_sep + 1); const _cur = bestMonthByStat[_sk]; if (!_cur || v > _cur.value) bestMonthByStat[_sk] = { value: v, rawMonth: _mk }; }); const fmtMonth = mk => mk ? `${CONSTANTS.MONTHS[parseInt(mk.slice(5)) - 1]} ${mk.slice(0, 4)}` : null; let greenWeeks = 0, goldWeeks = 0, diamondWeeks = 0; const todayStr = Formatter.dateLogical(), currentWk = getWeekKey(todayStr); Object.keys(weekDayMap).sort().forEach(wk => { if (wk < currentWk) { const wc = computeWeekCompletion(weekDayMap[wk], hjDaySet); if (wc.isGold) goldWeeks++;else if (wc.isCompleted) greenWeeks++; if (wc.isDiamond) diamondWeeks++; } }); const _zg = () => ({ str: 0, def: 0, spd: 0, dex: 0 }); let longestStreak = 0, longestStreakStart = null, longestStreakEnd = null, longestStreakGains = _zg(); let longestGoalStreak = 0, longestGoalStreakStart = null, longestGoalStreakEnd = null, longestGoalStreakGains = _zg(); let longestGoldStreak = 0, longestGoldStreakStart = null, longestGoldStreakEnd = null, longestGoldStreakGains = _zg(); let longestDiamondStreak = 0, longestDiamondStreakStart = null, longestDiamondStreakEnd = null, longestDiamondStreakGains = _zg(); let sT = 0, sTStart = null, sTGains = _zg(), sG = 0, sGStart = null, sGGains = _zg(), sGo = 0, sGoStart = null, sGoGains = _zg(), sDi = 0, sDiStart = null, sDiGains = _zg(), prevDate = null; allDays.forEach(day => { const e = day.eSpent && day.eSpent.total || 0; const g = day.gains || {}; const consecutive = prevDate && (new Date(day.date + 'T00:00:00Z') - new Date(prevDate + 'T00:00:00Z')) / 86400000 === 1; if (e > 0) { if (consecutive && sT > 0) { sT++; ['str', 'def', 'spd', 'dex'].forEach(k => { sTGains[k] += g[k] || 0; }); } else { sT = 1; sTStart = day.date; sTGains = { str: g.str || 0, def: g.def || 0, spd: g.spd || 0, dex: g.dex || 0 }; } if (sT > longestStreak) { longestStreak = sT; longestStreakStart = sTStart; longestStreakEnd = day.date; longestStreakGains = { ...sTGains }; } } else { sT = 0; sTStart = null; sTGains = _zg(); } if (e >= GREEN) { if (consecutive && sG > 0) { sG++; ['str', 'def', 'spd', 'dex'].forEach(k => { sGGains[k] += g[k] || 0; }); } else { sG = 1; sGStart = day.date; sGGains = { str: g.str || 0, def: g.def || 0, spd: g.spd || 0, dex: g.dex || 0 }; } if (sG > longestGoalStreak) { longestGoalStreak = sG; longestGoalStreakStart = sGStart; longestGoalStreakEnd = day.date; longestGoalStreakGains = { ...sGGains }; } } else { sG = 0; sGStart = null; sGGains = _zg(); } if (e >= GOLD) { if (consecutive && sGo > 0) { sGo++; ['str', 'def', 'spd', 'dex'].forEach(k => { sGoGains[k] += g[k] || 0; }); } else { sGo = 1; sGoStart = day.date; sGoGains = { str: g.str || 0, def: g.def || 0, spd: g.spd || 0, dex: g.dex || 0 }; } if (sGo > longestGoldStreak) { longestGoldStreak = sGo; longestGoldStreakStart = sGoStart; longestGoldStreakEnd = day.date; longestGoldStreakGains = { ...sGoGains }; } } else { sGo = 0; sGoStart = null; sGoGains = _zg(); } if (e >= 2000) { if (consecutive && sDi > 0) { sDi++; ['str', 'def', 'spd', 'dex'].forEach(k => { sDiGains[k] += g[k] || 0; }); } else { sDi = 1; sDiStart = day.date; sDiGains = { str: g.str || 0, def: g.def || 0, spd: g.spd || 0, dex: g.dex || 0 }; } if (sDi > longestDiamondStreak) { longestDiamondStreak = sDi; longestDiamondStreakStart = sDiStart; longestDiamondStreakEnd = day.date; longestDiamondStreakGains = { ...sDiGains }; } } else { sDi = 0; sDiStart = null; sDiGains = _zg(); } prevDate = day.date; }); let happyJumps = 0; const hjWeek = {}, hjMonth = {}; const registerJump = jump => { const wk = getWeekKey(jump.date), mk = jump.date.slice(0, 7); happyJumps++; hjWeek[wk] = (hjWeek[wk] || 0) + 1; hjMonth[mk] = (hjMonth[mk] || 0) + 1; const tot = sumStats(jump.stats); ['str', 'def', 'spd', 'dex'].forEach(sk => { const sv = jump.stats[sk] || 0; if (sv > 0 && (!bestHJByStat[sk] || sv > bestHJByStat[sk].value)) bestHJByStat[sk] = { value: sv, date: jump.date, ts: jump.ts, cost: jump.cost }; }); if (tot > 0 && (!bestHJByStat.total || tot > bestHJByStat.total.value)) bestHJByStat.total = { value: tot, date: jump.date, ts: jump.ts, tsEnd: jump.tsEnd, cost: jump.cost, stats: { ...jump.stats } }; }; allDays.forEach(day => findHappyJumps(day.series).forEach(registerJump)); const hjWeekBest = maxOf(hjWeek, 'weekOf'), hjMonthBest = maxOf(hjMonth, 'month'); const calDays = Math.round((new Date(allDays[allDays.length - 1].date + 'T00:00:00Z') - new Date(allDays[0].date + 'T00:00:00Z')) / 86400000) + 1; const mxWkE = maxOf(weekE, 'weekOf'), mxWkG = maxOf(weekG, 'weekOf'), mxMnE = maxOf(monthE, 'month'), mxMnG = maxOf(monthG,
         'month'); const stickersUnlocked = DataController.getUnlockedCount(); const lastDay = allDays[allDays.length - 1]; const curBD = lastDay && lastDay.endBreakdown ? lastDay.endBreakdown : null; const currentStats = curBD ? { str: curBD.str || 0, def: curBD.def || 0, spd: curBD.spd || 0, dex: curBD.dex || 0, total: (curBD.str || 0) + (curBD.def || 0) + (curBD.spd || 0) + (curBD.dex || 0) } : null; return { baseline: s.meta && s.meta.baselineBreakdown ? { ...s.meta.baselineBreakdown } : null, currentStats, lifetimeEnergy, lifetimeGains, logStartDate: s.meta && s.meta.logStartDate || null, greenDays, goldDays, diamondDays, trainingDays, calDays, greenWeeks, goldWeeks, diamondWeeks, stickersUnlocked, trainingRestRatio: calDays > 0 ? (trainingDays / calDays * 100).toFixed(1) + '%' : 'N/A', longestStreak, longestStreakStart, longestStreakEnd, longestStreakGains, longestGoalStreak, longestGoalStreakStart, longestGoalStreakEnd, longestGoalStreakGains, longestGoldStreak, longestGoldStreakStart, longestGoldStreakEnd, longestGoldStreakGains, happyJumps, happyJumpsWeekBest: hjWeekBest.weekOf ? hjWeekBest : null, happyJumpsMonthBest: hjMonthBest.month ? { value: hjMonthBest.value, month: fmtMonth(hjMonthBest.month) } : null, mostEInOneDay: maxEDay.date ? maxEDay : null, mostEInOneWeek: mxWkE.weekOf ? mxWkE : null, mostEInOneMonth: mxMnE.month ? { value: mxMnE.value, month: fmtMonth(mxMnE.month), rawMonth: mxMnE.month } : null, highestGainPerClick: maxClick.date ? maxClick : null, highestGainsInOneDay: maxGainsDay.date ? maxGainsDay : null, highestStatGainDay: maxStatGainDay.date ? maxStatGainDay : null, highestGainsInOneWeek: mxWkG.weekOf ? mxWkG : null, highestGainsInOneMonth: mxMnG.month ? { value: mxMnG.value, month: fmtMonth(mxMnG.month) } : null, highestStatGainWeek: bestStatWk.weekOf ? bestStatWk : null, highestStatGainMonth: bestStatMn.rawMonth ? { value: bestStatMn.value, month: fmtMonth(bestStatMn.rawMonth), rawMonth: bestStatMn.rawMonth, stat: bestStatMn.stat } : null, perStatBest: { bestTrain: bestTrainByStat, bestDay: bestDayByStat, bestWeek: bestWeekByStat, bestMonth: bestMonthByStat }, bestHappyJump: bestHJByStat, longestDiamondStreak, longestDiamondStreakStart, longestDiamondStreakEnd, longestDiamondStreakGains, happyItemTotals, energyItemTotals, odItemTotals, statEnhByStat }; }
-    const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting, .bbgl-rank-silver-shield-jewels, .bbgl-platinum-crest';
-    function resetTitlesPageAnimationClock(container) { runtime._titlesPageAnimationStartedAt = null; runtime._rankLightboxAnimation = null; const el = container || document.getElementById('bbgl-achievements-container'); if (el) { el.style.removeProperty('--bbgl-titles-animation-delay'); el.style.removeProperty('--bbgl-rank-lightbox-delay'); el.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => svg.pauseAnimations()); } }
-    function syncTitlesPageAnimationClock(container, targets = [container]) { requestAnimationFrame(() => { const elapsed = Math.max(0, performance.now() - runtime._titlesPageAnimationStartedAt) / 1000; document.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => { svg.unpauseAnimations(); svg.setCurrentTime(elapsed); }); }); const now = performance.now(); if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) { runtime._titlesPageAnimationStartedAt = now; } const elapsed = Math.max(0, now - runtime._titlesPageAnimationStartedAt); const { atrophy, level } = liveRankState(); const unlocked = !!levelRankBrackets(atrophy, level)[1]?.unlocked; let lightbox = runtime._rankLightboxAnimation; if (!lightbox || lightbox.atrophy !== atrophy || lightbox.unlocked !== unlocked) { lightbox = runtime._rankLightboxAnimation = { atrophy, unlocked, startedAt: now }; } const lightboxDelay = `${-Math.max(0, now - lightbox.startedAt)}ms`; targets.forEach(el => { el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`); el.style.setProperty('--bbgl-rank-lightbox-delay', lightboxDelay); }); }
+    const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
+    function resetTitlesPageAnimationClock(container) { runtime._titlesPageAnimationStartedAt = null; const el = container || document.getElementById('bbgl-achievements-container'); if (el) { el.style.removeProperty('--bbgl-titles-animation-delay'); el.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => svg.pauseAnimations()); } }
+    function syncTitlesPageAnimationClock(container, targets = [container]) { requestAnimationFrame(() => { const elapsed = Math.max(0, performance.now() - runtime._titlesPageAnimationStartedAt) / 1000; document.querySelectorAll(TITLES_SMIL_SVGS).forEach(svg => { svg.unpauseAnimations(); svg.setCurrentTime(elapsed); }); }); const now = performance.now(); if (!Number.isFinite(runtime._titlesPageAnimationStartedAt)) { runtime._titlesPageAnimationStartedAt = now; } const elapsed = Math.max(0, now - runtime._titlesPageAnimationStartedAt); targets.forEach(el => el.style.setProperty('--bbgl-titles-animation-delay', `${-elapsed}ms`)); }
     function achRefreshPageDom() { Perf.wrap('achRefreshPageDom', achRefreshPageDomBody); }
     function achRefreshPageDomBody() { const container = document.getElementById('bbgl-achievements-container'); if (!container || !runtime._achCache) return; container.classList.toggle('bbgl-ach-titles-page', runtime._achPage === 0); Perf.wrap('achRefreshPageDom:swipeGates', refreshSwipeGates); Perf.start('achRefreshPageDom:animClock'); if (runtime._achPage === 0) syncTitlesPageAnimationClock(container);else resetTitlesPageAnimationClock(container); Perf.end('achRefreshPageDom:animClock'); const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache)); Perf.start('achRefreshPageDom:insert'); container.innerHTML = html; Perf.end('achRefreshPageDom:insert'); Perf.start('achRefreshPageDom:fingerprint'); runtime._achLiveFingerprint = runtime._achPage === 0 ? achLiveInputsFingerprint() : null; runtime._achLiveRankKey = runtime._achPage === 0 ? liveRankState().key : null; Perf.end('achRefreshPageDom:fingerprint'); Perf.wrap('achRefreshPageDom:indicator', updateAchPageIndicator); if (runtime._achPage === 0) { const ready = Perf.wrap('achRefreshPageDom:geometry', layoutTitlesPageGeometry); observeTitleBlockFrames(); if (!ready) { let attemptsLeft = 30; const retry = () => { if (runtime._achPage !== 0) return; attemptsLeft--; if (!layoutTitlesPageGeometry() && attemptsLeft > 0) window.requestAnimationFrame(retry); }; window.requestAnimationFrame(retry); } } else if (runtime.titleFrameResizeObserver) { runtime.titleFrameResizeObserver.disconnect(); } Perf.wrap('achRefreshPageDom:toolbarLayout', () => retryToolbarPaginationLayout(() => document.getElementById('bbgl-top-panel').classList.contains('viewing-achievements'))); }
     function renderAchievements() { Perf.wrap('renderAchievements', renderAchievementsBody); }
@@ -12646,160 +11318,29 @@ ${TITLE_PLAQUE_CSS}
     function achHJClipDate(rec) { return '  ' + achFmtDate(rec.date) + '  ' + achFmtTimeHMClip(rec.ts) + ' – ' + achFmtTimeHMClip(rec.tsEnd || rec.ts) + ' TCT'; }
     function achFmtTimeHMS(ts) { const d = new Date(ts * 1000); const s = TimeManager.useLocal() ? d.getSeconds() : d.getUTCSeconds(); return achFmtTimeHM(ts) + ':' + String(s).padStart(2, '0') + ' ' + achTimeZoneSuffix(); }
     function achTitlePlayerName() { const h = getActiveHistory(); return h && h.meta && h.meta.playerName || '—'; }
-    function achRankPlaqueLabelHTML(label) { const words = String(label || '').trim().split(/\s+/).filter(Boolean); if (words.length < 2) { const text = achEsc(words[0] || ''); return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`; } let splitAt = 1; let bestDiff = Infinity; for (let i = 1; i < words.length; i++) { const leftLen = words.slice(0, i).join(' ').length; const rightLen = words.slice(i).join(' ').length; const diff = Math.abs(leftLen - rightLen); if (diff < bestDiff) { bestDiff = diff; splitAt = i; } } return [words.slice(0, splitAt), words.slice(splitAt)].map(line => { const text = achEsc(line.join(' ')); return `<span class="bbgl-rank-notch-line" data-rank-text="${text}">${text}</span>`; }).join(''); }
-    function achGoldCrownHTML() { const id = `bbgl-crown-${achGoldCrownHTML.serial = (achGoldCrownHTML.serial || 0) + 1}`; const jewels = [[100, 36, 1], [32, 78, .72], [168, 78, .72]].map(([x, y, scale]) => `<g transform="translate(${x} ${y}) scale(${scale})">
-        <path d="M0-11L8 0L0 11L-8 0Z" fill="#57300a" transform="translate(0 1.3)"/>
-        <path d="M0-11L8 0L0 11L-8 0Z" fill="url(#${id}-stud)" stroke="#ffe7a0" stroke-width=".8"/>
-        <path d="M0-8L5.5 0L0 8L-5.5 0Z" fill="#520b16" stroke="#773719" stroke-width=".7"/>
-        <path d="M0-8L0-3L-2 0L-5.5 0Z" fill="#ffaaa1"/>
-        <path d="M0-8L5.5 0L2 0L0-3Z" fill="#e85553"/>
-        <path d="M5.5 0L0 8L0 3L2 0Z" fill="#840f27"/>
-        <path d="M0 8L-5.5 0L-2 0L0 3Z" fill="#c1293d"/>
-        <path d="M0-3L2 0L0 3L-2 0Z" fill="#ee6970"/>
-        <path d="M-3-2L0-6" fill="none" stroke="#ffe7d0" stroke-width=".65"/>
-        <g fill="url(#${id}-stud)" stroke="#ffeca7" stroke-width=".35"><circle cy="-8" r="1"/><circle cx="5.5" r="1"/><circle cy="8" r="1"/><circle cx="-5.5" r="1"/></g>
-    </g>`).join(''); return `<svg class="bbgl-rank-gold-crown" viewBox="4 0 192 118" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-gold" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#fff5b5"/><stop offset=".16" stop-color="#e4b64e"/><stop offset=".3" stop-color="#fff0a4"/><stop offset=".43" stop-color="#9d6318"/><stop offset=".53" stop-color="#f8d775"/><stop offset=".64" stop-color="#fff5bb"/><stop offset=".79" stop-color="#b77a22"/><stop offset="1" stop-color="#5f350b"/></linearGradient>
-            <linearGradient id="${id}-band" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff2aa"/><stop offset=".13" stop-color="#f1ca65"/><stop offset=".22" stop-color="#895015"/><stop offset=".34" stop-color="#dfad43"/><stop offset=".53" stop-color="#ffe498"/><stop offset=".77" stop-color="#d9a13b"/><stop offset=".91" stop-color="#774312"/><stop offset="1" stop-color="#f5cd70"/></linearGradient>
-            <radialGradient id="${id}-stud" cx=".3" cy=".25" r=".8"><stop stop-color="#fffbd5"/><stop offset=".3" stop-color="#f9d879"/><stop offset=".65" stop-color="#b67c22"/><stop offset="1" stop-color="#57300a"/></radialGradient>
-            <linearGradient id="${id}-window" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#38240d"/><stop offset=".32" stop-color="#21170c"/><stop offset=".7" stop-color="#30200e"/><stop offset="1" stop-color="#493015"/></linearGradient>
-        </defs>
-        <path d="M12 30C36 43 56 53 76 36Q89 23 100 10Q111 23 124 36C144 53 164 43 188 30L176 102H24Z" fill="#57320d" transform="translate(0 3)"/>
-        <path d="M12 30C36 43 56 53 76 36Q89 23 100 10Q111 23 124 36C144 53 164 43 188 30L176 102H24Z" fill="url(#${id}-gold)" stroke="#fff0a3" stroke-width="1.2" stroke-linejoin="round"/>
-        <path d="M20 43C42 53 61 59 80 43Q91 33 100 22Q109 33 120 43C139 59 158 53 180 43L171 97H29Z" fill="none" stroke="#754712" stroke-width="1.2"/>
-        <path d="M22 45C44 55 62 61 81 45Q92 35 100 25Q108 35 119 45C138 61 156 55 178 45" fill="none" stroke="#fff3b2" stroke-width=".75"/>
-        <path d="M16 39L26 100H174L184 39" fill="none" stroke="#694012" stroke-width="2.3"/>
-        <path d="M18 40L28 98H172L182 40" fill="none" stroke="#fff0a5" stroke-width=".8"/>
-        <path d="M21 39C43 50 61 55 78 40Q90 28 100 17Q110 28 122 40C139 55 157 50 179 39" fill="none" stroke="#754712" stroke-width="1.8" stroke-dasharray=".2 3.2" stroke-linecap="round"/>
-        <path d="M21 38C43 49 61 54 78 39Q90 27 100 16Q110 27 122 39C139 54 157 49 179 38" fill="none" stroke="#fff0ac" stroke-width="1.1" stroke-dasharray=".2 3.2" stroke-linecap="round"/>
-        <g fill="none" stroke-linecap="round">
-            <path d="M33 95C24 89 37 87 34 83M30 70C22 66 26 57 33 59C39 61 34 67 30 63M167 95C176 89 163 87 166 83M170 70C178 66 174 57 167 59C161 61 166 67 170 63" stroke="#81501a" stroke-width="1.7"/>
-            <path d="M33 94C24 88 37 86 34 82M30 69C22 65 26 56 33 58C39 60 34 66 30 62M167 94C176 88 163 86 166 82M170 69C178 65 174 56 167 58C161 60 166 66 170 62" stroke="#ffe6a0" stroke-width=".7"/>
-        </g>
-        <path d="M46 55H154L161 61V91L155 97H45L39 91V61Z" fill="#724713" stroke="#ffdfa0" stroke-width=".8"/>
-        <path d="M47 57H153L159 62V90L154 95H46L41 90V62Z" fill="url(#${id}-window)" stroke="#59360e" stroke-width=".8"/>
-        <path d="M42 63L47 58H153L158 63" fill="none" stroke="#160e07" stroke-width="1.2"/>
-        <path d="M42 90L46 94H154L158 90" fill="none" stroke="#f6cd77" stroke-opacity=".65" stroke-width=".65"/>
-        ${jewels}
-        <path d="M24 104H176V117H24Z" fill="#603710"/>
-        <path d="M24 101H176V114H24Z" fill="url(#${id}-band)" stroke="#eec26a" stroke-width=".9"/>
-        <path d="M27 103H173M27 112H173" fill="none" stroke="#fff0a5" stroke-width=".8"/>
-        <path d="M30 108H170" fill="none" stroke="#815018" stroke-width=".65" stroke-dasharray="1 2"/>
-        <g fill="url(#${id}-stud)" stroke="#f8d77e" stroke-width=".65">
-            <circle cx="12" cy="29" r="5"/><circle cx="100" cy="10" r="6"/><circle cx="188" cy="29" r="5"/>
-            <path d="M38 105L41 108L38 111L35 108ZM162 105L165 108L162 111L159 108Z"/>
-        </g>
-        <g fill="none" stroke="#7d4912" stroke-width=".65" stroke-linecap="round">
-            <path d="M48 108H77M51 108L54 105M55 108L58 111M59 108L62 105M63 108L66 111M67 108L70 105M71 108L74 111M123 108H152M126 111L129 108M130 105L133 108M134 111L137 108M138 105L141 108M142 111L145 108M146 105L149 108"/>
-        </g>
-    </svg>`; }
-    function achPearlMarqueeHTML() { const id = 'bbgl-platinum-' + (achPearlMarqueeHTML.serial = (achPearlMarqueeHTML.serial || 0) + 1); return `<svg class="bbgl-rank-pearl-marquee bbgl-platinum-crest" viewBox="0 0 200 124" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-metal" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#fffaf0"/><stop offset=".14" stop-color="#b9cde7"/><stop offset=".23" stop-color="#fff"/><stop offset=".32" stop-color="#515775"/><stop offset=".42" stop-color="#e9cced"/><stop offset=".5" stop-color="#fff"/><stop offset=".6" stop-color="#c2eeeb"/><stop offset=".72" stop-color="#74788e"/><stop offset=".82" stop-color="#fff0d7"/><stop offset=".92" stop-color="#e5e1fa"/><stop offset="1" stop-color="#fff"/></linearGradient>
-            <linearGradient id="${id}-heart" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#f5fafc"/><stop offset=".12" stop-color="#b4c9dc"/><stop offset=".23" stop-color="#e9d6ec"/><stop offset=".34" stop-color="#f9fbec"/><stop offset=".43" stop-color="#748393"/><stop offset=".51" stop-color="#d1e9ed"/><stop offset=".6" stop-color="#f5f2ff"/><stop offset=".73" stop-color="#abb3d1"/><stop offset=".85" stop-color="#f4e4d4"/><stop offset="1" stop-color="#e9faff"/></linearGradient>
-            <filter id="${id}-light" x="-8%" y="-12%" width="116%" height="124%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
-                <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-                <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".7" specularExponent="18" lighting-color="#b9ecff" result="blue">
-                    <fePointLight x="-.3" y=".7" z=".4"><animate attributeName="x" values="-.3;.25;.7;1.3;1.3" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".7;.15;.35;.8;.8" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feSpecularLighting in="surface" surfaceScale=".035" specularConstant=".5" specularExponent="25" lighting-color="#ffd4ed" result="rose">
-                    <fePointLight x="-.5" y=".8" z=".3"><animate attributeName="x" values="-.5;.05;.5;1.1;1.1" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/><animate attributeName="y" values=".8;.25;.45;.9;.9" keyTimes="0;.22;.48;.72;1" dur="8s" repeatCount="indefinite"/></fePointLight>
-                </feSpecularLighting>
-                <feBlend in="blue" in2="rose" mode="screen" result="prism"/>
-                <feComposite in="prism" in2="relief" operator="in" result="reflection"/>
-                <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
-                <feComposite in="lit" in2="SourceAlpha" operator="in"/>
-            </filter>
-            <linearGradient id="${id}-recess" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#101a29"/><stop offset=".3" stop-color="#263345"/><stop offset=".53" stop-color="#302d43"/><stop offset=".74" stop-color="#1e3540"/><stop offset="1" stop-color="#101822"/></linearGradient>
-        </defs>
-        <g class="bbgl-platinum-metalwork" style="--crest-light:url(#${id}-light)">
-            <path d="M40 7H160L195 43L100 120L5 43Z" fill="#202837" transform="translate(0 2)"/>
-            <path d="M40 7H160L195 43L100 120L5 43Z" fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width="1.3" stroke-linejoin="round"/>
-            <path d="M43 13H157L186 43L100 112L14 43Z" fill="#465063" stroke="#7a8597" stroke-width="1"/>
-            <path d="M45 16H155L181 43L100 108L19 43Z" fill="url(#${id}-metal)" stroke="#f9f6ff" stroke-width="1.2"/>
-            <path d="M49 21H151L174 44L100 102L26 44Z" fill="#0b111d" stroke="#627088" stroke-width="1.4"/>
-            <path d="M51 24H149L170 44L100 98L30 44Z" fill="url(#${id}-recess)"/>
-            <path d="M30 44L51 24H149L170 44" fill="none" stroke="#080e17" stroke-width="1.8"/>
-            <path d="M30 45L100 99L170 45" fill="none" stroke="#d3e9f4" stroke-opacity=".7" stroke-width=".8"/>
-            <path d="M41 10H159L191 43L100 117L9 43Z" fill="none" stroke="#465168" stroke-width="2.2"/>
-            <path d="M41 9H159L191 42L100 116L9 42Z" fill="none" stroke="#f3f4ff" stroke-width=".7"/>
-            <path d="M43 13H157L186 43L100 112L14 43Z" fill="none" stroke="#e7e9ff" stroke-width="1.1" stroke-dasharray=".3 2.7" stroke-linecap="round"/>
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M50 18H86L100 14L114 18H150M35 27L22 42L59 73M165 27L178 42L141 73M66 79L88 96M134 79L112 96" stroke="#45516b" stroke-width="2.2"/>
-                <path d="M50 17H86L100 13L114 17H150M35 26L22 41L59 72M165 26L178 41L141 72M66 78L88 95M134 78L112 95" stroke="#eef9ff" stroke-width=".75"/>
-                <path d="M54 18L59 21L64 18L69 21L74 18M126 18L131 21L136 18L141 21L146 18M34 54L39 54L39 59L44 59L44 64M166 54L161 54L161 59L156 59L156 64" stroke="#c4d9e6" stroke-width=".7"/>
-            </g>
-            <g fill="url(#${id}-metal)" stroke="#f7fbff" stroke-width=".5">
-                <path d="M57 68L62 73L57 78L52 73ZM143 68L148 73L143 78L138 73Z"/>
-            </g>
-            <g fill="#caddec" stroke="#5c6c83" stroke-width=".4">
-                <path d="M57 70L60 73L57 76L54 73ZM143 70L146 73L143 76L140 73Z"/>
-            </g>
-            <path d="M57 70V76L60 73ZM143 70V76L146 73Z" fill="#fff" opacity=".85"/>
-            <g transform="translate(0 -21)">
-                <g fill="url(#${id}-metal)" stroke="#f6fbff" stroke-width=".6">
-                    <path d="M22 56L28 64L22 72L16 64ZM178 56L184 64L178 72L172 64Z"/>
-                </g>
-                <path d="M22 59L25 64L22 69L19 64Z" fill="#c1eef4"/>
-                <path d="M178 59L181 64L178 69L175 64Z" fill="#dad5fa"/>
-                <path d="M22 59V69L25 64ZM178 59V69L181 64Z" fill="#fff" opacity=".85"/>
-            </g>
-            <path d="M77 9H123L128 15L120 22H80L72 15Z" fill="#465266"/>
-            <path d="M78 9H122L126 14L119 20H81L74 14Z" fill="url(#${id}-metal)" stroke="#f4f9ff" stroke-width=".7"/>
-            <path d="M81 11H119M82 18H118" fill="none" stroke="#5d6b80" stroke-width=".65"/>
-            <g fill="#fff">
-                <path class="bbgl-platinum-glint" style="--glint-delay:1.1s" d="M40 1L41 6L47 7L41 8L40 14L39 8L33 7L39 6Z"/>
-                <path class="bbgl-platinum-glint" style="--glint-delay:3.8s" d="M178 35L179 42L185 43L179 44L178 51L177 44L171 43L177 42Z"/>
-                <path class="bbgl-platinum-glint" style="--glint-delay:5.3s" d="M100 105L101 111L107 112L101 113L100 119L99 113L93 112L99 111Z"/>
-            </g>
-        </g>
-    </svg>`; }
-    function achBronzePlaqueHTML() { const id = `bbgl-bronze-${achBronzePlaqueHTML.serial = (achBronzePlaqueHTML.serial || 0) + 1}`; return `<svg class="bbgl-rank-bronze-plaque" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-            <linearGradient id="${id}-rim" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#d9ad75"/><stop offset=".13" stop-color="#a57443"/><stop offset=".23" stop-color="#51321f"/><stop offset=".34" stop-color="#9f683b"/><stop offset=".48" stop-color="#d9ad75"/><stop offset=".56" stop-color="#c2945f"/><stop offset=".65" stop-color="#784a29"/><stop offset=".8" stop-color="#b58450"/><stop offset=".92" stop-color="#382317"/><stop offset="1" stop-color="#c99b64"/></linearGradient>
-            <linearGradient id="${id}-face" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#d9ad75"/><stop offset=".16" stop-color="#87522e"/><stop offset=".3" stop-color="#bc8b54"/><stop offset=".42" stop-color="#634025"/><stop offset=".49" stop-color="#a16a3b"/><stop offset=".55" stop-color="#d9ad75"/><stop offset=".62" stop-color="#bb8d58"/><stop offset=".77" stop-color="#80502d"/><stop offset=".9" stop-color="#ad7b45"/><stop offset="1" stop-color="#593820"/></linearGradient>
-
-            <radialGradient id="${id}-rust"><stop stop-color="#ae502b" stop-opacity=".65"/><stop offset=".45" stop-color="#80371f" stop-opacity=".4"/><stop offset="1" stop-color="#572817" stop-opacity="0"/></radialGradient>
-            <radialGradient id="${id}-tarnish"><stop stop-color="#49291b" stop-opacity=".5"/><stop offset="1" stop-color="#683c24" stop-opacity="0"/></radialGradient>
-        </defs>
-        <path d="M100 3C70 3 68 6 60 17Q57 22 48 22H27Q24 33 9 37L3 67L9 98Q22 102 27 117H173Q178 102 191 98L197 67L191 37Q176 33 173 22H152Q143 22 140 17C132 6 130 3 100 3Z" fill="url(#${id}-rim)" stroke="#624029" stroke-width="1"/>
-        <path d="M100 9C73 9 72 11 65 21Q60 28 49 28H32Q27 38 15 42L9 67L15 93Q27 98 32 111H168Q173 98 185 93L191 67L185 42Q173 38 168 28H151Q140 28 135 21C128 11 127 9 100 9Z" fill="url(#${id}-face)" stroke="#4c311f" stroke-width="1.7"/>
-        <path d="M33 36H167Q172 44 183 47L188 68L183 92Q172 96 167 104H33Q28 96 17 92L12 68L17 47Q28 44 33 36Z" fill="#101211" stroke="#4b301d" stroke-width="2"/>
-        <path d="M34 38H166Q171 46 181 49L186 68L181 90Q171 94 166 102H34Q29 94 19 90L14 68L19 49Q29 46 34 38Z" fill="none" stroke="#d0a16a" stroke-opacity=".42" stroke-width=".7"/>
-        <path d="M62 25C72 14 73 12 100 12C127 12 128 14 138 25M34 109H166" fill="none" stroke="#d6a970" stroke-width="1"/>
-        <g fill="url(#${id}-rust)"><ellipse cx="29" cy="39" rx="8" ry="6"/><ellipse cx="171" cy="98" rx="8" ry="6"/></g>
-        <g fill="#392719" stroke="#d2a36d" stroke-width=".6"><circle cx="30" cy="34" r="1.5"/><circle cx="170" cy="34" r="1.5"/><circle cx="30" cy="102" r="1.5"/><circle cx="170" cy="102" r="1.5"/></g>
-    </svg>`; }
-    function achShieldGlimmerHTML(x) { const progress = (x / 200 + .35) / 1.7; let low = 0, high = 1; for (let i = 0; i < 24; i++) { const t = (low + high) / 2; if (t * t * (3 - 2 * t) < progress) low = t;else high = t; } const t = (low + high) / 2; const pass = (3 * (1 - t) ** 2 * t * .3 + 3 * (1 - t) * t * t * .55 + t ** 3) / 2; const times = [0, pass - .025, pass, pass + .025, 1 - pass - .025, 1 - pass, 1 - pass + .025, 1].map(v => v.toFixed(6)).join(';'); return `<g class="bbgl-shield-glimmer" opacity="0" fill="#edfff5" pointer-events="none">
-        <path d="M0-7L1.1-1.1L5 0L1.1 1.1L0 7L-1.1 1.1L-5 0L-1.1-1.1Z"/>
-        <circle r="1.3" fill="#fff"/>
-        <animate attributeName="opacity" values="0;0;1;0;0;1;0;0" keyTimes="${times}" dur="6.8s" repeatCount="indefinite"/>
-    </g>`; }
-    function achSilverShieldJewelsHTML() { const id = `bbgl-silver-shield-${achSilverShieldJewelsHTML.serial = (achSilverShieldJewelsHTML.serial || 0) + 1}`; const jewels = [[29, 30, -12], [171, 30, 12], [100, 101, 0]].map(([x, y, angle]) => `<g transform="translate(${x} ${y}) rotate(${angle}) scale(1.05)">
-        <path d="M-5-10H5L9-5V5L5 10H-5L-9 5V-5Z" fill="url(#${id}-rim)" stroke="#52666a" stroke-width=".7"/>
-        <path d="M-4-8H4L7-4V4L4 8H-4L-7 4V-4Z" fill="#003d29" stroke="#09271f" stroke-width=".6"/>
-        <path d="M-4-8H4L3-4H-3L-7-4Z" fill="#93dcbc"/>
-        <path d="M4-8L7-4V4L3 4V-4Z" fill="#087451"/>
-        <path d="M7 4L4 8H-4L-3 4Z" fill="#002f23"/>
-        <path d="M-7-4L-3-4V4L-4 8L-7 4Z" fill="#1a9d70"/>
-        <path d="M-3-4H3V4H-3Z" fill="url(#${id}-gem)"/>
-                <path d="M-4-8L-3-4L-7-4ZM4-8L3-4L7-4ZM7 4L3 4L4 8ZM-7 4L-3 4L-4 8Z" fill="#52b58e" opacity=".7"/>
-        <path d="M-3-4L1-2L3 4L-1 2Z" fill="#b4edcf" opacity=".22"/>
-        <path d="M3-4L1-2L-3 4L3 1Z" fill="#002e21" opacity=".55"/>
-        <path d="M-2 1L0-1L1 2M-1 3L1 1" fill="none" stroke="#8cc6a7" stroke-opacity=".25" stroke-width=".2"/>
-        <path d="M-4-7H2M-6-3V0" fill="none" stroke="#e0f5e9" stroke-width=".45"/>
-        <path d="M-5-8L-3-7M5 8L3 7" fill="none" stroke="url(#${id}-rim)" stroke-width="1.4" stroke-linecap="round"/>
-        ${achShieldGlimmerHTML(x)}
-    </g>`).join(''); return `<svg class="bbgl-rank-silver-shield-jewels" viewBox="0 0 200 120" preserveAspectRatio="none" aria-hidden="true"><defs>
-            <linearGradient id="${id}-rim" x1="0" y1="0" x2=".25" y2="1"><stop stop-color="#fff"/><stop offset=".13" stop-color="#d7e3e9"/><stop offset=".23" stop-color="#536975"/><stop offset=".34" stop-color="#c7d5dd"/><stop offset=".48" stop-color="#fff"/><stop offset=".56" stop-color="#eef7fb"/><stop offset=".65" stop-color="#718995"/><stop offset=".8" stop-color="#dce9ef"/><stop offset=".92" stop-color="#435b68"/><stop offset="1" stop-color="#e6f1f6"/></linearGradient>
-            <linearGradient id="${id}-gem" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#93dcbc"/><stop offset=".22" stop-color="#1a9d70"/><stop offset=".46" stop-color="#006044"/><stop offset=".52" stop-color="#52b58e"/><stop offset=".68" stop-color="#087451"/><stop offset="1" stop-color="#002f23"/></linearGradient>
-    </defs><g fill="none" stroke="url(#${id}-rim)" stroke-width=".8" opacity=".8">
-        <path d="M22 48C18 60 24 74 37 85C31 76 29 68 34 63C39 57 44 66 39 69C35 71 33 66 36 64M178 48C182 60 176 74 163 85C169 76 171 68 166 63C161 57 156 66 161 69C165 71 167 66 164 64"/>
-        <path d="M65 99Q83 100 100 113Q117 100 135 99M83 103Q100 97 117 103M96 107L100 102L104 107L100 112Z"/>
-        <path d="M72 19Q82 12 88 13M128 19Q118 12 112 13"/>
-        </g>${jewels}</svg>`; }
+    const RANK_TEXT_CAP = 40;
+    const RANK_EMBLEM_SIZE = { 'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 261], 'T3R1-Cracked-Clay': [500, 261], 'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267], 'T1R3-Hand-Stroked-Clay': [500, 220], 'T2R3-Foot-Pumped-Clay': [500, 219], 'T3R3-Vacuum-Sucked-Clay': [500, 215], 'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 303], 'T3R4-Kiln-Fired-Clay': [500, 300], 'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 298], 'T3R5-Competently-Bricked': [500, 301], 'T3R6-Fully-Bricked': [500, 294] };
+    const RANK_TEXT_SIZE = { 'T1R1-Dry-Clay': [179, 63], 'T2R1-Parched-Clay': [164, 111], 'T3R1-Cracked-Clay': [161, 108], 'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [226, 99], 'T1R3-Hand-Stroked-Clay': [330, 107], 'T2R3-Foot-Pumped-Clay': [320, 107], 'T3R3-Vacuum-Sucked-Clay': [358, 108], 'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [198, 102], 'T3R4-Kiln-Fired-Clay': [202, 98], 'T1R5-Half-Bricked': [192, 89], 'T2R5-Mostly-Bricked': [189, 90], 'T3R5-Competently-Bricked': [225, 92], 'T3R6-Fully-Bricked': [240, 104] };
+    const RANK_CAP_ART = 'T3R6-Fully-Bricked';
+    function rankArtName(atrophy, band) { const b = LEVEL_TITLE_BANDS[band]; const title = b.titles[atrophy] || b.titles[0]; return `T${(atrophy || 0) + 1}R${band + 1}-${title.replace(/\s+/g, '-')}`; }
+    const rankArtSrc = name => `${PLAQUE_ART_ROOT}${name}.webp`;
+    function achRankNameArtHTML(name, under = '') { const [w, h] = RANK_TEXT_SIZE[name]; const src = rankArtSrc(name + '-text'); return `<span class="bbgl-rank-name-art" style="--rank-name-h:${(h / RANK_TEXT_CAP).toFixed(4)};--rank-name:url('${src}')">${under}` + `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`; }
+    const PLATINUM_LAMPS = { left: [19.2, 76.5], right: [140.8, 76.5], target: [80, 41], scale: 1.75 };
+    function achPlatinumLampAngle([x, y]) { const [tx, ty] = PLATINUM_LAMPS.target; return +(Math.atan2(ty - y, tx - x) * 180 / Math.PI).toFixed(1); }
+    function achPlatinumBeamsHTML() { const id = achPlatinumBeamsHTML.serial = (achPlatinumBeamsHTML.serial || 0) + 1; const beam = (side, [x, y]) => `<g class="bbgl-lamp-sweep is-${side}" style="transform-origin:${x}px ${y}px">
+        <polygon transform="rotate(${achPlatinumLampAngle([x, y])} ${x} ${y})" points="${x},${y - 1.2} ${x + 78},${y - 15} ${x + 78},${y + 15} ${x},${y + 1.2}" fill="url(#bbgl-lamp-beam-${id})"/></g>`; return '<svg class="bbgl-rank-lamps is-back" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' + `<linearGradient id="bbgl-lamp-beam-${id}"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".55" stop-color="#cfe6ff" stop-opacity=".28"/><stop offset="1" stop-color="#cfe6ff" stop-opacity="0"/></linearGradient>` + `</defs>${beam('left', PLATINUM_LAMPS.left)}${beam('right', PLATINUM_LAMPS.right)}</svg>`; }
+    function achPlatinumLampsHTML() { const id = achPlatinumLampsHTML.serial = (achPlatinumLampsHTML.serial || 0) + 1; const k = PLATINUM_LAMPS.scale; const n = v => +(v * k).toFixed(2); const lamp = (side, [x, y]) => `<g>
+        <rect x="${x - n(4)}" y="${y + n(4.5)}" width="${n(8)}" height="${n(1.8)}" rx="${n(.9)}" fill="#0c0d0f" opacity=".5" transform="translate(.3 .6)"/>
+        <rect x="${x - n(4)}" y="${y + n(4.5)}" width="${n(8)}" height="${n(1.8)}" rx="${n(.9)}" fill="url(#bbgl-lamp-metal-${id})"/>
+        <rect x="${x - n(.6)}" y="${y + n(1)}" width="${n(1.2)}" height="${n(3.8)}" fill="#24272b"/>
+        <g class="bbgl-lamp-sweep is-${side}" style="transform-origin:${x}px ${y}px"><g transform="rotate(${achPlatinumLampAngle([x, y])} ${x} ${y})">
+            <rect x="${x - n(4)}" y="${y - n(2.1)}" width="${n(11)}" height="${n(4.2)}" rx="${n(2.1)}" fill="url(#bbgl-lamp-metal-${id})" stroke="#08090a" stroke-width=".3"/>
+            <rect x="${x - n(1.5)}" y="${y - n(2.1)}" width="${n(.5)}" height="${n(4.2)}" fill="#08090a" opacity=".55"/>
+            <ellipse cx="${x + n(6.6)}" cy="${y}" rx="${n(.9)}" ry="${n(1.8)}" fill="#eef7ff"/>
+            <circle class="bbgl-lamp-glow" cx="${x + n(7)}" cy="${y}" r="${n(2.6)}" fill="#eef7ff" opacity=".35"/>
+        </g></g>
+    </g>`; return '<svg class="bbgl-rank-lamps is-front" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' + `<linearGradient id="bbgl-lamp-metal-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4e55"/><stop offset=".35" stop-color="#26292e"/><stop offset="1" stop-color="#101113"/></linearGradient>` + `</defs>${lamp('left', PLATINUM_LAMPS.left)}${lamp('right', PLATINUM_LAMPS.right)}</svg>`; }
+    function achPlatinumLampLightHTML() { const id = achPlatinumLampLightHTML.serial = (achPlatinumLampLightHTML.serial || 0) + 1; const [, ty] = PLATINUM_LAMPS.target; return '<svg class="bbgl-rank-lamp-light" viewBox="0 0 160 94" preserveAspectRatio="none" aria-hidden="true"><defs>' + `<radialGradient id="bbgl-lamp-spot-${id}"><stop offset="0" stop-color="#fff" stop-opacity=".75"/><stop offset=".45" stop-color="#cfe6ff" stop-opacity=".25"/><stop offset="1" stop-color="#cfe6ff" stop-opacity="0"/></radialGradient>` + `</defs><circle class="bbgl-lamp-spot is-left" cx="70" cy="${ty}" r="30" fill="url(#bbgl-lamp-spot-${id})"/>` + `<circle class="bbgl-lamp-spot is-right" cx="104" cy="${ty}" r="30" fill="url(#bbgl-lamp-spot-${id})"/></svg>`; }
     function achGoldZingLighting(textOnly) { const id = 'bbgl-gold-zing-' + (achGoldZingLighting.serial = (achGoldZingLighting.serial || 0) + 1); const image = svg => 'data:image/svg+xml,' + encodeURIComponent(svg).replaceAll("'", '%27'); const beam = image('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2=".25"><stop offset=".2" stop-color="#ffcf62" stop-opacity="0"/><stop offset=".4" stop-color="#ffe5a0" stop-opacity=".48"/><stop offset=".5" stop-color="#fff7d8" stop-opacity="1"/><stop offset=".6" stop-color="#ffe5a0" stop-opacity=".48"/><stop offset=".8" stop-color="#ffcf62" stop-opacity="0"/></linearGradient></defs><rect width="100" height="100" fill="url(#g)"/></svg>'); const inset = image('<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 0 192 118" preserveAspectRatio="none"><path d="M47 57H153L159 62V90L154 95H46L41 90V62Z" fill="white"/></svg>'); const x = textOnly ? -1.375 : -.7; const end = textOnly ? 1.59375 : 1.2; const glow = textOnly ? '<feGaussianBlur in="reflection" stdDeviation=".055 .1" result="halo"/>' : `<feImage href="${inset}" x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="windowMask"/>
            <feComposite in="reflection" in2="windowMask" operator="in" result="letterLight"/>
            <feGaussianBlur in="letterLight" stdDeviation=".026" result="letterBloom"/>
@@ -12835,14 +11376,14 @@ ${TITLE_PLAQUE_CSS}
             <feComposite in="lit" in2="SourceAlpha" operator="in"/>
         </filter>
     </defs></svg>`; return { html, style: `--bbgl-shield-light: url(#${id});` }; }
-    function achRankPlaqueHTML(cls, style, tip, revealed, label, textWrapperClass = '') { const nameTag = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-mill'); const lightbox = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-machined'); const bronzePlaque = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-polished'); const silverShield = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-silver'); const goldCrown = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-gold'); const pearlMarquee = revealed && cls.split(/\s+/).includes('bbgl-title-card-rank-plaque') && cls.split(/\s+/).includes('finish-pearl'); const lines = nameTag ? `<span class="bbgl-rank-notch-line" data-rank-text="${achEsc(label)}">${achEsc(label)}</span>` : revealed ? achRankPlaqueLabelHTML(label) : '<span class="bbgl-rank-notch-line">?</span>'; const greeting = nameTag ? '<span class="bbgl-rank-name-tag-heading">Hello, my RANK is...</span>' : lightbox ? '<span class="bbgl-rank-lightbox-heading"><span>RANK</span></span>' : bronzePlaque ? `${achBronzePlaqueHTML()}<span class="bbgl-rank-bronze-heading">RANK</span>` : silverShield ? `${achSilverShieldJewelsHTML()}<span class="bbgl-rank-silver-shield-heading">RANK</span>` : goldCrown ? `${achGoldCrownHTML()}<span class="bbgl-rank-crown-heading">RANK</span>` : pearlMarquee ? `${achPearlMarqueeHTML()}<span class="bbgl-rank-marquee-heading">RANK</span>` : ''; const lighting = silverShield ? achRankSurfaceLighting() : goldCrown ? achRankSurfaceLighting(false, true) : null; if (lighting) style += lighting.style; const inner = (lighting?.html || '') + greeting + (textWrapperClass ? `<span class="${textWrapperClass}">${lines}</span>` : lines) + (bronzePlaque ? '<span class="bbgl-rank-bronze-sheen"></span>' : ''); const styleAttr = style ? ` style="${style}"` : ''; return `<div class="${cls}"${styleAttr} data-tooltip="${achEsc(tip)}"><span class="bbgl-rank-notch-label"><span class="bbgl-rank-notch-face"><span class="bbgl-rank-notch-fx"></span>${inner}</span></span></div>`; }
+    function achRankPlaqueHTML(cls, tip, finish, label, name) { const [w, h] = RANK_EMBLEM_SIZE[name]; const src = rankArtSrc(name); const lighting = finish === 'silver' ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null; const pearl = finish === 'pearl'; const style = `--rank-ar:${(w / h).toFixed(4)};--rank-emblem:url('${src}');${lighting?.style || ''}`; const inner = (lighting?.html || '') + `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` + (pearl ? achPlatinumLampLightHTML() : '') + (finish === 'polished' ? '<span class="bbgl-rank-bronze-sheen"></span>' : '') + (pearl ? achPlatinumLampsHTML() : ''); return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` + `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`; }
     function achRankTipHTML(label, start, end, unlocked) { if (!unlocked) return `<strong><em>Locked</em></strong><i>Reach level ${start} to unlock</i>`; const range = start === end ? `Level ${start}` : `Levels ${start}-${end}`; return `<strong>${achEsc(label)}</strong><i>${range}</i>`; }
-    function achCurrentRankPlaqueData(atrophy, level) { const finishes = ['mill', 'machined', 'polished', 'silver', 'gold', 'pearl']; const materials = ['iron', 'steel', 'silver', 'bright-silver', 'gold', 'diamond']; const brackets = levelRankBrackets(atrophy, level); const bricked = isFullyBricked(atrophy, level); let currentIdx = -1; brackets.forEach((b, i) => { if (b.unlocked) currentIdx = i; }); const isCap = bricked; const finishIdx = isCap ? finishes.length - 1 : Math.max(0, currentIdx); const current = brackets[Math.max(0, currentIdx)] || brackets[0]; const label = isCap ? 'Fully Bricked' : atrophyBandTitle(atrophy, level); const tip = isCap ? achRankTipHTML(label, LEVEL_CAP, LEVEL_CAP, true) : achRankTipHTML(label, current.start, current.end, true); const cls = ['bbgl-rank-notch', 'bbgl-title-card-rank-plaque', `finish-${finishes[finishIdx] || 'mill'}`, `material-${materials[finishIdx] || 'iron'}`, 'is-revealed', 'is-current', isCap ? 'is-cap is-bricked' : ''].filter(Boolean).join(' '); return { finish: finishes[finishIdx] || 'mill', material: materials[finishIdx] || 'iron', label, tip, html: achRankPlaqueHTML(cls, '', tip, true, label, 'bbgl-rank-title-text') }; }
-    function achTitleIdentityHTML(currentRank, titleValue, labelExtra = '') { const stage = getLivePlaqueStage(); ensurePlaqueArt(stage); const progressive = TITLE_PLAQUE_PROGRESSIVE ? ' is-progressive' : ''; return `<div class="bbgl-titles-center">` + `<div class="bbgl-title-card${progressive}" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` + `<div class="bbgl-title-card-sign"><div class="bbgl-title-card-sign-face">` + `<span class="bbgl-title-card-title-label">The${labelExtra}</span><span class="bbgl-title-card-value">${titleValue}</span>` + `</div></div><div class="bbgl-title-card-connector" aria-hidden="true"></div>` + `<div class="bbgl-title-card-rank"><span class="bbgl-title-card-rank-label">Rank</span>${currentRank.html}</div>` + `</div></div>`; }
+    function achCurrentRankPlaqueData(atrophy, level) { const finishes = ['mill', 'machined', 'polished', 'silver', 'gold', 'pearl']; const materials = ['iron', 'steel', 'silver', 'bright-silver', 'gold', 'diamond']; const brackets = levelRankBrackets(atrophy, level); const bricked = isFullyBricked(atrophy, level); let currentIdx = -1; brackets.forEach((b, i) => { if (b.unlocked) currentIdx = i; }); const isCap = bricked; const finishIdx = isCap ? finishes.length - 1 : Math.max(0, currentIdx); const current = brackets[Math.max(0, currentIdx)] || brackets[0]; const name = isCap ? RANK_CAP_ART : rankArtName(atrophy, Math.max(0, currentIdx)); const label = isCap ? 'Fully Bricked' : atrophyBandTitle(atrophy, level); const tip = isCap ? achRankTipHTML(label, LEVEL_CAP, LEVEL_CAP, true) : achRankTipHTML(label, current.start, current.end, true); const cls = ['bbgl-rank-notch', 'bbgl-title-card-rank-plaque', `finish-${finishes[finishIdx] || 'mill'}`, `material-${materials[finishIdx] || 'iron'}`, 'is-revealed', 'is-current', isCap ? 'is-cap is-bricked' : ''].filter(Boolean).join(' '); return { finish: finishes[finishIdx] || 'mill', material: materials[finishIdx] || 'iron', label, tip, html: achRankPlaqueHTML(cls, tip, finishes[finishIdx] || 'mill', label, name) }; }
+    function achTitleIdentityHTML(currentRank, titleValue, labelExtra = '') { const stage = getLivePlaqueStage(); ensurePlaqueArt(stage); return `<div class="bbgl-titles-center">` + `<div class="bbgl-title-card is-progressive" data-sign-stage="${stage}" data-rank-finish="${currentRank.finish}" data-rank-material="${currentRank.material}">` + `<div class="bbgl-title-card-sign"><div class="bbgl-title-card-sign-face">` + `<span class="bbgl-title-card-title-label">The${labelExtra}</span><span class="bbgl-title-card-value">${titleValue}</span>` + `</div></div><div class="bbgl-title-card-connector" aria-hidden="true"></div>` + `<div class="bbgl-title-card-rank"><span class="bbgl-title-card-rank-label">Rank</span>${currentRank.html}</div>` + `</div></div>`; }
     function achLevelBarTooltipHTML(atrophy, level, levelPct = 0) { const titleHtml = composeStatTitleHTML(getLiveStatTitleSelection()); const titleValue = titleHtml ? `<i class="bbgl-lvl-title bbgl-titles-title">${titleHtml}</i>` : `<span class="bbgl-title-card-empty">Unequipped</span>`; const pct = Math.max(0, Math.min(100, levelPct)); const start = Math.max(0, Math.min(LEVEL_CAP - 20, Math.floor(level / 20) * 20)); const end = start + 20; const progress = Math.max(0, Math.min(100, (level + pct / 100 - start) / 20 * 100)); const caption = level >= LEVEL_CAP ? isFullyBricked(atrophy, level) ? 'Maximum rank' : 'Rank cycle complete' : 'Next rank'; const progressHTML = `<div class="bbgl-tooltip-rank-progress"><div class="bbgl-tooltip-rank-caption">${caption}</div><div class="bbgl-tooltip-rank-track" role="progressbar" aria-label="${caption}" aria-valuemin="${start}" aria-valuemax="${end}" aria-valuenow="${Math.min(end, level + pct / 100).toFixed(2)}" style="--rank-progress:${progress.toFixed(2)}%"><span></span></div><div class="bbgl-tooltip-rank-endpoints"><span>Lv ${start}</span><span class="bbgl-tooltip-level-readout">Level ${level} &bull; ${pct.toFixed(1)}%</span><span>Lv ${end}</span></div></div>`; const eByStat = getLiveStatTitleE(); const phases = getLiveStatTitleSelection().phases; const emblem = k => achTooltipStatEmblemHTML(k, phases[k] ?? -1, eByStat[k] || 0); const identity = `<div class="bbgl-tooltip-identity-row">` + `<div class="bbgl-tooltip-emblem-col">${emblem('str')}${emblem('spd')}</div>` + achTitleIdentityHTML(achCurrentRankPlaqueData(atrophy, level), titleValue) + `<div class="bbgl-tooltip-emblem-col">${emblem('def')}${emblem('dex')}</div></div>`; return `<div class="bbgl-level-title-tooltip"><div class="bbgl-titles-name bbgl-tooltip-player-name">${achEsc(achTitlePlayerName())}</div>${identity}${progressHTML}</div>`; }
     function achTooltipStatEmblemHTML(stat, unlockedPhase, statE) { const lastPhase = STAT_TITLE_THRESHOLDS.length - 1; const maxed = unlockedPhase >= lastPhase; const phase = maxed ? lastPhase : unlockedPhase + 1; const need = STAT_TITLE_THRESHOLDS[phase] || 0; const prev = phase > 0 ? STAT_TITLE_THRESHOLDS[phase - 1] || 0 : 0; const pct = maxed ? 100 : Math.max(0, Math.min(100, (statE - prev) / Math.max(1, need - prev) * 100)); const readout = `T${phase + 1} &bull; ${maxed ? 'MAX' : `${Math.floor(pct)}%`}`; return `<div class="bbgl-tooltip-emblem ach-stat-${stat}${maxed ? ' is-unlocked' : ''}" style="--star-fill:${(pct / 100).toFixed(3)}">` + achStatEmblemHTML(stat, phase, pct, 'tip-') + `<span class="bbgl-tooltip-emblem-pct">${readout}</span></div>`; }
     function achRankTicksHTML() { let html = ''; for (let i = 0; i <= LEVEL_CAP; i += 2) { const cls = i % 20 === 0 ? ' is-milestone' : ''; html += `<i class="bbgl-rank-tick${cls}" style="left:${i * 100 / LEVEL_CAP}%"></i>`; } return `<div class="bbgl-rank-ticks">${html}<i class="bbgl-rank-tick is-live"></i></div>`; }
-    function achTitleLabelsHTML(atrophy, level) { const bricked = isFullyBricked(atrophy, level); const materials = ['iron', 'steel', 'silver', 'bright-silver', 'gold']; const bands = levelRankBrackets(atrophy, level).map((b, i) => { const cls = ['bbgl-rank-title', 'is-milestone', `material-${materials[i] || 'iron'}`, i === 0 ? 'is-endpoint' : '', b.unlocked ? 'is-revealed' : 'is-locked'].filter(Boolean).join(' '); const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked); const inner = b.unlocked ? achRankPlaqueLabelHTML(b.label) : ICONS.LOCK; const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null; return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text">${inner}</span></div></div>`; }).join(''); const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked); const capInner = achRankPlaqueLabelHTML('Fully Bricked'); const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text">${capInner}</span></div></div>`; return bands + cap; }
+    function achTitleLabelsHTML(atrophy, level) { const bricked = isFullyBricked(atrophy, level); const materials = ['iron', 'steel', 'silver', 'bright-silver', 'gold']; const bands = levelRankBrackets(atrophy, level).map((b, i) => { const cls = ['bbgl-rank-title', 'is-milestone', `material-${materials[i] || 'iron'}`, i === 0 ? 'is-endpoint' : '', b.unlocked ? 'is-revealed' : 'is-locked'].filter(Boolean).join(' '); const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked); const inner = b.unlocked ? achRankNameArtHTML(rankArtName(atrophy, i)) : ICONS.LOCK; const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null; const label = b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : ''; return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`; }).join(''); const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked); const capInner = bricked ? achRankNameArtHTML(RANK_CAP_ART, '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>') : '<span class="bbgl-rank-cap-name">Fully Bricked</span>'; const capLabel = bricked ? ' role="img" aria-label="Fully Bricked"' : ''; const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text"${capLabel}>${capInner}</span></div></div>`; return bands + cap; }
     function achStatEmblemHTML(stat, phase, pct, idScope = '') { const shapes = { str: ['M8 16H13V10H21V20H43V10H51V16H56V32H51V38H43V28H21V38H13V32H8Z', 'M16 13V35M48 13V35M24 23H40M24 25H40'], def: ['M32 4Q43 11 53 10L51 26Q48 37 32 44Q16 37 13 26L11 10Q21 11 32 4Z', 'M32 10V37M17 15Q24 15 32 10Q40 15 47 15L45 25Q43 32 32 38Q21 32 19 25Z'], spd: ['M32 4A20 20 0 1 0 32 44A20 20 0 1 0 32 4Z', 'M32 11A13 13 0 1 0 32 37A13 13 0 1 0 32 11ZM32 18A6 6 0 1 0 32 30A6 6 0 1 0 32 18Z'], dex: ['M41 4C48 4 49 12 43 15L42 18L35 25L40 29L47 40L42 43L33 33L28 31L23 37L12 42L9 37L19 31L25 22L32 18L26 16L17 20L14 16L25 10L36 14L37 12C34 8 36 4 41 4Z', 'M37 19L30 25L35 29M27 14L34 17M20 34L25 30'] }; const [outline, detail] = shapes[stat]; const enamel = `bbgl-emblem-enamel-${idScope}${stat}-${phase}`; const gloss = `${enamel}-gloss`; return `<svg class="bbgl-stat-emblem" viewBox="0 0 64 48" aria-hidden="true"><defs><linearGradient id="${enamel}" x1="0" y1="0" x2=".65" y2="1"><stop stop-color="currentColor"/><stop offset=".35" stop-color="currentColor"/><stop offset="1" stop-color="#141a22"/></linearGradient><linearGradient id="${gloss}" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#fff" stop-opacity=".65"/><stop offset=".38" stop-color="#fff" stop-opacity=".12"/><stop offset=".43" stop-color="#fff" stop-opacity="0"/><stop offset=".85" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#fff" stop-opacity=".18"/></linearGradient></defs>` + `<path class="bbgl-emblem-relief" d="${outline}"/>` + `<path class="bbgl-emblem-body" d="${outline}" fill="url(#${enamel})"/>` + `<path class="bbgl-emblem-gloss" d="${outline}" fill="url(#${gloss})"/>` + `<path class="bbgl-emblem-detail" d="${detail}"/>` + (pct > 0 ? `<path class="bbgl-emblem-trace" d="${outline}" pathLength="100"/>` : '') + `</svg>`; }
     function achTitleStarHTML(stat, phase, unlockedPhase, statE, role) { const unlocked = phase <= unlockedPhase; const need = STAT_TITLE_THRESHOLDS[phase] || 0; const prev = phase > 0 ? STAT_TITLE_THRESHOLDS[phase - 1] || 0 : 0; const span = Math.max(1, need - prev); const pct = unlocked ? 100 : Math.max(0, Math.min(100, (statE - prev) / span * 100)); const cls = ['bbgl-title-star']; if (unlocked) cls.push('is-unlocked');else cls.push('is-locked'); if (role) cls.push('is-' + role); const words = STAT_TITLE_WORDS[stat][phase]; let tip; if (!unlocked) { const inProgress = phase === unlockedPhase + 1; tip = '<strong><em>Locked</em></strong>' + `<i>Spend Energy training ${achStatFull(stat)} to unlock this title</i>` + (inProgress ? `<i>${Formatter.number(Math.min(statE, need))} / ${Formatter.number(need)} E</i>` : ''); } else { tip = `<strong>${words.adj} • ${words.noun}</strong><i>${achStatFull(stat)} · Tier ${phase + 1}</i>`; } return `<div class="${cls.join(' ')}" data-title-stat="${stat}" data-title-phase-idx="${phase}"${unlocked ? '' : ' data-locked="1"'} data-tooltip="${achEsc(tip)}" style="--star-fill:${(pct / 100).toFixed(3)}">` + achStatEmblemHTML(stat, phase, pct) + `</div>`; }
     function achTitleStarRole(sel, pending, stat, phase) { if (pending) return pending.stat === stat && pending.phase === phase ? 'secondary' : ''; const isP = sel.primary && sel.primary.stat === stat && sel.primary.phase === phase; const isS = sel.secondary && sel.secondary.stat === stat && sel.secondary.phase === phase; return isP && isS ? 'both' : isP ? 'primary' : isS ? 'secondary' : ''; }
@@ -12899,7 +11440,6 @@ ${TITLE_PLAQUE_CSS}
      *  You should still get a Tetanus Booster!
      */
 
-    const CAL_IMG_BASE = cdnize('https://raw.githubusercontent.com/BigBlackHawk42069/BigBlackGymLog/refs/heads/main/ScrptImgs/Calendar/');
     function buildChartSVG(sl) { const stats = sl && sl.stats; const keys = ['str', 'def', 'spd', 'dex']; const colors = ['#4a6070', '#7a3d36', '#8a6530', '#486644']; const xs = [4, 9.5, 15, 20.5]; const maxH = 14, minH = 2; const vals = keys.map(k => stats && stats[k] ? stats[k].end : 0); const maxVal = Math.max(...vals); const hs = vals.map(v => maxVal > 0 ? Math.max(v / maxVal * maxH, minH) : maxH * 0.25); const lines = keys.map((k, i) => { return `<line x1="${xs[i]}" y1="20" x2="${xs[i]}" y2="${(20 - hs[i]).toFixed(2)}" stroke="${colors[i]}" stroke-width="5" stroke-linecap="round"/>`; }); const bgLines = keys.map((k, i) => `<line x1="${xs[i]}" y1="20" x2="${xs[i]}" y2="${(20 - hs[i]).toFixed(2)}" stroke="#000" stroke-width="7" stroke-linecap="round"/>`); return `<svg viewBox="0.5 2.5 23.5 21" fill="none">${bgLines.join('')}${lines.join('')}</svg>`; }
     const CAP_W = 500, CAP_H = 100, CAP_N = 5;
     const CAP_PAD_X = 18, CAP_PAD_RIGHT = 8, CAP_PAD_Y = 8, CAP_GAP = 7;
@@ -12950,7 +11490,7 @@ ${TITLE_PLAQUE_CSS}
     function scheduleFitLibraryCells() { if (runtime._libFitRaf) return; runtime._libFitRaf = window.requestAnimationFrame(() => { runtime._libFitRaf = null; fitLibraryCells(); }); }
     function fitLibraryCells() { Perf.wrap('fitLibraryCells', fitLibraryCellsBody); }
     function fitLibraryCellsBody() { const c = dom.libraryContainer; if (!c) return; const labels = Array.from(c.querySelectorAll('.bbgl-lib-group-label')); labels.forEach(l => { l.style.fontSize = ''; }); labels.map(l => { const room = l.parentElement.clientHeight, need = l.scrollHeight; return room > 0 && need > room ? (parseFloat(getComputedStyle(l).fontSize) * room / need).toFixed(2) + 'px' : null; }).forEach((fs, i) => { if (fs) labels[i].style.fontSize = fs; }); const items = Array.from(c.querySelectorAll('.bbgl-lib-item')); items.forEach(it => { it.classList.remove('is-stamp-offset'); it.style.removeProperty('--bbgl-lib-date-h'); }); items.map(it => { const date = it.querySelector('.bbgl-lib-date'); if (!date || date.classList.contains('is-placeholder') || !date.offsetWidth) return null; return (parseFloat(getComputedStyle(date).fontSize) * .75).toFixed(2) + 'px'; }).forEach((h, i) => { if (h == null) return; items[i].classList.add('is-stamp-offset'); items[i].style.setProperty('--bbgl-lib-date-h', h); }); const stamps = Array.from(c.querySelectorAll('.bbgl-lib-stamp')); stamps.forEach(st => { st.style.fontSize = ''; }); let pending = stamps.map(st => { const date = st.querySelector('.bbgl-lib-date'); if (!date || date.classList.contains('is-placeholder')) return null; return { st, date, mark: st.querySelector('.bbgl-lib-check, .bbgl-lib-reading'), floor: parseFloat(getComputedStyle(st).fontSize) * .7 }; }).filter(Boolean); for (let pass = 0; pass < 2 && pending.length; pass++) { const writes = pending.map(p => { const markW = p.mark ? p.mark.getBoundingClientRect().width + (parseFloat(getComputedStyle(p.mark).marginLeft) || 0) : 0; const avail = p.st.clientWidth - markW, need = p.date.scrollWidth; if (!(avail > 0) || need <= avail + .5) return null; const base = parseFloat(getComputedStyle(p.st).fontSize), next = Math.max(base * (avail / need), p.floor); return next >= base - .1 ? null : next.toFixed(2) + 'px'; }); pending = pending.filter((p, i) => { if (writes[i] == null) return false; p.st.style.fontSize = writes[i]; return true; }); } const groups = Array.from(c.querySelectorAll('.bbgl-lib-cells.is-multi')); groups.forEach(g => { g.classList.remove('is-tight'); g.classList.add('is-measure'); }); groups.map(g => { const box = g.closest('.bbgl-lib-data'); return !!box && g.scrollWidth + 8 > box.clientWidth; }).forEach((tight, i) => { if (tight) groups[i].classList.add('is-tight'); groups[i].classList.remove('is-measure'); }); }
-    function renderPanelContent() { if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) { runtime._calendarStale = true; renderLibrary(); return; } runtime._calendarStale = false; const s = getActiveHistory(), dm = DataController.getDateMap(), tk = Formatter.dateLogical(); if ((s.today.startTotal > 0 || s.today.date) && !dm[tk]) dm[tk] = s.today; const c = dom.calContainer; if (!c) return; Perf.start('renderPanel'); c.innerHTML = ''; const y = calendarState.year, m = calendarState.month, yt = dom.yearTrigger; dom.monthTrigger.textContent = CONSTANTS.MONTHS[m]; const hw = dom.headerBg ? dom.headerBg.parentElement : dom.panel; const isSummer = m >= 5 && m <= 7; setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${SEASONAL_HEADER_IMGS[m]}')`); setStyleVarIfChanged(hw, '--bbgl-header-crop-b', isSummer ? '8px' : '0px'); setStyleVarIfChanged(hw, '--bbgl-header-pos-y', isSummer ? 'top' : 'bottom'); yt.textContent = y; yt.classList.remove('disabled'); let f = new Date(y, m, 1), start = f.getDay(); if (start === -1) start = 6; if (userConfig.weekStartMode === 'mon') start = start === 0 ? 6 : start - 1; const dim = new Date(y, m + 1, 0).getDate(), dipm = new Date(y, m, 0).getDate(); let pm = m - 1, py = y; if (pm < 0) { pm = 11; py--; } let cells = []; for (let i = 0; i < start; i++) cells.push({ y: py, m: pm, d: dipm - start + i + 1, g: true }); for (let d = 1; d <= dim; d++) cells.push({ y: y, m: m, d: d, g: false }); let rem = 7 - cells.length % 7; if (rem < 7 && rem > 0) { let nm = m + 1, ny = y; if (nm > 11) { nm = 0; ny++; } for (let i = 1; i <= rem; i++) cells.push({ y: ny, m: nm, d: i, g: true }); } calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d)); c.style.setProperty('--total-rows', 6); c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`); const todayStr = Formatter.dateLogical(); const _tl = DataController.getTimeline(); const cellCtx = { today: todayStr, warMarkers: getWarMarkers(), bookMarkers: getBookMarkers(), firstDate: _tl.length > 0 ? _tl[0].date : s ? s.today.date : null }; Perf.start('renderPanel:cells'); const frag = document.createDocumentFragment(); let batch = [], ridx = 0; cells.forEach(function tickCalendarCell(z) { const ds = Formatter.dateISO(z.y, z.m, z.d), d = dm[ds] || null; batch.push({ ...z, p: d }); if (batch.length === 7) { const rd = document.createElement('div'), last = batch[6], weekEndStr = Formatter.dateISO(last.y, last.m, last.d), isArch = weekEndStr < todayStr; rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : ''); rd.style.setProperty('--row-idx', ridx); if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.webp)`); let wdb = []; batch.forEach(function tickWeekCell(i, cIdx) { renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx); wdb.push({ date: Formatter.dateISO(i.y, i.m, i.d), data: i.p }); }); const wk = document.createElement('div'); wk.className = 'bbgl-week'; wk.appendChild(rd); injectWeeklyBar(wk, wdb); frag.appendChild(wk); batch = []; ridx++; } }); c.appendChild(frag); Perf.end('renderPanel:cells'); syncNoteTools(); if (runtime._pendingHistoryRestore) { const { sl, label } = runtime._pendingHistoryRestore; runtime._pendingHistoryRestore = null; openHistory(sl, label); } const tp = dom.topPanel; if (tp) { if (tp.classList.contains('viewing-graph')) GraphController.draw();else if (tp.classList.contains('viewing-stickers')) renderStickers();else if (tp.classList.contains('viewing-achievements')) { const canPatchLive = runtime._achPage === 0 && runtime._achCache && achLiveInputsFingerprint() === runtime._achLiveFingerprint; if (!canPatchLive || !renderRankReadoutLive()) renderAchievements(); } } Perf.start('renderPanel:stats'); if (!calendarState.selectedData) renderStats(DataController.getSlice('DAY', Formatter.dateLogical()), Formatter.dateLogical());else renderStats(calendarState.selectedData, calendarState.selectedLabel); Perf.end('renderPanel:stats'); seedRewardsSeen(); flushRewards(); Perf.end('renderPanel'); Perf.wrap('updateLevelBar', () => updateLevelBar(true)); Perf.wrap('updateSummaryCharts', updateSummaryCharts); }
+    function renderPanelContent() { if (dom.topPanel && dom.topPanel.classList.contains('viewing-library')) { runtime._calendarStale = true; renderLibrary(); return; } runtime._calendarStale = false; const s = getActiveHistory(), dm = DataController.getDateMap(), tk = Formatter.dateLogical(); if ((s.today.startTotal > 0 || s.today.date) && !dm[tk]) dm[tk] = s.today; const c = dom.calContainer; if (!c) return; Perf.start('renderPanel'); c.innerHTML = ''; const y = calendarState.year, m = calendarState.month, yt = dom.yearTrigger; dom.monthTrigger.textContent = CONSTANTS.MONTHS[m]; const hw = dom.headerBg ? dom.headerBg.parentElement : dom.panel; const headerImg = seasonalHeaderImg(m); const isSummer = headerImg === SEASONAL_HEADER_IMGS[6]; setStyleVarIfChanged(hw, '--bbgl-header-img', `url('${headerImg}')`); setStyleVarIfChanged(hw, '--bbgl-header-crop-b', isSummer ? '8px' : '0px'); setStyleVarIfChanged(hw, '--bbgl-header-pos-y', isSummer ? 'top' : 'bottom'); yt.textContent = y; yt.classList.remove('disabled'); let f = new Date(y, m, 1), start = f.getDay(); if (start === -1) start = 6; if (userConfig.weekStartMode === 'mon') start = start === 0 ? 6 : start - 1; const dim = new Date(y, m + 1, 0).getDate(), dipm = new Date(y, m, 0).getDate(); let pm = m - 1, py = y; if (pm < 0) { pm = 11; py--; } let cells = []; for (let i = 0; i < start; i++) cells.push({ y: py, m: pm, d: dipm - start + i + 1, g: true }); for (let d = 1; d <= dim; d++) cells.push({ y: y, m: m, d: d, g: false }); let rem = 7 - cells.length % 7; if (rem < 7 && rem > 0) { let nm = m + 1, ny = y; if (nm > 11) { nm = 0; ny++; } for (let i = 1; i <= rem; i++) cells.push({ y: ny, m: nm, d: i, g: true }); } calendarState.visibleCells = cells.map(z => Formatter.dateISO(z.y, z.m, z.d)); c.style.setProperty('--total-rows', 6); c.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-futr.webp)`); const todayStr = Formatter.dateLogical(); const _tl = DataController.getTimeline(); const cellCtx = { today: todayStr, warMarkers: getWarMarkers(), bookMarkers: getBookMarkers(), firstDate: _tl.length > 0 ? _tl[0].date : s ? s.today.date : null }; Perf.start('renderPanel:cells'); const frag = document.createDocumentFragment(); let batch = [], ridx = 0; cells.forEach(function tickCalendarCell(z) { const ds = Formatter.dateISO(z.y, z.m, z.d), d = dm[ds] || null; batch.push({ ...z, p: d }); if (batch.length === 7) { const rd = document.createElement('div'), last = batch[6], weekEndStr = Formatter.dateISO(last.y, last.m, last.d), isArch = weekEndStr < todayStr; rd.className = 'bbgl-row-slice' + (isArch ? ' bbgl-row-archived' : ''); rd.style.setProperty('--row-idx', ridx); if (isArch) rd.style.setProperty('--bg-url', `url(${CAL_IMG_BASE}cal-grid-past.webp)`); let wdb = []; batch.forEach(function tickWeekCell(i, cIdx) { renderCell(rd, i.y, i.m, i.d, i.g, ridx, cIdx, cellCtx); wdb.push({ date: Formatter.dateISO(i.y, i.m, i.d), data: i.p }); }); const wk = document.createElement('div'); wk.className = 'bbgl-week'; wk.appendChild(rd); injectWeeklyBar(wk, wdb); frag.appendChild(wk); batch = []; ridx++; } }); c.appendChild(frag); Perf.end('renderPanel:cells'); syncNoteTools(); if (runtime._pendingHistoryRestore) { const { sl, label } = runtime._pendingHistoryRestore; runtime._pendingHistoryRestore = null; openHistory(sl, label); } const tp = dom.topPanel; if (tp) { if (tp.classList.contains('viewing-graph')) GraphController.draw();else if (tp.classList.contains('viewing-stickers')) renderStickers();else if (tp.classList.contains('viewing-achievements')) { const canPatchLive = runtime._achPage === 0 && runtime._achCache && achLiveInputsFingerprint() === runtime._achLiveFingerprint; if (!canPatchLive || !renderRankReadoutLive()) renderAchievements(); } } Perf.start('renderPanel:stats'); if (!calendarState.selectedData) renderStats(DataController.getSlice('DAY', Formatter.dateLogical()), Formatter.dateLogical());else renderStats(calendarState.selectedData, calendarState.selectedLabel); Perf.end('renderPanel:stats'); seedRewardsSeen(); flushRewards(); Perf.end('renderPanel'); Perf.wrap('updateLevelBar', () => updateLevelBar(true)); Perf.wrap('updateSummaryCharts', updateSummaryCharts); }
     let _warMarkerCache = { raw: false, cutoff: -1, map: {} };
     const isTrainingBook = meta => !!meta.training && meta.training !== 'repeat';
     let _bookMarkerCache = null;
@@ -12966,7 +11506,7 @@ ${TITLE_PLAQUE_CSS}
     function noteFit(text) { const cached = noteFitCache.get(text); if (cached) return cached; if (!noteMeasurePaper || !noteMeasurePaper.isConnected) { noteMeasurePaper = buildNotePaper('bbgl-note-measure', ''); document.body.appendChild(noteMeasurePaper); } const box = noteMeasurePaper.firstChild, span = box.firstChild; span.textContent = text; const fitsAt = (fs, anywhere) => { span.style.fontSize = fs + 'cqw'; span.style.overflowWrap = anywhere ? 'anywhere' : 'normal'; return span.scrollWidth <= box.clientWidth + .5 && span.offsetHeight <= box.clientHeight + .5; }; let fit; if (fitsAt(NOTE_FS_MIN, false)) { let lo = NOTE_FS_MIN, hi = NOTE_FS_MAX; if (fitsAt(hi, false)) lo = hi;else for (let i = 0; i < 8; i++) { const mid = (lo + hi) / 2; if (fitsAt(mid, false)) lo = mid;else hi = mid; } fit = { size: Math.floor(lo * 10) / 10, anywhere: false, fits: true }; } else fit = { size: NOTE_FS_MIN, anywhere: true, fits: fitsAt(NOTE_FS_MIN, true) }; noteFitCache.set(text, fit); return fit; }
     function applyNoteFit(span) { const fit = noteFit(span.textContent); span.style.fontSize = fit.size + 'cqw'; span.style.overflowWrap = fit.anywhere ? 'anywhere' : 'normal'; return fit; }
     if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', () => { if (!noteFitCache.size) return; noteFitCache.clear(); document.querySelectorAll('.bbgl-custom-note .bbgl-note-text > span, .bbgl-note-editor-preview .bbgl-note-text > span').forEach(applyNoteFit); });
-    function buildNoteToolsHTML() { return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">Clear</div></div>`; }
+    function buildNoteToolsHTML() { return `<div class="bbgl-note-tools"><div id="bbgl-note-btn" class="bbgl-note-paper bbgl-note-btn" role="button" data-tooltip="${TOOLTIPS.CUSTOM_NOTE}"><div class="bbgl-note-text"><span>Custom Note</span></div></div><div id="bbgl-note-clear-btn" class="bbgl-note-clear-btn" role="button" aria-label="Remove custom notes" data-tooltip="${TOOLTIPS.CLEAR_NOTES}">✕</div></div>`; }
     function monthHasNotes() { return !!(dom.calContainer && dom.calContainer.querySelector('.has-custom-note')); }
     function syncNoteTools() { const clearing = runtime._noteMode === 'clear', cb = dom.noteClearBtn; if (dom.panel) dom.panel.classList.toggle('bbgl-note-clearing', clearing); if (cb) { cb.classList.toggle('is-engaged', clearing); cb.classList.toggle('is-empty', !clearing && !monthHasNotes()); } }
     function setNoteMode(mode) { runtime._noteMode = mode || null; syncNoteTools(); }
@@ -12976,10 +11516,10 @@ ${TITLE_PLAQUE_CSS}
     function noteDefaultDate() { const l = calendarState.selectedLabel, sl = calendarState.selectedData; if (!l || !sl || l === 'All-Time' || /^\d{4}$/.test(l)) return null; if (/^\d{4}-\d{2}-\d{2}$/.test(l)) return l; const mi = CONSTANTS.MONTHS.indexOf(l); if (mi > -1) return Formatter.dateISO(calendarState.year, mi, 1); return sl.date ? getWeekKey(sl.date) : null; }
     function openNoteEditor(ds) { closeNoteEditor(); const today = Formatter.dateLogical(); let [selY, selM, selD] = (ds || today).split('-').map(Number); const tl = DataController.getTimeline(), thisYear = Number(today.slice(0, 4)), firstYear = Math.min(tl.length ? Number(tl[0].date.slice(0, 4)) : thisYear, selY), lastYear = Math.max(thisYear + 1, selY); const yearOpts = []; for (let yy = firstYear; yy <= lastYear; yy++) yearOpts.push(`<option value="${yy}">${yy}</option>`); const monthOpts = CONSTANTS.MONTHS.map((mn, i) => `<option value="${i + 1}">${mn}</option>`).join(''); const dateRow = `<div class="bbgl-note-editor-date"><select id="bbgl-note-month" class="bbgl-native-select">${monthOpts}</select><select id="bbgl-note-day" class="bbgl-native-select"></select><select id="bbgl-note-year" class="bbgl-native-select">${yearOpts.join('')}</select></div>`; const body = `<div class="bbgl-note-editor-preview-slot"></div><textarea id="bbgl-note-input" maxlength="${NOTE_MAX_CHARS}" placeholder="Write a note..." spellcheck="false"></textarea><div class="bbgl-note-editor-meta"><span class="bbgl-note-editor-msg"></span><span id="bbgl-note-count"></span></div>${dateRow}<div style="display:flex; gap:0; margin:0 0 2px;">${buildButton('bbgl-note-left-btn', 'CANCEL', '', 'flex:1; border-radius:4px 0 0 4px; margin:0;')}${buildButton('bbgl-note-save-btn', 'SAVE', 'purple', 'flex:1; border-radius:0 4px 4px 0; margin:0;')}</div>`; document.body.insertAdjacentHTML('beforeend', `<div class="bbgl-modal-overlay bbgl-note-editor" id="bbgl-note-editor"><div class="bbgl-modal-window"><div class="close-settings-btn bbgl-close-x" id="bbgl-note-close" title="Close">${ICONS.CLOSE}</div>${buildSection('Custom Note', body, 'margin-bottom:4px;')}</div></div>`); const modal = document.getElementById('bbgl-note-editor'); if (!modal) return; const preview = buildNotePaper('bbgl-note-editor-preview', ''), box = preview.firstChild, span = box.firstChild, input = modal.querySelector('#bbgl-note-input'), count = modal.querySelector('#bbgl-note-count'), msg = modal.querySelector('.bbgl-note-editor-msg'), leftBtn = modal.querySelector('#bbgl-note-left-btn'), selMonth = modal.querySelector('#bbgl-note-month'), selDay = modal.querySelector('#bbgl-note-day'), selYear = modal.querySelector('#bbgl-note-year'); modal.querySelector('.bbgl-note-editor-preview-slot').replaceWith(preview); const selectedDs = () => Formatter.dateISO(selY, selM - 1, selD); let loaded = '', good = '', isFull = false; const showMsg = () => { const replacing = DataController.getCustomNote(selectedDs()) != null && input.value !== loaded; msg.textContent = isFull ? 'Note is full' : replacing ? "Replaces this day's note" : ''; msg.classList.toggle('is-warn', isFull); }; const fits = () => applyNoteFit(span).fits; const refresh = () => { span.textContent = input.value; if (fits()) { good = input.value; isFull = input.value.length >= NOTE_MAX_CHARS; } else { const caret = Math.min(input.selectionStart, good.length); input.value = good; span.textContent = good; applyNoteFit(span); input.setSelectionRange(caret, caret); isFull = true; } count.textContent = `${input.value.length}/${NOTE_MAX_CHARS}`; showMsg(); }; const syncDate = fromPicker => { const dim = new Date(Date.UTC(selY, selM, 0)).getUTCDate(); if (selD > dim) selD = dim; if (selDay.options.length !== dim) { let opts = ''; for (let i = 1; i <= dim; i++) opts += `<option value="${i}">${i}</option>`; selDay.innerHTML = opts; } selMonth.value = String(selM); selDay.value = String(selD); selYear.value = String(selY); const existing = DataController.getCustomNote(selectedDs()); if (!fromPicker || input.value === loaded) { loaded = existing != null ? existing : ''; input.value = loaded; } else loaded = existing != null ? existing : ''; const hasNote = existing != null; leftBtn.textContent = hasNote ? 'REMOVE' : 'CANCEL'; leftBtn.classList.toggle('is-remove', hasNote); refresh(); }; const onPick = () => { const wasEdited = input.value !== loaded; selY = Number(selYear.value); selM = Number(selMonth.value); selD = Number(selDay.value); if (wasEdited) loaded = null; syncDate(true); }; selMonth.onchange = selDay.onchange = selYear.onchange = onPick; const close = () => closeNoteEditor(); const save = () => { const target = selectedDs(); if (!DataController.setCustomNote(target, input.value.trim())) { close(); return; } runtime._heldNoteDate = target; close(); renderPanelContent(); }; input.oninput = refresh; modal.addEventListener('keydown',
         e => { e.stopPropagation(); if (e.key === 'Escape') close();else if (e.key === 'Enter' && !e.shiftKey && e.target === input) { e.preventDefault(); save(); } }); modal.querySelector('#bbgl-note-close').onclick = close; modal.onclick = e => { if (e.target === modal) close(); }; modal.querySelector('#bbgl-note-save-btn').onclick = save; leftBtn.onclick = () => { if (leftBtn.classList.contains('is-remove')) { DataController.removeCustomNote(selectedDs()); renderPanelContent(); } close(); }; const start = () => { syncDate(false); input.focus(); input.setSelectionRange(input.value.length, input.value.length); }; if (document.fonts && document.fonts.load) document.fonts.load("18px 'Patrick Hand'").then(start, start);else start(); }
-    function bindNoteTools(root) { const nb = root.querySelector('#bbgl-note-btn'), cb = root.querySelector('#bbgl-note-clear-btn'), cal = dom.calContainer; if (!nb || !cb || !cal) return; dom.noteBtn = nb; dom.noteClearBtn = cb; cb.onclick = e => { e.stopPropagation(); setNoteMode(runtime._noteMode === 'clear' ? null : 'clear'); }; let drag = null; const endDrag = () => { if (!drag) return; if (drag.ghost) drag.ghost.remove(); if (drag.target) drag.target.classList.remove('is-note-target'); nb.classList.remove('is-dragging'); drag = null; }; nb.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); endDrag(); drag = { id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, target: null }; try { nb.setPointerCapture(e.pointerId); } catch (err) {} }); nb.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; if (!drag.ghost) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return; const size = nb.getBoundingClientRect().width; drag.ghost = buildNotePaper('bbgl-note-ghost', 'Custom Note'); drag.ghost.style.width = drag.ghost.style.height = size + 'px'; document.body.appendChild(drag.ghost); nb.classList.add('is-dragging'); TooltipController.hide(); } drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px'; const cell = noteCellAt(document.elementFromPoint(e.clientX, e.clientY)); if (cell !== drag.target) { if (drag.target) drag.target.classList.remove('is-note-target'); if (cell) cell.classList.add('is-note-target'); drag.target = cell; } }); nb.addEventListener('pointerup', e => { if (!drag || e.pointerId !== drag.id) return; const wasDrag = !!drag.ghost, cell = drag.target; endDrag(); if (wasDrag && !cell) return; setNoteMode(null); TooltipController.hide(); openNoteEditor(wasDrag ? cell.dataset.date : noteDefaultDate()); }); nb.addEventListener('pointercancel', endDrag); syncNoteTools(); if (cal._bbglNotesBound) return; cal._bbglNotesBound = true; cal.addEventListener('click', e => { if (runtime._noteMode !== 'clear') return; const cell = noteCellAt(e.target); if (!cell || !cell.classList.contains('has-custom-note')) return; e.stopPropagation(); DataController.removeCustomNote(cell.dataset.date); const note = cell.querySelector('.bbgl-custom-note'); if (note) note.remove(); cell.classList.remove('has-custom-note', 'is-note-held'); cell.style.removeProperty('--pi-clear-offset'); if (!monthHasNotes()) setNoteMode(null); }, true); document.addEventListener('keydown', e => { if (e.key === 'Escape' && runtime._noteMode && !document.getElementById('bbgl-note-editor')) setNoteMode(null); }); }
-    function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) { const ds = Formatter.dateISO(y, m, d), sl = DataController.getSlice('DAY', ds), isFlipped = cont.classList.contains('bbgl-row-archived'), cell = document.createElement('div'); cell.className = 'bbgl-day-cell' + (isFlipped ? ' is-archived' : '') + (g ? ' ghost-cell' : ''); cell.dataset.date = ds; let buildShine = null; bindHoverIntent(cell, () => { cell.classList.add('is-hover-intent'); if (userConfig.animations) { cell.classList.add('shimmer-active'); if (buildShine) buildShine(); } }, () => { cell.classList.remove('is-hover-intent'); if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active'); releaseHeldNote(cell); }); const isToday = ds === ctx.today; if (isFlipped && sl.meta.tier > 0) { let tier = 'green', url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`; if (sl.meta.tier === 2) { tier = 'gold'; url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`; } else if (sl.meta.tier === 3) { tier = 'diamond'; url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`; } cell.classList.add('has-tier-bg', `tier-bg-${tier}`); cell.style.setProperty('--tier-bg', url); cell.style.setProperty('--tier-bg-pos', `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`); } if (!isFlipped && sl.meta.tier > 0) { const wrap = document.createElement('div'), img = document.createElement('img'); let tType = 'green', url = `${CAL_IMG_BASE}rwrd-grn.webp`; if (sl.meta.tier === 2) { tType = 'gold'; url = `${CAL_IMG_BASE}rwrd-gold2.webp`; } else if (sl.meta.tier === 3) { tType = 'diamond'; url = `${CAL_IMG_BASE}rwrd-dmnd.webp`; } wrap.className = `jewel-wrapper jewel-type-${tType}`; img.className = 'jewel-asset'; img.src = url; wrap.appendChild(img); cell.appendChild(wrap); cell.classList.add('is-plate'); buildShine = () => { if (wrap.querySelector('.jewel-shine')) return; const sh = document.createElement('div'); sh.className = 'jewel-shine'; sh.style.maskImage = `url("${url}")`; sh.style.webkitMaskImage = `url("${url}")`; addShineBand(sh, 'jewel-shine-band'); if (sl.meta.tier === 2) { wrap.appendChild(sh); } else { wrap.insertBefore(sh, img); const so = document.createElement('div'); so.className = 'jewel-shine-over'; so.style.setProperty('--jewel-mask', `url("${url}")`); addShineBand(so, 'jewel-shine-band'); wrap.appendChild(so); } }; } const ns = document.createElement('span'); ns.className = 'day-num'; ns.innerText = d; cell.appendChild(ns); const stickerItem = isFlipped && sl.meta.tier > 0 ? DataController.getStickerMap().get(ds) : null; const devNewNote = !!stickerItem && runtime.devMode && runtime._devNewNoteDate === ds; const hasNewNote = devNewNote || !!stickerItem && !!DataController._cache.featuredDays && DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(stickerItem.id); let clearNewNote = null; const noteText = DataController.getCustomNote(ds), hasCustomNote = noteText != null; const appendCustomNote = (stackSlot = null) => { if (!hasCustomNote) return; const note = buildNotePaper('bbgl-custom-note', noteText, true); if (stackSlot != null) note.style.top = `calc(var(--pi-base) + ${stackSlot} * var(--pi-step))`; cell.appendChild(note); cell.classList.add('has-custom-note'); cell.style.setProperty('--pi-clear-offset', '0.4s'); if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held'); }; if (isFlipped) { const wm = ctx.warMarkers[ds]; const eventImgs = []; if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsod.webp'); if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xanx-od.webp'); if ((sl.exODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'x-od.webp'); if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'wr-strt.webp'); if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'wr-wn.webp'); if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lst.webp'); const bm = ctx.bookMarkers[ds]; if (bm) { if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'trnbk-strt.webp'); if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'prkbk-strt.webp'); if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'bkprk-end.webp'); if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'bkprk-rec.webp'); } if (runtime.devMode && runtime._devPostItStackDate === ds) { ['lsod.webp', 'wr-strt.webp', 'trnbk-strt.webp'].forEach(f => { if (!eventImgs.includes(CAL_IMG_BASE + f)) eventImgs.push(CAL_IMG_BASE + f); }); } const nEvents = eventImgs.length, nSlots = nEvents + (hasCustomNote && nEvents ? 1 : 0), piStep = nSlots > 1 ? (POST_IT_FLOOR - POST_IT_CEIL) / (nSlots - 1) : 0, piBase = nSlots > 1 ? POST_IT_CEIL : POST_IT_TOP; cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%'); cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%'); eventImgs.forEach((url, i) => { const ep = document.createElement('div'); ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : ''); ep.style.backgroundImage = `url('${url}')`; ep.style.setProperty('--ei',
-        i); ep.style.setProperty('--stack-total', eventImgs.length); cell.appendChild(ep); }); appendCustomNote(nEvents === 1 ? 1 : null); if (hasNewNote) { const np = document.createElement('div'); np.className = 'bbgl-event-post-it bbgl-new-sticker-note'; np.style.backgroundImage = `url('${ASSETS.NEW_STICKER_FRAME}')`; np.style.setProperty('--pi-base', POST_IT_TOP + '%'); np.style.setProperty('--pi-step', '0%'); np.style.setProperty('--ei', 0); np.style.setProperty('--stack-total', 1); np.style.setProperty('--pi-clear-offset', '0s'); cell.classList.add('has-new-note'); cell.appendChild(np); clearNewNote = () => { clearNewNote = null; np.classList.add('is-cleared'); cell.style.setProperty('--pi-clear-offset', hasCustomNote ? '0.8s' : '0.4s'); cell.style.setProperty('--pi-note-offset', '0.4s'); cell.classList.remove('has-new-note'); if (devNewNote) runtime._devNewNoteDate = null;else DataController.markStickerCleared(stickerItem.id); setTimeout(() => np.remove(), 250); }; } } else appendCustomNote(); if (stickerItem) { const item = stickerItem; const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000); const sw = document.createElement('div'), si = document.createElement('img'); sw.className = 'sticker-wrapper' + (sl.meta.tier === 3 ? ' sticker-tier-diamond' : ''); sw.style.setProperty('--rot', `${uid * 17 % 21 - 10}deg`); si.src = item.thumbUrl; si.className = 'cell-sticker-deco'; sw.appendChild(si); cell.appendChild(sw); cell.classList.add('has-sticker'); buildShine = () => { if (sw.querySelector('.sticker-shine')) return; const ss = document.createElement('div'); ss.className = 'sticker-shine'; ss.style.webkitMaskImage = `url("${item.thumbUrl}")`; ss.style.maskImage = `url("${item.thumbUrl}")`; let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`; if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`; addShineBand(ss, 'sticker-shine-band', grad); ss.style.mixBlendMode = "overlay"; if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)"; sw.appendChild(ss); }; } if (isToday) cell.id = `active-date-today`; cell._buildShine = buildShine; if (calendarState.selectedLabel === ds || !calendarState.selectedLabel && isToday) { cell.classList.add('is-viewing'); if (buildShine) buildShine(); } const isInteractive = !sl.meta.isGap || ctx.firstDate && ds >= ctx.firstDate && ds <= ctx.today; if (isInteractive) { cell.setAttribute('data-tooltip-html', ''); cell._bbglTip = () => generateRichTooltip(sl); } else cell.setAttribute('data-tooltip', TOOLTIPS.CELL_DATE(ds)); cell.onclick = () => { releaseHeldNote(cell); if (clearNewNote) clearNewNote(); if (isToday) closeHistory();else if (isInteractive) openHistory(sl, ds); }; cont.appendChild(cell); if (isInteractive && viewState.activeViewLabel === ds && calendarState.selectedLabel !== ds) runtime._pendingHistoryRestore = { sl, label: ds }; }
-    function injectWeeklyBar(cont, batch) { const sl = DataController.getSlice('CUSTOM', batch.map(w => w.data).filter(d => d)); sl.label = `Week ${getISOWeek(batch[0].date)}`; sl._weekStart = batch[0].date; sl._weekEnd = batch[batch.length - 1].date; if (sl._dailyList.length === 0) return; const { hjDaySet } = DataController.getHappyJumpData(); const _wk = getWeekKey(sl._dailyList[0].date); const anchor = document.createElement('div'); anchor.className = 'bbgl-weekly-anchor'; const tr = document.createElement('div'); tr.className = 'bbgl-weekly-track'; tr.dataset.label = sl.label; tr.onclick = e => { e.stopPropagation(); openHistory(sl, sl.label); }; if (calendarState.selectedLabel === sl.label) tr.classList.add('is-viewing'); bindHoverIntent(anchor, () => tr.classList.add('is-hover-intent'), () => tr.classList.remove('is-hover-intent')); const installWeekKey = runtime.demoMode ? null : getInstallWeekKey(); const addCenterTab = slice => { const tab = document.createElement('div'); tab.className = 'bbgl-bar-handle'; tab.dataset.pos = 'start'; const tooltipHtml = generateRichTooltip(slice); tab.setAttribute('data-tooltip-html', tooltipHtml); tab.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle'); tr.setAttribute('data-tooltip-html', tooltipHtml); tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle'); tab.onclick = e => { e.stopPropagation(); openHistory(slice, slice.label); }; tab.innerHTML = `<div class="bbgl-summary-inset">${buildChartSVG(slice)}</div>`; anchor.appendChild(tab); }; if (installWeekKey && _wk < installWeekKey) { tr.innerHTML = buildCapsuleBar(['silver', 'silver', 'silver', 'silver', 'silver'], false, false); anchor.appendChild(tr); addCenterTab(sl); cont.appendChild(anchor); if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) runtime._pendingHistoryRestore = { sl, label: sl.label }; return; } const { capsules, isCompleted } = computeWeekCompletion(sl._dailyList, hjDaySet); if (isCompleted) tr.classList.add('track-polished'); tr.innerHTML = buildCapsuleBar(capsules, isCompleted, isCompleted && userConfig.animations); anchor.appendChild(tr); addCenterTab(sl); cont.appendChild(anchor); if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) runtime._pendingHistoryRestore = { sl, label: sl.label }; }
+    function bindNoteTools(root) { const nb = root.querySelector('#bbgl-note-btn'), cb = root.querySelector('#bbgl-note-clear-btn'), cal = dom.calContainer; if (!nb || !cb || !cal) return; dom.noteBtn = nb; dom.noteClearBtn = cb; cb.onclick = e => { e.stopPropagation(); setNoteMode(runtime._noteMode === 'clear' ? null : 'clear'); }; let drag = null; const endDrag = () => { if (!drag) return; if (drag.ghost) drag.ghost.remove(); if (drag.target) drag.target.classList.remove('is-note-target'); nb.classList.remove('is-dragging'); drag = null; }; nb.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); endDrag(); drag = { id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, target: null }; try { nb.setPointerCapture(e.pointerId); } catch (err) {} }); nb.addEventListener('pointermove', e => { if (!drag || e.pointerId !== drag.id) return; if (!drag.ghost) { if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return; const size = nb.getBoundingClientRect().width; drag.ghost = buildNotePaper('bbgl-note-ghost', 'Custom Note'); drag.ghost.style.width = drag.ghost.style.height = size + 'px'; document.body.appendChild(drag.ghost); nb.classList.add('is-dragging'); TooltipController.hide(); } drag.ghost.style.left = e.clientX + 'px'; drag.ghost.style.top = e.clientY + 'px'; const cell = noteCellAt(document.elementFromPoint(e.clientX, e.clientY)); if (cell !== drag.target) { if (drag.target) drag.target.classList.remove('is-note-target'); if (cell) cell.classList.add('is-note-target'); drag.target = cell; } }); nb.addEventListener('pointerup', e => { if (!drag || e.pointerId !== drag.id) return; const wasDrag = !!drag.ghost, cell = drag.target; endDrag(); if (wasDrag && !cell) return; setNoteMode(null); TooltipController.hide(); openNoteEditor(wasDrag ? cell.dataset.date : noteDefaultDate()); }); nb.addEventListener('pointercancel', endDrag); syncNoteTools(); if (cal._bbglNotesBound) return; cal._bbglNotesBound = true; cal.addEventListener('click', e => { if (runtime._noteMode !== 'clear') return; const cell = noteCellAt(e.target); if (!cell || !cell.classList.contains('has-custom-note')) return; e.stopPropagation(); DataController.removeCustomNote(cell.dataset.date); const note = cell.querySelector('.bbgl-custom-note'); if (note) note.remove(); cell.classList.remove('has-custom-note', 'has-note-over-stack', 'is-note-held'); cell.style.removeProperty('--pi-clear-offset'); if (!monthHasNotes()) setNoteMode(null); }, true); document.addEventListener('keydown', e => { if (e.key === 'Escape' && runtime._noteMode && !document.getElementById('bbgl-note-editor')) setNoteMode(null); }); }
+    function renderCell(cont, y, m, d, g, rIdx, cIdx, ctx) { const ds = Formatter.dateISO(y, m, d), sl = DataController.getSlice('DAY', ds), isFlipped = cont.classList.contains('bbgl-row-archived'), cell = document.createElement('div'); cell.className = 'bbgl-day-cell' + (isFlipped ? ' is-archived' : '') + (g ? ' ghost-cell' : ''); cell.dataset.date = ds; let buildShine = null; bindHoverIntent(cell, () => { cell.classList.add('is-hover-intent'); if (userConfig.animations) { cell.classList.add('shimmer-active'); if (buildShine) buildShine(); } }, () => { cell.classList.remove('is-hover-intent'); if (!cell.classList.contains('is-viewing')) cell.classList.remove('shimmer-active'); releaseHeldNote(cell); }); const isToday = ds === ctx.today; if (isFlipped && sl.meta.tier > 0) { let tier = 'green', url = `url(${CAL_IMG_BASE}cal-grid-grn.jpg)`; if (sl.meta.tier === 2) { tier = 'gold'; url = `url(${CAL_IMG_BASE}cal-grid-gold.jpg)`; } else if (sl.meta.tier === 3) { tier = 'diamond'; url = `url(${CAL_IMG_BASE}cal-grid-dmnd.webp)`; } cell.classList.add('has-tier-bg', `tier-bg-${tier}`); cell.style.setProperty('--tier-bg', url); cell.style.setProperty('--tier-bg-pos', `${(cIdx * (100 / 6)).toFixed(4)}% ${(rIdx * (100 / 5)).toFixed(4)}%`); } if (!isFlipped && sl.meta.tier > 0) { const wrap = document.createElement('div'), img = document.createElement('img'); let tType = 'green', url = `${CAL_IMG_BASE}rwrd-grn.webp`; if (sl.meta.tier === 2) { tType = 'gold'; url = `${CAL_IMG_BASE}rwrd-gold2.webp`; } else if (sl.meta.tier === 3) { tType = 'diamond'; url = `${CAL_IMG_BASE}rwrd-dmnd.webp`; } wrap.className = `jewel-wrapper jewel-type-${tType}`; img.className = 'jewel-asset'; img.src = url; wrap.appendChild(img); cell.appendChild(wrap); cell.classList.add('is-plate'); buildShine = () => { if (wrap.querySelector('.jewel-shine')) return; const sh = document.createElement('div'); sh.className = 'jewel-shine'; sh.style.maskImage = `url("${url}")`; sh.style.webkitMaskImage = `url("${url}")`; addShineBand(sh, 'jewel-shine-band'); if (sl.meta.tier === 2) { wrap.appendChild(sh); } else { wrap.insertBefore(sh, img); const so = document.createElement('div'); so.className = 'jewel-shine-over'; so.style.setProperty('--jewel-mask', `url("${url}")`); addShineBand(so, 'jewel-shine-band'); wrap.appendChild(so); } }; } const ns = document.createElement('span'); ns.className = 'day-num'; ns.innerText = d; cell.appendChild(ns); const stickerItem = isFlipped && sl.meta.tier > 0 ? DataController.getStickerMap().get(ds) : null; const devNewNote = !!stickerItem && runtime.devMode && runtime._devNewNoteDate === ds; const hasNewNote = devNewNote || !!stickerItem && !!DataController._cache.featuredDays && DataController._cache.featuredDays.has(ds) && !DataController.isStickerCleared(stickerItem.id); let clearNewNote = null; const noteText = DataController.getCustomNote(ds), hasCustomNote = noteText != null; const appendCustomNote = (stackSlot = null, overStack = false) => { if (!hasCustomNote) return; const note = buildNotePaper('bbgl-custom-note', noteText, true); if (stackSlot != null) note.style.top = `calc(var(--pi-base) + ${stackSlot} * var(--pi-step))`; cell.appendChild(note); cell.classList.add('has-custom-note'); if (overStack) cell.classList.add('has-note-over-stack'); cell.style.setProperty('--pi-clear-offset', '0.4s'); if (runtime._heldNoteDate === ds) cell.classList.add('is-note-held'); }; if (isFlipped) { const wm = ctx.warMarkers[ds]; const eventImgs = []; if ((sl.lsdODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'lsod.webp'); if ((sl.xanaxODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'xanx-od.webp'); if ((sl.exODs || 0) > 0) eventImgs.push(CAL_IMG_BASE + 'x-od.webp'); if (wm && wm.warStart) eventImgs.push(CAL_IMG_BASE + 'wr-strt.webp'); if (wm && wm.warWon) eventImgs.push(CAL_IMG_BASE + 'wr-wn.webp'); if (wm && wm.warLost) eventImgs.push(CAL_IMG_BASE + 'war-lst.webp'); const bm = ctx.bookMarkers[ds]; if (bm) { if (bm.trainStart) eventImgs.push(CAL_IMG_BASE + 'trnbk-strt.webp'); if (bm.perkStart) eventImgs.push(CAL_IMG_BASE + 'prkbk-strt.webp'); if (bm.perkEnded) eventImgs.push(CAL_IMG_BASE + 'bkprk-end.webp'); if (bm.perkReceived) eventImgs.push(CAL_IMG_BASE + 'bkprk-rec.webp'); } if (runtime.devMode && runtime._devPostItStackDate === ds) { ['lsod.webp', 'wr-strt.webp', 'trnbk-strt.webp'].forEach(f => { if (!eventImgs.includes(CAL_IMG_BASE + f)) eventImgs.push(CAL_IMG_BASE + f); }); } const nEvents = eventImgs.length, nSlots = nEvents + (hasCustomNote && nEvents ? 1 : 0), piStep = nSlots > 1 ? (POST_IT_FLOOR - POST_IT_CEIL) / (nSlots - 1) : 0, piBase = nSlots > 1 ? POST_IT_CEIL : POST_IT_TOP; cell.style.setProperty('--pi-base', piBase.toFixed(4) + '%'); cell.style.setProperty('--pi-step', piStep.toFixed(4) + '%'); eventImgs.forEach((url,
+        i) => { const ep = document.createElement('div'); ep.className = 'bbgl-event-post-it' + (eventImgs.length > 1 && i === eventImgs.length - 1 ? ' bbgl-event-post-it-top' : ''); ep.style.backgroundImage = `url('${url}')`; ep.style.setProperty('--ei', i); ep.style.setProperty('--stack-total', eventImgs.length); cell.appendChild(ep); }); appendCustomNote(nEvents === 1 ? 1 : null, nEvents > 0); if (hasNewNote) { const np = document.createElement('div'); np.className = 'bbgl-event-post-it bbgl-new-sticker-note'; np.style.backgroundImage = `url('${ASSETS.NEW_STICKER_FRAME}')`; np.style.setProperty('--pi-base', POST_IT_TOP + '%'); np.style.setProperty('--pi-step', '0%'); np.style.setProperty('--ei', 0); np.style.setProperty('--stack-total', 1); np.style.setProperty('--pi-clear-offset', '0s'); cell.classList.add('has-new-note'); cell.appendChild(np); clearNewNote = () => { clearNewNote = null; np.classList.add('is-cleared'); cell.style.setProperty('--pi-clear-offset', hasCustomNote ? '0.8s' : '0.4s'); cell.style.setProperty('--pi-note-offset', '0.4s'); cell.classList.remove('has-new-note'); if (devNewNote) runtime._devNewNoteDate = null;else DataController.markStickerCleared(stickerItem.id); setTimeout(() => np.remove(), 250); }; } } else appendCustomNote(); if (stickerItem) { const item = stickerItem; const uid = Math.floor(new Date(Date.UTC(y, m, d)).getTime() / 86400000); const sw = document.createElement('div'), si = document.createElement('img'); sw.className = 'sticker-wrapper' + (sl.meta.tier === 3 ? ' sticker-tier-diamond' : ''); sw.style.setProperty('--rot', `${uid * 17 % 21 - 10}deg`); si.src = item.thumbUrl; si.className = 'cell-sticker-deco'; sw.appendChild(si); cell.appendChild(sw); cell.classList.add('has-sticker'); buildShine = () => { if (sw.querySelector('.sticker-shine')) return; const ss = document.createElement('div'); ss.className = 'sticker-shine'; ss.style.webkitMaskImage = `url("${item.thumbUrl}")`; ss.style.maskImage = `url("${item.thumbUrl}")`; let grad = `linear-gradient(115deg,rgba(0,200,150,0.55) 0%,rgba(0,255,180,0.65) 20%,rgba(0,255,255,0.7) 35%,rgba(255,255,255,0.75) 50%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,200,150,0.85) 100%)`; if (sl.meta.tier === 2) grad = `linear-gradient(115deg,rgba(184,134,11,0.7) 0%,rgba(212,175,55,0.85) 11%,rgba(255,255,240,1.0) 13%,rgba(212,175,55,0.8) 15%,rgba(0,255,255,0.7) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(184,134,11,0.85) 100%)`;else if (sl.meta.tier === 3) grad = `linear-gradient(115deg,rgba(0,255,255,0.85) 0%,rgba(200,100,255,0.85) 5%,rgba(255,0,255,0.85) 10%,rgba(0,150,255,0.85) 15%,rgba(0,255,255,0.75) 35%,rgba(255,0,255,0.85) 65%,rgba(0,150,255,0.9) 80%,rgba(0,255,255,0.85) 85%,rgba(200,100,255,0.85) 90%,rgba(255,0,255,0.85) 95%,rgba(0,150,255,0.85) 100%)`; addShineBand(ss, 'sticker-shine-band', grad); ss.style.mixBlendMode = "overlay"; if (sl.meta.tier >= 2) ss.style.filter = "brightness(1.5)"; sw.appendChild(ss); }; } if (isToday) cell.id = `active-date-today`; cell._buildShine = buildShine; if (calendarState.selectedLabel === ds || !calendarState.selectedLabel && isToday) { cell.classList.add('is-viewing'); if (buildShine) buildShine(); } const isInteractive = !sl.meta.isGap || ctx.firstDate && ds >= ctx.firstDate && ds <= ctx.today; if (isInteractive) { cell.setAttribute('data-tooltip-html', ''); cell._bbglTip = () => generateRichTooltip(sl); } else cell.setAttribute('data-tooltip', TOOLTIPS.CELL_DATE(ds)); cell.onclick = () => { releaseHeldNote(cell); if (clearNewNote) clearNewNote(); if (isToday) closeHistory();else if (isInteractive) openHistory(sl, ds); }; cont.appendChild(cell); if (isInteractive && viewState.activeViewLabel === ds && calendarState.selectedLabel !== ds) runtime._pendingHistoryRestore = { sl, label: ds }; }
+    function injectWeeklyBar(cont, batch) { const sl = DataController.getSlice('CUSTOM', batch.map(w => w.data).filter(d => d)); sl.label = `Week ${getISOWeek(batch[0].date)}`; sl._weekStart = batch[0].date; sl._weekEnd = batch[batch.length - 1].date; if (sl._dailyList.length === 0) return; const { hjDaySet } = DataController.getHappyJumpData(); const _wk = getWeekKey(sl._dailyList[0].date); const anchor = document.createElement('div'); anchor.className = 'bbgl-weekly-anchor'; const tr = document.createElement('div'); tr.className = 'bbgl-weekly-track'; tr.dataset.label = sl.label; tr.onclick = e => { e.stopPropagation(); openHistory(sl, sl.label); }; if (calendarState.selectedLabel === sl.label) tr.classList.add('is-viewing'); bindHoverIntent(anchor, () => tr.classList.add('is-hover-intent'), () => tr.classList.remove('is-hover-intent')); const installWeekKey = runtime.demoMode ? null : getInstallWeekKey(); const addCenterTab = slice => { const tab = document.createElement('div'); tab.className = 'bbgl-bar-handle'; tab.dataset.pos = 'start'; const tooltipHtml = generateRichTooltip(slice); tab.setAttribute('data-tooltip-html', tooltipHtml); tab.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle'); tr.setAttribute('data-tooltip-html', tooltipHtml); tr.setAttribute('data-tooltip-anchor', '.bbgl-bar-handle'); tab.onclick = e => { e.stopPropagation(); openHistory(slice, slice.label); }; tab.innerHTML = `<div class="bbgl-summary-inset">${buildChartSVG(slice)}</div>`; anchor.appendChild(tab); }; if (installWeekKey && _wk < installWeekKey) { tr.innerHTML = buildCapsuleBar(['silver', 'silver', 'silver', 'silver', 'silver'], false, false); anchor.appendChild(tr); addCenterTab(sl); cont.appendChild(anchor); if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) runtime._pendingHistoryRestore = { sl, label: sl.label }; return; } const { capsules, isCompleted } = computeWeekCompletion(sl._dailyList, hjDaySet); if (isCompleted) tr.classList.add('track-polished'); const shown = _wk < getWeekKey(Formatter.dateLogical()) ? capsules.map(c => c || 'silver') : capsules; tr.innerHTML = buildCapsuleBar(shown, isCompleted, isCompleted && userConfig.animations); anchor.appendChild(tr); addCenterTab(sl); cont.appendChild(anchor); if (viewState.activeViewLabel === sl.label && calendarState.selectedLabel !== sl.label) runtime._pendingHistoryRestore = { sl, label: sl.label }; }
     function getTodayTrainingContext() { const h = getActiveHistory(); if (runtime.demoMode || !h || !h.today) return { todayE: 0, todayEByStat: { str: 0, def: 0, spd: 0, dex: 0 }, hasTrainLog: false, isHJ: false }; const today = Formatter.dateLogical(); const installDateKey = getInstallDateKey(); const rewardStartTs = h.meta && h.meta.rewardStartDate || null; let todaySeries = h.today.series || []; if (installDateKey && today === installDateKey && rewardStartTs) { todaySeries = todaySeries.filter(s => s.ts >= rewardStartTs); } const todayE = todaySeries === h.today.series && h.today.eSpent ? h.today.eSpent.total || 0 : todaySeries.filter(s => s.type === 'gym').reduce((sum, s) => sum + (s.cost || 0), 0); const todayEByStat = { str: 0, def: 0, spd: 0, dex: 0 }; todaySeries.forEach(s => { if (s.type === 'gym' && todayEByStat[s.stat] !== undefined) todayEByStat[s.stat] += s.cost || 0; }); const hasTrainLog = todaySeries.some(s => s.type === 'gym'); const { hjDaySet } = DataController.getHappyJumpData(); const isHJ = todaySeries === h.today.series ? hjDaySet.has(today) : findHappyJumps(todaySeries).length > 0; return { todayE, todayEByStat, hasTrainLog, isHJ }; }
     function getLiveLevelExp() { const { todayE, hasTrainLog, isHJ } = getTodayTrainingContext(); return DataController.getCareerLevelExp() + computeDailyLevelExp(todayE, hasTrainLog, isHJ); }
     function getLiveStatTitleE() { const cached = DataController.getStatTitleE(); const { todayEByStat } = getTodayTrainingContext(); const out = {}; STAT_KEYS.forEach(k => { out[k] = (cached[k] || 0) + (todayEByStat[k] || 0); }); return out; }
@@ -13014,9 +11554,11 @@ ${TITLE_PLAQUE_CSS}
     function getLevelBars() { return [['bbgl-level-num', 'bbgl-level-fill', 'bbgl-level-container'], ['bbgl-gym-level-num', 'bbgl-gym-level-fill', 'bbgl-gym-level-container']].map(([n, f, c]) => ({ num: document.getElementById(n), fill: document.getElementById(f), container: document.getElementById(c) })).filter(b => b.num && b.fill && b.container); }
     function setLevelBarNumber(bar, level) { bar.num.textContent = 'Lv ' + level; bar.container.querySelectorAll('.bbgl-valve-digit').forEach(node => { node.textContent = level; }); bar.container.dataset.level = level; }
     if (document.fonts && document.fonts.addEventListener) { document.fonts.addEventListener('loadingdone', () => { document.querySelectorAll('.bbgl-valve-digit').forEach(node => { node.textContent = node.textContent; }); }); }
-    function renderLevelBar(bar, expVal) { const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal); const pct = expToNext > 0 ? Math.min(100, expInLevel / expToNext * 100) : level >= 100 ? 100 : 0; setLevelBarNumber(bar, level); bar.fill.style.width = (pct / 100 * 90).toFixed(2) + '%'; bar.fill.classList.toggle('level-full', pct >= 99.9); if (dom.panel) { dom.panel.dataset.atrophy = atrophy; dom.panel.dataset.level = level; } bar.container.dataset.atrophy = atrophy; bar.container.dataset.level = level; bar.container._levelTip = [atrophy, level, pct]; if (levelCard.bar === bar.container && levelCard.open) fillLevelCardTip(); }
+    function levelGainFrom(fill, atrophy, level, pct) { const base = fill._gainBase; if (!base || base.atrophy !== atrophy) { fill._gainBase = { atrophy, level, pct }; return null; } if (atrophy === 2 && level >= 100) return null; const from = base.level === level ? base.pct : 0; return from < pct - 0.05 ? from : null; }
+    function setLevelGainFrom(fill, from) { if (from === null) fill.style.removeProperty('--bbgl-gain-from');else fill.style.setProperty('--bbgl-gain-from', from.toFixed(2)); }
+    function renderLevelBar(bar, expVal) { const { atrophy, level, expInLevel, expToNext } = calculateLevelProgress(expVal); const pct = expToNext > 0 ? Math.min(100, expInLevel / expToNext * 100) : level >= 100 ? 100 : 0; setLevelBarNumber(bar, level); bar.fill.style.width = (pct / 100 * 90).toFixed(2) + '%'; bar.fill.classList.toggle('level-full', pct >= 99.9); setLevelGainFrom(bar.fill, levelGainFrom(bar.fill, atrophy, level, pct)); if (dom.panel) { dom.panel.dataset.atrophy = atrophy; dom.panel.dataset.level = level; } bar.container.dataset.atrophy = atrophy; bar.container.dataset.level = level; bar.container._levelTip = [atrophy, level, pct]; if (levelCard.bar === bar.container && levelCard.open) fillLevelCardTip(); }
     function renderLevelBarInstant(bar, expVal) { bar.fill.style.transition = 'none'; renderLevelBar(bar, expVal); void bar.fill.offsetWidth; bar.fill.style.transition = ''; }
-    function updateLevelBar(silent) { const totalExp = getLiveLevelExp(); if (runtime._lastLevelExp === undefined) { runtime._lastLevelExp = totalExp; seedRewardsSeen(); const bars = getLevelBars(); bars.forEach(b => renderLevelBar(b, totalExp)); return; } const bars = getLevelBars(); if (!bars.length) return; if (totalExp !== runtime._lastLevelExp) { if (silent) { if (!runtime._isAnimatingLevel) { runtime._lastLevelExp = totalExp; bars.forEach(b => renderLevelBarInstant(b, totalExp)); } } else { runtime._targetLevelExp = totalExp; if (!runtime._isAnimatingLevel) { runLevelAnimationQueue(); } } } else if (!runtime._isAnimatingLevel) { bars.forEach(b => { if (!b.fill.style.width) renderLevelBar(b, runtime._lastLevelExp); }); } const LEVEL_CHARGE_MS = 200; async function runLevelAnimationQueue() { runtime._isAnimatingLevel = true; runtime._rankDisplayExp = runtime._lastLevelExp; const BASE_SPEED_MS = 1000; let forcedNextTier = null; while (runtime._lastLevelExp < runtime._targetLevelExp) { const currentProg = forcedNextTier !== null ? { atrophy: forcedNextTier, level: LEVEL_ATRO_START[forcedNextTier], expInLevel: 0, expToNext: computeLevelExpCost(LEVEL_ATRO_START[forcedNextTier], forcedNextTier) } : calculateLevelProgress(runtime._lastLevelExp); forcedNextTier = null; const targetProg = calculateLevelProgress(runtime._targetLevelExp); const currentRank = currentProg.atrophy * 1000 + (currentProg.level - LEVEL_ATRO_START[currentProg.atrophy]); const targetRank = targetProg.atrophy * 1000 + (targetProg.level - LEVEL_ATRO_START[targetProg.atrophy]); if (currentRank < targetRank && currentProg.level >= 100 && currentProg.atrophy < 2) { await runAtrophyAnimation(currentProg.atrophy, bars); forcedNextTier = currentProg.atrophy + 1; } else if (currentRank < targetRank) { const expNeededToFill = currentProg.expToNext - currentProg.expInLevel; const currentPct = parseFloat(bars[0].fill.style.width) || 0; const durationMs = Math.max(150, (100 - currentPct) / 100 * BASE_SPEED_MS); bars.forEach(b => { b.fill.style.transitionDuration = durationMs + 'ms'; b.fill.style.width = '90%'; b.fill.classList.add('level-full'); }); await new Promise(r => setTimeout(r, durationMs + 50)); const nextLevel = currentProg.level + 1; if (nextLevel >= 100 && currentProg.atrophy < 2) { runtime._lastLevelExp += expNeededToFill; await runAtrophyAnimation(currentProg.atrophy, bars); forcedNextTier = currentProg.atrophy + 1; continue; } if (nextLevel >= 100) { runtime._lastLevelExp += expNeededToFill; await runBrickedAnimation(bars); continue; } bars.forEach(b => b.container.classList.add('bbgl-exp-charging')); await new Promise(r => setTimeout(r, LEVEL_CHARGE_MS)); bars.forEach(b => b.container.classList.add('bbgl-level-up-flash')); await new Promise(r => setTimeout(r, 200)); bars.forEach(b => { setLevelBarNumber(b, nextLevel); }); runtime._rankDisplayExp = runtime._lastLevelExp + expNeededToFill; refreshRankDisplays(); const bandIdx = levelBandIndex(nextLevel); if (bandIdx > levelBandIndex(currentProg.level)) { emitReward({ kind: 'rank', id: `rank:${currentProg.atrophy}:${bandIdx}`, atrophy: currentProg.atrophy, band: bandIdx, label: atrophyBandTitle(currentProg.atrophy, nextLevel) }); } await new Promise(r => setTimeout(r, 650)); bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging')); runtime._lastLevelExp += expNeededToFill; bars.forEach(b => { b.fill.style.transition = 'none'; b.fill.style.width = '0%'; b.fill.classList.remove('level-full'); void b.fill.offsetWidth; b.fill.style.transition = ''; }); } else { runtime._lastLevelExp = runtime._targetLevelExp; const currentPct = parseFloat(bars[0].fill.style.width) || 0; const { level, expInLevel, expToNext } = calculateLevelProgress(runtime._lastLevelExp); const targetPct = expToNext > 0 ? Math.min(100, expInLevel / expToNext * 100) : level >= 100 ? 100 : 0; const durationMs = Math.max(150, Math.abs(targetPct - currentPct) / 100 * BASE_SPEED_MS); bars.forEach(b => { b.fill.style.transitionDuration = durationMs + 'ms'; renderLevelBar(b, runtime._lastLevelExp); }); await new Promise(r => setTimeout(r, durationMs + 50)); } } bars.forEach(b => { b.fill.style.transitionDuration = ''; }); runtime._lastLevelExp = runtime._targetLevelExp; runtime._isAnimatingLevel = false; runtime._rankDisplayExp = null; refreshRankDisplays(); flushRewards(); } }
+    function updateLevelBar(silent) { const totalExp = getLiveLevelExp(); if (runtime._lastLevelExp === undefined) { runtime._lastLevelExp = totalExp; seedRewardsSeen(); const bars = getLevelBars(); bars.forEach(b => renderLevelBar(b, totalExp)); return; } const bars = getLevelBars(); if (!bars.length) return; if (totalExp !== runtime._lastLevelExp) { if (silent) { if (!runtime._isAnimatingLevel) { runtime._lastLevelExp = totalExp; bars.forEach(b => renderLevelBarInstant(b, totalExp)); } } else { runtime._targetLevelExp = totalExp; if (!runtime._isAnimatingLevel) { runLevelAnimationQueue(); } } } else if (!runtime._isAnimatingLevel) { bars.forEach(b => { if (!b.fill.style.width) renderLevelBar(b, runtime._lastLevelExp); }); } const LEVEL_CHARGE_MS = 200; async function runLevelAnimationQueue() { runtime._isAnimatingLevel = true; runtime._rankDisplayExp = runtime._lastLevelExp; const BASE_SPEED_MS = 1000; let forcedNextTier = null; while (runtime._lastLevelExp < runtime._targetLevelExp) { const currentProg = forcedNextTier !== null ? { atrophy: forcedNextTier, level: LEVEL_ATRO_START[forcedNextTier], expInLevel: 0, expToNext: computeLevelExpCost(LEVEL_ATRO_START[forcedNextTier], forcedNextTier) } : calculateLevelProgress(runtime._lastLevelExp); forcedNextTier = null; const targetProg = calculateLevelProgress(runtime._targetLevelExp); const currentRank = currentProg.atrophy * 1000 + (currentProg.level - LEVEL_ATRO_START[currentProg.atrophy]); const targetRank = targetProg.atrophy * 1000 + (targetProg.level - LEVEL_ATRO_START[targetProg.atrophy]); if (currentRank < targetRank && currentProg.level >= 100 && currentProg.atrophy < 2) { await runAtrophyAnimation(currentProg.atrophy, bars); forcedNextTier = currentProg.atrophy + 1; } else if (currentRank < targetRank) { const expNeededToFill = currentProg.expToNext - currentProg.expInLevel; const currentPct = parseFloat(bars[0].fill.style.width) || 0; const durationMs = Math.max(150, (100 - currentPct) / 100 * BASE_SPEED_MS); bars.forEach(b => { b.fill.style.transitionDuration = durationMs + 'ms'; b.fill.style.width = '90%'; b.fill.classList.add('level-full'); setLevelGainFrom(b.fill, levelGainFrom(b.fill, currentProg.atrophy, currentProg.level, 100)); }); await new Promise(r => setTimeout(r, durationMs + 50)); const nextLevel = currentProg.level + 1; if (nextLevel >= 100 && currentProg.atrophy < 2) { runtime._lastLevelExp += expNeededToFill; await runAtrophyAnimation(currentProg.atrophy, bars); forcedNextTier = currentProg.atrophy + 1; continue; } if (nextLevel >= 100) { runtime._lastLevelExp += expNeededToFill; await runBrickedAnimation(bars); continue; } bars.forEach(b => b.container.classList.add('bbgl-exp-charging')); await new Promise(r => setTimeout(r, LEVEL_CHARGE_MS)); bars.forEach(b => b.container.classList.add('bbgl-level-up-flash')); await new Promise(r => setTimeout(r, 200)); bars.forEach(b => { setLevelBarNumber(b, nextLevel); }); runtime._rankDisplayExp = runtime._lastLevelExp + expNeededToFill; refreshRankDisplays(); const bandIdx = levelBandIndex(nextLevel); if (bandIdx > levelBandIndex(currentProg.level)) { emitReward({ kind: 'rank', id: `rank:${currentProg.atrophy}:${bandIdx}`, atrophy: currentProg.atrophy, band: bandIdx, label: atrophyBandTitle(currentProg.atrophy, nextLevel) }); } await new Promise(r => setTimeout(r, 650)); bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging')); runtime._lastLevelExp += expNeededToFill; bars.forEach(b => { b.fill.style.transition = 'none'; b.fill.style.width = '0%'; b.fill.classList.remove('level-full'); setLevelGainFrom(b.fill, 0); void b.fill.offsetWidth; b.fill.style.transition = ''; }); } else { runtime._lastLevelExp = runtime._targetLevelExp; const currentPct = parseFloat(bars[0].fill.style.width) || 0; const { level, expInLevel, expToNext } = calculateLevelProgress(runtime._lastLevelExp); const targetPct = expToNext > 0 ? Math.min(100, expInLevel / expToNext * 100) : level >= 100 ? 100 : 0; const durationMs = Math.max(150, Math.abs(targetPct - currentPct) / 100 * BASE_SPEED_MS); bars.forEach(b => { b.fill.style.transitionDuration = durationMs + 'ms'; renderLevelBar(b, runtime._lastLevelExp); }); await new Promise(r => setTimeout(r, durationMs + 50)); } } bars.forEach(b => { b.fill.style.transitionDuration = ''; }); runtime._lastLevelExp = runtime._targetLevelExp; runtime._isAnimatingLevel = false; runtime._rankDisplayExp = null; refreshRankDisplays(); flushRewards(); } }
     function snapLevelBar() { const totalExp = getLiveLevelExp(); runtime._lastLevelExp = totalExp; runtime._targetLevelExp = totalExp; runtime._isAnimatingLevel = false; runtime._rankDisplayExp = null; getLevelBars().forEach(b => { b.container.classList.remove('bbgl-level-up-flash', 'bbgl-exp-charging', 'bbgl-exp-final', 'bbgl-crown-hop', 'bbgl-crown-next', 'bbgl-crown-rise', 'bbgl-exp-stall', 'bbgl-atrophy-flicker', 'bbgl-flash-surge', 'bbgl-atrophy-glitch'); renderLevelBarInstant(b, totalExp); }); }
     const REWARD_KINDS = { rank: { surface: 'toast', tone: 'rank', title: 'Rank Up', body: () => 'New rank unlocked!' }, title: { surface: 'toast', tone: 'unlock', title: 'New Title', body: () => 'New title unlocked!' }, atrophy: { surface: 'modal', tone: 'atrophy', title: 'Atrophied', body: a => `Tier ${a.from} complete. Everything resets — you start again at Lv ${LEVEL_ATRO_START[a.to]}, and the climb is longer this time.` }, bricked: { surface: 'modal', tone: 'bricked', title: 'Fully Bricked', body: () => 'The last tier is finished. There is nothing left above this.' } };
     const TOAST_MS = 8000;
@@ -13041,7 +11583,7 @@ ${TITLE_PLAQUE_CSS}
     const SURGE_SWAP_MS = 250;
     const waitMs = ms => new Promise(r => setTimeout(r, ms));
     async function runCrownSwap(bars) { await waitMs(CROWN_HOLD_MS); bars.forEach(b => b.container.classList.add('bbgl-crown-hop')); await waitMs(CROWN_HOP_MS); bars.forEach(b => { b.container.classList.remove('bbgl-crown-hop'); b.container.classList.add('bbgl-crown-next', 'bbgl-crown-rise'); }); await waitMs(CROWN_RISE_MS); bars.forEach(b => b.container.classList.remove('bbgl-crown-rise')); }
-    async function runAtrophyAnimation(fromAtrophy, bars) { const toAtrophy = fromAtrophy + 1; const swapTier = () => { bars.forEach(b => { b.container.classList.remove('bbgl-crown-next'); b.container.dataset.atrophy = toAtrophy; b.container.dataset.level = LEVEL_ATRO_START[toAtrophy]; setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]); b.fill.style.transition = 'none'; b.fill.style.width = '0%'; b.fill.classList.remove('level-full'); void b.fill.offsetWidth; b.fill.style.transition = ''; }); if (dom.panel) { dom.panel.dataset.atrophy = toAtrophy; dom.panel.dataset.level = LEVEL_ATRO_START[toAtrophy]; } runtime._rankDisplayExp = runtime._lastLevelExp; refreshRankDisplays(); }; const celebrate = () => emitReward({ kind: 'atrophy', id: `atrophy:${toAtrophy}`, from: fromAtrophy, to: toAtrophy }); if (!userConfig.animations) { swapTier(); celebrate(); return; } const CHARGE_MS = 900; const FLICKER_MS = 700; await runCrownSwap(bars); bars.forEach(b => b.container.classList.add('bbgl-exp-stall', 'bbgl-exp-charging')); await waitMs(CHARGE_MS); bars.forEach(b => b.container.classList.add('bbgl-atrophy-flicker')); await waitMs(FLICKER_MS); bars.forEach(b => { b.container.classList.remove('bbgl-atrophy-flicker'); b.container.classList.add('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch'); }); await waitMs(SURGE_SWAP_MS); swapTier(); await waitMs(SURGE_MS - SURGE_SWAP_MS); bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch', 'bbgl-exp-charging', 'bbgl-exp-stall')); celebrate(); }
+    async function runAtrophyAnimation(fromAtrophy, bars) { const toAtrophy = fromAtrophy + 1; const swapTier = () => { bars.forEach(b => { b.container.classList.remove('bbgl-crown-next'); b.container.dataset.atrophy = toAtrophy; b.container.dataset.level = LEVEL_ATRO_START[toAtrophy]; setLevelBarNumber(b, LEVEL_ATRO_START[toAtrophy]); b.fill.style.transition = 'none'; b.fill.style.width = '0%'; b.fill.classList.remove('level-full'); b.fill._gainBase = null; setLevelGainFrom(b.fill, null); void b.fill.offsetWidth; b.fill.style.transition = ''; }); if (dom.panel) { dom.panel.dataset.atrophy = toAtrophy; dom.panel.dataset.level = LEVEL_ATRO_START[toAtrophy]; } runtime._rankDisplayExp = runtime._lastLevelExp; refreshRankDisplays(); }; const celebrate = () => emitReward({ kind: 'atrophy', id: `atrophy:${toAtrophy}`, from: fromAtrophy, to: toAtrophy }); if (!userConfig.animations) { swapTier(); celebrate(); return; } const CHARGE_MS = 900; const FLICKER_MS = 700; await runCrownSwap(bars); bars.forEach(b => b.container.classList.add('bbgl-exp-stall', 'bbgl-exp-charging')); await waitMs(CHARGE_MS); bars.forEach(b => b.container.classList.add('bbgl-atrophy-flicker')); await waitMs(FLICKER_MS); bars.forEach(b => { b.container.classList.remove('bbgl-atrophy-flicker'); b.container.classList.add('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch'); }); await waitMs(SURGE_SWAP_MS); swapTier(); await waitMs(SURGE_MS - SURGE_SWAP_MS); bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-atrophy-glitch', 'bbgl-exp-charging', 'bbgl-exp-stall')); celebrate(); }
     async function runBrickedAnimation(bars) { const reachCap = () => { bars.forEach(b => { b.container.classList.remove('bbgl-crown-next'); setLevelBarNumber(b, LEVEL_CAP); }); if (dom.panel) dom.panel.dataset.level = LEVEL_CAP; runtime._rankDisplayExp = runtime._lastLevelExp; refreshRankDisplays(); }; const celebrate = () => emitReward({ kind: 'bricked', id: 'bricked' }); if (!userConfig.animations) { reachCap(); celebrate(); return; } await runCrownSwap(bars); bars.forEach(b => b.container.classList.add('bbgl-exp-charging', 'bbgl-exp-final')); await waitMs(200); bars.forEach(b => b.container.classList.add('bbgl-level-up-flash', 'bbgl-flash-surge')); await waitMs(SURGE_SWAP_MS); reachCap(); await waitMs(SURGE_MS - SURGE_SWAP_MS); bars.forEach(b => b.container.classList.remove('bbgl-level-up-flash', 'bbgl-flash-surge', 'bbgl-exp-charging', 'bbgl-exp-final')); celebrate(); }
     function renderStats(sl, rawLbl) { const c = dom.ledgerView; if (!c) return; if (!sl.stats) sl = DataController._hydrate(sl, [], rawLbl, 'DAY'); const s = sl.stats, isP = sl.resolution !== 'DAY'; const dEl = dom.dateLabel; if (dEl) { const isExp = dom.panel.classList.contains('bbgl-expanded') || dom.panel.classList.contains('bbgl-mode-page'); let l; if (sl.resolution === 'WEEK') { const start = sl._weekStart || (sl._dailyList && sl._dailyList.length > 0 ? sl._dailyList[0].date : null) || sl.date; const end = sl._weekEnd || (sl._dailyList && sl._dailyList.length > 0 ? sl._dailyList[sl._dailyList.length - 1].date : null) || sl.date; l = `Week of ${Formatter.dateMonthDay(start)}<span class="view-exp"> - ${Formatter.dateMonthDay(end)}</span>`; } else { l = isExp ? Formatter.dateFull(sl.label) : Formatter.datePretty(sl.label); if (!l) l = sl.label; if (sl.resolution === 'MONTH') { l = sl.label + ' ' + calendarState.year; } else if (isP && sl._dailyList.length > 0 && sl.resolution !== 'ALL') { const endLabel = Formatter.dateMonthDay(sl._dailyList[sl._dailyList.length - 1].date); l += `<span class="view-exp"> (${Formatter.dateMonthDay(sl._dailyList[0].date)} - ${endLabel})</span>`; } } dEl.innerHTML = l; } const sumEl = dom.summaryLabel; if (sumEl) sumEl.innerHTML = `Total E: ${Formatter.dual(s.total.cost)} <span style="opacity:0.3; margin:0 6px">|</span> Total Gains: ${Formatter.dual(s.total.gain)}`; const lm = { 'STR': 'Strength', 'DEF': 'Defense', 'SPD': 'Speed', 'DEX': 'Dexterity', 'TOT': 'Total' }; runtime.currentStats = { sl, s }; if (dom.itemCounters) { const items = sl.items || {}; const isDay = sl.resolution === 'DAY'; const cnt = code => items[code] || 0; const shortOf = code => ITEM_LOG_META[code] && ITEM_LOG_META[code].short || `#${code}`; const drugCode = userConfig.drugTracker === 'lsd' ? 2230 : XANAX_LOG; const secondaryCode = userConfig.drugTracker === 'lsd' ? XANAX_LOG : 2230; const parts = []; let drugSub = ''; if (!isDay) { const days = DataController.periodCalendarDays(sl); const drugAvg = days > 0 ? cnt(drugCode) / days : 0; drugSub = sl.resolution === 'ALL' ? '' : `<span class="bbgl-ic-sub">(${drugAvg.toFixed(2)})</span>`; } const nameOf = c => { if (c === 2290) return 'Xanax'; if (c === 2230) return 'LSD'; if (c === 2040) return 'Cans'; if (c === 2190) return 'FHC'; if (c === 8981) return 'Eggs'; return shortOf(c); }; const isAll = sl.resolution === 'ALL'; const drugTip = `<div style="text-align:center">${nameOf(drugCode)} Taken` + (!isDay && !isAll ? `<br><span class="tt-sub">(Avg/Day)</span>` : ``) + `</div>`; parts.push(`<span class="bbgl-ic" data-tooltip-html='${drugTip}'>${shortOf(drugCode)}: ${cnt(drugCode)}${drugSub}</span>`); [ECAN_LOG, 2190, secondaryCode, 8981].forEach(code => { const c = cnt(code); if (c <= 0) return; const sub = code === ECAN_LOG && sl.resolution !== 'ALL' ? `<span class="bbgl-ic-sub">(+${Math.round(sl.ecanEnergy || 0)})</span>` : ''; let dynTip = ''; if (code === ECAN_LOG) { dynTip = `<div style="text-align:center">Cans Used` + (!isAll ? `<br><span class="tt-sub">(Energy Gained)</span>` : ``) + `</div>`; } else { dynTip = `<div style="text-align:center">${nameOf(code)} Used</div>`; } parts.push(`<span class="bbgl-ic bbgl-ic-dyn" data-tooltip-html='${dynTip}'>${shortOf(code)}: ${c}${sub}</span>`); }); const refills = cnt(4900); const refillVal = isDay ? refills > 0 ? `<span class="bbgl-ic-yes">✓</span>` : `<span class="bbgl-ic-no">✗</span>` : `${refills}`; const refillTip = `<div style="text-align:center">Refills Used</div>`; parts.push(`<span class="bbgl-ic" data-tooltip-html='${refillTip}'>Refill: ${refillVal}</span>`); dom.itemCounters.innerHTML = parts.join(''); } const todayStr = Formatter.dateLogical(); const slLastDate = sl._dailyList && sl._dailyList.length > 0 ? sl._dailyList[sl._dailyList.length - 1].date : sl.date; const isCurrentPeriod = sl.resolution === 'ALL' || slLastDate >= todayStr; const col = (lc, k, cl) => { const d = s[k], ft = lm[lc] || lc; let rh = '', rt = ''; const fmtR = n => { if (!n && n !== 0) return '0'; const a = Math.abs(n); if (a >= 1e15) return (n / 1e15).toFixed(4) + 'q'; if (a >= 1e12) return (n / 1e12).toFixed(4) + 't'; if (a >= 1e9) return (n / 1e9).toFixed(4) + 'b'; if (a >= 100) return Math.round(n).toLocaleString('en-US'); return n.toFixed(1); }; const mkTip = (r1, r2, pct, sg) => `<div style='text-align:center;line-height:1.6'><div style='margin-bottom:0px'>Growth Rate</div><div style='font-size:0.85em;opacity:0.35;margin-bottom:3px'>(Gains/150E)</div><div>${fmtR(r1)} \u2192 ${fmtR(r2)}</div><div style='font-size:0.85em;color:#aaa'>${sg}${Math.round(pct)}%</div></div>`; if (isP && k !== 'total') { let th = `<span style="opacity:0.3">--</span>`; if (userConfig.ratesEnabled && sl._dailyList.length > 0) { const _fpd = new Date(sl._dailyList[0].date + 'T00:00:00Z'); _fpd.setUTCDate(_fpd.getUTCDate() - 1); const r1 = DataController.getHistoricalRate(_fpd.toISOString().slice(0, 10), k),
         r2 = DataController._hydrate(sl._dailyList[sl._dailyList.length - 1], [], '', 'DAY').stats[k].rate, del = r2 - r1, sg = del >= 0 ? '+' : '', pct = r1 > 0 ? (r2 - r1) / r1 * 100 : 0; th = `<div class="rates-group" style="display:flex;flex-direction:column;align-items:center;line-height:1.1"><span>${sg}${Formatter.achAbbr(del, ACH_FMT.compact)}</span><span class="view-exp rate-pct" style="font-size:0.8em;opacity:0.7;margin-top:2px;margin-bottom:-2px;">(${sg}${Formatter.ratePct(pct)}%)</span></div>`; rt = mkTip(r1, r2, pct, sg); } rh = userConfig.ratesEnabled ? th : ''; } else { if (userConfig.ratesEnabled && k !== 'total') { const _pd = new Date(sl.date + 'T00:00:00Z'); _pd.setUTCDate(_pd.getUTCDate() - 1); const r1 = DataController.getHistoricalRate(_pd.toISOString().slice(0, 10), k), r2 = d.rate, del = r2 - r1, sg = del >= 0 ? '+' : '', pct = r1 > 0 ? del / r1 * 100 : 0; rh = userConfig.ratesEnabled ? Formatter.dual(d.rate, true) : ''; rt = mkTip(r1, r2, pct, sg); } else { rh = userConfig.ratesEnabled ? Formatter.dual(d.rate, true) : ''; rt = `Growth Rate (Gains / 150E)`; } } return `<div class="stat-column" data-copy-stat="${k}"><div class="col-header cell-stack"><div class="l-top c-label ${cl} bbgl-copy-label" data-tooltip="Click to copy ${ft} data" style="cursor:pointer"><span class="view-std">${lc}</span><span class="view-exp">${ft}</span></div><div class="l-bot" data-tooltip="${isP ? `Energy Used on ${ft}` : `Energy Used`}">${Formatter.dual(d.cost)} E</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-gain"><div class="l-top" data-tooltip="${ft} Gained">+${Formatter.dual(d.gain)}</div><div class="l-bot" data-tooltip="${rt}">${rh}</div></div><div class="bbgl-spacer"></div><div class="col-data-block cell-stack c-total"><div class="l-top" data-tooltip="${isCurrentPeriod ? 'Current' : 'Ending'} ${ft}">${Formatter.dual(d.end)}</div><div class="l-bot" data-tooltip="Starting ${ft}">${Formatter.dual(d.start)}</div></div></div>`; }; c.innerHTML = ` ${col('STR', 'str', 't-str')} ${col('DEF', 'def', 't-def')} ${col('SPD', 'spd', 't-spd')} ${col('DEX', 'dex', 't-dex')} `; }
@@ -13171,7 +11713,7 @@ ${TITLE_PLAQUE_CSS}
     function setLevelCardPeek(bar) { if (levelCard.peekBar === bar) return; if (levelCard.peekBar) levelCard.peekBar.classList.remove('bbgl-exp-peek'); levelCard.peekBar = bar; if (bar) bar.classList.add('bbgl-exp-peek'); }
     document.addEventListener('pointerover', e => { if (e.pointerType === 'touch') return; const hit = e.target.closest && e.target.closest('.bbgl-exp-hit'); const bar = hit ? hit.closest('.bbgl-exp-bar') : null; clearTimeout(levelCard.leaveTimer); if (bar) setLevelCardPeek(bar);else if (levelCard.peekBar) levelCard.leaveTimer = setTimeout(() => setLevelCardPeek(null), LEVEL_CARD_LEAVE_MS); }, true);
     document.addEventListener('click', e => { const hit = e.target.closest && e.target.closest('.bbgl-exp-hit'); if (!hit) return; e.stopPropagation(); const bar = hit.closest('.bbgl-exp-bar'); if (levelCard.pinned && levelCard.want === bar) { levelCard.pinned = false; setLevelCardWant(null); } else { levelCard.pinned = true; setLevelCardWant(bar); } }, true);
-    function buildLevelBarHTML(gym = false) { const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level'; return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div><div class="bbgl-exp-card-cut" aria-hidden="true"><div class="bbgl-exp-card"></div></div><div class="bbgl-exp-hit" aria-hidden="true"></div></div>`; }
+    function buildLevelBarHTML(gym = false) { const prefix = gym ? 'bbgl-gym-level' : 'bbgl-level'; return `<div id="${prefix}-container" class="bbgl-exp-bar"><div id="${prefix}-flag-clip" class="bbgl-exp-flag"><span id="${prefix}-num">Lv 1</span></div><div id="${prefix}-track" class="bbgl-exp-track"><div class="bbgl-exp-halo"><i></i></div><div id="${prefix}-fill"><div class="bbgl-exp-gain"></div><div class="bbgl-exp-charge"></div></div>${buildLevelValveSVG(prefix)}${buildLevelTrackSVG()}<div class="bbgl-exp-glow"></div></div><div class="bbgl-exp-card-cut" aria-hidden="true"><div class="bbgl-exp-card"></div></div><div class="bbgl-exp-hit" aria-hidden="true"></div></div>`; }
     function buildLevelValveSVG(prefix) { const id = `${prefix}-valve-${++levelTrackSvgSerial}`; const bolts = [[20, 12], [80, 12], [20, 26], [80, 26]].map(([x, y]) => `<circle cx="${x}" cy="${y + .35}" r="2.05" fill="#050809"/><circle cx="${x}" cy="${y}" r="1.85" fill="url(#${id}-bevel)"/><circle cx="${x}" cy="${y - .15}" r="1.3" fill="url(#${id}-bolt)"/><path d="M${x - .6} ${y + .45}l1.2-1.2" stroke="#080d0e" stroke-width=".65"/><path d="M${x - 1.1} ${y - .3}q.2-.8 1-.85" fill="none" stroke="#ecedda" stroke-opacity=".65" stroke-width=".35"/>`).join(''); const sockets = ['', 'translate(100 0) scale(-1 1)'].map(transform => `<g transform="${transform}">
             <path d="M24 6L18 7.6H14V28.5C18 29.5 20 31 24 32L22 27V11Z" fill="url(#${id}-shoulder)"/>
             <path d="M23 7L18 8.5H14 M14.5 27.5C18 28.5 20 30 23 31" fill="none" stroke="url(#${id}-bevel)" stroke-width=".8"/>
@@ -13290,7 +11832,7 @@ ${TITLE_PLAQUE_CSS}
     const _flyoutPassTimers = {};
     function refreshSwipeGates() { Object.keys(SWIPE_GATES).forEach(key => { const el = document.getElementById(SWIPE_GATES[key].id); if (!el) return; const on = !_flyoutPassTimers[key] && SWIPE_GATES[key].canGoLeft(); if (el.hasAttribute(FLYOUT_GATE_ATTR) === on) return; if (on) el.setAttribute(FLYOUT_GATE_ATTR, 'true');else el.removeAttribute(FLYOUT_GATE_ATTR); }); }
     function openFlyoutPass(key) { clearTimeout(_flyoutPassTimers[key]); _flyoutPassTimers[key] = setTimeout(() => { _flyoutPassTimers[key] = null; refreshSwipeGates(); }, FLYOUT_PASS_MS); refreshSwipeGates(); }
-    function changeMonth(d) { const c = dom.calContainer; if (!c) return; let m = calendarState.month + d, y = calendarState.year; if (m > 11) { m = 0; y++; } if (m < 0) { m = 11; y--; } if (!userConfig.animations) { calendarState.month = m; calendarState.year = y; viewState.calYear = y; viewState.calMonth = m; saveViewState(); renderPanelContent(); return; } const hb = dom.headerBg; const headerChanging = hb && SEASONAL_HEADER_IMGS[calendarState.month] !== SEASONAL_HEADER_IMGS[m]; Perf.start('changeMonth:ghost'); slideOutGhost(c, 'bbgl-cal-ghost', d); if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true); Perf.end('changeMonth:ghost'); calendarState.month = m; calendarState.year = y; viewState.calYear = y; viewState.calMonth = m; Perf.wrap('saveViewState', saveViewState); c.style.willChange = 'transform'; renderPanelContent(); slideIn(c, d); if (headerChanging) { hb.style.willChange = 'transform'; slideIn(hb, d); } Perf.layout('changeMonth:layout'); }
+    function changeMonth(d) { const c = dom.calContainer; if (!c) return; let m = calendarState.month + d, y = calendarState.year; if (m > 11) { m = 0; y++; } if (m < 0) { m = 11; y--; } if (!userConfig.animations) { calendarState.month = m; calendarState.year = y; viewState.calYear = y; viewState.calMonth = m; saveViewState(); renderPanelContent(); return; } const hb = dom.headerBg; const headerChanging = hb && seasonalHeaderImg(calendarState.month) !== seasonalHeaderImg(m); Perf.start('changeMonth:ghost'); slideOutGhost(c, 'bbgl-cal-ghost', d); if (headerChanging) slideOutGhost(hb, 'bbgl-header-bg-ghost', d, true); Perf.end('changeMonth:ghost'); calendarState.month = m; calendarState.year = y; viewState.calYear = y; viewState.calMonth = m; Perf.wrap('saveViewState', saveViewState); c.style.willChange = 'transform'; renderPanelContent(); slideIn(c, d); if (headerChanging) { hb.style.willChange = 'transform'; slideIn(hb, d); } Perf.layout('changeMonth:layout'); }
     function slideOutGhost(el, ghostClass, d, clearId = false) { el.parentElement.querySelectorAll('.' + ghostClass).forEach(g => g.remove()); const ghost = el.cloneNode(true); if (clearId) ghost.id = ''; ghost.className += ' ' + ghostClass; ghost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards'; el.parentElement.appendChild(ghost); const removeGhost = () => { if (ghost.parentElement) ghost.remove(); }; ghost.addEventListener('animationend', removeGhost, { once: true }); const ghostTimer = setTimeout(removeGhost, 400); ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), { once: true }); }
     function slideIn(el, d) { el.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards'; el.addEventListener('animationend', () => { el.style.animation = ''; el.style.willChange = 'auto'; }, { once: true }); }
     function changeStickerPage(d) { const target = Math.max(STICKER_SPONSOR_PAGE, Math.min(runtime.currentStickerPage + d, stickerPageCount() - 1)); if (target === runtime.currentStickerPage) return; if (!userConfig.animations) { gotoStickerPage(target); return; } const oldActive = runtime.currentStickerPage === STICKER_SPONSOR_PAGE ? document.getElementById('bbgl-sponsor-grid') : dom.stickerGrid, bg = dom.stickerGridBg; if (oldActive) { const ghost = oldActive.cloneNode(true); ghost.style.pointerEvents = 'none'; ghost.style.position = 'absolute'; ghost.style.top = '0'; ghost.style.left = '0'; ghost.style.width = '100%'; ghost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards'; oldActive.parentElement.appendChild(ghost); const removeGhost = () => { if (ghost.parentElement) ghost.remove(); }; ghost.addEventListener('animationend', removeGhost, { once: true }); const ghostTimer = setTimeout(removeGhost, 400); ghost.addEventListener('animationend', () => clearTimeout(ghostTimer), { once: true }); } if (bg) { const bgGhost = bg.cloneNode(true); bgGhost.style.pointerEvents = 'none'; bgGhost.style.position = 'absolute'; bgGhost.style.top = '0'; bgGhost.style.left = '0'; bgGhost.style.width = '100%'; bgGhost.style.animation = d > 0 ? 'bbgl-slide-out-l 0.3s ease forwards' : 'bbgl-slide-out-r 0.3s ease forwards'; bg.parentElement.appendChild(bgGhost); const removeBgGhost = () => { if (bgGhost.parentElement) bgGhost.remove(); }; bgGhost.addEventListener('animationend', removeBgGhost, { once: true }); const bgGhostTimer = setTimeout(removeBgGhost, 400); bgGhost.addEventListener('animationend', () => clearTimeout(bgGhostTimer), { once: true }); } gotoStickerPage(target); const newActive = runtime.currentStickerPage === STICKER_SPONSOR_PAGE ? document.getElementById('bbgl-sponsor-grid') : dom.stickerGrid; if (newActive) { newActive.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards'; newActive.addEventListener('animationend', () => newActive.style.animation = '', { once: true }); } if (bg) { bg.style.animation = d > 0 ? 'bbgl-slide-in-r 0.3s ease forwards' : 'bbgl-slide-in-l 0.3s ease forwards'; bg.addEventListener('animationend', () => bg.style.animation = '', { once: true }); } }

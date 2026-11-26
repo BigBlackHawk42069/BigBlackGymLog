@@ -513,7 +513,7 @@
         popupLabel.textContent = 'Popups';
         popupLabel.style.cssText = 'color:#999;font-family:sans-serif;font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;';
         const popupBtns = [
-            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Jerked Clay' }],
+            ['Rank', { kind: 'rank', id: 'dev:rank', atrophy: 0, band: 2, label: 'Hand-Stroked Clay' }],
             ['Title', { kind: 'title', id: 'dev:title', label: 'The Dripping Wet Colossus' }],
             ['Atrophy', { kind: 'atrophy', id: 'dev:atrophy', from: 0, to: 1 }],
             ['Bricked', { kind: 'bricked', id: 'dev:bricked' }]

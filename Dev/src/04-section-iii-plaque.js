@@ -122,56 +122,113 @@
         plaqueRules(' .bbgl-title-card-title-label', step => PLAQUE_LETTERS[step.letters].label) +
         plaqueRules(' .bbgl-title-card-sign-face .bbgl-title-card-empty', step => PLAQUE_LETTERS[step.letters].label);
 
-    // Rank plates on the card, one image per finish (the card also appears in the level bar's tooltip,
-    // outside the panel, so these rules are scoped to both), cropped to the plate and fitted inside the plate box
-    // (contain, so a plate drawn narrower than its box isn't stretched), or drawn at an explicit size
-    // (% of the box) to widen it. It sits on the label's ::before; the face keeps its box, so the
-    // lettering sits exactly as before. The image is also the face's mask, so the sweep and sheen stay on
-    // the plate's shape. The silver and gold surface lighting moves from the face to the label, so it
-    // lights the art.
-    const RANK_PLATE_ART = {
-        mill: ['plate-1-aluminum'],
-        machined: ['plate-2-lightbox'],
-        polished: ['plate-3-bronze'],
-        silver: ['plate-4-silver', '100% 100%'],
-        gold: ['plate-5-gold', '100% 100%'],
-        pearl: ['plate-6-platinum', '100% 100%']
-    };
-    const RANK_PLATE_CSS = Object.entries(RANK_PLATE_ART).map(([finish, [art, size = 'contain']]) => `
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-label::before {
-    background-image: ${plaqueArtUrl(art)};
-    background-size: ${size};
+    // The card's rank emblem (achRankPlaqueHTML(), 06-section-v-logic.js): one image per atrophy tier
+    // and band with its lettering baked in. The card also appears in the level bar's tooltip, outside
+    // the panel, so these rules are scoped to both. The plaque is a size container; the label inside it
+    // takes the emblem's own proportions (--rank-ar) at the largest size that fits, so overlays drawn
+    // in the plate's units and masks of the emblem (--rank-emblem) land on the art.
+    const RANK_EMBLEM_CSS = `
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 96%;
+    height: 96%;
+    max-width: 100%;
+    margin: auto;
+    container-type: size;
+    pointer-events: auto;
+    cursor: help;
+    z-index: 1;
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-${finish} .bbgl-rank-notch-face {
-    -webkit-mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
-    mask: ${plaqueArtUrl(art)} center / ${size} no-repeat !important;
-}`).join('\n') + `
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    position: relative;
+    display: block;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+}
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label::before {
-    content: '';
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
     position: absolute;
     inset: 0;
-    z-index: 0;
-    background: center / contain no-repeat;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    user-select: none;
+}
+
+.bbgl-title-card .bbgl-title-card-rank-label {
+    display: none;
+}
+
+.bbgl-rank-surface-lighting {
+    position: absolute;
     pointer-events: none;
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-    background: none !important;
-    filter: none !important;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-silver.is-revealed .bbgl-rank-notch-label {
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-silver .bbgl-rank-notch-label {
     filter: var(--bbgl-shield-light, none);
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold.is-revealed .bbgl-rank-notch-label {
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-label {
     filter: var(--bbgl-gold-light, none);
 }
 
-/* Fully Bricked's lamps: beams under the plate, lamps over it, and the light they throw inside the
-   face. Lamp heads, beams and spots share one 7s sweep; the right lamp runs half a cycle behind. */
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+    filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
+        filter: none;
+    }
+}
+
+/* Bronze: a band of warm light slides across the emblem, clipped to it. The band is 300% wide and moved
+   by transform inside a static masked box, so it runs on the compositor. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+}
+
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300%;
+    background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
+    mix-blend-mode: screen;
+    transform: translateX(-46.666667%);
+    will-change: transform;
+    animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+    animation: none;
+    opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+        animation: none;
+        opacity: 0;
+    }
+}
+
+/* Fully Bricked's lamps: beams under the emblem, lamps over it, and the light they throw on it (masked
+   to the emblem). Lamp heads, beams and spots share one 7s sweep; the right lamp runs half a cycle behind. */
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps,
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
     position: absolute;
@@ -183,6 +240,11 @@
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamps.is-back {
+    left: 50%;
+    top: 50%;
+    width: min(100cqw, 100cqh * var(--rank-ar));
+    height: min(100cqh, 100cqw / var(--rank-ar));
+    transform: translate(-50%, -50%);
     z-index: 0;
     mix-blend-mode: screen;
     opacity: .55;
@@ -194,8 +256,10 @@
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-lamp-light {
-    z-index: 1;
+    z-index: 2;
     mix-blend-mode: screen;
+    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    mask: var(--rank-emblem) center / 100% 100% no-repeat;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-lamp-glow {
@@ -229,128 +293,8 @@
     :is(.bbgl-lamp-sweep, .bbgl-lamp-spot) { animation: none; }
 }
 
-/* The lightbox powers on: the plate flickers up from dim on the same beats as its lettering, and
-   its glow comes up with it. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label {
-    animation: bbgl-rank-lightbox-frame-on 2.5s step-end 1 both;
-    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-machined.is-revealed .bbgl-rank-notch-label::before {
-    animation: bbgl-rank-plate-power-on 2.5s step-end 1 both;
-    animation-delay: var(--bbgl-rank-lightbox-delay, 0ms);
-}
-
-@keyframes bbgl-rank-plate-power-on {
-    0%, 30%, 33%, 40%, 45%, 64%, 74% { filter: brightness(.5) saturate(.6); }
-    30.01%, 38%, 44% { filter: brightness(.66) saturate(.75); }
-    53%, 72% { filter: brightness(.85) saturate(.9); }
-    76%, 100% { filter: none; }
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label::before {
-    animation: none;
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label {
-    animation: none;
-    filter: drop-shadow(0 0 2px rgba(232, 239, 242, .5)) drop-shadow(0 0 5px rgba(216, 229, 234, .18));
-}
-
-/* Gem glimmers and star glints, laid over the plate image's fitted box (its own aspect, centred). */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-plate-sparkles {
-    position: absolute;
-    top: 0;
-    left: 50%;
-    height: 100%;
-    transform: translateX(-50%);
-    z-index: 3;
-    overflow: visible;
-    pointer-events: none;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-shield-sparkles {
-    aspect-ratio: 1.704;
-}
-
-/* The bronze sheen stays on the frame: everything but the window, in the plate image's own proportions (2.235). */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-polished.is-revealed .bbgl-rank-bronze-sheen {
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 89.5' preserveAspectRatio='none'%3E%3Cpath fill-rule='evenodd' d='M0 0H200V89.5H0Z M33 15.5H167Q172 22.4 183 25L188 43.3L183 64.1Q172 67.6 167 74.5H33Q28 67.6 17 64.1L12 43.3L17 25Q28 22.4 33 15.5Z'/%3E%3C/svg%3E") center / contain no-repeat !important;
-}
-
-/* Gold lettering spaced like the rank bar's. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-gold .bbgl-rank-notch-line {
-    letter-spacing: .07em;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-platinum-sparkles {
-    aspect-ratio: 1.704;
-}
-
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-    filter: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
-        filter: none;
-    }
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-face {
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    clip-path: none !important;
-    overflow: visible !important;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
-    filter: none !important;
-}
-
-/* Compact mode: the card is taller than it is wide, so its rank area is much squarer than page mode's
-   (66 x 47 against 160 x 94). Each plate keeps page mode's proportions and share of the width instead
-   of filling that squarer box; its art, lettering (sized off the plate as a container), sparkles and
-   lamps then scale as one. The fixed side margins also shrink, since 12px is a big share of 80px. */
 #bbgl-panel.bbgl-compact .bbgl-title-card-rank {
     width: calc(100% - 4px);
-}
-${Object.entries({ mill: ['88.3%', 1.742], machined: ['93%', 1.876], polished: ['100%', 1.776], silver: ['95.9%', 1.704], gold: ['100%', 1.704], pearl: ['100%', 1.704] }).map(([fin, [w, ar]]) => `
-#bbgl-panel.bbgl-compact .bbgl-title-card-rank-plaque.finish-${fin} {
-    width: ${w};
-    height: auto;
-    aspect-ratio: ${ar};
-}`).join('\n')}
-
-/* The lettering's outlines and shadows in em rather than px, at exactly their page-mode thickness
-   (bronze 14.08px, silver 16.12px, gold 11.64px lettering), so they shrink with the text in compact
-   instead of doubling in weight. The rank bar keeps its own px values. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-silver.is-revealed .bbgl-rank-title-text {
-    -webkit-text-stroke-width: .0071em;
-    text-shadow: 0 .071em 0 #624029, 0 .1066em 0 #4c311f;
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-bright-silver.is-revealed .bbgl-rank-title-text {
-    filter:
-        drop-shadow(.0155em 0 0 #c9d3d880)
-        drop-shadow(-.0155em 0 0 #c9d3d880)
-        drop-shadow(0 .0155em 0 #c9d3d880)
-        drop-shadow(0 -.0155em 0 #c9d3d880)
-        drop-shadow(0 .124em .124em rgba(0, 0, 0, .8));
-}
-
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.material-gold.is-revealed .bbgl-rank-title-text {
-    --bbgl-gold-letter-depth: drop-shadow(0 -.0172em 0 #ffe8a0) drop-shadow(.0215em .043em 0 #8c5719) drop-shadow(0 .0687em .0215em #1c1006);
-}
-
-/* The name tag's grid kept a row for its heading; with no heading the lettering centres on the plate. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-mill .bbgl-rank-notch-face {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    padding: 8% 10% !important;
 }
 `;
 
