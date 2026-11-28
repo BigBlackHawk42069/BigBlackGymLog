@@ -2222,7 +2222,7 @@ const RANK_EMBLEM_SIZE = {
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [186, 70], 'T2R1-Parched-Clay': [209, 62], 'T3R1-Cracked-Clay': [253, 72],
+    'T1R1-Dry-Clay': [195, 79], 'T2R1-Parched-Clay': [217, 70], 'T3R1-Cracked-Clay': [263, 82],
     'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [188, 99],
     'T1R3-Hand-Stroked-Clay': [312, 110], 'T2R3-Foot-Pumped-Clay': [311, 112], 'T3R3-Vacuum-Sucked-Clay': [340, 112],
     'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [197, 100], 'T3R4-Kiln-Fired-Clay': [152, 98],

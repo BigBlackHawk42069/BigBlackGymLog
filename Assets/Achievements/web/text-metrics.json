@@ -1,8 +1,8 @@
 {
  "T1R1-Dry-Clay": {
-  "w": 186,
-  "h": 70,
-  "baseline": 48,
+  "w": 195,
+  "h": 79,
+  "baseline": 53,
   "lines": 1,
   "valley": 0.126,
   "backed": true
@@ -37,9 +37,9 @@
   "valley": 0.157
  },
  "T2R1-Parched-Clay": {
-  "w": 209,
-  "h": 62,
-  "baseline": 48,
+  "w": 217,
+  "h": 70,
+  "baseline": 52,
   "lines": 1,
   "valley": 0.136,
   "backed": true
@@ -74,9 +74,9 @@
   "valley": 0.079
  },
  "T3R1-Cracked-Clay": {
-  "w": 253,
-  "h": 72,
-  "baseline": 52,
+  "w": 263,
+  "h": 82,
+  "baseline": 57,
   "lines": 1,
   "valley": 0.267,
   "backed": true
