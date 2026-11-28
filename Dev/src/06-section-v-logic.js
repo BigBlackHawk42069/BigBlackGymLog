@@ -1893,8 +1893,25 @@ function computeAchievements(s) {
 // resumed (re-synced) by syncTitlesPageAnimationClock().
 const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
 
+// R2's bulb (bbgl-rank-bulb-on) on the card plate and the bar's R2 name sits on the page clock like
+// everything else, so routine rebuilds find it already lit. It replays from the start when the art
+// it lights changes (reaching R2, another atrophy's plates) or on a new page visit. Call it right
+// after the markup is inserted: the art only changes with freshly created nodes, so overriding the
+// clock with a zero delay on them starts their animation from its first frame.
+function replayRankBulbs(root) {
+    const replay = (el, slot) => {
+        const src = el ? (el.querySelector('img')?.getAttribute('src') || '') : '';
+        if (runtime[slot] === src) return;
+        runtime[slot] = src;
+        if (el) el.style.setProperty('--bbgl-titles-animation-delay', '0ms');
+    };
+    replay(root.querySelector('.bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label'), '_bulbCardSrc');
+    replay(root.querySelector('.bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art'), '_bulbBarSrc');
+}
+
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
+    runtime._bulbCardSrc = runtime._bulbBarSrc = undefined;
     const el = container || document.getElementById('bbgl-achievements-container');
     if (el) {
         el.style.removeProperty('--bbgl-titles-animation-delay');
@@ -1944,6 +1961,7 @@ function achRefreshPageDomBody() {
     const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache));
     Perf.start('achRefreshPageDom:insert');
     container.innerHTML = html;
+    if (runtime._achPage === 0) replayRankBulbs(container);
     Perf.end('achRefreshPageDom:insert');
     // Baseline for renderRankReadoutLive()'s fast path (07-section-vi-ui.js) — null off the titles
     // page so a later switch back to page 0 can't compare against a stale, unrelated snapshot and
@@ -2217,7 +2235,7 @@ const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
     'T1R3-Hand-Stroked-Clay': [500, 222], 'T2R3-Foot-Pumped-Clay': [500, 221], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
-    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 303], 'T3R4-Kiln-Fired-Clay': [500, 300],
+    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
     'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 297], 'T3R5-Competently-Bricked': [500, 301],
     'T3R6-Fully-Bricked': [500, 294]
 };
@@ -2225,7 +2243,7 @@ const RANK_TEXT_SIZE = {
     'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
     'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
     'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [149, 100, 87], 'T2R4-Scove-Fired-Clay': [197, 100, 87], 'T3R4-Kiln-Fired-Clay': [152, 98, 84],
+    'T1R4-Pit-Fired-Clay': [153, 102, 88], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
     'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
     'T3R6-Fully-Bricked': [240, 104, 99]
 };
@@ -2367,8 +2385,8 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
 
 // The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
 // plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
-// line up with the art. Silver and gold light the whole label with an SVG filter; bronze runs a sheen
-// over the emblem; Fully Bricked adds its lamps.
+// line up with the art. Silver and gold light the whole label with an SVG filter; R2 adds its bulb light;
+// bronze runs a sheen over the emblem's bright metal; Fully Bricked adds its lamps.
 function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const [w, h] = RANK_EMBLEM_SIZE[name];
     const src = rankArtSrc(name);
@@ -2378,7 +2396,8 @@ function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const inner = (lighting?.html || '') +
         `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` +
         (pearl ? achPlatinumLampLightHTML() : '') +
-        (finish === 'polished' ? '<span class="bbgl-rank-bronze-sheen"></span>' : '') +
+        (finish === 'machined' ? '<span class="bbgl-rank-bulb-light"></span>' : '') +
+        (finish === 'polished' ? (ensureBronzeMatte(name), `<span class="bbgl-rank-bronze-sheen" data-bronze-art="${name}"></span>`) : '') +
         (pearl ? achPlatinumLampsHTML() : '');
     return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` +
         `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
@@ -2522,7 +2541,9 @@ function achTitleLabelsHTML(atrophy, level) {
             b.unlocked ? 'is-revealed' : 'is-locked'
         ].filter(Boolean).join(' ');
         const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked);
-        const inner = b.unlocked ? achRankNameArtHTML(rankArtName(atrophy, i)) : ICONS.LOCK;
+        const art = rankArtName(atrophy, i);
+        if (b.unlocked && i === 2) ensureBronzeMatte(art + '-text');
+        const inner = b.unlocked ? achRankNameArtHTML(art, i === 2 ? `<span class="bbgl-rank-name-sheen" data-bronze-art="${art}-text"></span>` : '') : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
         const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null;
@@ -2530,13 +2551,13 @@ function achTitleLabelsHTML(atrophy, level) {
         return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
     const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked);
-    // The destination is always named. Locked, it's plain grey text (its art isn't loaded until it's
-    // earned); a lock glyph would sit on the finish divider and hide what the player is working toward.
-    // Earned, the platinum lettering gets the iridescent sheen and the glows behind it.
-    const capInner = bricked
-        ? achRankNameArtHTML(RANK_CAP_ART, '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>')
-        : '<span class="bbgl-rank-cap-name">Fully Bricked</span>';
-    const capLabel = bricked ? ' role="img" aria-label="Fully Bricked"' : '';
+    // The destination is always named, in its own lettering: greyed out while locked (a lock glyph
+    // would hide what the player is working toward), and with the iridescent sheen and the glows
+    // behind it once earned.
+    const capInner = achRankNameArtHTML(RANK_CAP_ART, bricked
+        ? '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>'
+        : '');
+    const capLabel = ' role="img" aria-label="Fully Bricked"';
     const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text"${capLabel}>${capInner}</span></div></div>`;
     return bands + cap;
 }

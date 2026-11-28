@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '3fc495ea987f17e993459bb7fc1cd1d496cca49d'
+        'BigBlackHawk42069/BigBlackGymLog': '43082fa8ed92023bc53fb60af71c272d396f8d13'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -1798,6 +1798,15 @@
     // the panel, so these rules are scoped to both. The plaque is a size container; the label inside it
     // takes the emblem's own proportions (--rank-ar) at the largest size that fits, so overlays drawn
     // in the plate's units and masks of the emblem (--rank-emblem) land on the art.
+    // R3's bronze sheen, shared by the card plate and the bar's R3 name. The band is a stripe in a box as
+    // wide as the art, skewed so its top leads on the way out (left to right). The travel (% of that box)
+    // ends just as the bright core clears the far corner, so the ease-out happens on the metal and the hold
+    // reads as the hold. Cycle: sweep out, hold, sweep back, rest (seconds).
+    const BRONZE_SHEEN_BAND = 'linear-gradient(90deg, transparent 33%, rgba(255, 200, 128, .5) 42%, rgba(255, 244, 220, 1) 50%, rgba(255, 200, 128, .5) 58%, transparent 67%)';
+    const BRONZE_SHEEN_TRAVEL = [-70, 70];
+    const BRONZE_SHEEN_TIMING = { sweep: 5, hold: .8, rest: 5, get cycle() { return this.sweep * 2 + this.hold + this.rest; } };
+    const bronzeSheenTransform = x => `translateX(${x}%) skewX(-28deg)`;
+
     const RANK_EMBLEM_CSS = `
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
     position: relative;
@@ -1817,8 +1826,14 @@
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
     position: relative;
     display: block;
-    width: min(100cqw, 100cqh * var(--rank-ar));
-    height: min(100cqh, 100cqw / var(--rank-ar));
+    width: calc(min(100cqw, 100cqh * var(--rank-ar)) * var(--rank-scale, 1));
+    height: calc(min(100cqh, 100cqw / var(--rank-ar)) * var(--rank-scale, 1));
+    flex-shrink: 0;
+}
+
+/* Per-plate size, past the plaque box where the art has room around it. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-polished {
+    --rank-scale: 1.08;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
@@ -1859,30 +1874,27 @@
     }
 }
 
-/* Bronze: a band of warm light slides across the emblem, clipped to it. The band is 300% wide and moved
-   by transform inside a static masked box, so it runs on the compositor. */
+/* Bronze: a slanted band of warm light crosses the emblem and back (bbgl-bronze-sheen), masked by the
+   matte of its lit bronze (ensureBronzeMatte()), so the frame and letters catch it and the dark inset
+   doesn't. Only the band's transform animates, and it composites normally. */
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
     position: absolute;
     inset: 0;
     z-index: 2;
     overflow: hidden;
     pointer-events: none;
-    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
-    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+    mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
     content: '';
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 300%;
-    background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-    mix-blend-mode: screen;
-    transform: translateX(-46.666667%);
+    inset: 0;
+    background: ${BRONZE_SHEEN_BAND};
+    transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
     will-change: transform;
-    animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
+    animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
     animation-delay: var(--bbgl-titles-animation-delay, 0ms);
 }
 
@@ -1895,6 +1907,73 @@
     :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
         animation: none;
         opacity: 0;
+    }
+}
+
+/* R2: the dome on the top bevel is a hood over a bulb. On reveal the bulb flickers on and lights what's
+   below its lip: a hot slit under the hood, a white pool spreading down (weighted by the plate's own
+   brightness squared, through two intersected luminance masks, so highlights in the metal catch far
+   more than its midtones and the dark window barely lifts), and a second
+   layer masked by the plate minus itself shifted down a few px, which favours up-facing edges. All of
+   it is cut off above the slit (the hood stays unlit), and the flicker animates only the span's opacity.
+   Positions are in the R2 art's units (500 x 267; slit x 156-348, y 37-39). */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+    --bulb-glow: 242, 246, 252;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(transparent 13.4%, #000 14%);
+    mask: linear-gradient(transparent 13.4%, #000 14%);
+    background:
+        radial-gradient(ellipse 19.6% 1.7% at 50.4% 14.3%, rgba(255, 255, 255, .95), rgba(var(--bulb-glow), .55) 55%, transparent),
+        radial-gradient(ellipse 27% 8% at 50.4% 14%, rgba(var(--bulb-glow), .5), transparent 75%);
+    will-change: opacity;
+    animation: bbgl-rank-bulb-on 2.5s step-end 1 both;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+@supports (mask-mode: luminance) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::before,
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::before {
+        background: radial-gradient(ellipse 64% 150% at 50.4% 13%, rgba(var(--bulb-glow), 1), rgba(var(--bulb-glow), .95) 30%, rgba(var(--bulb-glow), .75) 60%, rgba(var(--bulb-glow), .4) 85%, transparent);
+        mask:
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance,
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance;
+        mask-composite: intersect, add;
+    }
+
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::after {
+        --bulb-edge: calc(min(100cqh, 100cqw / var(--rank-ar)) * .011);
+        background: radial-gradient(ellipse 62% 155% at 50.4% 13%, rgba(255, 255, 255, 1), rgba(var(--bulb-glow), .85) 35%, rgba(var(--bulb-glow), .55) 65%, rgba(var(--bulb-glow), .25) 88%, transparent);
+        mask:
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance,
+            var(--rank-emblem) 0 var(--bulb-edge) / 100% 100% no-repeat luminance;
+        mask-composite: subtract, add;
+    }
+}
+
+/* Same beats as the old lightbox's power-on, as the light's opacity. */
+@keyframes bbgl-rank-bulb-on {
+    0%, 30%, 33%, 40%, 45%, 64%, 74% { opacity: 0; }
+    30.01%, 38%, 44% { opacity: .35; }
+    53%, 72% { opacity: .7; }
+    76%, 100% { opacity: 1; }
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+        animation: none;
     }
 }
 
@@ -2044,6 +2123,46 @@
         style.textContent += css;
         bakePlaqueArt(stage, css);
     }
+    // R3's bronze sheen is masked by a matte of the art's lit bronze. A luminance mask can't keep light
+    // off the dark inset (brightness ~.15) without dimming the bronze (~.25 and up) as well, so the matte is
+    // cut once per image on a canvas: zero below .2, full by .3, then weighted toward the highlights.
+    // Until it's ready (or if the image can't be read) the sheen's mask stays fully transparent, so when it
+    // lands the sheens on screen restart from their first frame instead of appearing mid-sweep.
+    const bronzeMatteBuilt = new Set();
+    function ensureBronzeMatte(name) {
+        if (bronzeMatteBuilt.has(name)) return;
+        bronzeMatteBuilt.add(name);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = `${PLAQUE_ART_ROOT}${name}.webp`;
+        img.decode().then(() => {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, c.width, c.height);
+            const px = data.data;
+            for (let i = 0; i < px.length; i += 4) {
+                const l = (.2126 * px[i] + .7152 * px[i + 1] + .0722 * px[i + 2]) / 255;
+                const t = Math.min(1, Math.max(0, (l - .2) / .1));
+                const a = px[i + 3] * t * t * (3 - 2 * t) * Math.min(1, .55 + l);
+                px[i] = px[i + 1] = px[i + 2] = 255;
+                px[i + 3] = a;
+            }
+            ctx.putImageData(data, 0, 0);
+            let style = document.getElementById('bbgl-bronze-matte');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = 'bbgl-bronze-matte';
+                (document.head || document.documentElement).appendChild(style);
+            }
+            style.textContent += `[data-bronze-art="${name}"] { --bronze-matte: url("${c.toDataURL('image/webp', .9)}"); }\n`;
+            document.querySelectorAll('.bbgl-rank-bronze-sheen, .bbgl-rank-name-sheen').forEach(el =>
+                el.getAnimations({ subtree: true }).forEach(anim => { anim.currentTime = 0; }));
+        }).catch(() => {});
+    }
+
     // Chrome re-rasterizes an SVG background, filters and all, whenever anything sharing its tile
     // repaints, which made any animation on the titles page expensive. So once the card is laid out,
     // each step's art is drawn to a canvas at the ::before's device-pixel size and swapped in as a
@@ -12404,23 +12523,10 @@
 
                     /* Fully Bricked on the bar: the platinum lettering image, with an iridescent sheen travelling across
                        it and a blurred white and colour glow behind it, both masked to the letters (--rank-name). Locked,
-                       it's plain grey text so its art isn't loaded before it's earned. */
-                    .bbgl-rank-cap-name {
-                        font-family: Georgia, 'Times New Roman', serif;
-                        font-style: italic;
-                        font-size: calc(var(--bbgl-t-fs-notch, 10px) * 1.1);
-                        letter-spacing: .02em;
-                        white-space: nowrap;
-                    }
-
-                    /* Compact's slots are too narrow for it on one line beside Competently Bricked; two lines,
-                       like its art. */
-                    #bbgl-panel.bbgl-compact .bbgl-rank-cap-name {
-                        display: block;
-                        width: min-content;
-                        margin: 0 auto;
-                        white-space: normal;
-                        line-height: 1.05;
+                       the same image greyed out. */
+                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-name-img {
+                        filter: grayscale(1) brightness(.62) contrast(.85);
+                        opacity: .55;
                     }
 
                     .bbgl-rank-cap-glow,
@@ -12505,7 +12611,7 @@
                     /* ─── Rank names on the bar ─────────────────────────────────────────
                        Each unlocked name is its lettering image (achRankNameArtHTML(), 06-section-v-logic.js), sized so
                        its capital is --bbgl-rank-name-cap tall. The wrapper carries the image as a mask (--rank-name) for
-                       the effects laid over the letters: the bronze sheen (band 3) and Fully Bricked's iridescence. Bands
+                       the effects laid over the letters: R2's bulb, R3's bronze sheen and Fully Bricked's iridescence. Bands
                        4 and 5 are lit by the same SVG surface lighting as their card emblems. */
                     .bbgl-rank-title {
                         --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
@@ -12547,19 +12653,88 @@
                         mask: var(--rank-name) center / 100% 100% no-repeat;
                     }
 
-                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                    /* R3 names: the card's bronze sheen (.bbgl-rank-bronze-sheen, 04-section-iii-plaque.js), same
+                       band, keyframes and clock. Masked by the matte of the letters' lit bronze
+                       (ensureBronzeMatte()) so the dark backing stays out of it. */
+                    .bbgl-rank-name-sheen {
+                        position: absolute;
+                        inset: 0;
+                        z-index: 2;
+                        overflow: hidden;
+                        pointer-events: none;
+                        -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+                        mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-name-sheen::before {
                         content: '';
-                        background-image: linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%);
-                        background-size: 375% 100%;
-                        mix-blend-mode: screen;
-                        opacity: .75;
-                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
+                        position: absolute;
+                        inset: 0;
+                        background: ${BRONZE_SHEEN_BAND};
+                        transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
+                        will-change: transform;
+                        animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-name-sheen {
+                        display: none;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-name-sheen {
+                            display: none;
+                        }
+                    }
+
+                    /* R2 (steel) names light up with the card's bulb (.bbgl-rank-bulb-light,
+                       04-section-iii-plaque.js): same keyframes and clock, so they flicker on together.
+                       ::after lights the letters white, brighter at the top (lit from above), weighted by
+                       the letters' own brightness squared so their highlights pop; ::before is a soft halo behind them. Both are static
+                       layers whose opacity alone is animated. */
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        pointer-events: none;
+                        animation: bbgl-rank-bulb-on 2.5s step-end 1 both;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before {
+                        z-index: 0;
+                        background: rgba(232, 240, 252, .5);
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                        filter: blur(3px);
+                    }
+
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                        background: linear-gradient(rgba(255, 255, 255, .75), rgba(242, 246, 252, .5) 55%, rgba(242, 246, 252, .3));
+                    }
+
+                    @supports (mask-mode: luminance) {
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                            background: linear-gradient(rgba(255, 255, 255, 1), rgba(242, 246, 252, 1) 55%, rgba(242, 246, 252, .8));
+                            mask:
+                                var(--rank-name) center / 100% 100% no-repeat luminance,
+                                var(--rank-name) center / 100% 100% no-repeat luminance;
+                            mask-composite: intersect, add;
+                        }
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
                         animation: none;
-                        opacity: 0;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                            animation: none;
+                            opacity: 1;
+                        }
                     }
 
                     .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
@@ -12585,8 +12760,6 @@
                     }
 
                     ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
-
-                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0;`)}
 
                     /* Locked bar segments use a dim engraved glyph. The off-bar capstone is the one
                        exception: its gray name stays visible so the final destination is explicit. */
@@ -12670,7 +12843,14 @@
 
                     /* ─── Card rank emblem ────────────────────────────────────────────────
                        Rules live with the title plaque art (RANK_EMBLEM_CSS, 04-section-iii-plaque.js). */
-                    ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
+                    ${(() => {
+                        const { sweep, hold, cycle } = BRONZE_SHEEN_TIMING;
+                        const [from, to] = BRONZE_SHEEN_TRAVEL;
+                        const at = s => s / cycle;
+                        return steppedKeyframes('bbgl-bronze-sheen', cycle,
+                            [[0, [from]], [at(sweep), [to]], [at(sweep + hold), [to]], [at(sweep * 2 + hold), [from]], [1, [from]]],
+                            EASE_IN_OUT, v => `transform: ${bronzeSheenTransform(v[0])};`);
+                    })()}
 
                     ${RANK_EMBLEM_CSS}
 
@@ -17927,8 +18107,25 @@ function computeAchievements(s) {
 // resumed (re-synced) by syncTitlesPageAnimationClock().
 const TITLES_SMIL_SVGS = '.bbgl-rank-surface-lighting';
 
+// R2's bulb (bbgl-rank-bulb-on) on the card plate and the bar's R2 name sits on the page clock like
+// everything else, so routine rebuilds find it already lit. It replays from the start when the art
+// it lights changes (reaching R2, another atrophy's plates) or on a new page visit. Call it right
+// after the markup is inserted: the art only changes with freshly created nodes, so overriding the
+// clock with a zero delay on them starts their animation from its first frame.
+function replayRankBulbs(root) {
+    const replay = (el, slot) => {
+        const src = el ? (el.querySelector('img')?.getAttribute('src') || '') : '';
+        if (runtime[slot] === src) return;
+        runtime[slot] = src;
+        if (el) el.style.setProperty('--bbgl-titles-animation-delay', '0ms');
+    };
+    replay(root.querySelector('.bbgl-title-card-rank-plaque.finish-machined .bbgl-rank-notch-label'), '_bulbCardSrc');
+    replay(root.querySelector('.bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art'), '_bulbBarSrc');
+}
+
 function resetTitlesPageAnimationClock(container) {
     runtime._titlesPageAnimationStartedAt = null;
+    runtime._bulbCardSrc = runtime._bulbBarSrc = undefined;
     const el = container || document.getElementById('bbgl-achievements-container');
     if (el) {
         el.style.removeProperty('--bbgl-titles-animation-delay');
@@ -17978,6 +18175,7 @@ function achRefreshPageDomBody() {
     const html = Perf.wrap('achRefreshPageDom:build', () => buildAchievementsPage(runtime._achPage, runtime._achCache));
     Perf.start('achRefreshPageDom:insert');
     container.innerHTML = html;
+    if (runtime._achPage === 0) replayRankBulbs(container);
     Perf.end('achRefreshPageDom:insert');
     // Baseline for renderRankReadoutLive()'s fast path (07-section-vi-ui.js) — null off the titles
     // page so a later switch back to page 0 can't compare against a stale, unrelated snapshot and
@@ -18251,7 +18449,7 @@ const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
     'T1R3-Hand-Stroked-Clay': [500, 222], 'T2R3-Foot-Pumped-Clay': [500, 221], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
-    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 303], 'T3R4-Kiln-Fired-Clay': [500, 300],
+    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
     'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 297], 'T3R5-Competently-Bricked': [500, 301],
     'T3R6-Fully-Bricked': [500, 294]
 };
@@ -18259,7 +18457,7 @@ const RANK_TEXT_SIZE = {
     'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
     'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
     'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [149, 100, 87], 'T2R4-Scove-Fired-Clay': [197, 100, 87], 'T3R4-Kiln-Fired-Clay': [152, 98, 84],
+    'T1R4-Pit-Fired-Clay': [153, 102, 88], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
     'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
     'T3R6-Fully-Bricked': [240, 104, 99]
 };
@@ -18401,8 +18599,8 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
 
 // The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
 // plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
-// line up with the art. Silver and gold light the whole label with an SVG filter; bronze runs a sheen
-// over the emblem; Fully Bricked adds its lamps.
+// line up with the art. Silver and gold light the whole label with an SVG filter; R2 adds its bulb light;
+// bronze runs a sheen over the emblem's bright metal; Fully Bricked adds its lamps.
 function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const [w, h] = RANK_EMBLEM_SIZE[name];
     const src = rankArtSrc(name);
@@ -18412,7 +18610,8 @@ function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const inner = (lighting?.html || '') +
         `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` +
         (pearl ? achPlatinumLampLightHTML() : '') +
-        (finish === 'polished' ? '<span class="bbgl-rank-bronze-sheen"></span>' : '') +
+        (finish === 'machined' ? '<span class="bbgl-rank-bulb-light"></span>' : '') +
+        (finish === 'polished' ? (ensureBronzeMatte(name), `<span class="bbgl-rank-bronze-sheen" data-bronze-art="${name}"></span>`) : '') +
         (pearl ? achPlatinumLampsHTML() : '');
     return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` +
         `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
@@ -18556,7 +18755,9 @@ function achTitleLabelsHTML(atrophy, level) {
             b.unlocked ? 'is-revealed' : 'is-locked'
         ].filter(Boolean).join(' ');
         const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked);
-        const inner = b.unlocked ? achRankNameArtHTML(rankArtName(atrophy, i)) : ICONS.LOCK;
+        const art = rankArtName(atrophy, i);
+        if (b.unlocked && i === 2) ensureBronzeMatte(art + '-text');
+        const inner = b.unlocked ? achRankNameArtHTML(art, i === 2 ? `<span class="bbgl-rank-name-sheen" data-bronze-art="${art}-text"></span>` : '') : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
         const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null;
@@ -18564,13 +18765,13 @@ function achTitleLabelsHTML(atrophy, level) {
         return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
     const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked);
-    // The destination is always named. Locked, it's plain grey text (its art isn't loaded until it's
-    // earned); a lock glyph would sit on the finish divider and hide what the player is working toward.
-    // Earned, the platinum lettering gets the iridescent sheen and the glows behind it.
-    const capInner = bricked
-        ? achRankNameArtHTML(RANK_CAP_ART, '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>')
-        : '<span class="bbgl-rank-cap-name">Fully Bricked</span>';
-    const capLabel = bricked ? ' role="img" aria-label="Fully Bricked"' : '';
+    // The destination is always named, in its own lettering: greyed out while locked (a lock glyph
+    // would hide what the player is working toward), and with the iridescent sheen and the glows
+    // behind it once earned.
+    const capInner = achRankNameArtHTML(RANK_CAP_ART, bricked
+        ? '<span class="bbgl-rank-cap-glow is-white"><i></i></span><span class="bbgl-rank-cap-glow is-color"><i></i></span>'
+        : '');
+    const capLabel = ' role="img" aria-label="Fully Bricked"';
     const cap = `<div class="bbgl-rank-title-slot"><div class="bbgl-rank-title is-milestone is-endpoint is-capstone material-diamond ${bricked ? 'is-revealed' : 'is-locked'}" data-tooltip="${achEsc(capTip)}"><span class="bbgl-rank-title-text"${capLabel}>${capInner}</span></div></div>`;
     return bands + cap;
 }
@@ -22338,6 +22539,7 @@ const BestGymController = {
         card.dataset.rankFinish = currentRank.finish;
         card.dataset.rankMaterial = currentRank.material;
         cardRank.innerHTML = `<span class="bbgl-title-card-rank-label">Rank</span>${currentRank.html}`;
+        replayRankBulbs(page);
 
         // Same synchronous re-measure achRefreshPageDom() runs right after its own DOM writes.
         // Nothing above destroys/recreates any of the elements observeTitleBlockFrames() is
@@ -22533,36 +22735,53 @@ const BestGymController = {
     const RANK_NAME_CEIL = 4;
     const RANK_NAME_FLOOR = 5;
     const RANK_NAME_NUDGE = .2;
+    // Names sit this far below the band's middle: off the neon, toward the ticks. Doesn't change their size.
+    const RANK_NAME_DROP = 1;
 
-    // On-screen px per layout px for the groove. Screen boxes include ancestor transforms (the panel's
-    // pop-open scale), so every distance read from them is divided by this to stay in layout px.
-    function rankLineScale(line, lineRect) {
-        const w = parseFloat(getComputedStyle(line).width);
-        return w > 0 && lineRect.width > 0 ? lineRect.width / w : 1;
+    // Transform offset of el within ancestor, from both `transform` and the separate `translate`
+    // property (the groove carries its visual drop in the latter), summed on the way up. The walk
+    // stops before ancestor, so the panel's pop-open scale never enters it.
+    function rankTranslateWithin(el, ancestor) {
+        let x = 0, y = 0;
+        for (let n = el; n && n !== ancestor; n = n.parentElement) {
+            const cs = getComputedStyle(n);
+            if (cs.transform && cs.transform !== 'none') {
+                try { const m = new DOMMatrixReadOnly(cs.transform); x += m.m41; y += m.m42; } catch (_) { /* malformed */ }
+            }
+            if (cs.translate && cs.translate !== 'none') {
+                const [tx = '0', ty = '0'] = cs.translate.split(' ');
+                x += parseFloat(tx) || 0;
+                y += parseFloat(ty) || 0;
+            }
+        }
+        return { x, y };
     }
 
-    // Heights and sideways offsets for the bar's names. Fitted names (data-fit = width/height; every
-    // name but R1) get a height up to caps(); R1, lock glyphs and locked Fully Bricked keep their width.
+    // Layout-space box of el within ancestor (offsets plus rankTranslateWithin), never a screen box.
+    function rankLayoutBox(el, ancestor) {
+        let left = 0, top = 0;
+        let node = el;
+        while (node && node !== ancestor) {
+            left += node.offsetLeft;
+            top += node.offsetTop;
+            node = node.offsetParent;
+        }
+        if (node !== ancestor) return null;
+        const t = rankTranslateWithin(el, ancestor);
+        return { left: left + t.x, top: top + t.y };
+    }
+
+    // Heights (it.h) and sideways offsets (it.x) for the bar's names, in layout px from the groove's
+    // left end, with the page's sides at lo and hi. Fitted names (ratio = width/height; every name but
+    // R1) get a height up to maxH; R1 and lock glyphs keep their width (it.fixed).
     // Max-min fair: all fitted names grow together until the row can't be laid out; the names that
     // can't grow alone stop there and the rest keep growing. A row fits if, placing each name as far
     // left as it may go (its milestone less its reach, after its left neighbour plus the gap, inside
     // the page), none ends up past its milestone plus its reach or the page's right side. Final
     // positions keep each name as close to its milestone as that allows.
-    function fitRankNames(titles, slotWidth, line, page, caps) {
-        const items = titles.map(el => {
-            const art = el.querySelector('.bbgl-rank-name-art[data-fit]');
-            if (art) return { el, art, ratio: parseFloat(art.dataset.fit) || 0, fixed: 0, h: 0, x: 0 };
-            const text = el.querySelector('.bbgl-rank-title-text');
-            return { el, art: null, ratio: 0, fixed: text ? text.offsetWidth : 0, h: 0, x: 0 };
-        });
+    function fitRankNames(items, slotWidth, lo, hi, maxH) {
         const n = items.length;
-        if (!n || !(slotWidth > 0)) return { items };
-        const pageRect = page.getBoundingClientRect();
-        const lineRect = line.getBoundingClientRect();
-        const k = rankLineScale(line, lineRect);
-        // Layout px from the groove's left end: milestone i at i x slot, page sides at lo and hi.
-        const lo = -(lineRect.left - pageRect.left) / k + RANK_NAME_EDGE;
-        const hi = (pageRect.right - lineRect.left) / k - RANK_NAME_EDGE;
+        if (!n || !(slotWidth > 0)) return;
         const reach = items.map((_, i) => (i === 0 || i === n - 1) ? slotWidth / 2 : slotWidth * RANK_NAME_NUDGE);
         const width = (it, h) => it.ratio ? it.ratio * h : it.fixed;
         const place = hs => {
@@ -22583,7 +22802,7 @@ const BestGymController = {
             }
             return xs[n - 1] + width(items[n - 1], hs[n - 1]) / 2 <= hi + .01;
         };
-        const cap = items.map(it => it.ratio ? Math.max(0, caps(it)) : 0);
+        const cap = items.map(it => it.ratio ? Math.max(0, maxH) : 0);
         const hs = items.map(() => 0);
         let free = items.map((it, i) => it.ratio ? i : -1).filter(i => i >= 0);
         let floor = 0;
@@ -22620,7 +22839,6 @@ const BestGymController = {
             it.x = x - i * slotWidth;
             if (i + 1 < n) minNext = x + w / 2 + RANK_NAME_GAP + width(items[i + 1], hs[i + 1]) / 2;
         });
-        return { items };
     }
 
     // Places the visible rank assembly (groove + readout) in the space below the stat cards, in
@@ -22747,6 +22965,45 @@ const BestGymController = {
         // Scale is read off the WIDTH: the groove can be thinner than 1px (compact), and
         // offsetHeight rounds that up to 1, which would skew a height-based ratio. The computed
         // width, not offsetWidth, for the same reason: offsetWidth rounds to whole px.
+        // ─── Rank names (fitRankNames) ───────────────────────────────────────
+        // All layout space (offsets plus transforms below the page), never screen boxes, so the
+        // panel's pop-open scale and unloaded images can't skew it, and the result is exact on the
+        // first pass. Everything on the groove moves by lineMove when it's placed below, and the
+        // titles also by the change in --bbgl-t-titles-y. Each name's text box is anchored by its
+        // bottom inside its title, so its letters' centre at height H is that bottom less H/2
+        // (--rank-name-dy cancels out), and --rank-name-shift moves it to the band's middle.
+        const lineMove = drop;
+        const titlesYNow = parseFloat(scale.style.getPropertyValue('--bbgl-t-titles-y'));
+        const titlesMove = (line.offsetHeight / 2 - labelGap + labelDrop) - (Number.isFinite(titlesYNow) ? titlesYNow : -20);
+        const layoutTop = el => rankLayoutBox(el, page)?.top ?? null;
+        const lineTopNow = layoutTop(line);
+        const tickTops = [
+            line.querySelector('.bbgl-rank-tick.is-milestone'),
+            line.querySelector('.bbgl-rank-tick:not(.is-milestone):not(.is-live)')
+        ].filter(Boolean).map(layoutTop).filter(v => v !== null);
+        const floorAt = Math.min(lineTopNow, ...tickTops) + lineMove;
+        const cardsAbove = cardBottoms.filter(v => v < floorAt);
+        const bandTop = (cardsAbove.length ? Math.max(...cardsAbove) : availableTop) + RANK_NAME_CEIL;
+        const bandBottom = floorAt - RANK_NAME_FLOOR;
+        const bandMid = (bandTop + bandBottom) / 2 + RANK_NAME_DROP;
+        const lineLeft = rankLayoutBox(line, page)?.left ?? null;
+        const names = titleEls.map(el => {
+            const text = el.querySelector('.bbgl-rank-title-text');
+            const art = el.querySelector('.bbgl-rank-name-art');
+            const img = art && art.querySelector('.bbgl-rank-name-img');
+            const textTop = text && layoutTop(text);
+            return {
+                el, art, img,
+                ratio: art && art.dataset.fit ? parseFloat(art.dataset.fit) || 0 : 0,
+                fixed: text ? text.offsetWidth : 0,
+                bottom: textTop === null || !text ? null : textTop + text.offsetHeight + lineMove + titlesMove,
+                h: 0, x: 0
+            };
+        });
+        if (lineLeft !== null && bandBottom > bandTop) {
+            fitRankNames(names, slotWidth, -lineLeft + RANK_NAME_EDGE, page.clientWidth - lineLeft - RANK_NAME_EDGE, bandBottom - bandTop);
+        }
+
         Perf.mark('titles:rank:readsDone');
         const dpr = window.devicePixelRatio || 1;
         // One whole device pixel in CSS px (never less than one). At a fractional scale such as
@@ -22791,38 +23048,15 @@ const BestGymController = {
         const titlesY = lineHeight / 2 - labelGap + labelDrop;
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
-        // Every name's letters are centred in the band between the cards above (the neon border) and
-        // the groove, and fitted names may fill its height. Measured on screen after the writes above,
-        // then again after the heights land (two extra layouts, only on layout passes). Only cards
-        // ending above the groove count; one reaching past it sits beside the bar. An image's letters
-        // sit (1/2 - --rank-name-dy) of its height down from its top.
-        // Band edges stay in screen px (they're compared with screen boxes below); its height and the
-        // shifts are converted to layout px.
-        const lineBox = line.getBoundingClientRect();
-        const k = rankLineScale(line, lineBox);
-        // Floor: the tallest tick's top (the live marker is left out; it moves under the names).
-        const tickTops = [
-            scale.querySelector('.bbgl-rank-tick.is-milestone'),
-            scale.querySelector('.bbgl-rank-tick:not(.is-milestone):not(.is-live)')
-        ].filter(Boolean).map(t => t.getBoundingClientRect().top);
-        const floorAt = Math.min(lineBox.top, ...tickTops);
-        const cardRects = Array.from(lowerCards, card => card.getBoundingClientRect().bottom).filter(v => v < floorAt);
-        const bandTop = (cardRects.length ? Math.max(...cardRects) : page.getBoundingClientRect().top) + RANK_NAME_CEIL * k;
-        const bandBottom = floorAt - RANK_NAME_FLOOR * k;
-        const fit = fitRankNames(titleEls, slotWidth, line, page, () => (bandBottom - bandTop) / k);
-        fit.items.forEach(it => {
-            if (it.art) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
-            setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
-        });
-        const bandMid = (bandTop + bandBottom) / 2;
-        line.querySelectorAll('.bbgl-rank-name-art').forEach(art => {
-            const box = art.querySelector('.bbgl-rank-name-img')?.getBoundingClientRect();
-            if (!box || !(box.height > 0)) return;
-            const d = (parseFloat(art.style.getPropertyValue('--rank-name-dy')) || 0) / 100;
-            const prev = parseFloat(art.style.getPropertyValue('--rank-name-shift')) || 0;
-            const letters = box.top + (.5 - d) * box.height;
-            setStyleVarIfChanged(art, '--rank-name-shift', `${(prev + (bandMid - letters) / k).toFixed(3)}px`);
-        });
+        if (lineLeft !== null && bandBottom > bandTop) {
+            names.forEach(it => {
+                setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
+                if (!it.art || it.bottom === null) return;
+                if (it.ratio) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
+                const h = it.ratio ? it.h : (it.img ? it.img.offsetHeight : 0);
+                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(bandMid - (it.bottom - h / 2)).toFixed(3)}px`);
+            });
+        }
         return true;
     }
 
@@ -22859,26 +23093,13 @@ const BestGymController = {
         // --bbgl-t-star writes resizing a block) before the first delivery is only reported by it.
         // It stays cheap because setStyleVarIfChanged() makes a pass with nothing new write nothing,
         // so its layout reads hit an already-clean layout.
-        runtime.titleFrameResizeObserver = new ResizeObserver(() => {
-            // Coalesce: several deliveries before the next frame still get one geometry pass.
-            if (runtime._titleGeometryRafId) return;
-            runtime._titleGeometryRafId = window.requestAnimationFrame(() => {
-                runtime._titleGeometryRafId = null;
-                layoutTitlesPageGeometry();
-            });
-        });
-        // The rank names too: their images load after this pass, and fitRankNames() needs their widths.
-        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob, .bbgl-rank-title-text')
+        // The pass runs in the callback itself: observer deliveries come after layout and before paint,
+        // so the frame that shows a resize already shows its geometry (a requestAnimationFrame here
+        // painted one or two frames of the old layout first). One delivery carries every entry, so
+        // this is still one pass per batch, and a pass that changes nothing writes nothing.
+        runtime.titleFrameResizeObserver = new ResizeObserver(() => layoutTitlesPageGeometry());
+        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob')
             .forEach(el => runtime.titleFrameResizeObserver.observe(el));
-        // The panel's pop-open scale resizes nothing, so the observer misses it; a pass measured
-        // mid-animation is redone when it ends.
-        const panel = document.getElementById('bbgl-panel');
-        if (panel && !panel._bbglTitlesPopHook) {
-            panel._bbglTitlesPopHook = true;
-            panel.addEventListener('animationend', e => {
-                if (e.target === panel && document.querySelector('.bbgl-titles-page')) layoutTitlesPageGeometry();
-            });
-        }
     }
 
     // Shared toolbar-relative measurement for both pagination clusters that dock against the SVG

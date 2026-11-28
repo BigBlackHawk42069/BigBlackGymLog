@@ -1833,6 +1833,7 @@
         card.dataset.rankFinish = currentRank.finish;
         card.dataset.rankMaterial = currentRank.material;
         cardRank.innerHTML = `<span class="bbgl-title-card-rank-label">Rank</span>${currentRank.html}`;
+        replayRankBulbs(page);
 
         // Same synchronous re-measure achRefreshPageDom() runs right after its own DOM writes.
         // Nothing above destroys/recreates any of the elements observeTitleBlockFrames() is
@@ -2028,36 +2029,53 @@
     const RANK_NAME_CEIL = 4;
     const RANK_NAME_FLOOR = 5;
     const RANK_NAME_NUDGE = .2;
+    // Names sit this far below the band's middle: off the neon, toward the ticks. Doesn't change their size.
+    const RANK_NAME_DROP = 1;
 
-    // On-screen px per layout px for the groove. Screen boxes include ancestor transforms (the panel's
-    // pop-open scale), so every distance read from them is divided by this to stay in layout px.
-    function rankLineScale(line, lineRect) {
-        const w = parseFloat(getComputedStyle(line).width);
-        return w > 0 && lineRect.width > 0 ? lineRect.width / w : 1;
+    // Transform offset of el within ancestor, from both `transform` and the separate `translate`
+    // property (the groove carries its visual drop in the latter), summed on the way up. The walk
+    // stops before ancestor, so the panel's pop-open scale never enters it.
+    function rankTranslateWithin(el, ancestor) {
+        let x = 0, y = 0;
+        for (let n = el; n && n !== ancestor; n = n.parentElement) {
+            const cs = getComputedStyle(n);
+            if (cs.transform && cs.transform !== 'none') {
+                try { const m = new DOMMatrixReadOnly(cs.transform); x += m.m41; y += m.m42; } catch (_) { /* malformed */ }
+            }
+            if (cs.translate && cs.translate !== 'none') {
+                const [tx = '0', ty = '0'] = cs.translate.split(' ');
+                x += parseFloat(tx) || 0;
+                y += parseFloat(ty) || 0;
+            }
+        }
+        return { x, y };
     }
 
-    // Heights and sideways offsets for the bar's names. Fitted names (data-fit = width/height; every
-    // name but R1) get a height up to caps(); R1, lock glyphs and locked Fully Bricked keep their width.
+    // Layout-space box of el within ancestor (offsets plus rankTranslateWithin), never a screen box.
+    function rankLayoutBox(el, ancestor) {
+        let left = 0, top = 0;
+        let node = el;
+        while (node && node !== ancestor) {
+            left += node.offsetLeft;
+            top += node.offsetTop;
+            node = node.offsetParent;
+        }
+        if (node !== ancestor) return null;
+        const t = rankTranslateWithin(el, ancestor);
+        return { left: left + t.x, top: top + t.y };
+    }
+
+    // Heights (it.h) and sideways offsets (it.x) for the bar's names, in layout px from the groove's
+    // left end, with the page's sides at lo and hi. Fitted names (ratio = width/height; every name but
+    // R1) get a height up to maxH; R1 and lock glyphs keep their width (it.fixed).
     // Max-min fair: all fitted names grow together until the row can't be laid out; the names that
     // can't grow alone stop there and the rest keep growing. A row fits if, placing each name as far
     // left as it may go (its milestone less its reach, after its left neighbour plus the gap, inside
     // the page), none ends up past its milestone plus its reach or the page's right side. Final
     // positions keep each name as close to its milestone as that allows.
-    function fitRankNames(titles, slotWidth, line, page, caps) {
-        const items = titles.map(el => {
-            const art = el.querySelector('.bbgl-rank-name-art[data-fit]');
-            if (art) return { el, art, ratio: parseFloat(art.dataset.fit) || 0, fixed: 0, h: 0, x: 0 };
-            const text = el.querySelector('.bbgl-rank-title-text');
-            return { el, art: null, ratio: 0, fixed: text ? text.offsetWidth : 0, h: 0, x: 0 };
-        });
+    function fitRankNames(items, slotWidth, lo, hi, maxH) {
         const n = items.length;
-        if (!n || !(slotWidth > 0)) return { items };
-        const pageRect = page.getBoundingClientRect();
-        const lineRect = line.getBoundingClientRect();
-        const k = rankLineScale(line, lineRect);
-        // Layout px from the groove's left end: milestone i at i x slot, page sides at lo and hi.
-        const lo = -(lineRect.left - pageRect.left) / k + RANK_NAME_EDGE;
-        const hi = (pageRect.right - lineRect.left) / k - RANK_NAME_EDGE;
+        if (!n || !(slotWidth > 0)) return;
         const reach = items.map((_, i) => (i === 0 || i === n - 1) ? slotWidth / 2 : slotWidth * RANK_NAME_NUDGE);
         const width = (it, h) => it.ratio ? it.ratio * h : it.fixed;
         const place = hs => {
@@ -2078,7 +2096,7 @@
             }
             return xs[n - 1] + width(items[n - 1], hs[n - 1]) / 2 <= hi + .01;
         };
-        const cap = items.map(it => it.ratio ? Math.max(0, caps(it)) : 0);
+        const cap = items.map(it => it.ratio ? Math.max(0, maxH) : 0);
         const hs = items.map(() => 0);
         let free = items.map((it, i) => it.ratio ? i : -1).filter(i => i >= 0);
         let floor = 0;
@@ -2115,7 +2133,6 @@
             it.x = x - i * slotWidth;
             if (i + 1 < n) minNext = x + w / 2 + RANK_NAME_GAP + width(items[i + 1], hs[i + 1]) / 2;
         });
-        return { items };
     }
 
     // Places the visible rank assembly (groove + readout) in the space below the stat cards, in
@@ -2242,6 +2259,45 @@
         // Scale is read off the WIDTH: the groove can be thinner than 1px (compact), and
         // offsetHeight rounds that up to 1, which would skew a height-based ratio. The computed
         // width, not offsetWidth, for the same reason: offsetWidth rounds to whole px.
+        // ─── Rank names (fitRankNames) ───────────────────────────────────────
+        // All layout space (offsets plus transforms below the page), never screen boxes, so the
+        // panel's pop-open scale and unloaded images can't skew it, and the result is exact on the
+        // first pass. Everything on the groove moves by lineMove when it's placed below, and the
+        // titles also by the change in --bbgl-t-titles-y. Each name's text box is anchored by its
+        // bottom inside its title, so its letters' centre at height H is that bottom less H/2
+        // (--rank-name-dy cancels out), and --rank-name-shift moves it to the band's middle.
+        const lineMove = drop;
+        const titlesYNow = parseFloat(scale.style.getPropertyValue('--bbgl-t-titles-y'));
+        const titlesMove = (line.offsetHeight / 2 - labelGap + labelDrop) - (Number.isFinite(titlesYNow) ? titlesYNow : -20);
+        const layoutTop = el => rankLayoutBox(el, page)?.top ?? null;
+        const lineTopNow = layoutTop(line);
+        const tickTops = [
+            line.querySelector('.bbgl-rank-tick.is-milestone'),
+            line.querySelector('.bbgl-rank-tick:not(.is-milestone):not(.is-live)')
+        ].filter(Boolean).map(layoutTop).filter(v => v !== null);
+        const floorAt = Math.min(lineTopNow, ...tickTops) + lineMove;
+        const cardsAbove = cardBottoms.filter(v => v < floorAt);
+        const bandTop = (cardsAbove.length ? Math.max(...cardsAbove) : availableTop) + RANK_NAME_CEIL;
+        const bandBottom = floorAt - RANK_NAME_FLOOR;
+        const bandMid = (bandTop + bandBottom) / 2 + RANK_NAME_DROP;
+        const lineLeft = rankLayoutBox(line, page)?.left ?? null;
+        const names = titleEls.map(el => {
+            const text = el.querySelector('.bbgl-rank-title-text');
+            const art = el.querySelector('.bbgl-rank-name-art');
+            const img = art && art.querySelector('.bbgl-rank-name-img');
+            const textTop = text && layoutTop(text);
+            return {
+                el, art, img,
+                ratio: art && art.dataset.fit ? parseFloat(art.dataset.fit) || 0 : 0,
+                fixed: text ? text.offsetWidth : 0,
+                bottom: textTop === null || !text ? null : textTop + text.offsetHeight + lineMove + titlesMove,
+                h: 0, x: 0
+            };
+        });
+        if (lineLeft !== null && bandBottom > bandTop) {
+            fitRankNames(names, slotWidth, -lineLeft + RANK_NAME_EDGE, page.clientWidth - lineLeft - RANK_NAME_EDGE, bandBottom - bandTop);
+        }
+
         Perf.mark('titles:rank:readsDone');
         const dpr = window.devicePixelRatio || 1;
         // One whole device pixel in CSS px (never less than one). At a fractional scale such as
@@ -2286,38 +2342,15 @@
         const titlesY = lineHeight / 2 - labelGap + labelDrop;
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
-        // Every name's letters are centred in the band between the cards above (the neon border) and
-        // the groove, and fitted names may fill its height. Measured on screen after the writes above,
-        // then again after the heights land (two extra layouts, only on layout passes). Only cards
-        // ending above the groove count; one reaching past it sits beside the bar. An image's letters
-        // sit (1/2 - --rank-name-dy) of its height down from its top.
-        // Band edges stay in screen px (they're compared with screen boxes below); its height and the
-        // shifts are converted to layout px.
-        const lineBox = line.getBoundingClientRect();
-        const k = rankLineScale(line, lineBox);
-        // Floor: the tallest tick's top (the live marker is left out; it moves under the names).
-        const tickTops = [
-            scale.querySelector('.bbgl-rank-tick.is-milestone'),
-            scale.querySelector('.bbgl-rank-tick:not(.is-milestone):not(.is-live)')
-        ].filter(Boolean).map(t => t.getBoundingClientRect().top);
-        const floorAt = Math.min(lineBox.top, ...tickTops);
-        const cardRects = Array.from(lowerCards, card => card.getBoundingClientRect().bottom).filter(v => v < floorAt);
-        const bandTop = (cardRects.length ? Math.max(...cardRects) : page.getBoundingClientRect().top) + RANK_NAME_CEIL * k;
-        const bandBottom = floorAt - RANK_NAME_FLOOR * k;
-        const fit = fitRankNames(titleEls, slotWidth, line, page, () => (bandBottom - bandTop) / k);
-        fit.items.forEach(it => {
-            if (it.art) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
-            setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
-        });
-        const bandMid = (bandTop + bandBottom) / 2;
-        line.querySelectorAll('.bbgl-rank-name-art').forEach(art => {
-            const box = art.querySelector('.bbgl-rank-name-img')?.getBoundingClientRect();
-            if (!box || !(box.height > 0)) return;
-            const d = (parseFloat(art.style.getPropertyValue('--rank-name-dy')) || 0) / 100;
-            const prev = parseFloat(art.style.getPropertyValue('--rank-name-shift')) || 0;
-            const letters = box.top + (.5 - d) * box.height;
-            setStyleVarIfChanged(art, '--rank-name-shift', `${(prev + (bandMid - letters) / k).toFixed(3)}px`);
-        });
+        if (lineLeft !== null && bandBottom > bandTop) {
+            names.forEach(it => {
+                setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
+                if (!it.art || it.bottom === null) return;
+                if (it.ratio) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
+                const h = it.ratio ? it.h : (it.img ? it.img.offsetHeight : 0);
+                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(bandMid - (it.bottom - h / 2)).toFixed(3)}px`);
+            });
+        }
         return true;
     }
 
@@ -2354,26 +2387,13 @@
         // --bbgl-t-star writes resizing a block) before the first delivery is only reported by it.
         // It stays cheap because setStyleVarIfChanged() makes a pass with nothing new write nothing,
         // so its layout reads hit an already-clean layout.
-        runtime.titleFrameResizeObserver = new ResizeObserver(() => {
-            // Coalesce: several deliveries before the next frame still get one geometry pass.
-            if (runtime._titleGeometryRafId) return;
-            runtime._titleGeometryRafId = window.requestAnimationFrame(() => {
-                runtime._titleGeometryRafId = null;
-                layoutTitlesPageGeometry();
-            });
-        });
-        // The rank names too: their images load after this pass, and fitRankNames() needs their widths.
-        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob, .bbgl-rank-title-text')
+        // The pass runs in the callback itself: observer deliveries come after layout and before paint,
+        // so the frame that shows a resize already shows its geometry (a requestAnimationFrame here
+        // painted one or two frames of the old layout first). One delivery carries every entry, so
+        // this is still one pass per batch, and a pass that changes nothing writes nothing.
+        runtime.titleFrameResizeObserver = new ResizeObserver(() => layoutTitlesPageGeometry());
+        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob')
             .forEach(el => runtime.titleFrameResizeObserver.observe(el));
-        // The panel's pop-open scale resizes nothing, so the observer misses it; a pass measured
-        // mid-animation is redone when it ends.
-        const panel = document.getElementById('bbgl-panel');
-        if (panel && !panel._bbglTitlesPopHook) {
-            panel._bbglTitlesPopHook = true;
-            panel.addEventListener('animationend', e => {
-                if (e.target === panel && document.querySelector('.bbgl-titles-page')) layoutTitlesPageGeometry();
-            });
-        }
     }
 
     // Shared toolbar-relative measurement for both pagination clusters that dock against the SVG

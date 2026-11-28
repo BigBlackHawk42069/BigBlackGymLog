@@ -127,6 +127,15 @@
     // the panel, so these rules are scoped to both. The plaque is a size container; the label inside it
     // takes the emblem's own proportions (--rank-ar) at the largest size that fits, so overlays drawn
     // in the plate's units and masks of the emblem (--rank-emblem) land on the art.
+    // R3's bronze sheen, shared by the card plate and the bar's R3 name. The band is a stripe in a box as
+    // wide as the art, skewed so its top leads on the way out (left to right). The travel (% of that box)
+    // ends just as the bright core clears the far corner, so the ease-out happens on the metal and the hold
+    // reads as the hold. Cycle: sweep out, hold, sweep back, rest (seconds).
+    const BRONZE_SHEEN_BAND = 'linear-gradient(90deg, transparent 33%, rgba(255, 200, 128, .5) 42%, rgba(255, 244, 220, 1) 50%, rgba(255, 200, 128, .5) 58%, transparent 67%)';
+    const BRONZE_SHEEN_TRAVEL = [-70, 70];
+    const BRONZE_SHEEN_TIMING = { sweep: 5, hold: .8, rest: 5, get cycle() { return this.sweep * 2 + this.hold + this.rest; } };
+    const bronzeSheenTransform = x => `translateX(${x}%) skewX(-28deg)`;
+
     const RANK_EMBLEM_CSS = `
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
     position: relative;
@@ -146,8 +155,14 @@
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-notch-label {
     position: relative;
     display: block;
-    width: min(100cqw, 100cqh * var(--rank-ar));
-    height: min(100cqh, 100cqw / var(--rank-ar));
+    width: calc(min(100cqw, 100cqh * var(--rank-ar)) * var(--rank-scale, 1));
+    height: calc(min(100cqh, 100cqw / var(--rank-ar)) * var(--rank-scale, 1));
+    flex-shrink: 0;
+}
+
+/* Per-plate size, past the plaque box where the art has room around it. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque.finish-polished {
+    --rank-scale: 1.08;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
@@ -188,30 +203,27 @@
     }
 }
 
-/* Bronze: a band of warm light slides across the emblem, clipped to it. The band is 300% wide and moved
-   by transform inside a static masked box, so it runs on the compositor. */
+/* Bronze: a slanted band of warm light crosses the emblem and back (bbgl-bronze-sheen), masked by the
+   matte of its lit bronze (ensureBronzeMatte()), so the frame and letters catch it and the dark inset
+   doesn't. Only the band's transform animates, and it composites normally. */
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
     position: absolute;
     inset: 0;
     z-index: 2;
     overflow: hidden;
     pointer-events: none;
-    -webkit-mask: var(--rank-emblem) center / 100% 100% no-repeat;
-    mask: var(--rank-emblem) center / 100% 100% no-repeat;
+    -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+    mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
     content: '';
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 300%;
-    background: linear-gradient(90deg, transparent 42%, rgba(255, 209, 141, .12) 47%, rgba(255, 235, 196, .48) 50%, rgba(255, 209, 141, .12) 53%, transparent 58%);
-    mix-blend-mode: screen;
-    transform: translateX(-46.666667%);
+    inset: 0;
+    background: ${BRONZE_SHEEN_BAND};
+    transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
     will-change: transform;
-    animation: bbgl-bronze-plaque-sheen 9s step-end infinite;
+    animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
     animation-delay: var(--bbgl-titles-animation-delay, 0ms);
 }
 
@@ -224,6 +236,73 @@
     :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
         animation: none;
         opacity: 0;
+    }
+}
+
+/* R2: the dome on the top bevel is a hood over a bulb. On reveal the bulb flickers on and lights what's
+   below its lip: a hot slit under the hood, a white pool spreading down (weighted by the plate's own
+   brightness squared, through two intersected luminance masks, so highlights in the metal catch far
+   more than its midtones and the dark window barely lifts), and a second
+   layer masked by the plate minus itself shifted down a few px, which favours up-facing edges. All of
+   it is cut off above the slit (the hood stays unlit), and the flicker animates only the span's opacity.
+   Positions are in the R2 art's units (500 x 267; slit x 156-348, y 37-39). */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+    --bulb-glow: 242, 246, 252;
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    -webkit-mask: linear-gradient(transparent 13.4%, #000 14%);
+    mask: linear-gradient(transparent 13.4%, #000 14%);
+    background:
+        radial-gradient(ellipse 19.6% 1.7% at 50.4% 14.3%, rgba(255, 255, 255, .95), rgba(var(--bulb-glow), .55) 55%, transparent),
+        radial-gradient(ellipse 27% 8% at 50.4% 14%, rgba(var(--bulb-glow), .5), transparent 75%);
+    will-change: opacity;
+    animation: bbgl-rank-bulb-on 2.5s step-end 1 both;
+    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+}
+
+@supports (mask-mode: luminance) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::before,
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+    }
+
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::before {
+        background: radial-gradient(ellipse 64% 150% at 50.4% 13%, rgba(var(--bulb-glow), 1), rgba(var(--bulb-glow), .95) 30%, rgba(var(--bulb-glow), .75) 60%, rgba(var(--bulb-glow), .4) 85%, transparent);
+        mask:
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance,
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance;
+        mask-composite: intersect, add;
+    }
+
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light::after {
+        --bulb-edge: calc(min(100cqh, 100cqw / var(--rank-ar)) * .011);
+        background: radial-gradient(ellipse 62% 155% at 50.4% 13%, rgba(255, 255, 255, 1), rgba(var(--bulb-glow), .85) 35%, rgba(var(--bulb-glow), .55) 65%, rgba(var(--bulb-glow), .25) 88%, transparent);
+        mask:
+            var(--rank-emblem) 0 0 / 100% 100% no-repeat luminance,
+            var(--rank-emblem) 0 var(--bulb-edge) / 100% 100% no-repeat luminance;
+        mask-composite: subtract, add;
+    }
+}
+
+/* Same beats as the old lightbox's power-on, as the light's opacity. */
+@keyframes bbgl-rank-bulb-on {
+    0%, 30%, 33%, 40%, 45%, 64%, 74% { opacity: 0; }
+    30.01%, 38%, 44% { opacity: .35; }
+    53%, 72% { opacity: .7; }
+    76%, 100% { opacity: 1; }
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+    animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bulb-light {
+        animation: none;
     }
 }
 
@@ -373,6 +452,46 @@
         style.textContent += css;
         bakePlaqueArt(stage, css);
     }
+    // R3's bronze sheen is masked by a matte of the art's lit bronze. A luminance mask can't keep light
+    // off the dark inset (brightness ~.15) without dimming the bronze (~.25 and up) as well, so the matte is
+    // cut once per image on a canvas: zero below .2, full by .3, then weighted toward the highlights.
+    // Until it's ready (or if the image can't be read) the sheen's mask stays fully transparent, so when it
+    // lands the sheens on screen restart from their first frame instead of appearing mid-sweep.
+    const bronzeMatteBuilt = new Set();
+    function ensureBronzeMatte(name) {
+        if (bronzeMatteBuilt.has(name)) return;
+        bronzeMatteBuilt.add(name);
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = `${PLAQUE_ART_ROOT}${name}.webp`;
+        img.decode().then(() => {
+            const c = document.createElement('canvas');
+            c.width = img.naturalWidth;
+            c.height = img.naturalHeight;
+            const ctx = c.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(img, 0, 0);
+            const data = ctx.getImageData(0, 0, c.width, c.height);
+            const px = data.data;
+            for (let i = 0; i < px.length; i += 4) {
+                const l = (.2126 * px[i] + .7152 * px[i + 1] + .0722 * px[i + 2]) / 255;
+                const t = Math.min(1, Math.max(0, (l - .2) / .1));
+                const a = px[i + 3] * t * t * (3 - 2 * t) * Math.min(1, .55 + l);
+                px[i] = px[i + 1] = px[i + 2] = 255;
+                px[i + 3] = a;
+            }
+            ctx.putImageData(data, 0, 0);
+            let style = document.getElementById('bbgl-bronze-matte');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = 'bbgl-bronze-matte';
+                (document.head || document.documentElement).appendChild(style);
+            }
+            style.textContent += `[data-bronze-art="${name}"] { --bronze-matte: url("${c.toDataURL('image/webp', .9)}"); }\n`;
+            document.querySelectorAll('.bbgl-rank-bronze-sheen, .bbgl-rank-name-sheen').forEach(el =>
+                el.getAnimations({ subtree: true }).forEach(anim => { anim.currentTime = 0; }));
+        }).catch(() => {});
+    }
+
     // Chrome re-rasterizes an SVG background, filters and all, whenever anything sharing its tile
     // repaints, which made any animation on the titles page expensive. So once the card is laid out,
     // each step's art is drawn to a canvas at the ::before's device-pixel size and swapped in as a

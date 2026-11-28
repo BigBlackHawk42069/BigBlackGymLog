@@ -10325,23 +10325,10 @@
 
                     /* Fully Bricked on the bar: the platinum lettering image, with an iridescent sheen travelling across
                        it and a blurred white and colour glow behind it, both masked to the letters (--rank-name). Locked,
-                       it's plain grey text so its art isn't loaded before it's earned. */
-                    .bbgl-rank-cap-name {
-                        font-family: Georgia, 'Times New Roman', serif;
-                        font-style: italic;
-                        font-size: calc(var(--bbgl-t-fs-notch, 10px) * 1.1);
-                        letter-spacing: .02em;
-                        white-space: nowrap;
-                    }
-
-                    /* Compact's slots are too narrow for it on one line beside Competently Bricked; two lines,
-                       like its art. */
-                    #bbgl-panel.bbgl-compact .bbgl-rank-cap-name {
-                        display: block;
-                        width: min-content;
-                        margin: 0 auto;
-                        white-space: normal;
-                        line-height: 1.05;
+                       the same image greyed out. */
+                    .bbgl-rank-title.is-capstone.is-locked .bbgl-rank-name-img {
+                        filter: grayscale(1) brightness(.62) contrast(.85);
+                        opacity: .55;
                     }
 
                     .bbgl-rank-cap-glow,
@@ -10426,7 +10413,7 @@
                     /* ─── Rank names on the bar ─────────────────────────────────────────
                        Each unlocked name is its lettering image (achRankNameArtHTML(), 06-section-v-logic.js), sized so
                        its capital is --bbgl-rank-name-cap tall. The wrapper carries the image as a mask (--rank-name) for
-                       the effects laid over the letters: the bronze sheen (band 3) and Fully Bricked's iridescence. Bands
+                       the effects laid over the letters: R2's bulb, R3's bronze sheen and Fully Bricked's iridescence. Bands
                        4 and 5 are lit by the same SVG surface lighting as their card emblems. */
                     .bbgl-rank-title {
                         --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
@@ -10468,19 +10455,88 @@
                         mask: var(--rank-name) center / 100% 100% no-repeat;
                     }
 
-                    .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                    /* R3 names: the card's bronze sheen (.bbgl-rank-bronze-sheen, 04-section-iii-plaque.js), same
+                       band, keyframes and clock. Masked by the matte of the letters' lit bronze
+                       (ensureBronzeMatte()) so the dark backing stays out of it. */
+                    .bbgl-rank-name-sheen {
+                        position: absolute;
+                        inset: 0;
+                        z-index: 2;
+                        overflow: hidden;
+                        pointer-events: none;
+                        -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+                        mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+                    }
+
+                    .bbgl-rank-name-sheen::before {
                         content: '';
-                        background-image: linear-gradient(90deg, transparent 42%, rgba(255, 218, 159, .35) 47%, rgba(255, 247, 222, .95) 50%, rgba(255, 218, 159, .35) 53%, transparent 58%);
-                        background-size: 375% 100%;
-                        mix-blend-mode: screen;
-                        opacity: .75;
-                        animation: bbgl-bronze-title-sheen 9s step-end infinite;
+                        position: absolute;
+                        inset: 0;
+                        background: ${BRONZE_SHEEN_BAND};
+                        transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
+                        will-change: transform;
+                        animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
                         animation-delay: var(--bbgl-titles-animation-delay, 0ms);
                     }
 
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-silver.is-revealed .bbgl-rank-name-art::after {
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-name-sheen {
+                        display: none;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-name-sheen {
+                            display: none;
+                        }
+                    }
+
+                    /* R2 (steel) names light up with the card's bulb (.bbgl-rank-bulb-light,
+                       04-section-iii-plaque.js): same keyframes and clock, so they flicker on together.
+                       ::after lights the letters white, brighter at the top (lit from above), weighted by
+                       the letters' own brightness squared so their highlights pop; ::before is a soft halo behind them. Both are static
+                       layers whose opacity alone is animated. */
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                        content: '';
+                        position: absolute;
+                        inset: 0;
+                        pointer-events: none;
+                        animation: bbgl-rank-bulb-on 2.5s step-end 1 both;
+                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
+                    }
+
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before {
+                        z-index: 0;
+                        background: rgba(232, 240, 252, .5);
+                        -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
+                        mask: var(--rank-name) center / 100% 100% no-repeat;
+                        filter: blur(3px);
+                    }
+
+                    .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                        background: linear-gradient(rgba(255, 255, 255, .75), rgba(242, 246, 252, .5) 55%, rgba(242, 246, 252, .3));
+                    }
+
+                    @supports (mask-mode: luminance) {
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                            background: linear-gradient(rgba(255, 255, 255, 1), rgba(242, 246, 252, 1) 55%, rgba(242, 246, 252, .8));
+                            mask:
+                                var(--rank-name) center / 100% 100% no-repeat luminance,
+                                var(--rank-name) center / 100% 100% no-repeat luminance;
+                            mask-composite: intersect, add;
+                        }
+                    }
+
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                    #bbgl-panel.bbgl-no-animations .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
                         animation: none;
-                        opacity: 0;
+                    }
+
+                    @media (prefers-reduced-motion: reduce) {
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::before,
+                        .bbgl-rank-title.material-steel.is-revealed .bbgl-rank-name-art::after {
+                            animation: none;
+                            opacity: 1;
+                        }
                     }
 
                     .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
@@ -10506,8 +10562,6 @@
                     }
 
                     ${steppedKeyframes('bbgl-rank-name-diamond-glow', 4.2, [[0, [100]], [1, [0]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 50%;`)}
-
-                    ${steppedKeyframes('bbgl-bronze-title-sheen', 9, [[0, [68.181818]], [.5, [31.818182]], [1, [68.181818]]], EASE_IN_OUT, v => `background-position: ${v[0]}% 0;`)}
 
                     /* Locked bar segments use a dim engraved glyph. The off-bar capstone is the one
                        exception: its gray name stays visible so the final destination is explicit. */
@@ -10591,7 +10645,14 @@
 
                     /* ─── Card rank emblem ────────────────────────────────────────────────
                        Rules live with the title plaque art (RANK_EMBLEM_CSS, 04-section-iii-plaque.js). */
-                    ${steppedKeyframes('bbgl-bronze-plaque-sheen', 9, [[0, [-46.666667]], [.5, [-20]], [1, [-46.666667]]], EASE_IN_OUT, v => `transform: translateX(${v[0]}%);`)}
+                    ${(() => {
+                        const { sweep, hold, cycle } = BRONZE_SHEEN_TIMING;
+                        const [from, to] = BRONZE_SHEEN_TRAVEL;
+                        const at = s => s / cycle;
+                        return steppedKeyframes('bbgl-bronze-sheen', cycle,
+                            [[0, [from]], [at(sweep), [to]], [at(sweep + hold), [to]], [at(sweep * 2 + hold), [from]], [1, [from]]],
+                            EASE_IN_OUT, v => `transform: ${bronzeSheenTransform(v[0])};`);
+                    })()}
 
                     ${RANK_EMBLEM_CSS}
 
