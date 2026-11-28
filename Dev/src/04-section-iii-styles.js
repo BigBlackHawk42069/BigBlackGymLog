@@ -10447,22 +10447,19 @@
                         position: relative;
                         display: block;
                         isolation: isolate;
-                        transform: translateY(calc(var(--rank-name-dy, 0%) + var(--rank-name-shift, 0px)));
+                        transform: translateY(var(--rank-name-shift, 0px));
                     }
 
+                    /* Sized by layoutRankBarCenter() (07-section-vi-ui.js). Until then, the normalized canvas
+                       (125 px tall, capital 40 px) at --bbgl-rank-name-cap. */
                     .bbgl-rank-name-img {
                         position: relative;
                         z-index: 1;
                         display: block;
                         width: auto;
-                        height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
+                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 3.125));
                         pointer-events: none;
                         user-select: none;
-                    }
-
-                    /* Every name but R1 is sized by layoutRankBarCenter() (07-section-vi-ui.js). */
-                    .bbgl-rank-name-art[data-fit] .bbgl-rank-name-img {
-                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 2.6));
                     }
 
                     /* Names nudged off their milestone into spare room or off the page edge (same function). */

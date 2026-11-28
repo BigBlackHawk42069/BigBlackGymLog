@@ -2021,16 +2021,15 @@
     const TITLE_LABEL_BIAS = 0.42;
 
     // Rank names on the bar: neighbours' edges keep RANK_NAME_GAP between them, end titles keep
-    // RANK_NAME_EDGE off the page's sides, and names fill the band from RANK_NAME_CEIL below the cards
-    // above to RANK_NAME_FLOOR above the tick marks. A name may drift off its milestone by up to
-    // RANK_NAME_NUDGE of a slot to use a smaller neighbour's room; end titles as far as the edge needs.
+    // RANK_NAME_EDGE off the page's sides, and every name's canvas fills the band from RANK_NAME_CEIL
+    // below the cards above to RANK_NAME_FLOOR above the tick marks. A long name spreads into its
+    // neighbours' spare room, drifting off its milestone by up to RANK_NAME_NUDGE of a slot (end titles
+    // as far as the edge needs), and only shrinks if that still isn't enough.
     const RANK_NAME_GAP = 6;
     const RANK_NAME_EDGE = 2;
     const RANK_NAME_CEIL = 4;
     const RANK_NAME_FLOOR = 5;
-    const RANK_NAME_NUDGE = .2;
-    // Names sit this far below the band's middle: off the neon, toward the ticks. Doesn't change their size.
-    const RANK_NAME_DROP = 1;
+    const RANK_NAME_NUDGE = .45;
 
     // Transform offset of el within ancestor, from both `transform` and the separate `translate`
     // property (the groove carries its visual drop in the latter), summed on the way up. The walk
@@ -2066,9 +2065,9 @@
     }
 
     // Heights (it.h) and sideways offsets (it.x) for the bar's names, in layout px from the groove's
-    // left end, with the page's sides at lo and hi. Fitted names (ratio = width/height; every name but
-    // R1) get a height up to maxH; R1 and lock glyphs keep their width (it.fixed).
-    // Max-min fair: all fitted names grow together until the row can't be laid out; the names that
+    // left end, with the page's sides at lo and hi. Names (ratio = width/height of the normalized
+    // canvas) get a height up to maxH; lock glyphs keep their width (it.fixed).
+    // Max-min fair: all names grow together until the row can't be laid out; the names that
     // can't grow alone stop there and the rest keep growing. A row fits if, placing each name as far
     // left as it may go (its milestone less its reach, after its left neighbour plus the gap, inside
     // the page), none ends up past its milestone plus its reach or the page's right side. Final
@@ -2211,8 +2210,8 @@
         // bounds above and must be folded in explicitly, or centring would ignore the part of the
         // bar the eye sees first. Only their height is read — their position is what this function
         // solves for (offsetHeight doesn't depend on the --bbgl-t-titles-y written at the end).
-        // Fitted names size themselves into whatever room the placed bar leaves (fitRankNames, at the
-        // end), so they're left out of the block; R1, locks and locked Fully Bricked count as measured.
+        // Names size themselves into whatever room the placed bar leaves (fitRankNames, at the end), so
+        // they're left out of the block; lock glyphs count as measured.
         const labelCenter = lineCenter - labelGap;
         const titleEls = Array.from(line.querySelectorAll('.bbgl-rank-title-slot > .bbgl-rank-title'))
             .filter(el => el.offsetParent !== null);
@@ -2264,8 +2263,9 @@
         // panel's pop-open scale and unloaded images can't skew it, and the result is exact on the
         // first pass. Everything on the groove moves by lineMove when it's placed below, and the
         // titles also by the change in --bbgl-t-titles-y. Each name's text box is anchored by its
-        // bottom inside its title, so its letters' centre at height H is that bottom less H/2
-        // (--rank-name-dy cancels out), and --rank-name-shift moves it to the band's middle.
+        // bottom inside its title, so at height H its baseline is that bottom less H * (1 - base);
+        // --rank-name-shift moves every baseline to the one a full-band canvas would have
+        // (bandTop + band * base), so names that had to shrink still sit on the shared line.
         const lineMove = drop;
         const titlesYNow = parseFloat(scale.style.getPropertyValue('--bbgl-t-titles-y'));
         const titlesMove = (line.offsetHeight / 2 - labelGap + labelDrop) - (Number.isFinite(titlesYNow) ? titlesYNow : -20);
@@ -2279,7 +2279,6 @@
         const cardsAbove = cardBottoms.filter(v => v < floorAt);
         const bandTop = (cardsAbove.length ? Math.max(...cardsAbove) : availableTop) + RANK_NAME_CEIL;
         const bandBottom = floorAt - RANK_NAME_FLOOR;
-        const bandMid = (bandTop + bandBottom) / 2 + RANK_NAME_DROP;
         const lineLeft = rankLayoutBox(line, page)?.left ?? null;
         const names = titleEls.map(el => {
             const text = el.querySelector('.bbgl-rank-title-text');
@@ -2289,6 +2288,7 @@
             return {
                 el, art, img,
                 ratio: art && art.dataset.fit ? parseFloat(art.dataset.fit) || 0 : 0,
+                base: art && art.dataset.base ? parseFloat(art.dataset.base) || 1 : 1,
                 fixed: text ? text.offsetWidth : 0,
                 bottom: textTop === null || !text ? null : textTop + text.offsetHeight + lineMove + titlesMove,
                 h: 0, x: 0
@@ -2343,12 +2343,12 @@
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
         if (lineLeft !== null && bandBottom > bandTop) {
+            const baseline = base => bandTop + (bandBottom - bandTop) * base;
             names.forEach(it => {
                 setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
-                if (!it.art || it.bottom === null) return;
-                if (it.ratio) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
-                const h = it.ratio ? it.h : (it.img ? it.img.offsetHeight : 0);
-                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(bandMid - (it.bottom - h / 2)).toFixed(3)}px`);
+                if (!it.art || it.bottom === null || !it.ratio) return;
+                setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
+                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(baseline(it.base) - (it.bottom - it.h * (1 - it.base))).toFixed(3)}px`);
             });
         }
         return true;

@@ -1,120 +1,82 @@
 {
  "T1R1-Dry-Clay": {
   "w": 195,
-  "h": 79,
-  "baseline": 53,
-  "lines": 1,
-  "valley": 0.126,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T1R2-Moistened-Clay": {
   "w": 208,
-  "h": 101,
-  "baseline": 96,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T1R3-Hand-Stroked-Clay": {
   "w": 312,
-  "h": 110,
-  "baseline": 93,
-  "lines": 2,
-  "valley": 0.0,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T1R4-Pit-Fired-Clay": {
   "w": 199,
-  "h": 111,
-  "baseline": 98,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T1R5-Half-Bricked": {
-  "w": 187,
-  "h": 91,
-  "baseline": 87,
-  "lines": 2,
-  "valley": 0.157
+  "w": 188,
+  "h": 125,
+  "baseline": 99
  },
  "T2R1-Parched-Clay": {
   "w": 217,
-  "h": 70,
-  "baseline": 52,
-  "lines": 1,
-  "valley": 0.136,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T2R2-Saturated-Clay": {
   "w": 202,
-  "h": 100,
-  "baseline": 95,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T2R3-Foot-Pumped-Clay": {
   "w": 311,
-  "h": 112,
-  "baseline": 96,
-  "lines": 2,
-  "valley": 0.04,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T2R4-Scove-Fired-Clay": {
   "w": 212,
-  "h": 105,
-  "baseline": 91,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T2R5-Mostly-Bricked": {
-  "w": 192,
-  "h": 98,
-  "baseline": 93,
-  "lines": 2,
-  "valley": 0.079
+  "w": 187,
+  "h": 125,
+  "baseline": 99
  },
  "T3R1-Cracked-Clay": {
   "w": 263,
-  "h": 82,
-  "baseline": 57,
-  "lines": 1,
-  "valley": 0.267,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T3R2-Dripping-Wet-Clay": {
   "w": 188,
-  "h": 99,
-  "baseline": 95,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T3R3-Vacuum-Sucked-Clay": {
   "w": 340,
-  "h": 112,
-  "baseline": 95,
-  "lines": 2,
-  "valley": 0.0,
-  "backed": true
+  "h": 125,
+  "baseline": 99
  },
  "T3R4-Kiln-Fired-Clay": {
   "w": 215,
-  "h": 103,
-  "baseline": 89,
-  "lines": 2,
-  "valley": 0.0
+  "h": 125,
+  "baseline": 99
  },
  "T3R5-Competently-Bricked": {
-  "w": 279,
-  "h": 102,
-  "baseline": 98,
-  "lines": 2,
-  "valley": 0.0
+  "w": 277,
+  "h": 125,
+  "baseline": 99
  },
  "T3R6-Fully-Bricked": {
   "w": 240,
-  "h": 104,
-  "baseline": 99,
-  "lines": 2,
-  "valley": 0.378
+  "h": 125,
+  "baseline": 99
  }
 }

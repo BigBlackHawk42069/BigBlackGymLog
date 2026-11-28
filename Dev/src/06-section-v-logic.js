@@ -2229,8 +2229,7 @@ function achTitlePlayerName() {
 // for the card, and the lettering alone for the rank bar. Files are named T{tier}R{band}-{Title}, the
 // title's spaces as hyphens. Both are <img> elements written only for unlocked ranks, so nothing is
 // downloaded before it is earned. Sizes are the images' pixel sizes; every lettering image is scaled so
-// its last line's first capital is RANK_TEXT_CAP px tall, which is what the bar sizes them by.
-const RANK_TEXT_CAP = 40;
+// its last line's first capital is 40 px tall.
 const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
@@ -2240,18 +2239,18 @@ const RANK_EMBLEM_SIZE = {
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
-    'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
-    'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [199, 111, 98], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
-    'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
-    'T3R6-Fully-Bricked': [240, 104, 99]
+    'T1R1-Dry-Clay': [195, 125, 99], 'T2R1-Parched-Clay': [217, 125, 99], 'T3R1-Cracked-Clay': [263, 125, 99],
+    'T1R2-Moistened-Clay': [208, 125, 99], 'T2R2-Saturated-Clay': [202, 125, 99], 'T3R2-Dripping-Wet-Clay': [188, 125, 99],
+    'T1R3-Hand-Stroked-Clay': [312, 125, 99], 'T2R3-Foot-Pumped-Clay': [311, 125, 99], 'T3R3-Vacuum-Sucked-Clay': [340, 125, 99],
+    'T1R4-Pit-Fired-Clay': [199, 125, 99], 'T2R4-Scove-Fired-Clay': [212, 125, 99], 'T3R4-Kiln-Fired-Clay': [215, 125, 99],
+    'T1R5-Half-Bricked': [188, 125, 99], 'T2R5-Mostly-Bricked': [187, 125, 99], 'T3R5-Competently-Bricked': [277, 125, 99],
+    'T3R6-Fully-Bricked': [240, 125, 99]
 };
-// [w, h, baseline] above. Every name is centred on the bar's title line by its lettering (pad to
-// baseline). One-line names (R1) are sized by cap height x RANK_TEXT_ONE_LINE_SCALE; the rest carry
-// their aspect (data-fit) and are sized (--rank-name-fit-h) by layoutRankBarCenter() (07-section-vi-ui.js)
-// from the room between neighbours and above the bar.
-const RANK_TEXT_ONE_LINE_SCALE = 1.2;
+// [w, h, baseline] above. Every lettering image is normalized to one canvas: the same height, with its
+// last line's baseline on the same row (one-line R1 names sit on it too, empty above), and its own
+// width. So one height sizes every name alike and their baselines line up; layoutRankBarCenter()
+// (07-section-vi-ui.js) sets it (--rank-name-fit-h) from the band above the bar and each name's width
+// (data-fit = w / h) against its neighbours, and puts the baselines (data-base = baseline / h) on one line.
 const RANK_CAP_ART = 'T3R6-Fully-Bricked';
 
 function rankArtName(atrophy, band) {
@@ -2267,11 +2266,7 @@ const rankArtSrc = plaqueArtSrc;
 function achRankNameArtHTML(name, under = '') {
     const [w, h, base] = RANK_TEXT_SIZE[name];
     const src = rankArtSrc(name + '-text');
-    const oneLine = /R1-/.test(name);
-    const fit = oneLine ? '' : ` data-fit="${(w / h).toFixed(4)}"`;
-    // Share of its own height that moves the image down so its letters (4px pad to baseline) centre.
-    const dy = oneLine ? 0 : (h / 2 - (4 + base) / 2) / h * 100;
-    return `<span class="bbgl-rank-name-art" ${fit} style="--rank-name-h:${(h * RANK_TEXT_ONE_LINE_SCALE / RANK_TEXT_CAP).toFixed(4)};--rank-name-dy:${dy.toFixed(2)}%;--rank-name:url('${src}')">${under}` +
+    return `<span class="bbgl-rank-name-art" data-fit="${(w / h).toFixed(4)}" data-base="${(base / h).toFixed(4)}" style="--rank-name:url('${src}')">${under}` +
         `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`;
 }
 

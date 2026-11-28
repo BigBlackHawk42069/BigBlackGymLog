@@ -12981,22 +12981,19 @@
                         position: relative;
                         display: block;
                         isolation: isolate;
-                        transform: translateY(calc(var(--rank-name-dy, 0%) + var(--rank-name-shift, 0px)));
+                        transform: translateY(var(--rank-name-shift, 0px));
                     }
 
+                    /* Sized by layoutRankBarCenter() (07-section-vi-ui.js). Until then, the normalized canvas
+                       (125 px tall, capital 40 px) at --bbgl-rank-name-cap. */
                     .bbgl-rank-name-img {
                         position: relative;
                         z-index: 1;
                         display: block;
                         width: auto;
-                        height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
+                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 3.125));
                         pointer-events: none;
                         user-select: none;
-                    }
-
-                    /* Every name but R1 is sized by layoutRankBarCenter() (07-section-vi-ui.js). */
-                    .bbgl-rank-name-art[data-fit] .bbgl-rank-name-img {
-                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 2.6));
                     }
 
                     /* Names nudged off their milestone into spare room or off the page edge (same function). */
@@ -18766,8 +18763,7 @@ function achTitlePlayerName() {
 // for the card, and the lettering alone for the rank bar. Files are named T{tier}R{band}-{Title}, the
 // title's spaces as hyphens. Both are <img> elements written only for unlocked ranks, so nothing is
 // downloaded before it is earned. Sizes are the images' pixel sizes; every lettering image is scaled so
-// its last line's first capital is RANK_TEXT_CAP px tall, which is what the bar sizes them by.
-const RANK_TEXT_CAP = 40;
+// its last line's first capital is 40 px tall.
 const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
@@ -18777,18 +18773,18 @@ const RANK_EMBLEM_SIZE = {
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
-    'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
-    'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [199, 111, 98], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
-    'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
-    'T3R6-Fully-Bricked': [240, 104, 99]
+    'T1R1-Dry-Clay': [195, 125, 99], 'T2R1-Parched-Clay': [217, 125, 99], 'T3R1-Cracked-Clay': [263, 125, 99],
+    'T1R2-Moistened-Clay': [208, 125, 99], 'T2R2-Saturated-Clay': [202, 125, 99], 'T3R2-Dripping-Wet-Clay': [188, 125, 99],
+    'T1R3-Hand-Stroked-Clay': [312, 125, 99], 'T2R3-Foot-Pumped-Clay': [311, 125, 99], 'T3R3-Vacuum-Sucked-Clay': [340, 125, 99],
+    'T1R4-Pit-Fired-Clay': [199, 125, 99], 'T2R4-Scove-Fired-Clay': [212, 125, 99], 'T3R4-Kiln-Fired-Clay': [215, 125, 99],
+    'T1R5-Half-Bricked': [188, 125, 99], 'T2R5-Mostly-Bricked': [187, 125, 99], 'T3R5-Competently-Bricked': [277, 125, 99],
+    'T3R6-Fully-Bricked': [240, 125, 99]
 };
-// [w, h, baseline] above. Every name is centred on the bar's title line by its lettering (pad to
-// baseline). One-line names (R1) are sized by cap height x RANK_TEXT_ONE_LINE_SCALE; the rest carry
-// their aspect (data-fit) and are sized (--rank-name-fit-h) by layoutRankBarCenter() (07-section-vi-ui.js)
-// from the room between neighbours and above the bar.
-const RANK_TEXT_ONE_LINE_SCALE = 1.2;
+// [w, h, baseline] above. Every lettering image is normalized to one canvas: the same height, with its
+// last line's baseline on the same row (one-line R1 names sit on it too, empty above), and its own
+// width. So one height sizes every name alike and their baselines line up; layoutRankBarCenter()
+// (07-section-vi-ui.js) sets it (--rank-name-fit-h) from the band above the bar and each name's width
+// (data-fit = w / h) against its neighbours, and puts the baselines (data-base = baseline / h) on one line.
 const RANK_CAP_ART = 'T3R6-Fully-Bricked';
 
 function rankArtName(atrophy, band) {
@@ -18804,11 +18800,7 @@ const rankArtSrc = plaqueArtSrc;
 function achRankNameArtHTML(name, under = '') {
     const [w, h, base] = RANK_TEXT_SIZE[name];
     const src = rankArtSrc(name + '-text');
-    const oneLine = /R1-/.test(name);
-    const fit = oneLine ? '' : ` data-fit="${(w / h).toFixed(4)}"`;
-    // Share of its own height that moves the image down so its letters (4px pad to baseline) centre.
-    const dy = oneLine ? 0 : (h / 2 - (4 + base) / 2) / h * 100;
-    return `<span class="bbgl-rank-name-art" ${fit} style="--rank-name-h:${(h * RANK_TEXT_ONE_LINE_SCALE / RANK_TEXT_CAP).toFixed(4)};--rank-name-dy:${dy.toFixed(2)}%;--rank-name:url('${src}')">${under}` +
+    return `<span class="bbgl-rank-name-art" data-fit="${(w / h).toFixed(4)}" data-base="${(base / h).toFixed(4)}" style="--rank-name:url('${src}')">${under}` +
         `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`;
 }
 
@@ -23035,16 +23027,15 @@ const BestGymController = {
     const TITLE_LABEL_BIAS = 0.42;
 
     // Rank names on the bar: neighbours' edges keep RANK_NAME_GAP between them, end titles keep
-    // RANK_NAME_EDGE off the page's sides, and names fill the band from RANK_NAME_CEIL below the cards
-    // above to RANK_NAME_FLOOR above the tick marks. A name may drift off its milestone by up to
-    // RANK_NAME_NUDGE of a slot to use a smaller neighbour's room; end titles as far as the edge needs.
+    // RANK_NAME_EDGE off the page's sides, and every name's canvas fills the band from RANK_NAME_CEIL
+    // below the cards above to RANK_NAME_FLOOR above the tick marks. A long name spreads into its
+    // neighbours' spare room, drifting off its milestone by up to RANK_NAME_NUDGE of a slot (end titles
+    // as far as the edge needs), and only shrinks if that still isn't enough.
     const RANK_NAME_GAP = 6;
     const RANK_NAME_EDGE = 2;
     const RANK_NAME_CEIL = 4;
     const RANK_NAME_FLOOR = 5;
-    const RANK_NAME_NUDGE = .2;
-    // Names sit this far below the band's middle: off the neon, toward the ticks. Doesn't change their size.
-    const RANK_NAME_DROP = 1;
+    const RANK_NAME_NUDGE = .45;
 
     // Transform offset of el within ancestor, from both `transform` and the separate `translate`
     // property (the groove carries its visual drop in the latter), summed on the way up. The walk
@@ -23080,9 +23071,9 @@ const BestGymController = {
     }
 
     // Heights (it.h) and sideways offsets (it.x) for the bar's names, in layout px from the groove's
-    // left end, with the page's sides at lo and hi. Fitted names (ratio = width/height; every name but
-    // R1) get a height up to maxH; R1 and lock glyphs keep their width (it.fixed).
-    // Max-min fair: all fitted names grow together until the row can't be laid out; the names that
+    // left end, with the page's sides at lo and hi. Names (ratio = width/height of the normalized
+    // canvas) get a height up to maxH; lock glyphs keep their width (it.fixed).
+    // Max-min fair: all names grow together until the row can't be laid out; the names that
     // can't grow alone stop there and the rest keep growing. A row fits if, placing each name as far
     // left as it may go (its milestone less its reach, after its left neighbour plus the gap, inside
     // the page), none ends up past its milestone plus its reach or the page's right side. Final
@@ -23225,8 +23216,8 @@ const BestGymController = {
         // bounds above and must be folded in explicitly, or centring would ignore the part of the
         // bar the eye sees first. Only their height is read — their position is what this function
         // solves for (offsetHeight doesn't depend on the --bbgl-t-titles-y written at the end).
-        // Fitted names size themselves into whatever room the placed bar leaves (fitRankNames, at the
-        // end), so they're left out of the block; R1, locks and locked Fully Bricked count as measured.
+        // Names size themselves into whatever room the placed bar leaves (fitRankNames, at the end), so
+        // they're left out of the block; lock glyphs count as measured.
         const labelCenter = lineCenter - labelGap;
         const titleEls = Array.from(line.querySelectorAll('.bbgl-rank-title-slot > .bbgl-rank-title'))
             .filter(el => el.offsetParent !== null);
@@ -23278,8 +23269,9 @@ const BestGymController = {
         // panel's pop-open scale and unloaded images can't skew it, and the result is exact on the
         // first pass. Everything on the groove moves by lineMove when it's placed below, and the
         // titles also by the change in --bbgl-t-titles-y. Each name's text box is anchored by its
-        // bottom inside its title, so its letters' centre at height H is that bottom less H/2
-        // (--rank-name-dy cancels out), and --rank-name-shift moves it to the band's middle.
+        // bottom inside its title, so at height H its baseline is that bottom less H * (1 - base);
+        // --rank-name-shift moves every baseline to the one a full-band canvas would have
+        // (bandTop + band * base), so names that had to shrink still sit on the shared line.
         const lineMove = drop;
         const titlesYNow = parseFloat(scale.style.getPropertyValue('--bbgl-t-titles-y'));
         const titlesMove = (line.offsetHeight / 2 - labelGap + labelDrop) - (Number.isFinite(titlesYNow) ? titlesYNow : -20);
@@ -23293,7 +23285,6 @@ const BestGymController = {
         const cardsAbove = cardBottoms.filter(v => v < floorAt);
         const bandTop = (cardsAbove.length ? Math.max(...cardsAbove) : availableTop) + RANK_NAME_CEIL;
         const bandBottom = floorAt - RANK_NAME_FLOOR;
-        const bandMid = (bandTop + bandBottom) / 2 + RANK_NAME_DROP;
         const lineLeft = rankLayoutBox(line, page)?.left ?? null;
         const names = titleEls.map(el => {
             const text = el.querySelector('.bbgl-rank-title-text');
@@ -23303,6 +23294,7 @@ const BestGymController = {
             return {
                 el, art, img,
                 ratio: art && art.dataset.fit ? parseFloat(art.dataset.fit) || 0 : 0,
+                base: art && art.dataset.base ? parseFloat(art.dataset.base) || 1 : 1,
                 fixed: text ? text.offsetWidth : 0,
                 bottom: textTop === null || !text ? null : textTop + text.offsetHeight + lineMove + titlesMove,
                 h: 0, x: 0
@@ -23357,12 +23349,12 @@ const BestGymController = {
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
         if (lineLeft !== null && bandBottom > bandTop) {
+            const baseline = base => bandTop + (bandBottom - bandTop) * base;
             names.forEach(it => {
                 setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
-                if (!it.art || it.bottom === null) return;
-                if (it.ratio) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
-                const h = it.ratio ? it.h : (it.img ? it.img.offsetHeight : 0);
-                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(bandMid - (it.bottom - h / 2)).toFixed(3)}px`);
+                if (!it.art || it.bottom === null || !it.ratio) return;
+                setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
+                setStyleVarIfChanged(it.art, '--rank-name-shift', `${(baseline(it.base) - (it.bottom - it.h * (1 - it.base))).toFixed(3)}px`);
             });
         }
         return true;
