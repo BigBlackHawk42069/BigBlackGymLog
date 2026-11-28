@@ -2222,13 +2222,18 @@ const RANK_EMBLEM_SIZE = {
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [195, 79], 'T2R1-Parched-Clay': [217, 70], 'T3R1-Cracked-Clay': [263, 82],
-    'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [188, 99],
-    'T1R3-Hand-Stroked-Clay': [312, 110], 'T2R3-Foot-Pumped-Clay': [311, 112], 'T3R3-Vacuum-Sucked-Clay': [340, 112],
-    'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [197, 100], 'T3R4-Kiln-Fired-Clay': [152, 98],
-    'T1R5-Half-Bricked': [187, 91], 'T2R5-Mostly-Bricked': [192, 98], 'T3R5-Competently-Bricked': [279, 102],
-    'T3R6-Fully-Bricked': [240, 104]
+    'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
+    'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
+    'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
+    'T1R4-Pit-Fired-Clay': [149, 100, 87], 'T2R4-Scove-Fired-Clay': [197, 100, 87], 'T3R4-Kiln-Fired-Clay': [152, 98, 84],
+    'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
+    'T3R6-Fully-Bricked': [240, 104, 99]
 };
+// [w, h, baseline] above. Every name is centred on the bar's title line by its lettering (pad to
+// baseline). One-line names (R1) are sized by cap height x RANK_TEXT_ONE_LINE_SCALE; the rest carry
+// their aspect (data-fit) and are sized (--rank-name-fit-h) by layoutRankBarCenter() (07-section-vi-ui.js)
+// from the room between neighbours and above the bar.
+const RANK_TEXT_ONE_LINE_SCALE = 1.2;
 const RANK_CAP_ART = 'T3R6-Fully-Bricked';
 
 function rankArtName(atrophy, band) {
@@ -2239,12 +2244,16 @@ function rankArtName(atrophy, band) {
 
 const rankArtSrc = name => `${PLAQUE_ART_ROOT}${name}.webp`;
 
-// The bar's lettering image, sized by its capital height. The wrapper carries the image as a CSS mask
-// (--rank-name) for the effects painted over the letters.
+// The bar's lettering image. The wrapper carries the image as a CSS mask (--rank-name) for the effects
+// painted over the letters.
 function achRankNameArtHTML(name, under = '') {
-    const [w, h] = RANK_TEXT_SIZE[name];
+    const [w, h, base] = RANK_TEXT_SIZE[name];
     const src = rankArtSrc(name + '-text');
-    return `<span class="bbgl-rank-name-art" style="--rank-name-h:${(h / RANK_TEXT_CAP).toFixed(4)};--rank-name:url('${src}')">${under}` +
+    const oneLine = /R1-/.test(name);
+    const fit = oneLine ? '' : ` data-fit="${(w / h).toFixed(4)}"`;
+    // Share of its own height that moves the image down so its letters (4px pad to baseline) centre.
+    const dy = oneLine ? 0 : (h / 2 - (4 + base) / 2) / h * 100;
+    return `<span class="bbgl-rank-name-art" ${fit} style="--rank-name-h:${(h * RANK_TEXT_ONE_LINE_SCALE / RANK_TEXT_CAP).toFixed(4)};--rank-name-dy:${dy.toFixed(2)}%;--rank-name:url('${src}')">${under}` +
         `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`;
 }
 

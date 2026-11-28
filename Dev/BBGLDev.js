@@ -12413,6 +12413,16 @@
                         white-space: nowrap;
                     }
 
+                    /* Compact's slots are too narrow for it on one line beside Competently Bricked; two lines,
+                       like its art. */
+                    #bbgl-panel.bbgl-compact .bbgl-rank-cap-name {
+                        display: block;
+                        width: min-content;
+                        margin: 0 auto;
+                        white-space: normal;
+                        line-height: 1.05;
+                    }
+
                     .bbgl-rank-cap-glow,
                     .bbgl-rank-cap-glow i {
                         position: absolute;
@@ -12505,6 +12515,7 @@
                         position: relative;
                         display: block;
                         isolation: isolate;
+                        transform: translateY(calc(var(--rank-name-dy, 0%) + var(--rank-name-shift, 0px)));
                     }
 
                     .bbgl-rank-name-img {
@@ -12515,6 +12526,16 @@
                         height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
                         pointer-events: none;
                         user-select: none;
+                    }
+
+                    /* Every name but R1 is sized by layoutRankBarCenter() (07-section-vi-ui.js). */
+                    .bbgl-rank-name-art[data-fit] .bbgl-rank-name-img {
+                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 2.6));
+                    }
+
+                    /* Names nudged off their milestone into spare room or off the page edge (same function). */
+                    .bbgl-rank-title-slot > .bbgl-rank-title {
+                        left: calc(50% + var(--rank-name-x, 0px));
                     }
 
                     .bbgl-rank-name-art::after {
@@ -18235,13 +18256,18 @@ const RANK_EMBLEM_SIZE = {
     'T3R6-Fully-Bricked': [500, 294]
 };
 const RANK_TEXT_SIZE = {
-    'T1R1-Dry-Clay': [195, 79], 'T2R1-Parched-Clay': [217, 70], 'T3R1-Cracked-Clay': [263, 82],
-    'T1R2-Moistened-Clay': [208, 101], 'T2R2-Saturated-Clay': [202, 100], 'T3R2-Dripping-Wet-Clay': [188, 99],
-    'T1R3-Hand-Stroked-Clay': [312, 110], 'T2R3-Foot-Pumped-Clay': [311, 112], 'T3R3-Vacuum-Sucked-Clay': [340, 112],
-    'T1R4-Pit-Fired-Clay': [149, 100], 'T2R4-Scove-Fired-Clay': [197, 100], 'T3R4-Kiln-Fired-Clay': [152, 98],
-    'T1R5-Half-Bricked': [187, 91], 'T2R5-Mostly-Bricked': [192, 98], 'T3R5-Competently-Bricked': [279, 102],
-    'T3R6-Fully-Bricked': [240, 104]
+    'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
+    'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
+    'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
+    'T1R4-Pit-Fired-Clay': [149, 100, 87], 'T2R4-Scove-Fired-Clay': [197, 100, 87], 'T3R4-Kiln-Fired-Clay': [152, 98, 84],
+    'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
+    'T3R6-Fully-Bricked': [240, 104, 99]
 };
+// [w, h, baseline] above. Every name is centred on the bar's title line by its lettering (pad to
+// baseline). One-line names (R1) are sized by cap height x RANK_TEXT_ONE_LINE_SCALE; the rest carry
+// their aspect (data-fit) and are sized (--rank-name-fit-h) by layoutRankBarCenter() (07-section-vi-ui.js)
+// from the room between neighbours and above the bar.
+const RANK_TEXT_ONE_LINE_SCALE = 1.2;
 const RANK_CAP_ART = 'T3R6-Fully-Bricked';
 
 function rankArtName(atrophy, band) {
@@ -18252,12 +18278,16 @@ function rankArtName(atrophy, band) {
 
 const rankArtSrc = name => `${PLAQUE_ART_ROOT}${name}.webp`;
 
-// The bar's lettering image, sized by its capital height. The wrapper carries the image as a CSS mask
-// (--rank-name) for the effects painted over the letters.
+// The bar's lettering image. The wrapper carries the image as a CSS mask (--rank-name) for the effects
+// painted over the letters.
 function achRankNameArtHTML(name, under = '') {
-    const [w, h] = RANK_TEXT_SIZE[name];
+    const [w, h, base] = RANK_TEXT_SIZE[name];
     const src = rankArtSrc(name + '-text');
-    return `<span class="bbgl-rank-name-art" style="--rank-name-h:${(h / RANK_TEXT_CAP).toFixed(4)};--rank-name:url('${src}')">${under}` +
+    const oneLine = /R1-/.test(name);
+    const fit = oneLine ? '' : ` data-fit="${(w / h).toFixed(4)}"`;
+    // Share of its own height that moves the image down so its letters (4px pad to baseline) centre.
+    const dy = oneLine ? 0 : (h / 2 - (4 + base) / 2) / h * 100;
+    return `<span class="bbgl-rank-name-art" ${fit} style="--rank-name-h:${(h * RANK_TEXT_ONE_LINE_SCALE / RANK_TEXT_CAP).toFixed(4)};--rank-name-dy:${dy.toFixed(2)}%;--rank-name:url('${src}')">${under}` +
         `<img class="bbgl-rank-name-img" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false"></span>`;
 }
 
@@ -22494,6 +22524,105 @@ const BestGymController = {
     // --bbgl-t-rank-h grows the gap.
     const TITLE_LABEL_BIAS = 0.42;
 
+    // Rank names on the bar: neighbours' edges keep RANK_NAME_GAP between them, end titles keep
+    // RANK_NAME_EDGE off the page's sides, and names fill the band from RANK_NAME_CEIL below the cards
+    // above to RANK_NAME_FLOOR above the tick marks. A name may drift off its milestone by up to
+    // RANK_NAME_NUDGE of a slot to use a smaller neighbour's room; end titles as far as the edge needs.
+    const RANK_NAME_GAP = 6;
+    const RANK_NAME_EDGE = 2;
+    const RANK_NAME_CEIL = 4;
+    const RANK_NAME_FLOOR = 5;
+    const RANK_NAME_NUDGE = .2;
+
+    // On-screen px per layout px for the groove. Screen boxes include ancestor transforms (the panel's
+    // pop-open scale), so every distance read from them is divided by this to stay in layout px.
+    function rankLineScale(line, lineRect) {
+        const w = parseFloat(getComputedStyle(line).width);
+        return w > 0 && lineRect.width > 0 ? lineRect.width / w : 1;
+    }
+
+    // Heights and sideways offsets for the bar's names. Fitted names (data-fit = width/height; every
+    // name but R1) get a height up to caps(); R1, lock glyphs and locked Fully Bricked keep their width.
+    // Max-min fair: all fitted names grow together until the row can't be laid out; the names that
+    // can't grow alone stop there and the rest keep growing. A row fits if, placing each name as far
+    // left as it may go (its milestone less its reach, after its left neighbour plus the gap, inside
+    // the page), none ends up past its milestone plus its reach or the page's right side. Final
+    // positions keep each name as close to its milestone as that allows.
+    function fitRankNames(titles, slotWidth, line, page, caps) {
+        const items = titles.map(el => {
+            const art = el.querySelector('.bbgl-rank-name-art[data-fit]');
+            if (art) return { el, art, ratio: parseFloat(art.dataset.fit) || 0, fixed: 0, h: 0, x: 0 };
+            const text = el.querySelector('.bbgl-rank-title-text');
+            return { el, art: null, ratio: 0, fixed: text ? text.offsetWidth : 0, h: 0, x: 0 };
+        });
+        const n = items.length;
+        if (!n || !(slotWidth > 0)) return { items };
+        const pageRect = page.getBoundingClientRect();
+        const lineRect = line.getBoundingClientRect();
+        const k = rankLineScale(line, lineRect);
+        // Layout px from the groove's left end: milestone i at i x slot, page sides at lo and hi.
+        const lo = -(lineRect.left - pageRect.left) / k + RANK_NAME_EDGE;
+        const hi = (pageRect.right - lineRect.left) / k - RANK_NAME_EDGE;
+        const reach = items.map((_, i) => (i === 0 || i === n - 1) ? slotWidth / 2 : slotWidth * RANK_NAME_NUDGE);
+        const width = (it, h) => it.ratio ? it.ratio * h : it.fixed;
+        const place = hs => {
+            const xs = [];
+            for (let i = 0; i < n; i++) {
+                const w = width(items[i], hs[i]);
+                let x = i * slotWidth - reach[i];
+                if (i === 0) x = Math.max(x, lo + w / 2);
+                else x = Math.max(x, xs[i - 1] + width(items[i - 1], hs[i - 1]) / 2 + RANK_NAME_GAP + w / 2);
+                xs.push(x);
+            }
+            return xs;
+        };
+        const fits = hs => {
+            const xs = place(hs);
+            for (let i = 0; i < n; i++) {
+                if (xs[i] > i * slotWidth + reach[i] + .01) return false;
+            }
+            return xs[n - 1] + width(items[n - 1], hs[n - 1]) / 2 <= hi + .01;
+        };
+        const cap = items.map(it => it.ratio ? Math.max(0, caps(it)) : 0);
+        const hs = items.map(() => 0);
+        let free = items.map((it, i) => it.ratio ? i : -1).filter(i => i >= 0);
+        let floor = 0;
+        while (free.length) {
+            const at = L => { const t = hs.slice(); free.forEach(i => { t[i] = Math.min(L, cap[i]); }); return t; };
+            const maxH = Math.max(...free.map(i => cap[i]));
+            let low = floor, high = maxH;
+            if (fits(at(high))) low = high;
+            else for (let j = 0; j < 24 && high - low > .05; j++) { const mid = (low + high) / 2; if (fits(at(mid))) low = mid; else high = mid; }
+            free.forEach(i => { hs[i] = Math.min(low, cap[i]); });
+            if (low >= maxH) break;
+            // Names at their cap, or that can't grow any further on their own, are done; the rest carry on.
+            const stuck = free.filter(i => { if (hs[i] >= cap[i]) return true; const t = hs.slice(); t[i] = hs[i] + .1; return !fits(t); });
+            free = stuck.length ? free.filter(i => !stuck.includes(i)) : [];
+            floor = low;
+        }
+        // Leftmost spots from place(), rightmost by the same walk from the right; then, left to right,
+        // each name as near its milestone as its left neighbour and its rightmost spot allow.
+        const left = place(hs);
+        const right = [];
+        for (let i = n - 1; i >= 0; i--) {
+            const w = width(items[i], hs[i]);
+            let x = i * slotWidth + reach[i];
+            if (i === n - 1) x = Math.min(x, hi - w / 2);
+            else x = Math.min(x, right[i + 1] - width(items[i + 1], hs[i + 1]) / 2 - RANK_NAME_GAP - w / 2);
+            right[i] = x;
+        }
+        let minNext = -Infinity;
+        items.forEach((it, i) => {
+            const w = width(it, hs[i]);
+            const minX = Math.max(left[i], minNext);
+            const x = Math.min(Math.max(i * slotWidth, minX), Math.max(minX, right[i]));
+            it.h = hs[i];
+            it.x = x - i * slotWidth;
+            if (i + 1 < n) minNext = x + w / 2 + RANK_NAME_GAP + width(items[i + 1], hs[i + 1]) / 2;
+        });
+        return { items };
+    }
+
     // Places the visible rank assembly (groove + readout) in the space below the stat cards, in
     // two passes: pass 1 freezes the
     // label-to-groove spacing at a fixed reference placement, pass 2 treats labels+groove as one
@@ -22570,10 +22699,14 @@ const BestGymController = {
         // bounds above and must be folded in explicitly, or centring would ignore the part of the
         // bar the eye sees first. Only their height is read — their position is what this function
         // solves for (offsetHeight doesn't depend on the --bbgl-t-titles-y written at the end).
-        const labelHeights = Array.from(line.querySelectorAll('.bbgl-rank-title'))
-            .filter(el => el.offsetParent !== null && el.offsetHeight > 0)
-            .map(el => el.offsetHeight);
+        // Fitted names size themselves into whatever room the placed bar leaves (fitRankNames, at the
+        // end), so they're left out of the block; R1, locks and locked Fully Bricked count as measured.
         const labelCenter = lineCenter - labelGap;
+        const titleEls = Array.from(line.querySelectorAll('.bbgl-rank-title-slot > .bbgl-rank-title'))
+            .filter(el => el.offsetParent !== null);
+        const labelHeights = titleEls
+            .filter(el => !el.querySelector('.bbgl-rank-name-art[data-fit]') && el.offsetHeight > 0)
+            .map(el => el.offsetHeight);
         const blockTop = labelHeights.length
             ? Math.min(assemblyTop, labelCenter - Math.max(...labelHeights) / 2)
             : assemblyTop;
@@ -22658,6 +22791,38 @@ const BestGymController = {
         const titlesY = lineHeight / 2 - labelGap + labelDrop;
         setStyleVarIfChanged(scale, '--bbgl-t-titles-y', `${titlesY.toFixed(3)}px`);
         setStyleVarIfChanged(scale, '--bbgl-t-title-slot-w', `${slotWidth.toFixed(3)}px`);
+        // Every name's letters are centred in the band between the cards above (the neon border) and
+        // the groove, and fitted names may fill its height. Measured on screen after the writes above,
+        // then again after the heights land (two extra layouts, only on layout passes). Only cards
+        // ending above the groove count; one reaching past it sits beside the bar. An image's letters
+        // sit (1/2 - --rank-name-dy) of its height down from its top.
+        // Band edges stay in screen px (they're compared with screen boxes below); its height and the
+        // shifts are converted to layout px.
+        const lineBox = line.getBoundingClientRect();
+        const k = rankLineScale(line, lineBox);
+        // Floor: the tallest tick's top (the live marker is left out; it moves under the names).
+        const tickTops = [
+            scale.querySelector('.bbgl-rank-tick.is-milestone'),
+            scale.querySelector('.bbgl-rank-tick:not(.is-milestone):not(.is-live)')
+        ].filter(Boolean).map(t => t.getBoundingClientRect().top);
+        const floorAt = Math.min(lineBox.top, ...tickTops);
+        const cardRects = Array.from(lowerCards, card => card.getBoundingClientRect().bottom).filter(v => v < floorAt);
+        const bandTop = (cardRects.length ? Math.max(...cardRects) : page.getBoundingClientRect().top) + RANK_NAME_CEIL * k;
+        const bandBottom = floorAt - RANK_NAME_FLOOR * k;
+        const fit = fitRankNames(titleEls, slotWidth, line, page, () => (bandBottom - bandTop) / k);
+        fit.items.forEach(it => {
+            if (it.art) setStyleVarIfChanged(it.art, '--rank-name-fit-h', `${it.h.toFixed(3)}px`);
+            setStyleVarIfChanged(it.el, '--rank-name-x', `${it.x.toFixed(3)}px`);
+        });
+        const bandMid = (bandTop + bandBottom) / 2;
+        line.querySelectorAll('.bbgl-rank-name-art').forEach(art => {
+            const box = art.querySelector('.bbgl-rank-name-img')?.getBoundingClientRect();
+            if (!box || !(box.height > 0)) return;
+            const d = (parseFloat(art.style.getPropertyValue('--rank-name-dy')) || 0) / 100;
+            const prev = parseFloat(art.style.getPropertyValue('--rank-name-shift')) || 0;
+            const letters = box.top + (.5 - d) * box.height;
+            setStyleVarIfChanged(art, '--rank-name-shift', `${(prev + (bandMid - letters) / k).toFixed(3)}px`);
+        });
         return true;
     }
 
@@ -22702,8 +22867,18 @@ const BestGymController = {
                 layoutTitlesPageGeometry();
             });
         });
-        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob')
+        // The rank names too: their images load after this pass, and fitRankNames() needs their widths.
+        document.querySelectorAll('.bbgl-title-block, .bbgl-titles-page, .bbgl-rank-scale, .bbgl-rank-notch-label, .bbgl-rank-knob, .bbgl-rank-title-text')
             .forEach(el => runtime.titleFrameResizeObserver.observe(el));
+        // The panel's pop-open scale resizes nothing, so the observer misses it; a pass measured
+        // mid-animation is redone when it ends.
+        const panel = document.getElementById('bbgl-panel');
+        if (panel && !panel._bbglTitlesPopHook) {
+            panel._bbglTitlesPopHook = true;
+            panel.addEventListener('animationend', e => {
+                if (e.target === panel && document.querySelector('.bbgl-titles-page')) layoutTitlesPageGeometry();
+            });
+        }
     }
 
     // Shared toolbar-relative measurement for both pagination clusters that dock against the SVG

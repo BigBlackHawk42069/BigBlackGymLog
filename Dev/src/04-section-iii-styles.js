@@ -10334,6 +10334,16 @@
                         white-space: nowrap;
                     }
 
+                    /* Compact's slots are too narrow for it on one line beside Competently Bricked; two lines,
+                       like its art. */
+                    #bbgl-panel.bbgl-compact .bbgl-rank-cap-name {
+                        display: block;
+                        width: min-content;
+                        margin: 0 auto;
+                        white-space: normal;
+                        line-height: 1.05;
+                    }
+
                     .bbgl-rank-cap-glow,
                     .bbgl-rank-cap-glow i {
                         position: absolute;
@@ -10426,6 +10436,7 @@
                         position: relative;
                         display: block;
                         isolation: isolate;
+                        transform: translateY(calc(var(--rank-name-dy, 0%) + var(--rank-name-shift, 0px)));
                     }
 
                     .bbgl-rank-name-img {
@@ -10436,6 +10447,16 @@
                         height: calc(var(--bbgl-rank-name-cap) * var(--rank-name-h));
                         pointer-events: none;
                         user-select: none;
+                    }
+
+                    /* Every name but R1 is sized by layoutRankBarCenter() (07-section-vi-ui.js). */
+                    .bbgl-rank-name-art[data-fit] .bbgl-rank-name-img {
+                        height: var(--rank-name-fit-h, calc(var(--bbgl-rank-name-cap) * 2.6));
+                    }
+
+                    /* Names nudged off their milestone into spare room or off the page edge (same function). */
+                    .bbgl-rank-title-slot > .bbgl-rank-title {
+                        left: calc(50% + var(--rank-name-x, 0px));
                     }
 
                     .bbgl-rank-name-art::after {
