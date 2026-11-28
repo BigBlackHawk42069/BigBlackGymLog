@@ -23,11 +23,11 @@
   "backed": true
  },
  "T1R4-Pit-Fired-Clay": {
-  "w": 149,
-  "h": 100,
-  "baseline": 87,
+  "w": 153,
+  "h": 102,
+  "baseline": 88,
   "lines": 2,
-  "valley": 0.081
+  "valley": 0.0
  },
  "T1R5-Half-Bricked": {
   "w": 187,
@@ -60,9 +60,9 @@
   "backed": true
  },
  "T2R4-Scove-Fired-Clay": {
-  "w": 197,
-  "h": 100,
-  "baseline": 87,
+  "w": 212,
+  "h": 105,
+  "baseline": 91,
   "lines": 2,
   "valley": 0.0
  },
@@ -97,9 +97,9 @@
   "backed": true
  },
  "T3R4-Kiln-Fired-Clay": {
-  "w": 152,
-  "h": 98,
-  "baseline": 84,
+  "w": 215,
+  "h": 103,
+  "baseline": 89,
   "lines": 2,
   "valley": 0.0
  },
