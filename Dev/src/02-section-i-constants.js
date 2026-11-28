@@ -73,13 +73,28 @@
     // commit URL as immutable for a year, where a branch URL is re-resolved every 12h and
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
+    // ASSET_PINS is temporary, for iterating on a few files between releases: repo path -> the
+    // commit that changed it, so testers re-download only those files instead of every asset (a
+    // CDN_PINS bump changes every URL). Normally empty: before a release, bump CDN_PINS to a commit
+    // that has them all and clear it. Per-file pins apply wherever a full file URL is known:
+    // cdnize() of a file, or pinAsset() on a pinned root plus a file name.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '6cb9d085ebb3f628d222894faa56da42d3d5c88e'
+        'BigBlackHawk42069/BigBlackGymLog': '43082fa8ed92023bc53fb60af71c272d396f8d13'
     };
-    const cdnize = u => u.replace(
+    const ASSET_PINS = {
+        'BigBlackHawk42069/BigBlackGymLog': {
+            'Assets/Achievements/web/T1R4-Pit-Fired-Clay.webp': '6cb9d085ebb3f628d222894faa56da42d3d5c88e',
+            'Assets/Achievements/web/T1R4-Pit-Fired-Clay-text.webp': '6cb9d085ebb3f628d222894faa56da42d3d5c88e'
+        }
+    };
+    const pinAsset = u => u.replace(
+        /^(https:\/\/cdn\.jsdelivr\.net\/gh\/([^/]+\/[^/@]+)@)[^/]+\/(.+)$/,
+        (m, head, repo, path) => ASSET_PINS[repo]?.[path] ? `${head}${ASSET_PINS[repo][path]}/${path}` : m
+    );
+    const cdnize = u => pinAsset(u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
         (m, owner, repo, ref) => `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${CDN_PINS[owner + '/' + repo] || ref}/`
-    );
+    ));
     // Docs stay on raw GitHub rather than jsDelivr: a branch URL there can serve a stale changelog
     // for up to 12h after a release, and each doc is fetched at most once per page session.
     // The dev build points this at DevBranch through runtime._devDocsBase.

@@ -194,8 +194,8 @@
         };
     };
     const EASE_IN_OUT = cubicBezier(.42, 0, .58, 1);
-    // R4's light path, 0 (start) to 1 (far end) over one cycle: out on one ease, back on another. Shared by
-    // the live filter's motion (achRankSurfaceLighting(), 06) and the baked crossfade below, so they agree.
+    // R4's light path, 0 (start) to 1 (far end) over one cycle: out on one ease, back on another, as the
+    // original live filter moved its light. Drives the baked crossfade below.
     const SHIELD_EASE = [cubicBezier(.3, 0, .55, 1), cubicBezier(.45, 0, .7, 1)];
     const shieldLightPath = t => t < .5 ? SHIELD_EASE[0](t * 2) : 1 - SHIELD_EASE[1]((t - .5) * 2);
     // Opacity keyframes for the baked snapshots (SHINE, .bbgl-shine): with the light at s (in snapshots),
@@ -10527,10 +10527,6 @@
                             animation: none;
                             opacity: 1;
                         }
-                    }
-
-                    .bbgl-rank-title.material-bright-silver.is-revealed .bbgl-rank-title-text {
-                        filter: var(--bbgl-shield-light, none);
                     }
 
                     .bbgl-rank-title.material-gold.is-revealed .bbgl-rank-title-text {

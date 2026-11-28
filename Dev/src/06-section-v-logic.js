@@ -2260,7 +2260,7 @@ function rankArtName(atrophy, band) {
     return `T${(atrophy || 0) + 1}R${band + 1}-${title.replace(/\s+/g, '-')}`;
 }
 
-const rankArtSrc = name => `${PLAQUE_ART_ROOT}${name}.webp`;
+const rankArtSrc = plaqueArtSrc;
 
 // The bar's lettering image. The wrapper carries the image as a CSS mask (--rank-name) for the effects
 // painted over the letters.
@@ -2362,48 +2362,16 @@ function achGoldZingLighting(textOnly) {
     return { html, style: `--bbgl-gold-light: url(#${id});` };
 }
 
-// R4 silver's live light: the art's brightness as a height map under a point light that drifts across
-// and back (SHINE, shieldLightPath(); 04). It only runs until the baked snapshots are ready
-// (shineHTML()), and its motion is stepped at SHIELD_LIGHT_FPS, since the lighting pass re-runs whenever
-// the light moves.
-const SHIELD_LIGHT_FPS = 24;
-function achRankSurfaceLighting(textOnly = false, gold = false) {
-    if (gold) return achGoldZingLighting(textOnly);
-    const id = 'bbgl-shield-light-' + (achRankSurfaceLighting.serial = (achRankSurfaceLighting.serial || 0) + 1);
-    const o = SHINE[textOnly ? 'text' : 'card'];
-    const n = Math.round(SHINE.dur * SHIELD_LIGHT_FPS);
-    const values = [], times = [];
-    for (let i = 0; i <= n; i++) {
-        values.push((.5 - o.reach + 2 * o.reach * shieldLightPath(i / n)).toFixed(4));
-        times.push(+(i / n).toFixed(5));
-    }
-    const motion = `<animate attributeName="x" values="${values.join(';')}" keyTimes="${times.join(';')}" dur="${SHINE.dur}s" repeatCount="indefinite" calcMode="discrete"/>`;
-    const html = `<svg class="bbgl-rank-surface-lighting" aria-hidden="true" width="0" height="0"><defs>
-        <filter id="${id}" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
-            <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-            <feGaussianBlur in="relief" stdDeviation="${SHINE.blur}" result="surface"/>
-            <feSpecularLighting in="surface" surfaceScale="${SHINE.surfaceScale}" specularConstant="${o.ks}" specularExponent="${SHINE.exp}" lighting-color="#e5fff2" result="light">
-                <fePointLight x="${.5 - o.reach}" y=".5" z="${o.z}">${motion}</fePointLight>
-            </feSpecularLighting>
-            <feComposite in="light" in2="relief" operator="in" result="reflection"/>
-            <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
-            <feComposite in="lit" in2="SourceAlpha" operator="in"/>
-        </filter>
-    </defs></svg>`;
-    return { html, style: `--bbgl-shield-light: url(#${id});` };
-}
-
 // The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
 // plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
 // line up with the art. Gold lights the whole label with an SVG filter; silver with baked light snapshots
-// (shineHTML(), its filter standing in until they're ready); R2 adds its bulb light; bronze adds a light
-// layer masked to its lit metal (rankLightHTML(); both 04-section-iii-plaque.js); Fully Bricked adds its
-// lamps.
+// (shineHTML()); R2 adds its bulb light; bronze adds a light layer masked to its lit metal
+// (rankLightHTML(); both 04-section-iii-plaque.js); Fully Bricked adds its lamps.
 function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const [w, h] = RANK_EMBLEM_SIZE[name];
     const src = rankArtSrc(name);
     const shine = finish === 'silver' ? shineHTML('card', name) : '';
-    const lighting = shine && !shineIsReady(`card:${name}`) ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
+    const lighting = finish === 'gold' ? achGoldZingLighting(false) : null;
     const pearl = finish === 'pearl';
     const style = `--rank-ar:${(w / h).toFixed(4)};--rank-emblem:url('${src}');${lighting?.style || ''}`;
     const inner = (lighting?.html || '') +
@@ -2563,8 +2531,7 @@ function achTitleLabelsHTML(atrophy, level) {
         const inner = b.unlocked ? achRankNameArtHTML(art, light) : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
-        const lighting = shine && !shineIsReady(`text:${textArt}`) ? achRankSurfaceLighting(true)
-            : b.unlocked && i === 4 ? achRankSurfaceLighting(true, true) : null;
+        const lighting = b.unlocked && i === 4 ? achGoldZingLighting(true) : null;
         const label = (b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '') + (shine ? ` data-shine-host="text:${textArt}"` : '');
         return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
