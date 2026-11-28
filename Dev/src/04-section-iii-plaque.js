@@ -261,7 +261,10 @@
 
 /* R4's baked light (SHINE above): one snapshot of the fully lit art per <i>, empty until ensureShine()
    fills them. Each crossfades in on its own opacity keyframes (bbgl-shine-N, 04-section-iii-styles.js),
-   so at most two are visible and only their opacity changes. When filled, the set fades in over the
+   so at most two are visible and only their opacity changes. The snapshots are opaque colour only; the
+   stack is cut to the art's shape once, by its own image as a static mask (--shine-mask). Snapshots that
+   carried the art's soft edges themselves doubled those edges mid-crossfade (two half-transparent layers
+   read nearly opaque), which made small lettering pulse at every step. When filled, the set fades in over the
    plain art, which is hidden only after the fade (its visibility change is delayed to match), so nothing
    blinks out. Nodes created after the bake start in the final state, since transitions don't run on
    first style. */
@@ -272,6 +275,8 @@
     pointer-events: none;
     opacity: 0;
     transition: opacity .4s ease-out;
+    -webkit-mask: var(--shine-mask) center / 100% 100% no-repeat;
+    mask: var(--shine-mask) center / 100% 100% no-repeat;
 }
 
 :is(#bbgl-panel, .bbgl-level-title-tooltip) [data-shine-host] :is(.bbgl-rank-emblem, .bbgl-rank-name-img) {
@@ -585,7 +590,7 @@
     function shineHTML(kind, name) {
         const key = `${kind}:${name}`;
         ensureShine(key, kind, name);
-        return `<span class="bbgl-shine" data-shine="${key}">${'<i></i>'.repeat(SHINE.frames)}</span>`;
+        return `<span class="bbgl-shine" data-shine="${key}" style="--shine-mask:url('${plaqueArtSrc(name)}')">${'<i></i>'.repeat(SHINE.frames)}</span>`;
     }
     function ensureShine(key, kind, name) {
         if (shineState.has(key)) return;
@@ -745,10 +750,31 @@
                     v = B[i] * keep + gB[i] * hue + sb * white;
                     if (v > la) v = la;
                     px[j + 2] = v * inv + .5 | 0;
-                    px[j + 3] = la * sa * 255 + .5 | 0;
+                    px[j + 3] = 255;
                 }
             }
             if (y % band === band - 1) yield null;
+        }
+        // The shape comes from the mask (--shine-mask), so each snapshot is opaque colour: just past the
+        // art's edge it takes the colour of the nearest art pixel (a few px out), so scaling and the
+        // mask's soft edge never blend in a dark rim.
+        const near = new Int32Array(n).fill(-1);
+        for (let i = 0; i < n; i++) if (alpha[i] > 0) near[i] = i;
+        for (let pass = 0; pass < 3; pass++) {
+            const prev = near.slice();
+            for (let y = 0, i = 0; y < h; y++) for (let x = 0; x < w; x++, i++) {
+                if (prev[i] >= 0) continue;
+                const s = (x > 0 && prev[i - 1] >= 0) ? prev[i - 1] : (x < w - 1 && prev[i + 1] >= 0) ? prev[i + 1]
+                    : (y > 0 && prev[i - w] >= 0) ? prev[i - w] : (y < h - 1 && prev[i + w] >= 0) ? prev[i + w] : -1;
+                if (s >= 0) near[i] = s;
+            }
+        }
+        for (let i = 0; i < n; i++) {
+            const s = near[i];
+            if (s < 0 || s === i) continue;
+            for (const px of outs) {
+                px[i * 4] = px[s * 4]; px[i * 4 + 1] = px[s * 4 + 1]; px[i * 4 + 2] = px[s * 4 + 2]; px[i * 4 + 3] = 255;
+            }
         }
         return outs.map(px => new ImageData(px, w, h));
     }
