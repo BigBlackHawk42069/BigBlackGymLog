@@ -194,6 +194,29 @@
         };
     };
     const EASE_IN_OUT = cubicBezier(.42, 0, .58, 1);
+    // R4's light path, 0 (start) to 1 (far end) over one cycle: out on one ease, back on another. Shared by
+    // the live filter's motion (achRankSurfaceLighting(), 06) and the baked crossfade below, so they agree.
+    const SHIELD_EASE = [cubicBezier(.3, 0, .55, 1), cubicBezier(.45, 0, .7, 1)];
+    const shieldLightPath = t => t < .5 ? SHIELD_EASE[0](t * 2) : 1 - SHIELD_EASE[1]((t - .5) * 2);
+    // Opacity keyframes for the baked snapshots (SHINE, .bbgl-shine): with the light at s (in snapshots),
+    // snapshot i fades in as s goes from i - 1 to i, is the opaque base until i + 1 (while i + 1 fades in
+    // over it), then turns off. Order in the stack is by index, so the same curves work on the way back.
+    // Sampled at SHEEN_FPS and interpolated linearly; runs of equal values keep only their ends.
+    function shineKeyframesCSS() {
+        const K = SHINE.frames, N = Math.round(SHINE.dur * SHEEN_FPS);
+        const s = [...Array(N + 1).keys()].map(j => shieldLightPath(j / N) * (K - 1));
+        const op = (i, v) => v <= i - 1 ? 0 : v < i ? v - (i - 1) : (v < i + 1 || i === K - 1) ? 1 : 0;
+        let css = '';
+        for (let i = 0; i < K; i++) {
+            const vals = s.map(v => +op(i, v).toFixed(4));
+            css += `@keyframes bbgl-shine-${i} {\n`;
+            vals.forEach((v, j) => {
+                if (j === 0 || j === N || v !== vals[j - 1] || v !== vals[j + 1]) css += `${+(j / N * 100).toFixed(4)}% { opacity: ${v}; }\n`;
+            });
+            css += `}\n:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-shine > i:nth-child(${i + 1}) { animation: bbgl-shine-${i} ${SHINE.dur}s linear var(--bbgl-titles-animation-delay, 0ms) infinite; }\n`;
+        }
+        return css;
+    }
     const LINEAR = t => t;
     // stops: [[offset 0-1, [numbers]], ...]; ease applies per segment, as a CSS timing function does.
     function steppedKeyframes(name, seconds, stops, ease, decl) {
@@ -10413,8 +10436,9 @@
                     /* ─── Rank names on the bar ─────────────────────────────────────────
                        Each unlocked name is its lettering image (achRankNameArtHTML(), 06-section-v-logic.js), sized so
                        its capital is --bbgl-rank-name-cap tall. The wrapper carries the image as a mask (--rank-name) for
-                       the effects laid over the letters: R2's bulb, R3's bronze sheen and Fully Bricked's iridescence. Bands
-                       4 and 5 are lit by the same SVG surface lighting as their card emblems. */
+                       the effects laid over the letters: R2's bulb and Fully Bricked's iridescence. R3 carries the card's
+                       light layer (.bbgl-rank-light, 04-section-iii-plaque.js); bands 4 and 5 are lit by the same SVG
+                       surface lighting as their card emblems. */
                     .bbgl-rank-title {
                         --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
                     }
@@ -10453,40 +10477,6 @@
                         pointer-events: none;
                         -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
                         mask: var(--rank-name) center / 100% 100% no-repeat;
-                    }
-
-                    /* R3 names: the card's bronze sheen (.bbgl-rank-bronze-sheen, 04-section-iii-plaque.js), same
-                       band, keyframes and clock. Masked by the matte of the letters' lit bronze
-                       (ensureBronzeMatte()) so the dark backing stays out of it. */
-                    .bbgl-rank-name-sheen {
-                        position: absolute;
-                        inset: 0;
-                        z-index: 2;
-                        overflow: hidden;
-                        pointer-events: none;
-                        -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
-                        mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
-                    }
-
-                    .bbgl-rank-name-sheen::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        background: ${BRONZE_SHEEN_BAND};
-                        transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
-                        will-change: transform;
-                        animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-name-sheen {
-                        display: none;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-rank-name-sheen {
-                            display: none;
-                        }
                     }
 
                     /* R2 (steel) names light up with the card's bulb (.bbgl-rank-bulb-light,
@@ -10654,6 +10644,7 @@
                             EASE_IN_OUT, v => `transform: ${bronzeSheenTransform(v[0])};`);
                     })()}
 
+                    ${shineKeyframesCSS()}
                     ${RANK_EMBLEM_CSS}
 
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────

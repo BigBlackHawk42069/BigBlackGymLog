@@ -2235,7 +2235,7 @@ const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
     'T1R3-Hand-Stroked-Clay': [500, 222], 'T2R3-Foot-Pumped-Clay': [500, 221], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
-    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
+    'T1R4-Pit-Fired-Clay': [500, 306], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
     'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 297], 'T3R5-Competently-Bricked': [500, 301],
     'T3R6-Fully-Bricked': [500, 294]
 };
@@ -2243,7 +2243,7 @@ const RANK_TEXT_SIZE = {
     'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
     'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
     'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [153, 102, 88], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
+    'T1R4-Pit-Fired-Clay': [199, 111, 98], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
     'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
     'T3R6-Fully-Bricked': [240, 104, 99]
 };
@@ -2362,18 +2362,28 @@ function achGoldZingLighting(textOnly) {
     return { html, style: `--bbgl-gold-light: url(#${id});` };
 }
 
+// R4 silver's live light: the art's brightness as a height map under a point light that drifts across
+// and back (SHINE, shieldLightPath(); 04). It only runs until the baked snapshots are ready
+// (shineHTML()), and its motion is stepped at SHIELD_LIGHT_FPS, since the lighting pass re-runs whenever
+// the light moves.
+const SHIELD_LIGHT_FPS = 24;
 function achRankSurfaceLighting(textOnly = false, gold = false) {
     if (gold) return achGoldZingLighting(textOnly);
     const id = 'bbgl-shield-light-' + (achRankSurfaceLighting.serial = (achRankSurfaceLighting.serial || 0) + 1);
-    const reach = textOnly ? 1.0625 : .85;
-    const height = textOnly ? .5 : .4;
-    const motion = `<animate attributeName="x" values="${.5 - reach};${.5 + reach};${.5 - reach}" keyTimes="0;.5;1" dur="6.8s" repeatCount="indefinite" calcMode="spline" keySplines=".3 0 .55 1;.45 0 .7 1"/>`;
+    const o = SHINE[textOnly ? 'text' : 'card'];
+    const n = Math.round(SHINE.dur * SHIELD_LIGHT_FPS);
+    const values = [], times = [];
+    for (let i = 0; i <= n; i++) {
+        values.push((.5 - o.reach + 2 * o.reach * shieldLightPath(i / n)).toFixed(4));
+        times.push(+(i / n).toFixed(5));
+    }
+    const motion = `<animate attributeName="x" values="${values.join(';')}" keyTimes="${times.join(';')}" dur="${SHINE.dur}s" repeatCount="indefinite" calcMode="discrete"/>`;
     const html = `<svg class="bbgl-rank-surface-lighting" aria-hidden="true" width="0" height="0"><defs>
         <filter id="${id}" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
             <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-            <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
-            <feSpecularLighting in="surface" surfaceScale=".055" specularConstant="${textOnly ? 1.15 : .85}" specularExponent="10" lighting-color="#e5fff2" result="light">
-                <fePointLight x="${.5 - reach}" y=".5" z="${height}">${motion}</fePointLight>
+            <feGaussianBlur in="relief" stdDeviation="${SHINE.blur}" result="surface"/>
+            <feSpecularLighting in="surface" surfaceScale="${SHINE.surfaceScale}" specularConstant="${o.ks}" specularExponent="${SHINE.exp}" lighting-color="#e5fff2" result="light">
+                <fePointLight x="${.5 - o.reach}" y=".5" z="${o.z}">${motion}</fePointLight>
             </feSpecularLighting>
             <feComposite in="light" in2="relief" operator="in" result="reflection"/>
             <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
@@ -2385,22 +2395,27 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
 
 // The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
 // plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
-// line up with the art. Silver and gold light the whole label with an SVG filter; R2 adds its bulb light;
-// bronze runs a sheen over the emblem's bright metal; Fully Bricked adds its lamps.
+// line up with the art. Gold lights the whole label with an SVG filter; silver with baked light snapshots
+// (shineHTML(), its filter standing in until they're ready); R2 adds its bulb light; bronze adds a light
+// layer masked to its lit metal (rankLightHTML(); both 04-section-iii-plaque.js); Fully Bricked adds its
+// lamps.
 function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const [w, h] = RANK_EMBLEM_SIZE[name];
     const src = rankArtSrc(name);
-    const lighting = finish === 'silver' ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
+    const shine = finish === 'silver' ? shineHTML('card', name) : '';
+    const lighting = shine && !shineIsReady(`card:${name}`) ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
     const pearl = finish === 'pearl';
     const style = `--rank-ar:${(w / h).toFixed(4)};--rank-emblem:url('${src}');${lighting?.style || ''}`;
     const inner = (lighting?.html || '') +
         `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` +
+        shine +
         (pearl ? achPlatinumLampLightHTML() : '') +
         (finish === 'machined' ? '<span class="bbgl-rank-bulb-light"></span>' : '') +
-        (finish === 'polished' ? (ensureBronzeMatte(name), `<span class="bbgl-rank-bronze-sheen" data-bronze-art="${name}"></span>`) : '') +
+        rankLightHTML(finish, name) +
         (pearl ? achPlatinumLampsHTML() : '');
+    const host = shine ? ` data-shine-host="card:${name}"` : '';
     return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` +
-        `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
+        `<span class="bbgl-rank-notch-label"${host} role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -2542,12 +2557,15 @@ function achTitleLabelsHTML(atrophy, level) {
         ].filter(Boolean).join(' ');
         const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked);
         const art = rankArtName(atrophy, i);
-        if (b.unlocked && i === 2) ensureBronzeMatte(art + '-text');
-        const inner = b.unlocked ? achRankNameArtHTML(art, i === 2 ? `<span class="bbgl-rank-name-sheen" data-bronze-art="${art}-text"></span>` : '') : ICONS.LOCK;
+        const textArt = art + '-text';
+        const shine = b.unlocked && i === 3 ? shineHTML('text', textArt) : '';
+        const light = b.unlocked && i === 2 ? rankLightHTML('polished', textArt) : shine;
+        const inner = b.unlocked ? achRankNameArtHTML(art, light) : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
-        const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null;
-        const label = b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '';
+        const lighting = shine && !shineIsReady(`text:${textArt}`) ? achRankSurfaceLighting(true)
+            : b.unlocked && i === 4 ? achRankSurfaceLighting(true, true) : null;
+        const label = (b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '') + (shine ? ` data-shine-host="text:${textArt}"` : '');
         return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
     const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked);

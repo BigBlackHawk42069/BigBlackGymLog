@@ -141,7 +141,7 @@
     // re-downloaded by the browser weekly. Pushing new or changed art to a pinned repo means
     // bumping its hash here, or the script keeps serving the old commit.
     const CDN_PINS = {
-        'BigBlackHawk42069/BigBlackGymLog': '43082fa8ed92023bc53fb60af71c272d396f8d13'
+        'BigBlackHawk42069/BigBlackGymLog': '6cb9d085ebb3f628d222894faa56da42d3d5c88e'
     };
     const cdnize = u => u.replace(
         /^https:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/(?:refs\/heads\/)?([^/]+)\//,
@@ -1798,14 +1798,36 @@
     // the panel, so these rules are scoped to both. The plaque is a size container; the label inside it
     // takes the emblem's own proportions (--rank-ar) at the largest size that fits, so overlays drawn
     // in the plate's units and masks of the emblem (--rank-emblem) land on the art.
-    // R3's bronze sheen, shared by the card plate and the bar's R3 name. The band is a stripe in a box as
-    // wide as the art, skewed so its top leads on the way out (left to right). The travel (% of that box)
-    // ends just as the bright core clears the far corner, so the ease-out happens on the metal and the hold
-    // reads as the hold. Cycle: sweep out, hold, sweep back, rest (seconds).
+    //
+    // Light layers (.bbgl-rank-light) on the card plate and the bar name: a band in a box as wide as the
+    // art, behind a matte of the surface that catches it (ensureRankMatte()). Only the band's transform
+    // animates; card and bar share keyframes and the page clock.
+    // R3 bronze: one warm stripe, skewed so its top leads on the way out (left to right). The travel (% of
+    // the box) ends just as the bright core clears the far corner, so the ease-out happens on the metal and
+    // the hold reads as the hold. Cycle: sweep out, hold, sweep back, rest (seconds).
     const BRONZE_SHEEN_BAND = 'linear-gradient(90deg, transparent 33%, rgba(255, 200, 128, .5) 42%, rgba(255, 244, 220, 1) 50%, rgba(255, 200, 128, .5) 58%, transparent 67%)';
     const BRONZE_SHEEN_TRAVEL = [-70, 70];
     const BRONZE_SHEEN_TIMING = { sweep: 5, hold: .8, rest: 5, get cycle() { return this.sweep * 2 + this.hold + this.rest; } };
     const bronzeSheenTransform = x => `translateX(${x}%) skewX(-28deg)`;
+    // R4 silver: the art's brightness as a height map under a point light that drifts across and back
+    // (achRankSurfaceLighting(), 06). The live SVG filter re-runs its lighting pass whenever the light
+    // moves, so the lit art is baked instead (ensureShine()): SHINE.frames snapshots at evenly spaced light
+    // positions, crossfaded by opacity (.bbgl-shine). Positions and units follow the filter: light x as a
+    // share of the box width (from .5 - reach to .5 + reach), y at half height, z as a share of
+    // sqrt((w² + h²) / 2); blur as a share of each side; surfaceScale and kernels per device pixel.
+    // green: on the green faces and gems only (green bias g - max(r, b) from .05 to .11; grey metal stays
+    // under ~.02), the filter's white light is cut by `white` and the colour is blended toward the pixel's
+    // own hue at full brightness, saturated by `sat` (its smallest channel scaled by sat is taken out), by
+    // gain * (N·H)^exp, at most fully. Blending can't overshoot the hue, so the green lights up toward a
+    // vivid emerald (a typical face, 29,138,92, peaks at about 42,255,176) instead of washing out to white
+    // or cyan. N·H only spans ~.79 (far from the light) to 1 (under it), so exp sets how local the glow is:
+    // 14 gives half strength about a quarter of the width out and ~4% far away.
+    const SHINE = {
+        frames: 20, dur: 6.8, exp: 10, surfaceScale: .055, blur: .003, color: [229 / 255, 1, 242 / 255],
+        green: { gain: 1, exp: 14, white: .8, sat: .6 },
+        card: { reach: .85, z: .4, ks: .85 },
+        text: { reach: 1.0625, z: .5, ks: 1.15 }
+    };
 
     const RANK_EMBLEM_CSS = `
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque {
@@ -1874,39 +1896,71 @@
     }
 }
 
-/* Bronze: a slanted band of warm light crosses the emblem and back (bbgl-bronze-sheen), masked by the
-   matte of its lit bronze (ensureBronzeMatte()), so the frame and letters catch it and the dark inset
-   doesn't. Only the band's transform animates, and it composites normally. */
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen {
+/* Light layers (see the BRONZE_ constants above): the box is masked by its matte, transparent until the
+   matte is built; the band inside it moves by transform and composites normally. Used on the card plate
+   and the bar name alike. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-rank-light {
     position: absolute;
     inset: 0;
     z-index: 2;
     overflow: hidden;
     pointer-events: none;
-    -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
-    mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+    -webkit-mask: var(--rank-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
+    mask: var(--rank-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
 }
 
-:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-rank-light::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: ${BRONZE_SHEEN_BAND};
-    transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
     will-change: transform;
-    animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
-    animation-delay: var(--bbgl-titles-animation-delay, 0ms);
 }
 
-#bbgl-panel.bbgl-no-animations .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
-    animation: none;
-    opacity: 0;
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-rank-light.is-bronze::before {
+    background: ${BRONZE_SHEEN_BAND};
+    transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
+    animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end var(--bbgl-titles-animation-delay, 0ms) infinite;
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-rank-light {
+    display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-bronze-sheen::before {
-        animation: none;
-        opacity: 0;
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-rank-light {
+        display: none;
+    }
+}
+
+/* R4's baked light (SHINE above): one snapshot of the fully lit art per <i>, empty until ensureShine()
+   fills them. Each crossfades in on its own opacity keyframes (bbgl-shine-N, 04-section-iii-styles.js),
+   so at most two are visible and only their opacity changes. Once filled, the host's live filter is
+   switched off and the plain art under the snapshots is hidden. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-shine {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Longhands only: the snapshot images come from lower-specificity rules (ensureShine()), which a
+   background shorthand here would reset. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-shine > i {
+    position: absolute;
+    inset: 0;
+    background-position: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    opacity: 0;
+}
+
+#bbgl-panel.bbgl-no-animations .bbgl-shine {
+    display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-shine {
+        display: none;
     }
 }
 
@@ -2123,15 +2177,22 @@
         style.textContent += css;
         bakePlaqueArt(stage, css);
     }
-    // R3's bronze sheen is masked by a matte of the art's lit bronze. A luminance mask can't keep light
-    // off the dark inset (brightness ~.15) without dimming the bronze (~.25 and up) as well, so the matte is
-    // cut once per image on a canvas: zero below .2, full by .3, then weighted toward the highlights.
-    // Until it's ready (or if the image can't be read) the sheen's mask stays fully transparent, so when it
-    // lands the sheens on screen restart from their first frame instead of appearing mid-sweep.
-    const bronzeMatteBuilt = new Set();
-    function ensureBronzeMatte(name) {
-        if (bronzeMatteBuilt.has(name)) return;
-        bronzeMatteBuilt.add(name);
+    // Mattes for the light layers (.bbgl-rank-light), cut once per image on a canvas: alpha is how much a
+    // pixel catches that light. Luminance masks can't do this (they can't keep light off R3's dark inset,
+    // brightness ~.15, without dimming its bronze, ~.25 and up), and baking them makes each layer a plain
+    // alpha mask. Inputs are sRGB 0-1 brightness (l) and green bias (q = g - max(r, b)), measured on the art:
+    //   bronze: zero below .2, full by .3, then weighted toward the highlights.
+    // Until a matte lands (or if the image can't be read) its layer's mask stays fully transparent; when it
+    // lands, the light layers on screen restart from their first frame instead of appearing mid-sweep.
+    const smooth = (e0, e1, v) => { const t = Math.min(1, Math.max(0, (v - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+    const RANK_MATTES = {
+        bronze: (l) => smooth(.2, .3, l) * Math.min(1, .55 + l)
+    };
+    const rankMatteBuilt = new Set();
+    function ensureRankMatte(name, kinds) {
+        kinds = kinds.filter(k => !rankMatteBuilt.has(`${k}:${name}`));
+        if (!kinds.length) return;
+        kinds.forEach(k => rankMatteBuilt.add(`${k}:${name}`));
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.src = `${PLAQUE_ART_ROOT}${name}.webp`;
@@ -2141,26 +2202,240 @@
             c.height = img.naturalHeight;
             const ctx = c.getContext('2d', { willReadFrequently: true });
             ctx.drawImage(img, 0, 0);
-            const data = ctx.getImageData(0, 0, c.width, c.height);
-            const px = data.data;
-            for (let i = 0; i < px.length; i += 4) {
-                const l = (.2126 * px[i] + .7152 * px[i + 1] + .0722 * px[i + 2]) / 255;
-                const t = Math.min(1, Math.max(0, (l - .2) / .1));
-                const a = px[i + 3] * t * t * (3 - 2 * t) * Math.min(1, .55 + l);
-                px[i] = px[i + 1] = px[i + 2] = 255;
-                px[i + 3] = a;
+            const src = ctx.getImageData(0, 0, c.width, c.height).data;
+            let css = '';
+            for (const kind of kinds) {
+                const out = ctx.createImageData(c.width, c.height);
+                const px = out.data, f = RANK_MATTES[kind];
+                for (let i = 0; i < src.length; i += 4) {
+                    const r = src[i] / 255, g = src[i + 1] / 255, b = src[i + 2] / 255;
+                    px[i] = px[i + 1] = px[i + 2] = 255;
+                    px[i + 3] = src[i + 3] * f(.2126 * r + .7152 * g + .0722 * b, g - Math.max(r, b));
+                }
+                ctx.putImageData(out, 0, 0);
+                css += `[data-matte="${kind}:${name}"] { --rank-matte: url("${c.toDataURL('image/webp', .9)}"); }\n`;
             }
-            ctx.putImageData(data, 0, 0);
-            let style = document.getElementById('bbgl-bronze-matte');
+            let style = document.getElementById('bbgl-rank-matte');
             if (!style) {
                 style = document.createElement('style');
-                style.id = 'bbgl-bronze-matte';
+                style.id = 'bbgl-rank-matte';
                 (document.head || document.documentElement).appendChild(style);
             }
-            style.textContent += `[data-bronze-art="${name}"] { --bronze-matte: url("${c.toDataURL('image/webp', .9)}"); }\n`;
-            document.querySelectorAll('.bbgl-rank-bronze-sheen, .bbgl-rank-name-sheen').forEach(el =>
+            style.textContent += css;
+            document.querySelectorAll('.bbgl-rank-light').forEach(el =>
                 el.getAnimations({ subtree: true }).forEach(anim => { anim.currentTime = 0; }));
         }).catch(() => {});
+    }
+    // The light layers for a finish, as markup, with their mattes requested.
+    const RANK_LIGHT_KINDS = { polished: ['bronze'] };
+    function rankLightHTML(finish, name) {
+        const kinds = RANK_LIGHT_KINDS[finish];
+        if (!kinds) return '';
+        ensureRankMatte(name, kinds);
+        return kinds.map(k => `<span class="bbgl-rank-light is-${k}" data-matte="${k}:${name}"></span>`).join('');
+    }
+
+    // R4's baked light. shineHTML() gives the snapshot layers for one piece of art ('card' for the plate,
+    // 'text' for the bar name); the element whose filter it replaces carries data-shine-host with the same
+    // key. The bake waits for the layers to be laid out, renders at their device-pixel size (the filter's
+    // own resolution, which its per-pixel kernels depend on), then adds one rule set for the key. Until
+    // then, or if the image can't be read, the live filter keeps running. Both run on the page clock, so
+    // the hand-over lands on the same light position.
+    const shineState = new Map();
+    const shineIsReady = key => shineState.get(key) === 'ready';
+    function shineHTML(kind, name) {
+        const key = `${kind}:${name}`;
+        ensureShine(key, kind, name);
+        return `<span class="bbgl-shine" data-shine="${key}">${'<i></i>'.repeat(SHINE.frames)}</span>`;
+    }
+    function ensureShine(key, kind, name) {
+        if (shineState.has(key)) return;
+        shineState.set(key, 'pending');
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = `${PLAQUE_ART_ROOT}${name}.webp`;
+        const giveUp = () => shineState.delete(key);
+        const sized = (attempts = 60) => {
+            const box = [...document.querySelectorAll(`.bbgl-shine[data-shine="${key}"]`)]
+                .map(el => el.getBoundingClientRect()).find(r => r.width > 0 && r.height > 0);
+            if (box) return bake(box);
+            if (attempts > 0) requestAnimationFrame(() => sized(attempts - 1));
+            else giveUp();
+        };
+        const bake = box => {
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.max(2, Math.min(640, Math.round(box.width * dpr)));
+            const h = Math.max(2, Math.round(w * box.height / box.width));
+            const frames = shineFrames(img, w, h, SHINE[kind]);
+            // The generator stops after every band of rows; each task runs it for ~6ms, so the bake never
+            // holds the page long enough to drop a frame. The snapshots are then encoded with toBlob, which
+            // the browser does off the main thread, and read back as data URLs.
+            const next = () => {
+                const end = performance.now() + 6;
+                let r;
+                while (!(r = frames.next()).done) {
+                    if (performance.now() > end) { setTimeout(next, 0); return; }
+                }
+                const c = document.createElement('canvas');
+                c.width = w;
+                c.height = h;
+                const ctx = c.getContext('2d');
+                Promise.all(r.value.map(data => {
+                    ctx.putImageData(data, 0, 0);
+                    return new Promise(res => c.toBlob(blob => {
+                        if (!blob) return res(null);
+                        const fr = new FileReader();
+                        fr.onload = () => res(fr.result);
+                        fr.onerror = () => res(null);
+                        fr.readAsDataURL(blob);
+                    }, 'image/webp', .92));
+                })).then(urls => urls.every(Boolean) ? publish(urls) : giveUp());
+            };
+            next();
+        };
+        const publish = urls => {
+            let style = document.getElementById('bbgl-rank-shine');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = 'bbgl-rank-shine';
+                (document.head || document.documentElement).appendChild(style);
+            }
+            const hide = `[data-shine-host="${key}"] :is(.bbgl-rank-emblem, .bbgl-rank-name-img) { visibility: hidden; }`;
+            style.textContent += `[data-shine-host="${key}"] { --bbgl-shield-light: none; }\n` +
+                `@media (prefers-reduced-motion: no-preference) { #bbgl-panel:not(.bbgl-no-animations) ${hide} .bbgl-level-title-tooltip ${hide} }\n` +
+                urls.map((u, i) => `.bbgl-shine[data-shine="${key}"] > i:nth-child(${i + 1}) { background-image: url("${u}"); }`).join('\n') + '\n';
+            shineState.set(key, 'ready');
+        };
+        img.decode().then(() => sized(), giveUp);
+    }
+    // The filter, pixel by pixel (Filter Effects feSpecularLighting / feComposite), for each light position:
+    // relief = the art's luminance; surface = relief blurred; normals from a Sobel of the surface times
+    // surfaceScale; specular = ks * (N·H)^exp in the lighting colour, alpha = its max; reflection = specular
+    // in relief; lit = art + reflection, clamped, cut to the art's alpha. Then SHINE.green on green pixels.
+    // Every snapshot is built in one pass, row by row: the light only moves sideways, so a row's half-vectors
+    // depend only on the pixel's offset from the light and come from one table per row (the surface height,
+    // under .06 px against a light ~100 px up, is left out). Yields null after every band of rows, so the
+    // caller can slice the work, and returns the snapshots as ImageData.
+    function* shineFrames(img, w, h, o) {
+        const c = document.createElement('canvas');
+        c.width = w;
+        c.height = h;
+        const ctx = c.getContext('2d', { willReadFrequently: true });
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, 0, 0, w, h);
+        const src = ctx.getImageData(0, 0, w, h).data;
+        const G = SHINE.green;
+        const n = w * h, relief = new Float32Array(n), alpha = new Float32Array(n), green = new Float32Array(n);
+        const R = new Float32Array(n), Gn = new Float32Array(n), B = new Float32Array(n);
+        const gR = new Float32Array(n), gG = new Float32Array(n), gB = new Float32Array(n);
+        for (let i = 0, j = 0; i < n; i++, j += 4) {
+            const r = src[j] / 255, g = src[j + 1] / 255, b = src[j + 2] / 255;
+            R[i] = r; Gn[i] = g; B[i] = b;
+            relief[i] = .2126 * r + .7152 * g + .0722 * b;
+            alpha[i] = src[j + 3] / 255;
+            const t = Math.min(1, Math.max(0, (g - Math.max(r, b) - .05) / .06));
+            green[i] = t * t * (3 - 2 * t);
+            if (green[i] > 0) {
+                // The glow's colour: this pixel's own hue at full brightness, more saturated.
+                const mx = Math.max(r, g, b), mn = Math.min(r, g, b) * G.sat, k = 1 / Math.max(1e-3, mx - mn);
+                gR[i] = (r - mn) * k; gG[i] = (g - mn) * k; gB[i] = (b - mn) * k;
+            }
+        }
+        const surf = blurSeparable(relief, w, h, SHINE.blur * w, SHINE.blur * h);
+        yield null;
+        const nx = new Float32Array(n), ny = new Float32Array(n), nz = new Float32Array(n);
+        const ss = SHINE.surfaceScale;
+        for (let y = 0; y < h; y++) {
+            const ym = (y > 0 ? y - 1 : 0) * w, y0 = y * w, yp = (y < h - 1 ? y + 1 : y) * w;
+            for (let x = 0; x < w; x++) {
+                const xm = x > 0 ? x - 1 : 0, xp = x < w - 1 ? x + 1 : x;
+                const gx = surf[ym + xp] + 2 * surf[y0 + xp] + surf[yp + xp] - surf[ym + xm] - 2 * surf[y0 + xm] - surf[yp + xm];
+                const gy = surf[yp + xm] + 2 * surf[yp + x] + surf[yp + xp] - surf[ym + xm] - 2 * surf[ym + x] - surf[ym + xp];
+                const ax = -ss * .25 * gx, ay = -ss * .25 * gy, il = 1 / Math.sqrt(ax * ax + ay * ay + 1), i = y0 + x;
+                nx[i] = ax * il; ny[i] = ay * il; nz[i] = il;
+            }
+        }
+        yield null;
+        const K = SHINE.frames, [cr, cg, cb] = SHINE.color, ks = o.ks, lz = o.z * Math.sqrt((w * w + h * h) / 2), ly = h / 2;
+        const lxs = [];
+        for (let k = 0; k < K; k++) lxs.push(Math.round((.5 - o.reach + 2 * o.reach * k / (K - 1)) * w));
+        const dxMin = lxs[0] - (w - 1), span = lxs[K - 1] - dxMin + 1;
+        const HX = new Float32Array(span), HY = new Float32Array(span), HZ = new Float32Array(span);
+        const outs = lxs.map(() => new Uint8ClampedArray(n * 4));
+        const band = Math.max(1, Math.floor(120000 / (w * K)));
+        for (let y = 0; y < h; y++) {
+            const dy = ly - y, dyz = dy * dy + lz * lz;
+            for (let d = 0; d < span; d++) {
+                const dx = dxMin + d, il = 1 / Math.sqrt(dx * dx + dyz);
+                const hx = dx * il, hy = dy * il, hz = lz * il + 1, ih = 1 / Math.sqrt(hx * hx + hy * hy + hz * hz);
+                HX[d] = hx * ih; HY[d] = hy * ih; HZ[d] = hz * ih;
+            }
+            for (let k = 0; k < K; k++) {
+                const px = outs[k], off = lxs[k] - dxMin;
+                for (let x = 0, i = y * w; x < w; x++, i++) {
+                    const sa = alpha[i];
+                    if (sa === 0) continue;
+                    const d = off - x;
+                    const nh = nx[i] * HX[d] + ny[i] * HY[d] + nz[i] * HZ[d];
+                    const gw = green[i];
+                    let spec = 0, glow = 0;
+                    if (nh > 0) {
+                        const d2 = nh * nh, d4 = d2 * d2;
+                        spec = ks * d4 * d4 * d2;
+                        if (gw > 0) glow = Math.min(1, G.gain * gw * Math.pow(nh, G.exp));
+                    }
+                    const keep = sa * (1 - glow), hue = sa * glow;
+                    const rel = relief[i], white = rel * (1 - G.white * gw), j = i * 4;
+                    let sr = spec * cr, sg = spec * cg, sb = spec * cb;
+                    if (sr > 1) sr = 1;
+                    if (sg > 1) sg = 1;
+                    if (sb > 1) sb = 1;
+                    let la = sa + sg * white;
+                    if (la > 1) la = 1;
+                    const inv = 255 / la;
+                    let v = R[i] * keep + gR[i] * hue + sr * white;
+                    if (v > la) v = la;
+                    px[j] = v * inv + .5 | 0;
+                    v = Gn[i] * keep + gG[i] * hue + sg * white;
+                    if (v > la) v = la;
+                    px[j + 1] = v * inv + .5 | 0;
+                    v = B[i] * keep + gB[i] * hue + sb * white;
+                    if (v > la) v = la;
+                    px[j + 2] = v * inv + .5 | 0;
+                    px[j + 3] = la * sa * 255 + .5 | 0;
+                }
+            }
+            if (y % band === band - 1) yield null;
+        }
+        return outs.map(px => new ImageData(px, w, h));
+    }
+    function blurSeparable(a, w, h, sx, sy) {
+        const kernel = s => {
+            const r = Math.max(1, Math.ceil(s * 3)), k = new Float32Array(2 * r + 1);
+            let sum = 0;
+            for (let d = -r; d <= r; d++) sum += (k[d + r] = Math.exp(-d * d / (2 * s * s)));
+            return [k.map(v => v / sum), r];
+        };
+        const tmp = new Float32Array(a.length), out = new Float32Array(a.length);
+        if (sx < .3) tmp.set(a);
+        else {
+            const [k, r] = kernel(sx);
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                let acc = 0;
+                for (let d = -r; d <= r; d++) { const xx = x + d; acc += k[d + r] * a[y * w + (xx < 0 ? 0 : xx >= w ? w - 1 : xx)]; }
+                tmp[y * w + x] = acc;
+            }
+        }
+        if (sy < .3) out.set(tmp);
+        else {
+            const [k, r] = kernel(sy);
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+                let acc = 0;
+                for (let d = -r; d <= r; d++) { const yy = y + d; acc += k[d + r] * tmp[(yy < 0 ? 0 : yy >= h ? h - 1 : yy) * w + x]; }
+                out[y * w + x] = acc;
+            }
+        }
+        return out;
     }
 
     // Chrome re-rasterizes an SVG background, filters and all, whenever anything sharing its tile
@@ -2392,6 +2667,29 @@
         };
     };
     const EASE_IN_OUT = cubicBezier(.42, 0, .58, 1);
+    // R4's light path, 0 (start) to 1 (far end) over one cycle: out on one ease, back on another. Shared by
+    // the live filter's motion (achRankSurfaceLighting(), 06) and the baked crossfade below, so they agree.
+    const SHIELD_EASE = [cubicBezier(.3, 0, .55, 1), cubicBezier(.45, 0, .7, 1)];
+    const shieldLightPath = t => t < .5 ? SHIELD_EASE[0](t * 2) : 1 - SHIELD_EASE[1]((t - .5) * 2);
+    // Opacity keyframes for the baked snapshots (SHINE, .bbgl-shine): with the light at s (in snapshots),
+    // snapshot i fades in as s goes from i - 1 to i, is the opaque base until i + 1 (while i + 1 fades in
+    // over it), then turns off. Order in the stack is by index, so the same curves work on the way back.
+    // Sampled at SHEEN_FPS and interpolated linearly; runs of equal values keep only their ends.
+    function shineKeyframesCSS() {
+        const K = SHINE.frames, N = Math.round(SHINE.dur * SHEEN_FPS);
+        const s = [...Array(N + 1).keys()].map(j => shieldLightPath(j / N) * (K - 1));
+        const op = (i, v) => v <= i - 1 ? 0 : v < i ? v - (i - 1) : (v < i + 1 || i === K - 1) ? 1 : 0;
+        let css = '';
+        for (let i = 0; i < K; i++) {
+            const vals = s.map(v => +op(i, v).toFixed(4));
+            css += `@keyframes bbgl-shine-${i} {\n`;
+            vals.forEach((v, j) => {
+                if (j === 0 || j === N || v !== vals[j - 1] || v !== vals[j + 1]) css += `${+(j / N * 100).toFixed(4)}% { opacity: ${v}; }\n`;
+            });
+            css += `}\n:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-shine > i:nth-child(${i + 1}) { animation: bbgl-shine-${i} ${SHINE.dur}s linear var(--bbgl-titles-animation-delay, 0ms) infinite; }\n`;
+        }
+        return css;
+    }
     const LINEAR = t => t;
     // stops: [[offset 0-1, [numbers]], ...]; ease applies per segment, as a CSS timing function does.
     function steppedKeyframes(name, seconds, stops, ease, decl) {
@@ -12611,8 +12909,9 @@
                     /* ─── Rank names on the bar ─────────────────────────────────────────
                        Each unlocked name is its lettering image (achRankNameArtHTML(), 06-section-v-logic.js), sized so
                        its capital is --bbgl-rank-name-cap tall. The wrapper carries the image as a mask (--rank-name) for
-                       the effects laid over the letters: R2's bulb, R3's bronze sheen and Fully Bricked's iridescence. Bands
-                       4 and 5 are lit by the same SVG surface lighting as their card emblems. */
+                       the effects laid over the letters: R2's bulb and Fully Bricked's iridescence. R3 carries the card's
+                       light layer (.bbgl-rank-light, 04-section-iii-plaque.js); bands 4 and 5 are lit by the same SVG
+                       surface lighting as their card emblems. */
                     .bbgl-rank-title {
                         --bbgl-rank-name-cap: calc(var(--bbgl-t-fs-notch, 10px) * .8);
                     }
@@ -12651,40 +12950,6 @@
                         pointer-events: none;
                         -webkit-mask: var(--rank-name) center / 100% 100% no-repeat;
                         mask: var(--rank-name) center / 100% 100% no-repeat;
-                    }
-
-                    /* R3 names: the card's bronze sheen (.bbgl-rank-bronze-sheen, 04-section-iii-plaque.js), same
-                       band, keyframes and clock. Masked by the matte of the letters' lit bronze
-                       (ensureBronzeMatte()) so the dark backing stays out of it. */
-                    .bbgl-rank-name-sheen {
-                        position: absolute;
-                        inset: 0;
-                        z-index: 2;
-                        overflow: hidden;
-                        pointer-events: none;
-                        -webkit-mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
-                        mask: var(--bronze-matte, linear-gradient(transparent, transparent)) center / 100% 100% no-repeat;
-                    }
-
-                    .bbgl-rank-name-sheen::before {
-                        content: '';
-                        position: absolute;
-                        inset: 0;
-                        background: ${BRONZE_SHEEN_BAND};
-                        transform: ${bronzeSheenTransform(BRONZE_SHEEN_TRAVEL[0])};
-                        will-change: transform;
-                        animation: bbgl-bronze-sheen ${BRONZE_SHEEN_TIMING.cycle}s step-end infinite;
-                        animation-delay: var(--bbgl-titles-animation-delay, 0ms);
-                    }
-
-                    #bbgl-panel.bbgl-no-animations .bbgl-rank-name-sheen {
-                        display: none;
-                    }
-
-                    @media (prefers-reduced-motion: reduce) {
-                        .bbgl-rank-name-sheen {
-                            display: none;
-                        }
                     }
 
                     /* R2 (steel) names light up with the card's bulb (.bbgl-rank-bulb-light,
@@ -12852,6 +13117,7 @@
                             EASE_IN_OUT, v => `transform: ${bronzeSheenTransform(v[0])};`);
                     })()}
 
+                    ${shineKeyframesCSS()}
                     ${RANK_EMBLEM_CSS}
 
                     /* ─── Unlock blocks, one per stat ──────────────────────────────────
@@ -18449,7 +18715,7 @@ const RANK_EMBLEM_SIZE = {
     'T1R1-Dry-Clay': [500, 259], 'T2R1-Parched-Clay': [500, 258], 'T3R1-Cracked-Clay': [500, 260],
     'T1R2-Moistened-Clay': [500, 267], 'T2R2-Saturated-Clay': [500, 267], 'T3R2-Dripping-Wet-Clay': [500, 267],
     'T1R3-Hand-Stroked-Clay': [500, 222], 'T2R3-Foot-Pumped-Clay': [500, 221], 'T3R3-Vacuum-Sucked-Clay': [500, 215],
-    'T1R4-Pit-Fired-Clay': [500, 304], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
+    'T1R4-Pit-Fired-Clay': [500, 306], 'T2R4-Scove-Fired-Clay': [500, 305], 'T3R4-Kiln-Fired-Clay': [500, 305],
     'T1R5-Half-Bricked': [500, 294], 'T2R5-Mostly-Bricked': [500, 297], 'T3R5-Competently-Bricked': [500, 301],
     'T3R6-Fully-Bricked': [500, 294]
 };
@@ -18457,7 +18723,7 @@ const RANK_TEXT_SIZE = {
     'T1R1-Dry-Clay': [195, 79, 53], 'T2R1-Parched-Clay': [217, 70, 52], 'T3R1-Cracked-Clay': [263, 82, 57],
     'T1R2-Moistened-Clay': [208, 101, 96], 'T2R2-Saturated-Clay': [202, 100, 95], 'T3R2-Dripping-Wet-Clay': [188, 99, 95],
     'T1R3-Hand-Stroked-Clay': [312, 110, 93], 'T2R3-Foot-Pumped-Clay': [311, 112, 96], 'T3R3-Vacuum-Sucked-Clay': [340, 112, 95],
-    'T1R4-Pit-Fired-Clay': [153, 102, 88], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
+    'T1R4-Pit-Fired-Clay': [199, 111, 98], 'T2R4-Scove-Fired-Clay': [212, 105, 91], 'T3R4-Kiln-Fired-Clay': [215, 103, 89],
     'T1R5-Half-Bricked': [187, 91, 87], 'T2R5-Mostly-Bricked': [192, 98, 93], 'T3R5-Competently-Bricked': [279, 102, 98],
     'T3R6-Fully-Bricked': [240, 104, 99]
 };
@@ -18576,18 +18842,28 @@ function achGoldZingLighting(textOnly) {
     return { html, style: `--bbgl-gold-light: url(#${id});` };
 }
 
+// R4 silver's live light: the art's brightness as a height map under a point light that drifts across
+// and back (SHINE, shieldLightPath(); 04). It only runs until the baked snapshots are ready
+// (shineHTML()), and its motion is stepped at SHIELD_LIGHT_FPS, since the lighting pass re-runs whenever
+// the light moves.
+const SHIELD_LIGHT_FPS = 24;
 function achRankSurfaceLighting(textOnly = false, gold = false) {
     if (gold) return achGoldZingLighting(textOnly);
     const id = 'bbgl-shield-light-' + (achRankSurfaceLighting.serial = (achRankSurfaceLighting.serial || 0) + 1);
-    const reach = textOnly ? 1.0625 : .85;
-    const height = textOnly ? .5 : .4;
-    const motion = `<animate attributeName="x" values="${.5 - reach};${.5 + reach};${.5 - reach}" keyTimes="0;.5;1" dur="6.8s" repeatCount="indefinite" calcMode="spline" keySplines=".3 0 .55 1;.45 0 .7 1"/>`;
+    const o = SHINE[textOnly ? 'text' : 'card'];
+    const n = Math.round(SHINE.dur * SHIELD_LIGHT_FPS);
+    const values = [], times = [];
+    for (let i = 0; i <= n; i++) {
+        values.push((.5 - o.reach + 2 * o.reach * shieldLightPath(i / n)).toFixed(4));
+        times.push(+(i / n).toFixed(5));
+    }
+    const motion = `<animate attributeName="x" values="${values.join(';')}" keyTimes="${times.join(';')}" dur="${SHINE.dur}s" repeatCount="indefinite" calcMode="discrete"/>`;
     const html = `<svg class="bbgl-rank-surface-lighting" aria-hidden="true" width="0" height="0"><defs>
         <filter id="${id}" x="-5%" y="-5%" width="110%" height="110%" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
             <feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .2126 .7152 .0722 0 0" result="relief"/>
-            <feGaussianBlur in="relief" stdDeviation=".003" result="surface"/>
-            <feSpecularLighting in="surface" surfaceScale=".055" specularConstant="${textOnly ? 1.15 : .85}" specularExponent="10" lighting-color="#e5fff2" result="light">
-                <fePointLight x="${.5 - reach}" y=".5" z="${height}">${motion}</fePointLight>
+            <feGaussianBlur in="relief" stdDeviation="${SHINE.blur}" result="surface"/>
+            <feSpecularLighting in="surface" surfaceScale="${SHINE.surfaceScale}" specularConstant="${o.ks}" specularExponent="${SHINE.exp}" lighting-color="#e5fff2" result="light">
+                <fePointLight x="${.5 - o.reach}" y=".5" z="${o.z}">${motion}</fePointLight>
             </feSpecularLighting>
             <feComposite in="light" in2="relief" operator="in" result="reflection"/>
             <feComposite in="SourceGraphic" in2="reflection" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="lit"/>
@@ -18599,22 +18875,27 @@ function achRankSurfaceLighting(textOnly = false, gold = false) {
 
 // The card's rank emblem. The label is sized to the emblem's own proportions (--rank-ar) inside the
 // plaque box, so overlays drawn in the plate's units (the lamps) and masks of the emblem (--rank-emblem)
-// line up with the art. Silver and gold light the whole label with an SVG filter; R2 adds its bulb light;
-// bronze runs a sheen over the emblem's bright metal; Fully Bricked adds its lamps.
+// line up with the art. Gold lights the whole label with an SVG filter; silver with baked light snapshots
+// (shineHTML(), its filter standing in until they're ready); R2 adds its bulb light; bronze adds a light
+// layer masked to its lit metal (rankLightHTML(); both 04-section-iii-plaque.js); Fully Bricked adds its
+// lamps.
 function achRankPlaqueHTML(cls, tip, finish, label, name) {
     const [w, h] = RANK_EMBLEM_SIZE[name];
     const src = rankArtSrc(name);
-    const lighting = finish === 'silver' ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
+    const shine = finish === 'silver' ? shineHTML('card', name) : '';
+    const lighting = shine && !shineIsReady(`card:${name}`) ? achRankSurfaceLighting() : finish === 'gold' ? achRankSurfaceLighting(false, true) : null;
     const pearl = finish === 'pearl';
     const style = `--rank-ar:${(w / h).toFixed(4)};--rank-emblem:url('${src}');${lighting?.style || ''}`;
     const inner = (lighting?.html || '') +
         `<img class="bbgl-rank-emblem" src="${src}" width="${w}" height="${h}" alt="" decoding="async" draggable="false">` +
+        shine +
         (pearl ? achPlatinumLampLightHTML() : '') +
         (finish === 'machined' ? '<span class="bbgl-rank-bulb-light"></span>' : '') +
-        (finish === 'polished' ? (ensureBronzeMatte(name), `<span class="bbgl-rank-bronze-sheen" data-bronze-art="${name}"></span>`) : '') +
+        rankLightHTML(finish, name) +
         (pearl ? achPlatinumLampsHTML() : '');
+    const host = shine ? ` data-shine-host="card:${name}"` : '';
     return `<div class="${cls}" style="${style}" data-tooltip="${achEsc(tip)}">${pearl ? achPlatinumBeamsHTML() : ''}` +
-        `<span class="bbgl-rank-notch-label" role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
+        `<span class="bbgl-rank-notch-label"${host} role="img" aria-label="${achEsc(label)}">${inner}</span></div>`;
 }
 
 // Shared rank tooltip for the identity-card plaque, the rank scale labels, the capstone and the
@@ -18756,12 +19037,15 @@ function achTitleLabelsHTML(atrophy, level) {
         ].filter(Boolean).join(' ');
         const tip = achRankTipHTML(b.label, b.start, b.end, b.unlocked);
         const art = rankArtName(atrophy, i);
-        if (b.unlocked && i === 2) ensureBronzeMatte(art + '-text');
-        const inner = b.unlocked ? achRankNameArtHTML(art, i === 2 ? `<span class="bbgl-rank-name-sheen" data-bronze-art="${art}-text"></span>` : '') : ICONS.LOCK;
+        const textArt = art + '-text';
+        const shine = b.unlocked && i === 3 ? shineHTML('text', textArt) : '';
+        const light = b.unlocked && i === 2 ? rankLightHTML('polished', textArt) : shine;
+        const inner = b.unlocked ? achRankNameArtHTML(art, light) : ICONS.LOCK;
         // No inline left any more: the slot's own position on the grid IS the milestone coordinate,
         // so a hardcoded percentage here would be a second, silently divergent source for it.
-        const lighting = b.unlocked && (i === 3 || i === 4) ? achRankSurfaceLighting(true, i === 4) : null;
-        const label = b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '';
+        const lighting = shine && !shineIsReady(`text:${textArt}`) ? achRankSurfaceLighting(true)
+            : b.unlocked && i === 4 ? achRankSurfaceLighting(true, true) : null;
+        const label = (b.unlocked ? ` role="img" aria-label="${achEsc(b.label)}"` : '') + (shine ? ` data-shine-host="text:${textArt}"` : '');
         return `<div class="bbgl-rank-title-slot"><div class="${cls}"${lighting ? ` style="${lighting.style}"` : ''} data-tooltip="${achEsc(tip)}">${lighting?.html || ''}<span class="bbgl-rank-title-text"${label}>${inner}</span></div></div>`;
     }).join('');
     const capTip = achRankTipHTML('Fully Bricked', LEVEL_CAP, LEVEL_CAP, bricked);
