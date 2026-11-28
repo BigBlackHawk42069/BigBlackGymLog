@@ -24,3 +24,8 @@
 
 # Images
 !/Assets/
+# Local only: working files, and the full-size masters (only web/ is served). jsDelivr refuses
+# to serve any commit whose tree is over 50 MB, and the masters alone were ~67 MB.
+/Assets/WorkingAssets-temp/
+/Assets/Achievements/*
+!/Assets/Achievements/web/
