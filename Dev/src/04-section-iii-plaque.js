@@ -189,6 +189,12 @@
     --rank-scale: 1.08;
 }
 
+/* R4-R6 are limited by height: the box is 96% of the plate row, so 1.04 fills the row, which their
+   shape still fits across. */
+:is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque:is(.finish-silver, .finish-gold, .finish-pearl) {
+    --rank-scale: 1.04;
+}
+
 :is(#bbgl-panel, .bbgl-level-title-tooltip) .bbgl-title-card-rank-plaque .bbgl-rank-emblem {
     position: absolute;
     inset: 0;
